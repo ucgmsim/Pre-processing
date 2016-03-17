@@ -1,0 +1,7 @@
+*.out
+*.*~
+*.pyc
+OUTs
+VEL
+HobyObs
+HobyVel

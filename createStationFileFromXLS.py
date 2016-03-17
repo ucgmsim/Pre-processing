@@ -4,18 +4,14 @@ createStationFileFromXLS.py
 
 Created on Thu Mar 17 10:12:03 2016
 
-Script to open the GeoNetStations.xls spreadsheet and choose the stations by row number and
-save to a stations file .ll
-
-Choosing the network codes doesn't work as some are part of national networks.
-Have to do based on latitude and longitude instead
+Script to open the GeoNetStations.xls spreadsheet and choose the stations by latitude and longitude to a stations file .ll
 
 .ll file Tested on the Python Post-processing and gave the same output.
 Not tested on the Emod3D code.
 
 Issues:
 1)I have the xlrd module on my local machine but not on Beatrice
-2)Assumes a square area of lat,lon at the moment
+2)Assumes a square area from lat,lon at the moment
 
 @author: rmc84
 """
@@ -37,11 +33,11 @@ xl_workbook = xlrd.open_workbook(xlsName)
 sheet_names = xl_workbook.sheet_names()
 xl_sheet = xl_workbook.sheet_by_index(0)
 num_cols = xl_sheet.ncols   # Number of columns
-num_rows = xl_sheet.nrows   # Number of columns
+num_rows = xl_sheet.nrows   # Number of rows
 
 #2) Define the rows and columns that we want to save to the stations file
 row = xl_sheet.row(0)  # 1st row
-#loop over first row to find 
+#loop over first row to find the wanted columns
 for idx, cell_obj in enumerate(row):
     for idx2 in range(len(wanted)):
         if cell_obj.value==wanted[idx2]:
@@ -76,7 +72,7 @@ for i in np.arange(num_rows):
                 lons.append(cell_obj.value)
 """
 
-#loop over to see if the lat and lon line inside the box
+#loop over to see if the lat and lon lie inside the box
 for i in np.arange(num_rows):
     row = xl_sheet.row(i)
     #loop over the row elements
@@ -92,8 +88,8 @@ for i in np.arange(num_rows):
 for i in np.arange(len(chosen)):
     row = xl_sheet.row(chosen[i])
     #loop over the row elements
-    for idx, cell_obj in enumerate(row):        
-        if idx==wanted_index[0]:            
+    for idx, cell_obj in enumerate(row):
+       if idx==wanted_index[0]:            
             codes.append(cell_obj.value)
         if idx==wanted_index[1]:
             lats.append(cell_obj.value)
