@@ -29,7 +29,9 @@ outputFilename=xlsName.split('.')[0]+'.ll'
 
 'southislandstations_v1.ll'#'mycantstations.ll'
 
-wanted=['Site code', 'Site class', 'Site Lat','Site Lon','Vs30measured','Vs30 (m/s)','Z1.0 (m)','Dept to Top Of Fault Rupture Model','Rjb (km)', 'Rrup (km)']
+IMwanted='PGA(g)'
+
+wanted=['Site code', 'Site class', 'Site Lat','Site Lon','Vs30measured','Vs30 (m/s)','Z1.0 (m)','Dept to Top Of Fault Rupture Model','Rjb (km)', 'Rrup (km)',IMwanted]
 wanted_index=[]
 
 wanted_lat=[-46.7,-40.4]    #min and max respectively
@@ -70,7 +72,7 @@ for i in np.arange(len(all_data)):
     line=''#initialize empty string
     for j in np.arange(len(all_data[0])):
         if type(all_data[i][j]) is float:
-            line=line+ '%.4f ' %all_data[i][j]
+            line=line+ '%.6f ' %all_data[i][j]
         else:   #assume it's a string
             line=line+all_data[i][j]+' '
     line=line+'\n'            
