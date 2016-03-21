@@ -29,7 +29,7 @@ outputFilename=xlsName.split('.')[0]+'.ll'
 
 'southislandstations_v1.ll'#'mycantstations.ll'
 
-wanted=['Site code', 'Site class', 'Site Lat','Site Lon','Vs30measured','Vs30 (m/s)','Z1.0 (m)','Rjb (km)', 'Rrup (km)']
+wanted=['Site code', 'Site class', 'Site Lat','Site Lon','Vs30measured','Vs30 (m/s)','Z1.0 (m)','Dept to Top Of Fault Rupture Model','Rjb (km)', 'Rrup (km)']
 wanted_index=[]
 
 wanted_lat=[-46.7,-40.4]    #min and max respectively
