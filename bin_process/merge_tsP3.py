@@ -68,7 +68,7 @@ except IOError:
     raise
 
 # execute binary, pipe output to log
-call([BPATH + '/merge_tsP3', 'filelist=' + FILELIST, 'outfile=' + TSFILE, 'nfiles=' + nf], stdout = log_handle)
+call([BPATH + '/merge_tsP3', 'filelist=' + FILELIST, 'outfile=' + TSFILE, 'nfiles=' + str(nf)], stdout = log_handle)
 
 log_handle.close()
 
