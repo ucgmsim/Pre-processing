@@ -31,12 +31,10 @@ NZ = '460'
 NT = '20000'
 DT = '0.005'
 
-USER = 'seb56'
-
 RUN_NAME = '2011Feb22_m6pt2bev01_Cantv1.64'
-RUN_DIR_ROOT = os.path.expanduser('~'+USER) + '/RunFolder'
-SRF_DIR_ROOT = os.path.expanduser('~'+USER) + '/RupModel'
-MOD_DIR_ROOT = os.path.expanduser('~'+USER)
+RUN_DIR_ROOT = os.path.expanduser('~rmc84') + '/RunFolder'
+SRF_DIR_ROOT = os.path.expanduser('~rmc84') + '/RupModel'
+MOD_DIR_ROOT = os.path.expanduser('~rmc84')
 
 # XXX: was 3.04 while version elsewhere was 3.0.4, changing this changed a folder
 #        while changing version changes parameters
