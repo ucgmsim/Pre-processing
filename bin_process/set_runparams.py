@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import fileinput
 import os
 import sys
-from __future__ import print_function
 from shutil import copyfile
 
 def change_var(filename, variable, value):
     for line in fileinput.input(filename, inplace = True):
         if line.startswith(variable + ' = '):
-            line = variable + ' = ' + value + '\n'
+            line = variable + ' = \'' + value + '\'\n'
         # don't include extra '\n'
         sys.stdout.write(line)
 
@@ -71,7 +71,7 @@ DMOD = 'rho3dfile.d'
 
 SEISDIR = 'SeismoBin'
 VMODDIR = VMODDIR_ROOT + '/v1.64'
-TMP_SEISDIR = '/hpc/scratch/' + os.genenv('USER') + '/' + SIMDIR_ROOT + '/' + SEISDIR
+TMP_SEISDIR = '/hpc/scratch/' + os.getenv('USER') + '/' + SIMDIR_ROOT + '/' + SEISDIR
 
 try:
     copyfile(DEFAULT_PARFILE, PARFILE)
@@ -144,7 +144,7 @@ par_handle.write('restartname=' + RUN_NAME)
 par_handle.close()
 
 ############# updating variables in other files #############
-change_var('winbin-aio.csh', 'RUN', RUN_NAME)
+change_var('winbin-aio.py', 'RUN', RUN_NAME)
 change_var('merge_tsP3.py', 'FILEROOT', RUN_NAME)
 change_var('gen_ts_default.py', 'FILEROOT', RUN_NAME)
 change_var('plot_ts_bluefern.py', 'NAME', RUN_NAME)

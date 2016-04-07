@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import os
 import sys
 from subprocess import call
 from time import strftime
-from __future__ import print_function
 
 # python time format string, imitate `date` command
 time_format = '%a %b %d %H:%M:%S %Z %Y'
