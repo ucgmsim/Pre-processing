@@ -6,6 +6,7 @@ import os
 import sys
 from shutil import copyfile
 
+# note this only works with setting strings (value will be surrounded by '')
 def change_var(filename, variable, value):
     for line in fileinput.input(filename, inplace = True):
         if line.startswith(variable + ' = '):
@@ -82,67 +83,69 @@ except IOError:
     raise
 
 try:
+    # default parfile is appended to
     par_handle = open(PARFILE, 'a')
 except IOError:
     print('PARFILE cannot be opened to append data' + __file__, file = sys.stderr)
     raise
 
-par_handle.write('version=' + VERSION + '-mpi')
-par_handle.write('name=' + RUN_NAME)
-par_handle.write('nx=' + NX)
-par_handle.write('ny=' + NY)
-par_handle.write('nz=' + NZ)
-par_handle.write('h=' + HH)
-par_handle.write('nt=' + NT)
-par_handle.write('dt=' + DT)
-
-par_handle.write('bfilt=4')
-par_handle.write('flo=' + FLO)
-par_handle.write('fhi=0.0')
-par_handle.write('bforce=0')
-par_handle.write('pointmt=0')
-par_handle.write('dblcpl=0')
-par_handle.write('ffault=2')
-par_handle.write('faultfile=' + SRF_FILE)
-
-par_handle.write('model_style=1')
+configs = ['version=' + VERSION + '-mpi', \
+'name=' + RUN_NAME, \
+'nx=' + NX, \
+'ny=' + NY, \
+'nz=' + NZ, \
+'h=' + HH, \
+'nt=' + NT, \
+'dt=' + DT, \
+ \
+'bfilt=4', \
+'flo=' + FLO, \
+'fhi=0.0', \
+'bforce=0', \
+'pointmt=0', \
+'dblcpl=0', \
+'ffault=2', \
+'faultfile=' + SRF_FILE, \
+ \
+'model_style=1', \
 # only for the 1D velocity model
-#par_handle.write('model=' + FD_VMODFILE)
-par_handle.write('vmoddir=' + VMODDIR)
-par_handle.write('pmodfile=' + PMOD)
-par_handle.write('smodfile=' + SMOD)
-par_handle.write('dmodfile=' + DMOD)
-par_handle.write('qpfrac=100')
-par_handle.write('qsfrac=50')
-par_handle.write('qpqs_factor=2.0')
-par_handle.write('fmax=25.0')
-par_handle.write('fmin=0.01')
-par_handle.write('vmodel_swapb=1')
+#'model=' + FD_VMODFILE, \
+'vmoddir=' + VMODDIR, \
+'pmodfile=' + PMOD, \
+'smodfile=' + SMOD, \
+'dmodfile=' + DMOD, \
+'qpfrac=100', \
+'qsfrac=50', \
+'qpqs_factor=2.0', \
+'fmax=25.0', \
+'fmin=0.01', \
+'vmodel_swapb=1', \
+ \
+'modellon=' + MODEL_LON, \
+'modellat=' + MODEL_LAT, \
+'modelrot=' + MODEL_ROT, \
+ \
+'enable_output_dump=1', \
+'dump_itinc=' + DUMP_ITINC, \
+'main_dump_dir=' + MAIN_OUTPDIR, \
+'nseis=1', \
+'seiscords=' + STATCORDS, \
+'seisdir=' + TMP_SEISDIR, \
+ \
+'ts_xy=1', \
+'iz_ts=1', \
+'dtts=' + DT_TS, \
+'dxts=' + DX_TS, \
+'dyts=' + DY_TS, \
+'dzts=' + DZ_TS, \
+ \
+'enable_restart=' + ENABLE_RESTART, \
+'restartdir=' + MAIN_RESTARTDIR, \
+'restart_itinc=' + RESTART_ITINC, \
+'read_restart=' + READ_RESTART, \
+'restartname=' + RUN_NAME]
 
-par_handle.write('modellon=' + MODEL_LON)
-par_handle.write('modellat=' + MODEL_LAT)
-par_handle.write('modelrot=' + MODEL_ROT)
-
-par_handle.write('enable_output_dump=1')
-par_handle.write('dump_itinc=' + DUMP_ITINC)
-par_handle.write('main_dump_dir=' + MAIN_OUTPDIR)
-par_handle.write('nseis=1')
-par_handle.write('seiscords=' + STATCORDS)
-par_handle.write('seisdir=' + TMP_SEISDIR)
-
-par_handle.write('ts_xy=1')
-par_handle.write('iz_ts=1')
-par_handle.write('dtts=' + DT_TS)
-par_handle.write('dxts=' + DX_TS)
-par_handle.write('dyts=' + DY_TS)
-par_handle.write('dzts=' + DZ_TS)
-
-par_handle.write('enable_restart=' + ENABLE_RESTART)
-par_handle.write('restartdir=' + MAIN_RESTARTDIR)
-par_handle.write('restart_itinc=' + RESTART_ITINC)
-par_handle.write('read_restart=' + READ_RESTART)
-par_handle.write('restartname=' + RUN_NAME)
-
+par_handle.write('\n'.join(configs) + '\n')
 par_handle.close()
 
 ############# updating variables in other files #############
