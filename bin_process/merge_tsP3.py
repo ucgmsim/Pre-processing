@@ -6,6 +6,8 @@ import sys
 from subprocess import call
 from time import strftime
 
+from shared import par_value
+
 # python time format string, imitate `date` command
 time_format = '%a %b %d %H:%M:%S %Z %Y'
 
@@ -20,8 +22,8 @@ BPATH = os.path.expanduser('~rwg43') + '/Bin'
 # NPROC should be the total number of CPUs used for the 3D FD run
 #
 
-FILEROOT = '2011Feb22_m6pt2bev01_Cantv1.64'
-SIMDIR = 'OutBin'
+FILEROOT = par_value('name')
+SIMDIR = os.path.basename(par_value('main_dump_dir'))
 TSFILE = SIMDIR + '/' + FILEROOT + '_xyts.e3d'
 
 NPROC = 2048
@@ -59,19 +61,19 @@ while n < NPROC:
 
 list_handle.close()
 
-
-# open log file to append standard output from subprocess
+# open log file to write standard output from subprocess
 try:
-    log_handle = open(OUTLOG, 'a')
+    log_handle = open(OUTLOG, 'w')
 except IOError:
-    print('OUTLOG cannot be opened to append data! ' + __file__, file = sys.stderr)
+    print('OUTLOG cannot be opened to write stderr! ' + __file__, file = sys.stderr)
     raise
 
 # execute binary, pipe output to log
-call([BPATH + '/merge_tsP3', 'filelist=' + FILELIST, 'outfile=' + TSFILE, 'nfiles=' + str(nf)], stderr = log_handle)
+code = call([BPATH + '/merge_tsP3', 'filelist=' + FILELIST, 'outfile=' + TSFILE, 'nfiles=' + str(nf)], stderr = log_handle)
 
 log_handle.close()
 
-
+if code != 0:
+    print('MERGE FAILED')
 print(__file__ + ' completed on ' + strftime(time_format))
 
