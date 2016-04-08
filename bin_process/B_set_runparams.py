@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 from __future__ import print_function
 import fileinput
-import os
 import sys
 from shutil import copyfile
+
+from A_edit_runparams import *
 
 # note this only works with setting strings (value will be surrounded by '')
 def change_var(filename, variable, value):
@@ -14,77 +15,17 @@ def change_var(filename, variable, value):
         # don't include extra '\n'
         sys.stdout.write(line)
 
-# parameters are written to files, need to be strings
-VERSION = '3.0.4'
-
-NPROC_X = 16
-NPROC_Y = 16
-NPROC_Z = 8
-# where is this used? needs to be a string?
-NPROC = NPROC_X * NPROC_Y * NPROC_Z
-
-FLO = '1.0'
-HH = '0.100'
-NX = '1400'
-NY = '1200'
-NZ = '460'
-NT = '20000'
-DT = '0.005'
-
-RUN_NAME = '2011Feb22_m6pt2bev01_Cantv1.64'
-RUN_DIR_ROOT = os.path.expanduser('~rmc84') + '/RunFolder'
-SRF_DIR_ROOT = os.path.expanduser('~rmc84') + '/RupModel'
-MOD_DIR_ROOT = os.path.expanduser('~rmc84')
-
-# XXX: was 3.04 while version elsewhere was 3.0.4, changing this changed a folder
-#        while changing version changes parameters
-SIMDIR_ROOT = RUN_DIR_ROOT + '/LPSim-2011Feb22b560_v1_Cantv1_64-h0.100_v3.04'
-MAIN_OUTPDIR = SIMDIR_ROOT + '/OutBin'
-VMODDIR_ROOT = '/hpc/home/emt41/CanterburyVelocityModel'
-SRF_FILE = SRF_DIR_ROOT + '/Srf/m6.20-16.0x9.0_s560.srf' #rmc
-STATCORDS = MOD_DIR_ROOT + '/StationInfo/fd_nz01-h0.100.statcords'
-
-DEFAULT_PARFILE = 'e3d_default.par'
-PARFILE = 'e3d.par'
-
-MODEL_LAT = '-43.6000'
-MODEL_LON = '172.3000'
-MODEL_ROT = '-10.0'
-
-DUMP_ITINC = '4000'
-
-DT_TS = '20'
-DX_TS = '5'
-DY_TS = '5'
-DZ_TS = '1'
-
-ENABLE_RESTART = '0'
-READ_RESTART = '0'
-MAIN_RESTARTDIR = SIMDIR_ROOT + '/Restart'
-RESTART_ITINC = '20000'
-
-#FD_VMODFILE = 'Cant1D_v1.fd_modfile'     #This line was for a 1D Vp,Vs,rho model
-# set names of P,S,D files
-PMOD = 'vp3dfile.p'
-SMOD = 'vs3dfile.s'
-DMOD = 'rho3dfile.d'
-
-
-SEISDIR = 'SeismoBin'
-VMODDIR = VMODDIR_ROOT + '/v1.64'
-TMP_SEISDIR = '/hpc/scratch/' + os.getenv('USER') + '/' + SIMDIR_ROOT + '/' + SEISDIR
-
 try:
     copyfile(DEFAULT_PARFILE, PARFILE)
 except IOError:
-    print('Cannot copy DEFAULT_PARFILE to PARFILE! ' + __file__, file = sys.stderr)
+    print('Cannot copy DEFAULT_PARFILE to PARFILE! in ' + __file__, file = sys.stderr)
     raise
 
 try:
     # default parfile is appended to
     par_handle = open(PARFILE, 'a')
 except IOError:
-    print('PARFILE cannot be opened to append data' + __file__, file = sys.stderr)
+    print('PARFILE cannot be opened to append data in ' + __file__, file = sys.stderr)
     raise
 
 configs = ['version=' + VERSION + '-mpi', \
