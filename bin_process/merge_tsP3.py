@@ -53,7 +53,7 @@ except IOError:
 while n < NPROC:
     file = SIMDIR + '/' + FILEROOT + '_xyts-' + str(n).zfill(5) + '.e3d'
     if os.path.exists(file):
-        list_handle.write(file)
+        list_handle.write(file + '\n')
         nf += 1
     n += 1
 
@@ -68,7 +68,7 @@ except IOError:
     raise
 
 # execute binary, pipe output to log
-call([BPATH + '/merge_tsP3', 'filelist=' + FILELIST, 'outfile=' + TSFILE, 'nfiles=' + str(nf)], stdout = log_handle)
+call([BPATH + '/merge_tsP3', 'filelist=' + FILELIST, 'outfile=' + TSFILE, 'nfiles=' + str(nf)], stderr = log_handle)
 
 log_handle.close()
 
