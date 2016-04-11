@@ -6,7 +6,6 @@ import sys
 from shutil import copyfile
 from params import *
 
-
 try:
     copyfile(DEFAULT_PARFILE, PARFILE)
 except IOError:
