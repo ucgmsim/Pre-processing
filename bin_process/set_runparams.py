@@ -22,6 +22,7 @@ except IOError:
 
 configs = ['version=' + VERSION + '-mpi', \
 'name=' + RUN_NAME, \
+'nproc=' + NPROC, \
 'nx=' + NX, \
 'ny=' + NY, \
 'nz=' + NZ, \

@@ -1,4 +1,11 @@
 import os.path
+if __name__ == '__main__':
+    # in case someone has passed this file as a parameter to python
+    print('\nDo not run ' + __file__ + \
+            '\nOnly edit variables in ' + __file__ + ' and then run the set param script.\n')
+    exit()
+
+
 # parameters are written to files, need to be strings
 
 ######## Global CONSTANTS ########
@@ -7,7 +14,7 @@ RUN_NAME = '2011Feb22_m6pt2bev01_Cantv1.64'
 VERSION = '3.0.4'
 EXTENDED_RUN_NAME = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
 
-
+# keep as int, processed before writing to file
 NPROC_X = 16
 NPROC_Y = 16
 NPROC_Z = 8
@@ -15,9 +22,11 @@ NPROC_Z = 8
 
 FLO = '1.0'
 HH = '0.100'
+# x, y, z distance (km)
 NX = '1400'
 NY = '1200'
 NZ = '460'
+# number of timesteps n, time step Dt
 NT = '20000'
 DT = '0.005'
 
@@ -51,11 +60,9 @@ RESTART_ITINC = '20000'
 
 ######## Variables derived from Global CONSTANTS ##########
 
-# where is this used? needs to be a string?
-NPROC = NPROC_X * NPROC_Y * NPROC_Z
+NPROC = str(NPROC_X * NPROC_Y * NPROC_Z)
 
-
-ROOT = '/hpc/scratch/nesi00213'
+ROOT = os.path.expanduser('~')
 RUN_DIR_ROOT = ROOT + '/RunFolder'
 SRF_DIR_ROOT = ROOT + '/RupModel'
 STAT_DIR = ROOT + '/StationInfo'
