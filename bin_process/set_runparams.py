@@ -4,16 +4,8 @@ from __future__ import print_function
 import fileinput
 import sys
 from shutil import copyfile
+from params import *
 
-from A_edit_runparams import *
-
-# note this only works with setting strings (value will be surrounded by '')
-def change_var(filename, variable, value):
-    for line in fileinput.input(filename, inplace = True):
-        if line.startswith(variable + ' = '):
-            line = variable + ' = \'' + value + '\'\n'
-        # don't include extra '\n'
-        sys.stdout.write(line)
 
 try:
     copyfile(DEFAULT_PARFILE, PARFILE)
@@ -87,9 +79,4 @@ configs = ['version=' + VERSION + '-mpi', \
 par_handle.write('\n'.join(configs) + '\n')
 par_handle.close()
 
-############# updating variables in other files #############
-change_var('winbin-aio.py', 'RUN', RUN_NAME)
-change_var('merge_tsP3.py', 'FILEROOT', RUN_NAME)
-change_var('gen_ts_default.py', 'FILEROOT', RUN_NAME)
-change_var('plot_ts_bluefern.py', 'NAME', RUN_NAME)
 

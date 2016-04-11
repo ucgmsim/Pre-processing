@@ -22,7 +22,7 @@ BPATH = os.path.expanduser('~rwg43') + '/Bin'
 # NPROC should be the total number of CPUs used for the 3D FD run
 #
 
-FILEROOT = par_value('name')
+FILEROOT = '2011Feb22_m6pt2bev01_Cantv1.64'
 SIMDIR = os.path.basename(par_value('main_dump_dir'))
 TSFILE = SIMDIR + '/' + FILEROOT + '_xyts.e3d'
 

@@ -98,13 +98,13 @@ while tsfcnt < TS_TOTAL:
 
     if option == 1:
         # use 'ts2xyz.exe to get TSlice outout in xyz format
-        call([os.path.join(TSBIN, 'ts2xyz'), 'infile=' + TSFILE, 'outfile=outf', \ 
+        call([os.path.join(WCC_PROGDIR, 'ts2xyz'), 'infile=' + TSFILE, 'outfile=outf', \ 
                 'swap_bytes=' + SWAP_BYTES, 'gridfile=' + GRIDFILE, 'xyts=1', 'scale=' + SCALE, \
                 'ts=' + tsspot, 'trv=0', 'dxts=' + DXTS, 'dyts=' + DYTS, 'dzts=1', 'absmax=1' \
                 'read_header=1','outbin=1', 'lonlat=' + LONLAT_OUT, 'geoproj=1'])
 
     elif option == 2:
-        TSFILEPREFIX = os.path.join(TSFILEDIR, NAME)
+        TSFILEPREFIX = os.path.join(TS_OUTFILE_DIR, NAME)
         outf = TSFILEPREFIX + '_ts' + str(tsfcnt).zfill(4) + '\n'
 
     # currently components are not looped over, as using ABSMAX=1

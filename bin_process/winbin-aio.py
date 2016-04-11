@@ -1,36 +1,19 @@
 #!/usr/bin/env python
 
 import os
-from shutil import move
+#from shutil import move
+import shutil
 from subprocess import call
+from glob import glob
 
-# -------- START OF USER DEFINED INPUT -------------
+from params import *
 
-# Define location of EXE files
-EXE_PATH = os.path.expanduser('~rwg43') + '/Bin'
-
-# Define location of FD output files to use
-SEISDIR = 'OutBin'
-
-# Define folder to write velocity seismograms to
-VELDIR = 'Vel'
-OUTDIR = VELDIR
-RUN = '2011Feb22_m6pt2bev01_Cantv1.64'
-
-if not os.path.exists(OUTDIR):
-    os.makedirs(OUTDIR)
-if not os.path.isdir(OUTDIR):
+if not os.path.exists(VELDIR):
+    os.makedirs(VELDIR)
+if not os.path.isdir(VELDIR):
     raise IOError('Output directory is not a directory!')
 
-FILELIST = 'fdb.filelist'
 
-# Define 'start' time for time-axis (to ensure causality in filering) and scale (typ 1.0)
-TSTRT = '-1.0'
-SCALE = '1.0'
-
-# Define the directory with the station information, and components
-STAT_DIR = os.path.expanduser('~bab70') + '/StationInfo'
-FD_STATLIST = STAT_DIR + '/fd_nz01-h0.100.ll'
 #sample line from fd statlist: (warning, last line has no '\n')
 #  171.74765   -43.90236 ADCS
 # create list of values to iterate over
@@ -43,6 +26,7 @@ for line in stat_handle:
     LONS.append(lon_lat_stat[0])
     LATS.append(lon_lat_stat[1])
     STATS.append(lon_lat_stat[2])
+
 COMPS = ['080', '170', 'ver']
 
 # -------- END OF USER DEFINED INPUT -------------
@@ -57,8 +41,13 @@ IX = ['0', '1', '2']
 FLIP = ['1', '1', '-1']
 
 list_handle = open(FILELIST, 'w')
-list_handle.write('\n'.join([os.path.basename(file_path) for file_path in
-        glob(SEISDIR + '/' + RUN + '_seis*.e3d')]))
+
+filepattern= MAIN_OUTPDIR + '/'+EXTENDED_RUN_NAME+ '_seis*.e3d'
+#print filepattern
+list_of_files = '\n'.join([file_path for file_path in glob(filepattern)])
+#print listoffiles
+list_handle.write(list_of_files)
+
 list_handle.close()
 
 for s_index, stat in enumerate(STATS):
@@ -68,23 +57,25 @@ for s_index, stat in enumerate(STATS):
 
     print(LONS[s_index] + ' ' + LATS[s_index] + ' ' + stat)
 
+    statfile = VELDIR + '/' + stat
+
     for c_index, comp in enumerate(COMPS):
-        call([EXE_PATH + '/fdbin2wcc', 'all_in_one=1', 'filelist=' + FILELIST,
+        cmd = [WCC_PROGDIR + '/fdbin2wcc', 'all_in_one=1', 'filelist=' + FILELIST,
                 'ix=' + IX[c_index], 'scale=' + SCALE, 'flip=' + FLIP[c_index], 'tst=' + TSTRT,
-                'stat=' + stat, 'comp=' + comp, 'outfile=' + stat + '.' + comp,
-                'nseis_comps=9', 'swap_bytes=0', 'tst2zero=0', 'outbin=0'])
+                'stat=' + stat, 'comp=' + comp, 'outfile=' + statfile + '.' + comp,
+                'nseis_comps=9', 'swap_bytes=0', 'tst2zero=0', 'outbin=0'] 
+        print ' '.join(cmd)
+        call(cmd)
 
-    call([EXE_PATH + '/wcc_rotate', 'filein1=' + stat + '.' + COMPS[0], 'inbin1=0',
-            'filein2=' + stat + '.' + COMPS[[1], 'inbin2=0',
-            'fileout1=' + stat + '.000', 'outbin1=0',
-            'fileout2=' + stat + '.090', 'outbin2=0',
-            'rot=0.0'])
+    cmd = [WCC_PROGDIR + '/wcc_rotate','filein1=' + statfile + '.' + COMPS[0],'inbin1=0', 'filein2=' +  statfile + '.' + COMPS[1],'inbin2=0','fileout1=' + statfile + '.000', 'outbin1=0','fileout2=' + statfile+'.090','outbin2=0', 'rot=0.0']
+    print ' '.join(cmd)
+    call(cmd)
 
-    # shutil.move much simpler than os.rename
-    move(stat + '.000', OUTDIR)
-    move(stat + '.090', OUTDIR)
-    move(stat + '.ver', OUTDIR)
+    
+    os.remove('%s.%s'%(statfile,COMPS[0]))
+    os.remove('%s.%s'%(statfile,COMPS[1]))
 
-    os.remove(stat + '.' + COMPS[0])
-    os.remove(stat + '.' + COMPS[1])
+
+    
+    
 
