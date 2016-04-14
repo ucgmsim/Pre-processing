@@ -10,6 +10,7 @@ from params import *
 
 if not os.path.exists(VELDIR):
     os.makedirs(VELDIR)
+
 if not os.path.isdir(VELDIR):
     raise IOError('Output directory is not a directory!')
 
@@ -21,11 +22,16 @@ stat_handle = open(FD_STATLIST, 'r')
 LONS = []
 LATS = []
 STATS = []
-for line in stat_handle:
+
+lines = stat_handle.readlines()
+#print lines
+
+for line in lines:
     lon_lat_stat = filter(None, line.rstrip('\n').split(' '))
-    LONS.append(lon_lat_stat[0])
-    LATS.append(lon_lat_stat[1])
-    STATS.append(lon_lat_stat[2])
+    if len(lon_lat_stat)==3:
+        LONS.append(lon_lat_stat[0])
+        LATS.append(lon_lat_stat[1])
+        STATS.append(lon_lat_stat[2])
 
 COMPS = ['080', '170', 'ver']
 
@@ -42,12 +48,11 @@ FLIP = ['1', '1', '-1']
 
 list_handle = open(FILELIST, 'w')
 
-filepattern= MAIN_OUTPDIR + '/'+EXTENDED_RUN_NAME+ '_seis*.e3d'
-#print filepattern
-list_of_files = '\n'.join([file_path for file_path in glob(filepattern)])
-#print listoffiles
+filepattern= MAIN_OUTPDIR + '/'+ OUTPUTPREFIX+ '_seis*.e3d'
+print filepattern
+list_of_files = '\n'.join([file_path for file_path in glob(filepattern)])+'\n'
+print list_of_files
 list_handle.write(list_of_files)
-
 list_handle.close()
 
 for s_index, stat in enumerate(STATS):
@@ -71,9 +76,13 @@ for s_index, stat in enumerate(STATS):
     print ' '.join(cmd)
     call(cmd)
 
-    
-    os.remove('%s.%s'%(statfile,COMPS[0]))
-    os.remove('%s.%s'%(statfile,COMPS[1]))
+   
+    for i in range(2): 
+        try:
+            os.remove('%s.%s'%(statfile,COMPS[i]))
+        except OSError:
+            pass
+ 
 
 
     
