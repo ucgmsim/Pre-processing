@@ -36,9 +36,9 @@ export MEMORY_AFFINITY=MCM
 # Launch parallel job
 module load openmpi/1.10_adv
 module load gcc/adv70
-ls OutBin/*xyts-?????.e3d -X >tmp.filelist
-export NFILES=`cat tmp.filelist |wc -l`
-export OUTFILE=`head -1 tmp.filelist  |sed -e 's/-[0-9]*.e3d/.e3d/g'`
+ls -X OutBin/*xyts-?????.e3d >tmp.filelist
+export NFILES=`cat tmp.filelist |wc -l|sed -e 's/ //g'`
+export OUTFILE=`head -1 tmp.filelist  |sed -e 's/-[0-9]*.e3d/.e3d/g'`_beatrice
 echo $NFILES $OUTFILE
-mpirun /hpc/scratch/nesi00213/EMOD3D/merge_ts/merge_tsP3_par filelist=tmp.filelist outfile=$OUTFILE nfiles=$NFILES
+mpirun /hpc/scratch/nesi00213/EMOD3D/merge_ts/bin/ppc64-Linux-p2n14-c-gcc/merge_tsP3_par filelist=tmp.filelist outfile=$OUTFILE nfiles=$NFILES
 
