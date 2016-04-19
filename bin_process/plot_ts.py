@@ -5,7 +5,8 @@ import sys
 from glob import glob
 from shutil import copyfile
 from subprocess import call, Popen, PIPE
-
+import os.path
+sys.path.append(os.path.abspath(os.path.curdir))
 
 # make temp file with the model coord boundaries
 mp_tmp = 'tmp.modelpath'

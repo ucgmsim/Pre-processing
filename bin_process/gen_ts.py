@@ -2,7 +2,9 @@
 
 import os
 from subprocess import call
-
+import sys
+import os.path
+sys.path.append(os.path.abspath(os.path.curdir))
 from params import *
 
 

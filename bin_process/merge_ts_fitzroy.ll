@@ -24,8 +24,8 @@
 home=/gpfs_external/filesets/nesi/home/pletzera
 exe=/nesi/projects/nesi00213/EMOD3D/merge_ts/merge_tsP3_par
 
-ls -1 OutBin/*xyts-?????.e3d >tmp.filelist
-export NFILES=`cat tmp.filelist |wc -l`
+ls -X OutBin/*xyts-?????.e3d >tmp.filelist
+export NFILES=`cat tmp.filelist |wc -l|sed -e 's/ //g'`
 export OUTFILE=`head -1 tmp.filelist  |sed -e 's/-[0-9]*.e3d/.e3d/g'`
 
 echo "NFILES=$NFILES OUTFILE=$OUTFILE"

@@ -3,6 +3,8 @@
 from __future__ import print_function
 import fileinput
 import sys
+import os.path
+sys.path.append(os.path.abspath(os.path.curdir))
 from shutil import copyfile
 from params import *
 

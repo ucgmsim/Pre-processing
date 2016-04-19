@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
 import os
+import os.path
+import sys
+sys.path.append(os.path.abspath(os.path.curdir))
+
 #from shutil import move
 import shutil
 from subprocess import call
