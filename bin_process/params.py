@@ -10,25 +10,26 @@ if __name__ == '__main__':
 
 ######## Global CONSTANTS ########
 
-RUN_NAME = '2011Feb22_m6pt2bev01_Cantv1.64'
-VERSION = '3.0.4'
-EXTENDED_RUN_NAME = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
+run_name = '2011Feb22_m6pt2bev01_Cantv1.64'
+version = '3.0.4'
+extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
 
 # keep as int, processed before writing to file
-NPROC_X = 16
-NPROC_Y = 16
-NPROC_Z = 8
+n_proc_x = 16
+n_proc_y = 16
+n_proc_z = 8
 
 
-FLO = '1.0'
-HH = '0.100'
+flo = '1.0'
+# spacial grid spacing (km)
+hh = '0.100'
 # x, y, z distance (km)
-NX = '1400'
-NY = '1200'
-NZ = '460'
+nx = '1400'
+ny = '1200'
+nz = '460'
 # number of timesteps n, time step Dt
-NT = '20000'
-DT = '0.005'
+nt = '20000'
+dt = '0.005'
 
 MODEL_LAT = '-43.6000'
 MODEL_LON = '172.3000'
@@ -36,14 +37,29 @@ MODEL_ROT = '-10.0'
 
 DUMP_ITINC = '4000'
 
-DT_TS = '20'
-DX_TS = '5'
-DY_TS = '5'
-DZ_TS = '1'
+dt_ts = '20'
+# x, y, z decimation along axis
+dx_ts = '5'
+dy_ts = '5'
+# 1 for xy time slice
+dz_ts = '1'
 
+# which time slices to iterate over
+ts_start = '0'     # first one is 0
+ts_inc = '1'       # increment, larger than 1 to skip
+ts_total = '400'   # number of slices to generate. sim time = ts_total * ORIG_DT
 
-DEFAULT_PARFILE = 'e3d_default.par'
-PARFILE = 'e3d.par'
+# swap_bytes 0/1 no/yes - should be 1 if
+#   TSFILE created on supercomp and this file is run on laptop; zero if run within supercomputer)
+# the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer
+#   and copied to local computer beforehand.
+swap_bytes = '0'
+lonlat_out = '1'
+scale = '1.0'
+
+# TODO: remove default? would simplify, remove duplicates. anything lost (is appended to)?
+default_parfile = 'e3d_default.par'
+parfile = 'e3d.par'
 
 #FD_VMODFILE = 'Cant1D_v1.fd_modfile'     #This line was for a 1D Vp,Vs,rho model
 # set names of P,S,D files
@@ -51,7 +67,7 @@ PMOD = 'vp3dfile.p'
 SMOD = 'vs3dfile.s'
 DMOD = 'rho3dfile.d'
 
-VMOD_VER = 'v1.64'
+v_mod_ver = 'v1.64'
 
 ENABLE_RESTART = '0'
 READ_RESTART = '0'
@@ -60,37 +76,34 @@ RESTART_ITINC = '20000'
 
 ######## Variables derived from Global CONSTANTS ##########
 
-NPROC = str(NPROC_X * NPROC_Y * NPROC_Z)
+n_proc = str(n_proc_x * n_proc_y * n_proc_z)
 
-ROOT = os.path.expanduser('~')
-RUN_DIR_ROOT = ROOT + '/RunFolder'
-SRF_DIR_ROOT = ROOT + '/RupModel'
-STAT_DIR = ROOT + '/StationInfo'
-MOD_DIR_ROOT = ROOT
+# works on Windows and POSIX paths
+system_root = os.path.abspath(os.sep)
+user_scratch = os.path.join(system_root, 'hpc', 'scratch', os.getenv('USER'))
 
+# things that everyone doesn't have, eg. binaries are within here
+global_root = os.path.join(system_root, 'hpc', 'scratch', 'nesi00213')
+# things that people have their own copies of, eg. RunFolder
+user_root = os.path.expanduser('~')
 
-# XXX: was 3.04 while version elsewhere was 3.0.4, changing this changed a folder
-#        while changing version changes parameters
+# directories - main. change global_root with user_root as required
+run_dir = os.path.join(user_root, 'RunFolder')
+srf_dir = os.path.join(user_root, 'RupModel')
+stat_dir = os.path.join(user_root, 'StationInfo')
+vel_mod_params_dir = os.path.join(user_root, 'VelocityModel', 'ModelParams')
+vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
+wcc_prog_dir = os.path.join(global_root, 'EMOD3D', 'WccFormat', 'bin', 'ppc64-Linux-p2n14-c-gcc')
+seis_tmp_dir = os.path.join(user_scratch, extended_run_name, 'SeismoBin')
+# directories - derived
+sim_dir = os.path.join(run_dir, extended_run_name)
+restart_dir = os.path.join(sim_dir, 'Restart')
+bin_output = os.path.join(sim_dir, 'OutBin')
 
-SIMDIR_ROOT = RUN_DIR_ROOT + '/'+EXTENDED_RUN_NAME
-MAIN_OUTPDIR = SIMDIR_ROOT + '/OutBin'
-
-VMODDIR_ROOT = ROOT+'/CanterburyVelocityModel'
-
-SRF_FILE = SRF_DIR_ROOT + '/Srf/m6.20-16.0x9.0_s560.srf' #rmc
-STATCORDS = STAT_DIR + '/fd_nz01-h0.100.statcords'
-
-#WCC_PROGDIR = ROOT + '/EMOD3D/WccFormat/bin/powerpc-AIX-p1n14-c-xlc'
-WCC_PROGDIR = ROOT + '/EMOD3D/WccFormat/bin/ppc64-Linux-p2n14-c-gcc'
-
-MAIN_RESTARTDIR = SIMDIR_ROOT + '/Restart'
-
-
-VMODDIR = VMODDIR_ROOT +'/'+ VMOD_VER
-VELMODPARAMSDIR = ROOT + '/VelocityModel/ModelParams'
-
-TMP_SEISDIR = '/hpc/scratch/' + os.getenv('USER') + SIMDIR_ROOT + '/SeismoBin'
-
+# files
+srf_file = os.path.join(srf_dir, 'Srf', 'm6.20-16.0x9.0_s560.srf')
+stat_file = os.path.join(stat_dir, 'cantstations.ll')
+stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 
 
 
@@ -99,7 +112,7 @@ TMP_SEISDIR = '/hpc/scratch/' + os.getenv('USER') + SIMDIR_ROOT + '/SeismoBin'
 
 
 # Define location of FD output files to use
-SEISDIR = MAIN_OUTPDIR 
+SEISDIR = bin_output
 
 # Define folder to write velocity seismograms to
 VELDIR = os.path.join(SIMDIR_ROOT,'Vel')
@@ -111,82 +124,52 @@ TSTRT = '-1.0'
 SCALE = '1.0'
 
 # Define the directory with the station information, and components
-FD_STATLIST = STAT_DIR + '/fd_nz01-h0.100.ll'
+FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
 
 
 ############### gen_ts ###################
 
-SIMDIR = MAIN_OUTPDIR #the directory name where the 3D FD run output exists
-TSFILE = os.path.join(SIMDIR, EXTENDED_RUN_NAME + '_xyts.e3d') #the file created by merge_ts
+TSFILE = os.path.join(bin_output, extended_run_name + '_xyts.e3d') #the file created by merge_ts
 
-HH = '0.100' # HH is the grid spacing used for the 3D FD run
-DXTS = '5' # DXTS is the decimation along the X-axis for the time slice output (same as dxts in e3d.par)
-DYTS = '5' # DYTS is the decimation along the Y-axis for the time slice output
-DZTS = '1' # DZTS is the decimation along the Z-axis for the time slice output (=1 for xy time slice)
-
-
+# TODO: not used anywhere???
 # ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0
 #        =0 3 components are output respectively into <fileroot>.0, <fileroot>.1, <fileroot>.2
 ABSMAX = '1'
 
-TS_INC = 1 # TS_INC is the increment for output time slices (=2 means every other slice is output)
-TS_START = 0 # TS_START is the starting time slice (0 is first one)
-TS_TOTAL = 400 # the total number of slices to generate. the total sim time = TS_TOTAL * ORIG_DT
-
-
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
-GRIDFILE = VELMODPARAMSDIR + '/gridout_nz01-h' + HH # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
+GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + HH # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
 
 TSLICE_DIR = SIMDIR_ROOT+'/TSlice'
 TS_OUTFILE_DIR = os.path.join(TSLICE_DIR,'TSFiles')
-TS_OUTFILE_PREFIX = os.path.join(TS_OUTFILE_DIR, RUN_NAME)
-
-SWAP_BYTES = '0'
-SCALE = '1.0'
-
+TS_OUTFILE_PREFIX = os.path.join(TS_OUTFILE_DIR, run_name)
 
 ################## plot_ts ####################
 
 
 # main title and subtitles that appears at the top of the picture
-MAIN_TITLE = 'Mw6.2 22 Feb 2011 Earthquake'
-SUB_TITLE = 'Beavan 1Fault, Stoch Slip, Chch 1D VM'
-
-
-## high-level directories
-#MAINDIR = os.path.expanduser('~bab70')
-## not used?
-#SIMDIR = '../'
+plot_main_title = 'Mw6.2 22 Feb 2011 Earthquake'
+plot_sub_title = 'Beavan 1Fault, Stoch Slip, Chch 1D VM'
 
 # input can be provided either via the "._xyts.e3d" file (option=1)
 # or via all of the individual TSFiles, which are obtained from gen_ts.csh 
 # within BlueFern and then scp'd to the local machine (option=2)
-option = 2
-
-# information required for option = 1
-# ----------------------------------
-
-
-#
-DXTS = '5'  #reduce X and Y resolution by using these factors
-DYTS = '5'
+plot_option = '2'
 
 # information required for option 2.
 # ----------------------------------
 
 # details of the spatial and termporal discretization and spacing
-HH = '0.100'  # spatial grid spacing in km
 ORIG_DT = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)
-MODELPARAMS = VELMODPARAMSDIR + '/model_params_nz01-h' + HH  # used to get location of model corners
+MODELPARAMS = vel_mod_params_dir + '/model_params_nz01-h' + HH  # used to get location of model corners
 
 
-# specify whether or not to byte-swap (=0 no; =1 yes - which should be used if
+# swap_bytes 0/1 no/yes - should be 1 if
 #   TSFILE created on supercomp and this file is run on laptop; zero if run within supercomputer)
-# the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer 
+# the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer
 #   and copied to local computer beforehand.
-SWAP_BYTES = '0'
-LONLAT_OUT = '1'
-SCALE = '1.0'
+swap_bytes = '0'
+lonlat_out = '1'
+scale = '1.0'
 
 #components to consider (0= when only looking at vector magnitude [i.e. ABSMAX=1 further down].
 COMPS = [ 0 ]

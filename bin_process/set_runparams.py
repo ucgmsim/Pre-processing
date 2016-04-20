@@ -20,29 +20,30 @@ except IOError:
     print('PARFILE cannot be opened to append data in ' + __file__, file = sys.stderr)
     raise
 
-configs = ['version=' + VERSION + '-mpi', \
-'name=' + RUN_NAME, \
-'nproc=' + NPROC, \
-'nx=' + NX, \
-'ny=' + NY, \
-'nz=' + NZ, \
-'h=' + HH, \
-'nt=' + NT, \
-'dt=' + DT, \
+configs = ['version=' + version + '-mpi', \
+'name=' + run_name, \
+'extended_name=' + extended_run_name, \
+'nproc=' + n_proc, \
+'nx=' + nx, \
+'ny=' + ny, \
+'nz=' + nz, \
+'h=' + hh, \
+'nt=' + nt, \
+'dt=' + dt, \
  \
 'bfilt=4', \
-'flo=' + FLO, \
+'flo=' + flo, \
 'fhi=0.0', \
 'bforce=0', \
 'pointmt=0', \
 'dblcpl=0', \
 'ffault=2', \
-'faultfile=' + SRF_FILE, \
+'faultfile=' + srf_file, \
  \
 'model_style=1', \
 # only for the 1D velocity model
 #'model=' + FD_VMODFILE, \
-'vmoddir=' + VMODDIR, \
+'vmoddir=' + vel_mod_dir, \
 'pmodfile=' + PMOD, \
 'smodfile=' + SMOD, \
 'dmodfile=' + DMOD, \
@@ -59,23 +60,39 @@ configs = ['version=' + VERSION + '-mpi', \
  \
 'enable_output_dump=1', \
 'dump_itinc=' + DUMP_ITINC, \
-'main_dump_dir=' + MAIN_OUTPDIR, \
+'main_dump_dir=' + bin_output, \
 'nseis=1', \
-'seiscords=' + STATCORDS, \
-'seisdir=' + TMP_SEISDIR, \
+'seiscords=' + stat_coords, \
+'seisdir=' + seis_tmp_dir, \
  \
 'ts_xy=1', \
 'iz_ts=1', \
-'dtts=' + DT_TS, \
-'dxts=' + DX_TS, \
-'dyts=' + DY_TS, \
-'dzts=' + DZ_TS, \
+'dtts=' + dt_ts, \
+'dxts=' + dx_ts, \
+'dyts=' + dy_ts, \
+'dzts=' + dz_ts, \
+'ts_start=' + ts_start, \
+'ts_inc=' + ts_inc, \
+'ts_total=' + ts_total, \
+'swap_bytes=' + swap_bytes, \
+'lonlat_out=' + lonlat_out, \
+'scale=' + scale, \
  \
 'enable_restart=' + ENABLE_RESTART, \
-'restartdir=' + MAIN_RESTARTDIR, \
+'restartdir=' + restart_dir, \
 'restart_itinc=' + RESTART_ITINC, \
 'read_restart=' + READ_RESTART, \
-'restartname=' + RUN_NAME]
+'restartname=' + RUN_NAME, \
+\
+# plot_ts.sh
+'plot_main_title="' + plot_main_title + '"', \
+'plot_sub_title="' + plot_sub_title + '"', \
+'plot_option=' + plot_option, \
+\
+# other locations
+'wcc_prog_dir="' + wcc_prog_dir + '"', \
+'vel_mod_params_dir="' + vel_mod_params_dir + '"', \
+'stat_file="' + stat_file + '"']
 
 par_handle.write('\n'.join(configs) + '\n')
 par_handle.close()
