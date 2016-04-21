@@ -50,7 +50,7 @@ ts_inc = '1'       # increment, larger than 1 to skip
 ts_total = '400'   # number of slices to generate. sim time = ts_total * ORIG_DT
 
 # swap_bytes 0/1 no/yes - should be 1 if
-#   TSFILE created on supercomp and this file is run on laptop; zero if run within supercomputer)
+#   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
 # the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer
 #   and copied to local computer beforehand.
 swap_bytes = '0'
@@ -115,7 +115,7 @@ stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 SEISDIR = bin_output
 
 # Define folder to write velocity seismograms to
-VELDIR = os.path.join(SIMDIR_ROOT,'Vel')
+VELDIR = os.path.join(sim_dir,'Vel')
 
 FILELIST = 'fdb.filelist'
 
@@ -129,7 +129,7 @@ FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
 
 ############### gen_ts ###################
 
-TSFILE = os.path.join(bin_output, extended_run_name + '_xyts.e3d') #the file created by merge_ts
+ts_file = os.path.join(bin_output, extended_run_name + '_xyts.e3d') #the file created by merge_ts
 
 # TODO: not used anywhere???
 # ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0
@@ -137,11 +137,11 @@ TSFILE = os.path.join(bin_output, extended_run_name + '_xyts.e3d') #the file cre
 ABSMAX = '1'
 
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
-GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + HH # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
+GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
 
-TSLICE_DIR = SIMDIR_ROOT+'/TSlice'
-TS_OUTFILE_DIR = os.path.join(TSLICE_DIR,'TSFiles')
-TS_OUTFILE_PREFIX = os.path.join(TS_OUTFILE_DIR, run_name)
+t_slice_dir = os.path.join(sim_dir, 'TSlice')
+ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
+ts_out_prefix = os.path.join(ts_out_dir, run_name)
 
 ################## plot_ts ####################
 
@@ -159,12 +159,11 @@ plot_option = '2'
 # ----------------------------------
 
 # details of the spatial and termporal discretization and spacing
-ORIG_DT = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)
-MODELPARAMS = vel_mod_params_dir + '/model_params_nz01-h' + HH  # used to get location of model corners
+plot_orig_dt = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)
 
 
 # swap_bytes 0/1 no/yes - should be 1 if
-#   TSFILE created on supercomp and this file is run on laptop; zero if run within supercomputer)
+#   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
 # the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer
 #   and copied to local computer beforehand.
 swap_bytes = '0'
@@ -172,63 +171,58 @@ lonlat_out = '1'
 scale = '1.0'
 
 #components to consider (0= when only looking at vector magnitude [i.e. ABSMAX=1 further down].
-COMPS = [ 0 ]
+plot_comps = '( 0 )'
 
 
-#specify the directory for PNG files and the resolution (dpi) to create
-PSDIR = TSLICE_DIR  + '/PlotFiles'
-PNGDIR = TSLICE_DIR  + '/Png'
-RES = '140'   #720 for PDF quality
-# make directories for storing the .ps and .png files
-if not os.path.exists(PSDIR):
-    os.makedirs(PSDIR)
-if not os.path.exists(PNGDIR):
-    os.makedirs(PNGDIR)
+# output dirs and resolution (dpi)
+plot_ps_dir = os.path.join(t_slice_dir, 'PlotFiles')
+plot_png_dir = os.path.join(t_slice_dir, 'Png')
+plot_res = '140'   # 720 for PDF quality
 
-TOPODIR = ROOT + '/PlottingData/TopoData'
+TOPODIR = global_root + '/PlottingData/TopoData'
 TOPO_FILE = TOPODIR + '/srtm_71_21.grd'
 ILLU = '-I' + TOPODIR + '/srtm_71_21_i5.grd'
 TOPO_FILE2 = TOPODIR + '/etopo2.grd'
 
 # set PALETTE = '-Crelief.cpt'
-PALETTE = '-Cgray'
+plot_palette = '-Cgray'
 
 # specific locations to display on figure (not currently used)
-SITES = [ 'Rolleston', 'Darfield', 'Lyttelton', 'Akaroa', 'Kaiapoi', 'Rakaia', 'Oxford' ]
+plot_sites = '(Rolleston Darfield Lyttelton Akaroa Kaiapoi Rakaia Oxford)'
 # alignment; 2letter, L,C,R (left, center, right); T,M,B (top, middle, bottom)
-SPOS = [ 'RB', 'CB', 'LM', 'RB', 'LB', 'RT', 'LB' ]
-SLON = [ '172.3791667', '172.1116667', '172.7194444', '172.9683333',
-        '172.6569444', '172.0230556', '172.1938889' ]
-SLAT = [ '-43.59083333', '-43.48972222', '-43.60305556', '-43.80361111',
-        '-43.38277778', '-43.75611111', '-43.29555556' ]
+plot_s_pos = "(RB CB LM RB LB RT LB)"
+plot_s_lon = "(172.3791667 172.1116667 172.7194444 172.9683333 \
+         172.6569444 172.0230556 172.1938889)"
+plot_s_lat = "(-43.59083333 -43.48972222 -43.60305556 -43.80361111 \
+         -43.38277778 -43.75611111 -43.29555556)"
 # specifying plotting preferences for site locations
-SSYM = 'c0.10' # symbol
-SFIL = '220/220/220' # fill color
-SLIN = '1,000/000/000' # line?
+plot_s_sym = 'c0.10'         # symbol
+plot_s_fil = '220/220/220'   # fill color
+plot_s_lin = '1,000/000/000' # line?
 
 # location of offset plotting (for when 3 component plotting used - not currently utilized)
-XORG = '1.15'
-YORG = '2.5'
-XINCH = 5.0
-XSHFT = '%0.6f' % (XINCH + 0.2)
+plot_x_org = '1.15'
+plot_y_org = '2.5'
+plot_x_inch = '5.0'
+plot_x_shift = '%0.6f' % (float(plot_x_inch) + 0.2)
 
 # specify the maximum plotting window for the basemap
-PLOT_XMIN = '171.75'
-PLOT_XMAX = '173.00'
-PLOT_YMIN = '-44.00'
-PLOT_YMAX = '-43.20'
+plot_x_min = '171.75'
+plot_x_max = '173.00'
+plot_y_min = '-44.00'
+plot_y_max = '-43.20'
 # region in GMT format
-PLOT_REGION = '/'.join([PLOT_XMIN, PLOT_XMAX, PLOT_YMIN, PLOT_YMAX])
+plot_region = '/'.join([plot_x_min, plot_x_max, plot_y_min, plot_y_max])
 
 # specify the plotting region for the time slice
 
-TS_XMIN = '171.75'
-TS_XMAX = '173.00'
-TS_YMIN = '-44.00'
-TS_YMAX = '-43.20'
+plot_ts_x_min = '171.75'
+plot_ts_x_max = '173.00'
+plot_ts_y_min = '-44.00'
+plot_ts_y_max = '-43.20'
 # region in GMT format
-TS_REGION = '/'.join([TS_XMIN, TS_XMAX, TS_YMIN, TS_YMAX])
+plot_ts_region = '/'.join([plot_ts_x_min, plot_ts_x_max, plot_ts_y_min, plot_ts_y_max])
 # specify the increments of X/Y (cartesian coords) for masks etc.
-DX = '0.002'
-DY = '0.002'
+plot_dx = '0.002'
+plot_dy = '0.002'
 
