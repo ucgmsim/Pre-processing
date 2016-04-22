@@ -125,6 +125,7 @@ configs = ['version=' + version + '-mpi', \
 'wcc_prog_dir="' + wcc_prog_dir + '"', \
 'vel_mod_params_dir="' + vel_mod_params_dir + '"', \
 'global_root="' + global_root + '"', \
+'sim_dir="' + sim_dir + '"', \
 'stat_file="' + stat_file + '"']
 
 par_handle.write('\n'.join(configs) + '\n')
