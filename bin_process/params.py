@@ -155,7 +155,7 @@ plot_sub_title = 'Beavan 1Fault, Stoch Slip, Chch 1D VM'
 # within BlueFern and then scp'd to the local machine (option=2)
 plot_option = '2'
 
-# information required for option 2.
+# option 2 settings follow
 # ----------------------------------
 
 # details of the spatial and termporal discretization and spacing
@@ -179,10 +179,16 @@ plot_ps_dir = os.path.join(t_slice_dir, 'PlotFiles')
 plot_png_dir = os.path.join(t_slice_dir, 'Png')
 plot_res = '140'   # 720 for PDF quality
 
-TOPODIR = global_root + '/PlottingData/TopoData'
-TOPO_FILE = TOPODIR + '/srtm_71_21.grd'
-ILLU = '-I' + TOPODIR + '/srtm_71_21_i5.grd'
-TOPO_FILE2 = TOPODIR + '/etopo2.grd'
+# topography
+plot_topo_dir = os.path.join(global_root, 'PlottingData', 'TopoData')
+plot_topo_file = os.path.join(plot_topo_dir, 'srtm_71_21.grd')
+plot_topo_illu = '-I' + os.path.join(plot_topo_dir, 'srtm_71_21_i5.grd')
+plot_topo_file_2 = os.path.join(plot_topo_dir, 'etopo2.grd')
+# altitude in killometers? for topo
+plot_topo_a_min = '2'
+plot_topo_a_inc = '10'
+plot_topo_a_max = '80'
+plot_topo_a_below = 'NaN'
 
 # set PALETTE = '-Crelief.cpt'
 plot_palette = '-Cgray'
@@ -225,4 +231,5 @@ plot_ts_region = '/'.join([plot_ts_x_min, plot_ts_x_max, plot_ts_y_min, plot_ts_
 # specify the increments of X/Y (cartesian coords) for masks etc.
 plot_dx = '0.002'
 plot_dy = '0.002'
+
 

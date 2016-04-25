@@ -12,7 +12,8 @@
 #   plot_x_min, plot_x_max, plot_y_min, plot_y_max, plot_region, plot_ts_x_min, plot_ts_x_max,
 #   plot_ts_y_min, plot_ts_y_max, plot_region, plot_ts_region, plot_dx, plot_dy, plot_palette,
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
-#   global_root, sim_dir
+#   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
+#   plot_topo_a_max, plot_topo_a_below
 source e3d.par
 
 # threading: use first parameter if available (prevents user interaction)
@@ -46,15 +47,11 @@ model_params="${vel_mod_params_dir}/model_params_nz01-h${h}" # to get location c
 
 # output dirs
 mkdir -p $plot_ps_dir $plot_png_dir
+rm "$plot_ps_dir"/* "$plot_png_dir"/* 2>/dev/null
 # temporary working directories for gmt are within here
 # gmt process create temp files which clash between process
 gmt_temp="$sim_dir/gmt_wd"
 mkdir -p "$gmt_temp"
-
-TOPODIR=${global_root}/PlottingData/TopoData
-TOPO_FILE=${TOPODIR}/srtm_71_21.grd
-ILLU=-I${TOPODIR}/srtm_71_21_i5.grd
-TOPO_FILE2=${TOPODIR}/etopo2.grd
 
 # make temp file with the model coord boundaries
 if [ -e "tmp.modelpath" ]; then
@@ -68,14 +65,10 @@ done
 gmt grdlandmask -R$plot_ts_region -Dh -I$plot_dx/$plot_dy -Glandmask.grd
 gmt grdmask tmp.modelpath -R$plot_ts_region -I$plot_dx/$plot_dy -Gmodelmask.grd
 gmt grdmath landmask.grd modelmask.grd MUL = allmask.grd
+\rm tmp.modelpath
 
 # create color palette for plotting the topography
-BASECPT=y2r_brown.cpt
-TOPOMAX=4000
-AINC=10
-AMAX=80
-AMIN=2 #the min value to show
-ABELOW=NaN #the value to show when less than AMIN
+base_cpt=y2r_brown.cpt
 
 # fault plane
 ADDFLTPLANEDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
@@ -84,16 +77,10 @@ LINE=-W0.5p,black,-
 TOPEDGE=-W2p,black
 HYPOPEN=-W1p,black;
 
-# color palette for velocity
-gmt makecpt -Chot -I -T0/$AMAX/$AINC -A50 > $BASECPT
-
-#end of creating color palette
-
 # avg Lon/Lat (midpoint of the TSlice image for the geo projection)
 avg_ll=(`echo $plot_x_min $plot_x_max $plot_y_min $plot_y_max | gawk '{print 0.5*($1+$2),0.5*($3+$4);}'`)
 # plot projection and region in GMT format for ease of use later
 att="-JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} -R${plot_region}"
-
 
 add_site() {
     # $1 is the site index
@@ -110,11 +97,18 @@ ${plot_s_lon[$1]} ${plot_s_lat[$1]} ${plot_s_pos[$1]} ${plot_sites[$1]}
 END
 }
 
+finalise_png() {
+    # finalize postscript (i.e. no -K)
+    gmt psxy -V $att -L -W5,255/255/0 -O << END >>  "$1" 2>/dev/null
+END
+    # ps -> png
+    gmt ps2raster "$1" -A -TG -E$plot_res -D$plot_png_dir
+}
+
 clean_temp_files() {
     # temporary files (global)
     \rm modelmask.grd landmask.grd allmask.grd
-    \rm tmp.modelpath
-    \rm $BASECPT
+    \rm $base_cpt
     \rm gmt.conf gmt.history
 
     # gmt process working directories
@@ -140,22 +134,25 @@ sig_int_received() {
 # enable killing of all subprocesses/cleaning temp files on CTRL-C (interrupt)
 trap "sig_int_received" INT
 
+# color palette for velocity
+gmt makecpt -Chot -I -T0/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
+
+# set all plotting defaults to use
+gmt gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
+
 ###################### BEGIN TEMPLATE ##########################
 echo Creating PS Template...
-plot_file_template=$sim_dir/plot_template.ps
-if [ -e "$plot_file_template" ]; then
-    \rm "$plot_file_template"
-fi
+plot_file_template=$gmt_temp/plot_template.ps
 # specify plot and panel size (defaults 8.5 x 11)
 edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
-gmt psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > $plot_file_template #-W0/180/180/180
+gmt psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
 0.3 1.0
 0.3 7.8
 6.5 7.8
 6.5 1.0
 END
 # set the color scale
-gmt psscale -C$BASECPT -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${AINC}f${AINC}:"ground velocity (cm/s)": >> "$plot_file_template"
+gmt psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground velocity (cm/s)": >> "$plot_file_template"
 # specify the X and Y offsets for plotting (I dont really understand this yet)
 gmt psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
 END
@@ -163,7 +160,7 @@ END
 # clippath for land
 gmt pscoast $att -Df -Gc -K -O >> "$plot_file_template"
 # land
-gmt grdimage $TOPO_FILE $ILLU $plot_palette $att -K -O >> "$plot_file_template"
+gmt grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file_template"
 # clear clippath
 gmt pscoast -R -J -O -K -Q >> "$plot_file_template"
 # add urban areas
@@ -171,10 +168,6 @@ URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
 gmt psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
 echo Template Complete.
 ####################### END TEMPLATE ###########################
-
-# set all plotting defaults to use
-gmt gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
-
 
 render_slice() {
     # $1 is $tsfcnt
@@ -187,11 +180,7 @@ render_slice() {
     # outputs
     plot_file=$plot_ps_dir/ts-str${3}.ps
     png_file=$plot_png_dir/ts-str${3}.png
-    #remove any existing files
-    if [ -e "$png_file" ]; then
-        \rm "$png_file"
-    fi
-    cat "$plot_file_template" > "$plot_file"
+    cp "$plot_file_template" "$plot_file"
 
     if [ "$plot_option" -eq 1 ]; then
         # use 'ts2xyz.exe. to get TSlice outout in xyz format
@@ -218,15 +207,21 @@ render_slice() {
         fi
 
         # create ground motion intensity surface from the TSlice output
-        gmt surface outf_${3}.${comp} -Gtmp0_${3}.grd -I$plot_dx/$plot_dy -R$plot_ts_region -T0.0 -bi3f 2>/dev/null
-        gmt grdclip tmp0_${3}.grd -Gtmp1_${3}.grd -Sb${AMIN}/$ABELOW 2>/dev/null # clip minimum
-        gmt grdmath modelmask.grd tmp1_${3}.grd MUL = outf_$3_${comp}.grd 2>/dev/null # clip to TS region
-        gmt grdclip tmp1_${3}.grd -Goutf_$3_${comp}.grd -Sb${AMIN}/$ABELOW 2>/dev/null #clip minimum
+        gmt surface outf_${3}.${comp} -Gtmp0_${3}.grd -I$plot_dx/$plot_dy \
+                -R$plot_ts_region -T0.0 -bi3f 2>/dev/null
+        # clip minimum
+        gmt grdclip tmp0_${3}.grd -Gtmp1_${3}.grd \
+                -Sb${plot_topo_a_min}/$plot_topo_a_below 2>/dev/null
+        # clip to TS region
+        gmt grdmath modelmask.grd tmp1_${3}.grd MUL = outf_$3_${comp}.grd 2>/dev/null
+        # clip minimum
+        gmt grdclip tmp1_${3}.grd -Goutf_$3_${comp}.grd \
+                -Sb${plot_topo_a_min}/$plot_topo_a_below 2>/dev/null
 
         \cp outf_$3_${comp}.grd tmp1_${3}.grd
         gmt grdmath modelmask.grd 1 SUB tmp1_${3}.grd ADD = outf_$3_${comp}.grd 2>/dev/null
         # add grid image to ps plot
-        gmt grdimage outf_$3_${comp}.grd $att -C$BASECPT -Q -t50 -K -O >> "$plot_file" 2>/dev/null
+        gmt grdimage outf_$3_${comp}.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
         # add coastline
         gmt pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file"
         gmt pscoast -A0/2/2 $att -Df -W1,black -K -O >> "$plot_file"
@@ -240,13 +235,15 @@ render_slice() {
         gmt_proc_wd=$(mktemp -d -p "$gmt_temp" GMT.XXXXXXXX)
         cd "$gmt_proc_wd"
         cp "$sim_dir/gmt.conf" ./
-        cp "$sim_dir/gmt.history" ./
 
         # call fault plane routine
-        bash ${ADDFLTPLANEDIR}/addStandardFaultPlane.sh $plot_file -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} $FAULTFILE $LINE $TOPEDGE $HYPOPEN
+        bash ${ADDFLTPLANEDIR}/addStandardFaultPlane.sh "$plot_file" \
+                -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+                $FAULTFILE $LINE $TOPEDGE $HYPOPEN
 
         # main title
-        gmt pstext $att -N -O -K -D0.0/0.35 -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file" #
+        gmt pstext $att -N -O -K -D0.0/0.35 \
+                -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file" #
 $plot_x_min $plot_y_max $plot_main_title
 END
         # subtitle
@@ -268,14 +265,9 @@ END
         # shift plotting origin (for 3 component plotting)
         gmt psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
 END
-        #end of component
     done
 
-    #finalize the plot (i.e. no -K)
-    gmt psxy -V $att -L -W5,255/255/0 -O << END >>  "$plot_file" 2>/dev/null
-END
-    # ps -> png
-    gmt ps2raster $plot_file -A -TG -E$plot_res -D$plot_png_dir
+    finalise_png "$plot_file"
 
     # remove own working directory
     cd - >/dev/null
@@ -292,7 +284,7 @@ while [ $tsfcnt -lt $ts_total ]; do
 
     # wait until running threads are less than max
     while [ $(jobs | wc -l ) -ge $threads ]; do
-        sleep 1
+        sleep 0.5
         jobs >/dev/null
     done
 

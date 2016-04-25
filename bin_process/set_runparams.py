@@ -120,6 +120,12 @@ configs = ['version=' + version + '-mpi', \
 'plot_res=' + plot_res, \
 'plot_orig_dt=' + plot_orig_dt, \
 'plot_comps=' + plot_comps, \
+'plot_topo_file="' + plot_topo_file + '"', \
+'plot_topo_illu="' + plot_topo_illu + '"', \
+'plot_topo_a_min=' + plot_topo_a_min, \
+'plot_topo_a_inc=' + plot_topo_a_inc, \
+'plot_topo_a_max=' + plot_topo_a_max, \
+'plot_topo_a_below=' + plot_topo_a_below, \
 \
 # other locations
 'wcc_prog_dir="' + wcc_prog_dir + '"', \
