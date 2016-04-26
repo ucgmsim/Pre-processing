@@ -9,27 +9,28 @@ if __name__ == '__main__':
 # parameters are written to files, need to be strings
 
 ######## Global CONSTANTS ########
-
-run_name = '2011Feb22_m6pt2bev01_Cantv1.64'
+run_name = '2010Dec26_m4.7pt_v1_Cant1D'
 version = '3.0.4'
-extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
+extended_run_name = 'LPSim-2010Dec26_m4.7pt_v1_Cant1D_v1-nz01-h0.500_V3.04' #Directory name under RunFolder
+output_prefix = run_name # Prefix used for naming files in OutBin _xyts.e3d _seis.e3d
 
 # keep as int, processed before writing to file
-n_proc_x = 16
-n_proc_y = 16
-n_proc_z = 8
+n_proc_x = 4
+n_proc_y = 4
+n_proc_z = 2
 
 
 flo = '1.0'
 # spacial grid spacing (km)
-hh = '0.100'
+hh = '0.500'
 # x, y, z distance (km)
-nx = '1400'
-ny = '1200'
-nz = '460'
+nx = '280'
+ny = '240'
+nz = '92'
 # number of timesteps n, time step Dt
-nt = '20000'
+nt = '10000'
 dt = '0.005'
+
 
 MODEL_LAT = '-43.6000'
 MODEL_LON = '172.3000'
@@ -43,6 +44,8 @@ dx_ts = '5'
 dy_ts = '5'
 # 1 for xy time slice
 dz_ts = '1'
+
+
 
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
@@ -74,36 +77,38 @@ READ_RESTART = '0'
 RESTART_ITINC = '20000'
 
 
-######## Variables derived from Global CONSTANTS ##########
-
 n_proc = str(n_proc_x * n_proc_y * n_proc_z)
 
-# works on Windows and POSIX paths
-system_root = os.path.abspath(os.sep)
-user_scratch = os.path.join(system_root, 'hpc', 'scratch', os.getenv('USER'))
-
 # things that everyone doesn't have, eg. binaries are within here
-global_root = os.path.join(system_root, 'hpc', 'scratch', 'nesi00213')
+global_root = '/nesi/projects/nesi00213'
+
+
 # things that people have their own copies of, eg. RunFolder
-user_root = os.path.expanduser('~')
+user_root = global_root   # os.path.expanduser('~')   #NOT recommended to use separate user_root in Fitzroy.
+
+# works on Windows and POSIX paths
+user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
 
 # directories - main. change global_root with user_root as required
 run_dir = os.path.join(user_root, 'RunFolder')
 srf_dir = os.path.join(user_root, 'RupModel')
 stat_dir = os.path.join(user_root, 'StationInfo')
-vel_mod_params_dir = os.path.join(user_root, 'VelocityModel', 'ModelParams')
+vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/Mod-1D')
+
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
-wcc_prog_dir = os.path.join(global_root, 'EMOD3D', 'WccFormat', 'bin', 'ppc64-Linux-p2n14-c-gcc')
+wcc_prog_dir = os.path.join(global_root, 'EMOD3D/WccFormat/bin/powerpc-AIX-nesi2-xlc')
+
 seis_tmp_dir = os.path.join(user_scratch, extended_run_name, 'SeismoBin')
+
 # directories - derived
 sim_dir = os.path.join(run_dir, extended_run_name)
 restart_dir = os.path.join(sim_dir, 'Restart')
 bin_output = os.path.join(sim_dir, 'OutBin')
 
 # files
-srf_file = os.path.join(srf_dir, 'Srf', 'm6.20-16.0x9.0_s560.srf')
+srf_file = os.path.join(srf_dir, '2010Dec26_m4pt7/Srf/2010Dec26_m4pt7.srf')
 stat_file = os.path.join(stat_dir, 'cantstations.ll')
-stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
+stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.500.statcords')
 
 
 
@@ -115,7 +120,7 @@ stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 SEISDIR = bin_output
 
 # Define folder to write velocity seismograms to
-VELDIR = os.path.join(sim_dir,'Vel')
+vel_dir = os.path.join(sim_dir,'Vel')
 
 FILELIST = 'fdb.filelist'
 
@@ -125,23 +130,44 @@ SCALE = '1.0'
 
 # Define the directory with the station information, and components
 FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
-
+print FD_STATLIST
 
 ############### gen_ts ###################
 
-ts_file = os.path.join(bin_output, extended_run_name + '_xyts.e3d') #the file created by merge_ts
+#SIMDIR = MAIN_OUTPDIR #the directory name where the 3D FD run output exists
+
+ts_file = os.path.join(bin_output, output_prefix+ '_xyts.e3d') #the file created by merge_ts
+HH = '0.100' # HH is the grid spacing used for the 3D FD run
+DXTS = '5' # DXTS is the decimation along the X-axis for the time slice output (same as dxts in e3d.par)
+DYTS = '5' # DYTS is the decimation along the Y-axis for the time slice output
+DZTS = '1' # DZTS is the decimation along the Z-axis for the time slice output (=1 for xy time slice)
+
+#FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
 
 # TODO: not used anywhere???
 # ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0
 #        =0 3 components are output respectively into <fileroot>.0, <fileroot>.1, <fileroot>.2
 ABSMAX = '1'
 
+TS_INC = 1 # TS_INC is the increment for output time slices (=2 means every other slice is output)
+TS_START = 0 # TS_START is the starting time slice (0 is first one)
+TS_TOTAL = 400 # the total number of slices to generate. the total sim time = TS_TOTAL * ORIG_DT
+
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
+
 GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
 
 t_slice_dir = os.path.join(sim_dir, 'TSlice')
 ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
 ts_out_prefix = os.path.join(ts_out_dir, run_name)
+
+# swap_bytes 0/1 no/yes - should be 1 if
+#   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
+# the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer
+#   and copied to local computer beforehand.
+swap_bytes = '0'
+lonlat_out = '1'
+scale = '1.0'
 
 ################## plot_ts ####################
 
@@ -162,15 +188,9 @@ plot_option = '2'
 plot_orig_dt = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)
 
 
-# swap_bytes 0/1 no/yes - should be 1 if
-#   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
-# the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer
-#   and copied to local computer beforehand.
-swap_bytes = '0'
-lonlat_out = '1'
-scale = '1.0'
 
 #components to consider (0= when only looking at vector magnitude [i.e. ABSMAX=1 further down].
+
 plot_comps = '( 0 )'
 
 
@@ -180,7 +200,7 @@ plot_png_dir = os.path.join(t_slice_dir, 'Png')
 plot_res = '140'   # 720 for PDF quality
 
 # topography
-plot_topo_dir = os.path.join(global_root, 'PlottingData', 'TopoData')
+plot_topo_dir = os.path.join(global_root, 'PlottingData/TopoData')
 plot_topo_file = os.path.join(plot_topo_dir, 'srtm_71_21.grd')
 plot_topo_illu = '-I' + os.path.join(plot_topo_dir, 'srtm_71_21_i5.grd')
 plot_topo_file_2 = os.path.join(plot_topo_dir, 'etopo2.grd')
@@ -197,6 +217,7 @@ plot_fault_add_plane = os.path.join(fault_plane_dir, 'addStandardFaultPlane.sh')
 plot_fault_line = '-W0.5p,black,-'
 plot_fault_top_edge = '-W2p,black'
 plot_fault_hyp_open = '-W1p,black'
+
 
 # set PALETTE = '-Crelief.cpt'
 plot_palette = '-Cgray'
@@ -229,7 +250,6 @@ plot_y_max = '-43.20'
 plot_region = '/'.join([plot_x_min, plot_x_max, plot_y_min, plot_y_max])
 
 # specify the plotting region for the time slice
-
 plot_ts_x_min = '171.75'
 plot_ts_x_max = '173.00'
 plot_ts_y_min = '-44.00'
@@ -239,5 +259,4 @@ plot_ts_region = '/'.join([plot_ts_x_min, plot_ts_x_max, plot_ts_y_min, plot_ts_
 # specify the increments of X/Y (cartesian coords) for masks etc.
 plot_dx = '0.002'
 plot_dy = '0.002'
-
 

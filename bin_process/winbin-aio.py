@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
 import os
+import os.path
+import sys
+sys.path.append(os.path.abspath(os.path.curdir))
+
 #from shutil import move
 import shutil
 from subprocess import call
@@ -8,9 +12,10 @@ from glob import glob
 
 from params import *
 
-if not os.path.exists(VELDIR):
-    os.makedirs(VELDIR)
-if not os.path.isdir(VELDIR):
+if not os.path.exists(vel_dir):
+    os.makedirs(vel_dir)
+
+if not os.path.isdir(vel_dir):
     raise IOError('Output directory is not a directory!')
 
 
@@ -21,11 +26,16 @@ stat_handle = open(FD_STATLIST, 'r')
 LONS = []
 LATS = []
 STATS = []
-for line in stat_handle:
+
+lines = stat_handle.readlines()
+#print lines
+
+for line in lines:
     lon_lat_stat = filter(None, line.rstrip('\n').split(' '))
-    LONS.append(lon_lat_stat[0])
-    LATS.append(lon_lat_stat[1])
-    STATS.append(lon_lat_stat[2])
+    if len(lon_lat_stat)==3:
+        LONS.append(lon_lat_stat[0])
+        LATS.append(lon_lat_stat[1])
+        STATS.append(lon_lat_stat[2])
 
 COMPS = ['080', '170', 'ver']
 
@@ -42,12 +52,11 @@ FLIP = ['1', '1', '-1']
 
 list_handle = open(FILELIST, 'w')
 
-filepattern= MAIN_OUTPDIR + '/'+EXTENDED_RUN_NAME+ '_seis*.e3d'
-#print filepattern
-list_of_files = '\n'.join([file_path for file_path in glob(filepattern)])
-#print listoffiles
+filepattern= os.path.join(bin_output, output_prefix+ '_seis*.e3d')
+print filepattern
+list_of_files = '\n'.join([file_path for file_path in glob(filepattern)])+'\n'
+print list_of_files
 list_handle.write(list_of_files)
-
 list_handle.close()
 
 for s_index, stat in enumerate(STATS):
@@ -57,23 +66,27 @@ for s_index, stat in enumerate(STATS):
 
     print(LONS[s_index] + ' ' + LATS[s_index] + ' ' + stat)
 
-    statfile = VELDIR + '/' + stat
+    statfile = os.path.join(vel_dir, stat)
 
     for c_index, comp in enumerate(COMPS):
-        cmd = [WCC_PROGDIR + '/fdbin2wcc', 'all_in_one=1', 'filelist=' + FILELIST,
+        cmd = [os.path.join(wcc_prog_dir,'fdbin2wcc'), 'all_in_one=1', 'filelist=' + FILELIST,
                 'ix=' + IX[c_index], 'scale=' + SCALE, 'flip=' + FLIP[c_index], 'tst=' + TSTRT,
                 'stat=' + stat, 'comp=' + comp, 'outfile=' + statfile + '.' + comp,
                 'nseis_comps=9', 'swap_bytes=0', 'tst2zero=0', 'outbin=0'] 
         print ' '.join(cmd)
         call(cmd)
 
-    cmd = [WCC_PROGDIR + '/wcc_rotate','filein1=' + statfile + '.' + COMPS[0],'inbin1=0', 'filein2=' +  statfile + '.' + COMPS[1],'inbin2=0','fileout1=' + statfile + '.000', 'outbin1=0','fileout2=' + statfile+'.090','outbin2=0', 'rot=0.0']
+    cmd = [os.path.join(wcc_prog_dir,'wcc_rotate'),'filein1=' + statfile + '.' + COMPS[0],'inbin1=0', 'filein2=' +  statfile + '.' + COMPS[1],'inbin2=0','fileout1=' + statfile + '.000', 'outbin1=0','fileout2=' + statfile+'.090','outbin2=0', 'rot=0.0']
     print ' '.join(cmd)
     call(cmd)
 
-    
-    os.remove('%s.%s'%(statfile,COMPS[0]))
-    os.remove('%s.%s'%(statfile,COMPS[1]))
+   
+    for i in range(2): 
+        try:
+            os.remove('%s.%s'%(statfile,COMPS[i]))
+        except OSError:
+            pass
+ 
 
 
     

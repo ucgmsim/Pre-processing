@@ -1,0 +1,30 @@
+< Instruction >
+
+(0). The latest scripts (+ python codes) are git@github.com:sungeunbae/Pre-processing.git
+Yesterday's version is in /nesi/projects/nesi00213/Pre-processing/bin_process/
+
+(1). Go to the RunFolder directory where you have run the job.
+
+(2). Setting up
+
+ln -s /nesi/projects/nesi00213/Pre-processing/bin_process/*.py .
+cp /nesi/projects/nesi00213/Pre-processing/bin_process/params.py.template.fitzroy.2010Sep4 params.py   #(There are 2 template files for Sep4 and Dec26 events)
+cp /nesi/projects/nesi00213/Pre-processing/bin_process/postprocess.ll.fitzroy postprocess.ll
+
+(3). Edit params.py
+(4). llsubmit postprocess.ll    # this will execute merge_tsP3, winbin-aio and gen_ts 
+
+----------------
+(5) [Plotting] This part has to be done on POWER-based Linux. 
+- Files needed: Copy merged _xyts.e3d file and TSFiles. 
+- Get plot_ts_beatrice.csh and plot_ts_beatrice.ll (from github : git@github.com:sungeunbae/Pre-processing.git)
+- Edit plot_ts_beatrice.csh. Look closely at TSFILE,TSFILEDIR and TS_TOTAL (number of TSs).
+- llsubmit plot_ts_beatrice.ll
+- (Optional) Go to Png directory and create an animation by
+
+$ convert -delay 5 *.png animation.gif
+
+
+
+
+

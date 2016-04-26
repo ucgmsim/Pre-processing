@@ -2,24 +2,26 @@
 
 import os
 from subprocess import call
-
+import sys
+import os.path
+sys.path.append(os.path.abspath(os.path.curdir))
 from params import *
 
 
-if not os.path.exists(TS_OUTFILE_DIR):
-    os.makedirs(TS_OUTFILE_DIR)
+if not os.path.exists(ts_out_dir):
+    os.makedirs(ts_out_dir)
 
 
 
 for tscnt in range(TS_START, TS_TOTAL):
     tsnum = str(int(tscnt * TS_INC))
 
-    outf = TS_OUTFILE_PREFIX + '_ts' + str(tscnt).zfill(4)
-#    print(outf)
+    outf = ts_out_prefix + '_ts' + str(tscnt).zfill(4)
+    print(outf)
 
-    cmd = [os.path.join(WCC_PROGDIR, 'ts2xyz'), 'infile=' + TSFILE, 'outfile=' + outf, \
-            'swap_bytes=' + SWAP_BYTES, 'gridfile=' + GRIDFILE, 'xyts=1', 'scale=' + SCALE, \
+    cmd = [os.path.join(wcc_prog_dir, 'ts2xyz'), 'infile=' + ts_file, 'outfile=' + outf, \
+            'swap_bytes=' + swap_bytes, 'gridfile=' + GRIDFILE, 'xyts=1', 'scale=' + scale, \
             'ts=' + tsnum, 'trv=0', 'dxts=' + DXTS, 'dyts=' + DYTS, 'dzts=' + DZTS, \
-            'absmax=' + ABSMAX, 'read_header=1', 'outbin=1', 'lonlat=' + LONLAT_OUT, 'geoproj=1']
-#    print ' '.join(cmd)
+            'absmax=' + ABSMAX, 'read_header=1', 'outbin=1', 'lonlat=' + lonlat_out, 'geoproj=1']
+    print ' '.join(cmd)
     call(cmd)
