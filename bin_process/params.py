@@ -190,6 +190,14 @@ plot_topo_a_inc = '10'
 plot_topo_a_max = '80'
 plot_topo_a_below = 'NaN'
 
+# fault plane resources
+fault_plane_dir = os.path.join(global_root, 'PlottingData', 'sourcesAndStrongMotionStations')
+fault_file = os.path.join(fault_plane_dir, 'bev01_DarfieldFaultPlane.xy')
+plot_fault_add_plane = os.path.join(fault_plane_dir, 'addStandardFaultPlane.sh')
+plot_fault_line = '-W0.5p,black,-'
+plot_fault_top_edge = '-W2p,black'
+plot_fault_hyp_open = '-W1p,black'
+
 # set PALETTE = '-Crelief.cpt'
 plot_palette = '-Cgray'
 

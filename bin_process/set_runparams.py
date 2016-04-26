@@ -126,12 +126,17 @@ configs = ['version=' + version + '-mpi', \
 'plot_topo_a_inc=' + plot_topo_a_inc, \
 'plot_topo_a_max=' + plot_topo_a_max, \
 'plot_topo_a_below=' + plot_topo_a_below, \
+'plot_fault_add_plane="' + plot_fault_add_plane + '"', \
+'plot_fault_line=' + plot_fault_line, \
+'plot_fault_top_edge=' + plot_fault_top_edge, \
+'plot_fault_hyp_open=' + plot_fault_hyp_open, \
 \
 # other locations
 'wcc_prog_dir="' + wcc_prog_dir + '"', \
 'vel_mod_params_dir="' + vel_mod_params_dir + '"', \
 'global_root="' + global_root + '"', \
 'sim_dir="' + sim_dir + '"', \
+'fault_file="' + fault_file + '"', \
 'stat_file="' + stat_file + '"']
 
 par_handle.write('\n'.join(configs) + '\n')

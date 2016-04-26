@@ -13,7 +13,8 @@
 #   plot_ts_y_min, plot_ts_y_max, plot_region, plot_ts_region, plot_dx, plot_dy, plot_palette,
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
 #   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
-#   plot_topo_a_max, plot_topo_a_below
+#   plot_topo_a_max, plot_topo_a_below, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
+#   
 source e3d.par
 
 # threading: use first parameter if available (prevents user interaction)
@@ -70,13 +71,6 @@ gmt grdmath landmask.grd modelmask.grd MUL = allmask.grd
 # create color palette for plotting the topography
 base_cpt=y2r_brown.cpt
 
-# fault plane
-ADDFLTPLANEDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
-FAULTFILE=${ADDFLTPLANEDIR}/bev01_DarfieldFaultPlane.xy;
-LINE=-W0.5p,black,-
-TOPEDGE=-W2p,black
-HYPOPEN=-W1p,black;
-
 # avg Lon/Lat (midpoint of the TSlice image for the geo projection)
 avg_ll=(`echo $plot_x_min $plot_x_max $plot_y_min $plot_y_max | gawk '{print 0.5*($1+$2),0.5*($3+$4);}'`)
 # plot projection and region in GMT format for ease of use later
@@ -123,8 +117,8 @@ sig_int_received() {
     echo Caught interrupt. Waiting for processes and cleaning directory...
     echo
     echo
-    # TODO: actually kill subprocesses by storing PIDs in array
-    wait
+    # kill children
+    pkill -P $$
 
     clean_temp_files
     echo Process exiting.
@@ -237,9 +231,9 @@ render_slice() {
         cp "$sim_dir/gmt.conf" ./
 
         # call fault plane routine
-        bash ${ADDFLTPLANEDIR}/addStandardFaultPlane.sh "$plot_file" \
+        bash ${plot_fault_add_plane} "$plot_file" \
                 -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
-                $FAULTFILE $LINE $TOPEDGE $HYPOPEN
+                $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
 
         # main title
         gmt pstext $att -N -O -K -D0.0/0.35 \
