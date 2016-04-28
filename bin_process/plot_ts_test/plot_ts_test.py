@@ -139,7 +139,7 @@ for case in testcases:
         continue
 
     img1 = Image.open('TestCasePng/' + case)
-    img2 = Image.open('Png/' + 'ts-str0003.png')
+    img2 = Image.open('Png/' + case)
 
     if img1 == img2:
         print('Success: Images are the same: ' + case)
