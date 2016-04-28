@@ -80,15 +80,11 @@ for s_index, stat in enumerate(STATS):
     print ' '.join(cmd)
     call(cmd)
 
-   
-    for i in range(2): 
+
+    for i in xrange(len(COMPS)):
         try:
             os.remove('%s.%s'%(statfile,COMPS[i]))
         except OSError:
             pass
- 
 
-
-    
-    
 
