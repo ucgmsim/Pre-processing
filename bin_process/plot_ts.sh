@@ -5,7 +5,7 @@
 # some parts may be linux specific such as the 'lscpu' output, job control is used
 
 # following variables are used from e3d.par:
-#   extended_name, plot_main_title, plot_sub_title, plot_option, wcc_prog_dir,
+#   plot_main_title, plot_sub_title, plot_option, wcc_prog_dir,
 #   stat_file, vel_mod_params_dir, h, dt_ts, dx_ts, dy_ts, dz_ts, ts_start, ts_inc,
 #   swap_bytes, lonlat_out, scale, plot_sites, plot_s_pos, plot_s_lon, plot_s_lat,
 #   plot_s_sym, plot_s_fil, plot_s_lin, plot_x_org, plot_y_org, plot_x_inch, plot_x_shift,
@@ -16,6 +16,11 @@
 #   plot_topo_a_max, plot_topo_a_below, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
 #   
 source e3d.par
+# script is run with second parameter to indicate testing
+if [ "$2" != '' ]; then
+    echo Running with test params from $2
+    source "$2"
+fi
 
 # threading: use first parameter if available (prevents user interaction)
 threads=$1
