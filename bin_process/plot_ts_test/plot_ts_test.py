@@ -1,10 +1,25 @@
 #!/usr/bin/env python2
+"""
+Tests plot_ts.sh by comparing known outputs (in TestCasePng) to ones generated.
+Additional source file is passed to modify variables.
+If there are visual differences:
+    original images, inverted in area of change and diff image are shown.
+
+@author Viktor Polak
+@contact viktor.polak@canterbury.ac.nz
+@date 21 April 2016
+
+USAGE: execute from current directory only './plot_ts_test.py' or 'python plot_ts_test.py'
+    make sure python is version 2.x/2.6+
+
+ISSUES: make executable from any location, could only show diff cropped and stretched.
+"""
 
 from shutil import copyfile
-from PIL import Image
 from subprocess import call
 from os.path import basename, exists
 from glob import glob
+from PIL import Image
 
 test_configs = [ \
 'ts_start=0', \

@@ -1,4 +1,16 @@
 #!/usr/bin/env python2
+"""
+Generates 'e3d.par' from the default set, appending new key value pairs of parameters.
+
+@author Viktor Polak, Sung Bae
+@date 6 April 2016
+
+Replaces set_runparams.csh. Converted to python, handles params set in separate file.
+
+USAGE: edit params.py (not this file), execute this file from the same directory.
+
+ISSUES: remove default values in e3d_default.par where not needed.
+"""
 
 from __future__ import print_function
 import fileinput

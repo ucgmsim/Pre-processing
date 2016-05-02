@@ -1,8 +1,25 @@
 #!/usr/bin/env bash
-# bash compatible, should work with ksh too, find alternative to arrays for sh compatibility
-# also bash if test statements, use of '==' may only work on fancier shells
-# read internal command parameters are also shell specific
-# some parts may be linux specific such as the 'lscpu' output, job control is used
+
+# Created: 21 April 2016
+# Purpose: Generate visualisations of timeslices (postscript and png)
+# Replacing: plot_ts_bluefern.csh
+# Replacing Purpose: Use bash instead of csh. Source vars from e3d.par
+# Authors: Viktor Polak <viktor.polak@canterbury.ac.nz>
+
+# USAGE:
+# Execute from current directory only: "$ ./plot_ts.sh" or "$ bash plot_ts.sh"
+# Optional first parameter: specify number of threads
+#   Default is user interactive with autodetect, capped to 8 threads
+
+# ISSUES:
+# could validate parameters/check if folders/files exist.
+# only remove .png/.ps/.bb/.x files which are actually generated/used as temp instead of *
+# make executable from any location (note gmt.conf and e3d.par location)
+
+# COMPATIBILITY/PORTABILITY:
+# bash compatible, should work with ksh too.
+# Bashisms: arrays, '==' in tests, read (internal command) parameters
+# Linuxisms: 'lscpu' output, only tested with GNU AWK
 
 # following variables are used from e3d.par:
 #   plot_main_title, plot_sub_title, plot_option, wcc_prog_dir,
@@ -16,7 +33,7 @@
 #   plot_topo_a_max, plot_topo_a_below, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
 #   
 source e3d.par
-# script is run with second parameter to indicate testing
+# script is run with second parameter to indicate testing/override parameters
 if [ "$2" != '' ]; then
     echo Running with test params from $2
     source "$2"

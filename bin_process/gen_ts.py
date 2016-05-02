@@ -1,4 +1,16 @@
 #! /usr/bin/env python2
+"""
+Converts OutBin/*_xyts.e3d files to TSlice/TSFiles/*_ts0000.0 which can then be plotted.
+
+@author Viktor Polak, Sung Bae
+@date 8 April 2016
+
+Replaces gen_ts.csh. Converted to Python, uses globally set variables.
+
+USAGE: execute from current directory. Input and output basenames are set in params.py.
+
+ISSUES: 
+"""
 
 import os
 from subprocess import call

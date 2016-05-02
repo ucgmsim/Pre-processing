@@ -1,4 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
+"""
+Generates ASCII format version of e3d file for each station/component.
+
+@author Viktor Polak, Sung Bae
+@date 5 April 2016
+
+Replaces winbin-aio.csh. Re implemented in python. Using e3d.par.
+
+USAGE: execute from current directory being the simulation directory containing the 'Vel' folder.
+    if outside $sim_dir, link within: 'ln -s location/to/winbin-aio.py simdir/'
+
+ISSUES: think of better filename
+"""
 
 import os
 import os.path
