@@ -18,7 +18,21 @@ import sys
 import os.path
 sys.path.append(os.path.abspath(os.path.curdir))
 from shutil import copyfile
-from params import *
+# attempt to append template file before importing params
+try:
+    # throws NameError if var not set, AssertionError if blank
+    assert(params_override != '')
+    # copy to temp file
+    copyfile('params.py', 'params_joined.py')
+    # append to temp
+    with open('params_joined.py', 'a') as fp:
+        with open('params_override_' + params_override + '.py', 'r') as tp:
+            fp.write(tp.readlines())
+    # import temp
+    import params_joined
+    os.remove('params_joined.py')
+except (AssertionError, NameError, ImportError, OSError):
+    from params import *
 
 try:
     copyfile(default_parfile, parfile)
