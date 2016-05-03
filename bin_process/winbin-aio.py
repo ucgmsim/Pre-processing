@@ -24,6 +24,8 @@ from subprocess import call
 from glob import glob
 
 from params import *
+if sys.argv[1] == 'test_mode':
+    from postprocess_test.test_params import *
 
 if not os.path.exists(vel_dir):
     os.makedirs(vel_dir)
@@ -44,8 +46,8 @@ lines = stat_handle.readlines()
 #print lines
 
 for line in lines:
-    lon_lat_stat = filter(None, line.rstrip('\n').split(' '))
-    if len(lon_lat_stat)==3:
+    lon_lat_stat = line.split()
+    if len(lon_lat_stat) == 3:
         LONS.append(lon_lat_stat[0])
         LATS.append(lon_lat_stat[1])
         STATS.append(lon_lat_stat[2])
@@ -65,7 +67,7 @@ FLIP = ['1', '1', '-1']
 
 list_handle = open(FILELIST, 'w')
 
-filepattern= os.path.join(bin_output, output_prefix+ '_seis*.e3d')
+filepattern = os.path.join(bin_output, output_prefix+ '_seis*.e3d')
 print filepattern
 list_of_files = '\n'.join([file_path for file_path in glob(filepattern)])+'\n'
 print list_of_files
@@ -73,10 +75,6 @@ list_handle.write(list_of_files)
 list_handle.close()
 
 for s_index, stat in enumerate(STATS):
-    # never used??
-    cdist = -999
-    vsite = -999
-
     print(LONS[s_index] + ' ' + LATS[s_index] + ' ' + stat)
 
     statfile = os.path.join(vel_dir, stat)
@@ -93,8 +91,8 @@ for s_index, stat in enumerate(STATS):
     print ' '.join(cmd)
     call(cmd)
 
-
-    for i in xrange(len(COMPS)):
+    # only getting rid of '080' and '170', not 'ver'
+    for i in xrange(len(COMPS) - 1):
         try:
             os.remove('%s.%s'%(statfile,COMPS[i]))
         except OSError:
