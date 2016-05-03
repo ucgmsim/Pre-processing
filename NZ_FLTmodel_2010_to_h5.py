@@ -3,7 +3,11 @@ NZ_FLTmodel_20110_to_h5.py
 Richard Clare
 Created 03/05/2016
 
-Script to read in NZ_FLTmodel_2010_Test.txt and save as .h5 file.
+Script to 
+
+1) read in NZ_FLTmodel_2010_Test.txt and save as .h5 file.
+
+2) load .h5 file and sort dep
 
 Need to remove the \n from each line
 
@@ -48,6 +52,8 @@ nlines_header=14
 fields=['FaultName', 'TectonicType', 'FaultType', 'LengthMean', 'LengthSigma', 'DipMean', 'DipSigma', 'DipDir', 'Rake', 'RupDepthMean', 'RupDepthSigma', \
 'RupTopMean', 'RupTopMin', 'RupTopMax', 'SlipRateMean', 'SlipRateSigma', 'CouplingCoeff', 'CouplingCoeffSigma', 'MwMedian', 'RecurIntMedian', 'NumLocations', \
 'LocationCoordinates']
+
+nFields=len(fields)
 
 faults={}
 
@@ -110,6 +116,48 @@ while line_counter < nlines:
 #save out the dict to .h5
 h5rw.h5write(out_filename,faults)
 
+#############################################################################################
+#Read in .h5 and sort based on lat and lon
+#Different assumptions possible: all or part of the fault in the lat lon area
 
+faults=h5rw.h5read(out_filename)
+
+#set the wanted minimum and maximum latitudes
+#these are for South Island only
+wanted_lat=[-46.7,-40.4]    #min and max respectively
+wanted_lon=[166.0,174.5]    #min and max respectively
+
+#loop over all faults and check if it is wanted
+nFaults=len(faults['FaultName'])
+
+#list of indices of the faults in lat,lon range
+chosen=[]
+
+for m in range(nFaults):
+    #also need to loop over all of NumLocations for each fault    
+    for n in range(faults['NumLocations'][m]):        
+        lat=faults['LocationCoordinates'][m][n][1]
+        lon=faults['LocationCoordinates'][m][n][0]
+        if (lat>wanted_lat[0])&(lat<wanted_lat[1])&(lon>wanted_lon[0])&(lon<wanted_lon[1]):
+            chosen.append(m)
+            break  #exit for loop if one of the locations is true
+
+
+#create a new dictionary with just the chosen faults
+chosen_faults={}
+
+#loop over all the fields initializing the list
+for i in range(len(fields)):
+    chosen_faults[fields[i]]=[]
+
+#loop over the fields
+for ii in range(nFields):
+    for jj in range(len(chosen)):
+        chosen_faults[fields[ii]].append(faults[fields[ii]][chosen[jj]])
+
+chosen_out_filename='chosen_NZ_FLTmodel_2010_Test.h5'
+
+#now save out the chosen faults as .h5
+h5rw.h5write(chosen_out_filename,chosen_faults)
 
 #save out the fault as an .h5 file
