@@ -138,7 +138,7 @@ for m in range(nFaults):
     for n in range(faults['NumLocations'][m]):        
         lat=faults['LocationCoordinates'][m][n][1]
         lon=faults['LocationCoordinates'][m][n][0]
-        if (lat>wanted_lat[0])&(lat<wanted_lat[1])&(lon>wanted_lon[0])&(lon<wanted_lon[1]):
+        if (lat>wanted_lat[0])and(lat<wanted_lat[1])and(lon>wanted_lon[0])and(lon<wanted_lon[1]):
             chosen.append(m)
             break  #exit for loop if one of the locations is true
 
@@ -155,7 +155,7 @@ for ii in range(nFields):
     for jj in range(len(chosen)):
         chosen_faults[fields[ii]].append(faults[fields[ii]][chosen[jj]])
 
-chosen_out_filename='chosen_NZ_FLTmodel_2010_Test.h5'
+chosen_out_filename='chosen_'+out_filename
 
 #now save out the chosen faults as .h5
 h5rw.h5write(chosen_out_filename,chosen_faults)
