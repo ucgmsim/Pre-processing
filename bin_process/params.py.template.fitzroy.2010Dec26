@@ -22,7 +22,7 @@ n_proc_z = 2
 
 flo = '1.0'
 # spacial grid spacing (km)
-hh = '0.500'
+hh = '0.100' #'0.500'
 # x, y, z distance (km)
 nx = '280'
 ny = '240'
@@ -137,7 +137,7 @@ print FD_STATLIST
 #SIMDIR = MAIN_OUTPDIR #the directory name where the 3D FD run output exists
 
 ts_file = os.path.join(bin_output, output_prefix+ '_xyts.e3d') #the file created by merge_ts
-HH = '0.100' # HH is the grid spacing used for the 3D FD run
+HH = hh # HH is the grid spacing used for the 3D FD run. HH can be different from hh if no gridout file for hh is available.
 DXTS = '5' # DXTS is the decimation along the X-axis for the time slice output (same as dxts in e3d.par)
 DYTS = '5' # DYTS is the decimation along the Y-axis for the time slice output
 DZTS = '1' # DZTS is the decimation along the Z-axis for the time slice output (=1 for xy time slice)
@@ -155,7 +155,7 @@ TS_TOTAL = 400 # the total number of slices to generate. the total sim time = TS
 
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
 
-GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
+GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + HH # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
 
 t_slice_dir = os.path.join(sim_dir, 'TSlice')
 ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
