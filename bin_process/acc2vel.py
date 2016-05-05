@@ -21,7 +21,7 @@ verify_binaries([int_bin])
 verify_files([stat_file])
 verify_strings([hf_prefix])
 verify_lists([int_comps])
-verify_user_dirs([hf_outdir, hf_veldir])
+verify_user_dirs([hf_accdir, hf_veldir])
 
 stations = []
 with open(stat_file, 'r') as sp:
@@ -31,7 +31,7 @@ with open(stat_file, 'r') as sp:
 
 for stat in stations:
     for comp in int_comps:
-        file_in = os.path.join(hf_outdir, "%s_%s.%s" % (hf_prefix, stat, comp))
+        file_in = os.path.join(hf_accdir, "%s_%s.%s" % (hf_prefix, stat, comp))
         file_out = os.path.join(hf_veldir, "%s.%s" % (stat, comp))
         # integrate ACC to get VEL
         call([int_bin, 'integ=1', "filein=%s" % file_in, \

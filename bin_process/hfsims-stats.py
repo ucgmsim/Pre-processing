@@ -23,9 +23,9 @@ verify_files([stat_file, hf_slip, hf_v_model])
 verify_strings([hf_prefix, hf_t_len, hf_dt, hf_vs_moho, hf_fa_sig_1, hf_rv_sig_1, \
         hf_sdrop, hf_kappa, hf_qfexp, hf_rayset, hf_rvfac, hf_shal_rvfac, hf_deep_rvfac, \
         hf_czero, hf_site_amp, hf_mom, hf_rupv, hf_seed, hf_fmax, hf_calpha])
-verify_user_dirs([hf_outdir])
+verify_user_dirs([hf_accdir])
 
-out_prefix = os.path.join(hf_outdir, hf_prefix)
+out_prefix = os.path.join(hf_accdir, hf_prefix)
 
 # copy line not starting with '#' into a local stat_file copy
 n_stat = 0

@@ -25,42 +25,43 @@ n_proc_x = 8
 n_proc_y = 8
 n_proc_z = 8
 
-
-flo = '1.0'
-# spacial grid spacing (km)
-hh = '0.100'
-# x, y, z distance (km)
+### folowing values are dependent on the velocity model used
+# high pass / low cut frequency, filter for output seimograms
+flo = '1.0' # hertz
+# spatial grid spacing
+hh = '0.100' # km
+# x, y, z grid size (multiples of grid spacing)
 nx = '1400'
 ny = '1200'
 nz = '460'
+# model reference location
+MODEL_LAT = '-43.6000'
+MODEL_LON = '172.3000'
+MODEL_ROT = '-10.0'
+###
+
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
 nt = '20000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
-
-MODEL_LAT = '-43.6000'
-MODEL_LON = '172.3000'
-MODEL_ROT = '-10.0'
-
 # how often to save outputs (measured in simulation timesteps)
-DUMP_ITINC = '4000'
+DUMP_ITINC = '4000' # nt
 
 # output timestep in multiples of simulation timestep
 # eg: simulation dt 0.005 sec * dt_ts 20 = 0.1 second increments
 dt_ts = '20'
 # x, y, z decimation along axis
+# store output at lower x, y, z resolution by factor provided
+# eg: nx 1400 / dx_ts 5 = 280 points along 1400 nx * 0.1 hh = 140 km
 dx_ts = '5'
 dy_ts = '5'
-# 1 for xy time slice
 dz_ts = '1'
-
-
 
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
-ts_total = '400'   # number of slices to generate. sim time = ts_total * ORIG_DT
+ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
@@ -70,9 +71,9 @@ swap_bytes = '0'
 lonlat_out = '1'
 scale = '1.0'
 
-# TODO: remove default? would simplify, remove duplicates. anything lost (is appended to)?
+# EMOD3D parameters template and complete parameter files
 default_parfile = 'e3d_default.par'
-parfile = 'e3d.par'
+parfile = 'e3d.par' # update load leveler file
 
 #FD_VMODFILE = 'Cant1D_v1.fd_modfile'     #This line was for a 1D Vp,Vs,rho model
 # set names of P,S,D files
@@ -260,7 +261,7 @@ hf_prefix = '22Feb2011_bev01'
 # binary that simulates the HF data
 hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
 # where to save output
-hf_outdir = 'Acc'
+hf_accdir = 'Acc'
 # more generic, doesn't contain full path
 hf_veldir = 'Vel'
 # duration of HF sim
@@ -305,14 +306,18 @@ hf_rupv = '-1.0'
 hf_seed = '5481190'
 
 
-################## acc_to_vel ###################
-# acc_to_vel will use hf params to find outputs #
-#################################################
+############ acc2vel and match_seismo #############
 
 # binary that integrates (converts acceleration to velocity)
 int_bin = '/hpc/home/rwg43/Bin/integ_diff'
-# components which will be converted
+# binary that applies site amplification
+siteamp_bin = '/hpc/home/rwg43/Bin/wcc_siteamp'
+# binary that applies ??? filter
+tfilter_bin = '/hpc/home/rwg43/Bin/wcc_tfilter'
+# binary that adds LF and HF using matched filters
+match_bin = '/hpc/home/rwg43/Bin/wcc_add'
+# binary which returns PGA
+getpeak_bin = '/hpc/home/rwg43/Bin/wcc_getpeak'
+# components which will be converted (acc2vel)
 int_comps = ['000', '090', 'ver']
-
-
-
+match_log = 'seismo.log'

@@ -1,5 +1,9 @@
 """
 Module which contains shared functions/values.
+
+@date 8 April 2016
+@author Viktor Polak
+@contact viktor.polak@canterbury.ac.nz
 """
 
 import os
@@ -32,6 +36,16 @@ def verify_files(file_list):
     for file_path in file_list:
         if not os.path.isfile(file_path):
             raise ResourceError('File not found: %s. Check params.py.' % (file_path))
+
+# makes sure logfiles can be created, removes old ones
+def verify_logfiles(logfile_list):
+    for logfile in logfile_list:
+        # is directory writable?
+        if not os.access(os.path.dirname(logfile), os.W_OK):
+            raise ResourceError('Can\'t write logfile: %s. Check directory permissions.'\
+                    % (logfile))
+        if os.path.exists(logfile):
+            os.remove(logfile)
 
 # makes sure required string are not empty
 def verify_strings(string_list):
