@@ -269,3 +269,56 @@ plot_dx = '0.002'
 plot_dy = '0.002'
 
 
+################## hf_sim ####################
+# check source code in bin dir for more help #
+##############################################
+
+# output files in format of: hf_prefix + '_STAT.COMP'
+hf_prefix = '22Feb2011_bev01'
+# binary that simulates the HF data
+hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
+# where to save output
+hf_outdir = 'Acc'
+# duration of HF sim
+hf_t_len = '100' # seconds
+# HF simulation step. should be small
+hf_dt = '0.005' # seconds
+# slip model
+hf_slip = '/hpc/home/hnr12/RupModel/2011Feb22_m6pt2/Stoch/m6.20-16.0x9.0_s560.stoch'
+# 1D velocity model
+hf_v_model = '/hpc/home/hnr12/VelocityModel/Mod-1D/Cant1D_v2-midQ.1d'
+# for western US, check applicability to NZ
+hf_sdrop = '50' # average stress-drop, bars
+hf_kappa = '0.045'
+hf_fmax = '10'
+hf_qfexp = '0.6' # Q freq. exponent
+# ???
+hf_vs_moho = '999.9'
+# uncertainty (sigma) to consider for fourier amplitude
+hf_fa_sig_1 = '0.0'
+# rupture velocity uncertainty affects corner frequency, scales GMs as f0^2
+hf_rv_sig_1 = '0.1'
+# ??? 2 rays to consider: direct1 and moho2
+hf_rayset = '2 1 2'
+# rup vel factor. ratio of rupture : Vs
+hf_rvfac = '0.8'
+# shallow fault portion multiplier
+hf_shal_rvfac = '0.70'
+# deep fault portion multiplier
+hf_deep_rvfac = '0.70'
+# C0 coefficient
+hf_czero = '2.1'
+# C alpha
+hf_calpha = '-99'
+# should be '1' (apply BJ97 crustal amplification factors)
+# 0 for no site amplification
+hf_site_amp = '1'
+# seismic moment. '-1': from input rupture model
+hf_mom = '-1'
+# rupture velocity. '-1': from input rupture model
+hf_rupv = '-1.0'
+# ??? seed? '0': not random, '1': random
+hf_seed = '5481190'
+
+
+
