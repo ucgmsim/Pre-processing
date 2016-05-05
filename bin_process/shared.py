@@ -20,6 +20,25 @@ def par_value (variable):
     par_handle.close()
     return ''.join(result.split('=')[1:]).rstrip('\n')
 
+# returns a list of stations
+# sample line in source file:
+#   171.74765   -43.90236 ADCS
+def get_stations(source_file, locations = False):
+    stations = []
+    station_lats = []
+    station_lons = []
+    with open(source_file, 'r') as sp:
+        for line in sp.readlines():
+            if line[0] != '#':
+                info = line.split()
+                stations.append(info[2])
+                if locations:
+                    station_lons.append(info[0])
+                    station_lats.append(info[1])
+    if not locations:
+        return stations
+    return (stations, station_lats, station_lons)
+
 
 ################# Verify Section ###################
 # verify functions make sure script resources exist before continuing to run.

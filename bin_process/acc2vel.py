@@ -23,11 +23,7 @@ verify_strings([hf_prefix])
 verify_lists([int_comps])
 verify_user_dirs([hf_accdir, hf_veldir])
 
-stations = []
-with open(stat_file, 'r') as sp:
-    for line in sp.readlines():
-        if line[0] != '#':
-            stations.append(line.split()[2])
+stations = get_stations(stat_file)
 
 for stat in stations:
     for comp in int_comps:
