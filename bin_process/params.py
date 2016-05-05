@@ -5,6 +5,8 @@ if __name__ == '__main__':
             '\nOnly edit variables in ' + __file__ + ' and then run the set param script.\n')
     exit()
 
+# to enable templates, add specific parameters to params_override_<name>.py
+# works with binaries/scripts using e3d.par (processed by set_runparams.py)
 params_override = '2010Sep4'
 
 # parameters are written to files, need to be strings
@@ -100,7 +102,7 @@ user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
 # directories - main. change global_root with user_root as required
 run_dir = os.path.join(user_root, 'RunFolder')
 srf_dir = os.path.join(user_root, 'RupModel')
-stat_dir = os.path.join(user_root, 'StationInfo')
+stat_dir = os.path.join('/hpc/home/vap30', 'StationInfo')
 vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
 
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
@@ -142,24 +144,12 @@ print FD_STATLIST
 
 ############### gen_ts ###################
 
-#SIMDIR = MAIN_OUTPDIR #the directory name where the 3D FD run output exists
-
 ts_file = os.path.join(bin_output, output_prefix+ '_xyts.e3d') #the file created by merge_ts
-HH = '0.100' # HH is the grid spacing used for the 3D FD run
-DXTS = '5' # DXTS is the decimation along the X-axis for the time slice output (same as dxts in e3d.par)
-DYTS = '5' # DYTS is the decimation along the Y-axis for the time slice output
-DZTS = '1' # DZTS is the decimation along the Z-axis for the time slice output (=1 for xy time slice)
-
-#FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
 
 # TODO: not used anywhere???
 # ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0
 #        =0 3 components are output respectively into <fileroot>.0, <fileroot>.1, <fileroot>.2
 ABSMAX = '1'
-
-TS_INC = 1 # TS_INC is the increment for output time slices (=2 means every other slice is output)
-TS_START = 0 # TS_START is the starting time slice (0 is first one)
-TS_TOTAL = 400 # the total number of slices to generate. the total sim time = TS_TOTAL * ORIG_DT
 
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
 
@@ -168,14 +158,6 @@ GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + hh # GRIDFILE is the file co
 t_slice_dir = os.path.join(sim_dir, 'TSlice')
 ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
 ts_out_prefix = os.path.join(ts_out_dir, run_name)
-
-# swap_bytes 0/1 no/yes - should be 1 if
-#   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
-# the three lines below not used if the TSFiles are created using 'gen_ts.py' on supercomputer
-#   and copied to local computer beforehand.
-swap_bytes = '0'
-lonlat_out = '1'
-scale = '1.0'
 
 ################## plot_ts ####################
 
@@ -279,6 +261,8 @@ hf_prefix = '22Feb2011_bev01'
 hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
 # where to save output
 hf_outdir = 'Acc'
+# more generic, doesn't contain full path
+hf_veldir = 'Vel'
 # duration of HF sim
 hf_t_len = '100' # seconds
 # HF simulation step. should be small
@@ -319,6 +303,16 @@ hf_mom = '-1'
 hf_rupv = '-1.0'
 # ??? seed? '0': not random, '1': random
 hf_seed = '5481190'
+
+
+################## acc_to_vel ###################
+# acc_to_vel will use hf params to find outputs #
+#################################################
+
+# binary that integrates (converts acceleration to velocity)
+int_bin = '/hpc/home/rwg43/Bin/integ_diff'
+# components which will be converted
+int_comps = ['000', '090', 'ver']
 
 
 

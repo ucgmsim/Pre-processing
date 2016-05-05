@@ -39,6 +39,12 @@ def verify_strings(string_list):
         if variable == '':
             raise ResourceError('Variable is empty: %s. Check params.py.' % (variable))
 
+# makes sure list inputs contain values
+def verify_lists(list_list):
+    for req_list in list_list:
+        if len(req_list) < 1:
+            raise ResourceError('List doesn\'t contain any values: %s. Check params.py.' % (req_list))
+
 # makes sure user dirs (ones that may be created if not existing) are ready
 def verify_user_dirs(dir_list):
     for dir_path in dir_list:
