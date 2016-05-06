@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 """
-Converts acceleration seismograms to velocity versions.
+Converts HF acceleration seismograms to velocity versions.
+TODO: is this file necessary? make generic? functionality included in match_seismo.
 
 USAGE: Execute script from current directory.
     Directory should contain populated accelerations folder.

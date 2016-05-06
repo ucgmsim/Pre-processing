@@ -1,0 +1,120 @@
+#!/usr/bin/env python2
+"""
+Takes LF/HF seismograms and creates BB motions using a matched filter.
+
+USAGE:
+The specific variables that generally need to be changed on each run are:
+ - `stat_file` - stations considered, also `stat_vs_ref` and `stat_vs_est`
+ - `hf_sim_dir` and `hf_prefix` - directory and prefix of the HF seismograms
+ - `vel_dir` - the dir of the LF vel seismograms
+ - `site_amp_model` - choose the site amplification factor model to use
+
+Converted to Python.
+@date 06 May 2016
+@author Viktor Polak
+@contact viktor.polak@canterbury.ac.nz
+"""
+
+from shutil import copyfile
+from subprocess import call, Popen, PIPE
+from shared import *
+from params import *
+
+# verify input incl. params.py
+verify_binaries([int_bin, siteamp_bin, tfilter_bin, match_bin, getpeak_bin])
+verify_files([stat_file, stat_vs_ref, stat_vs_est])
+verify_logfiles([match_log])
+verify_strings([hf_prefix, match_hf_fhi, match_hf_flo, match_hf_ord, match_hf_tstart, \
+        match_lf_fhi, match_lf_flo, match_lf_ord, match_lf_tstart, site_amp_model, \
+        site_amp_model, site_vref_max, site_fmin, site_fmidbot, site_flowcap])
+verify_lists([match_hf_comps, match_lf_comps])
+verify_user_dirs([bb_accdir, bb_veldir, hf_accdir, hf_veldir, vel_dir])
+
+logger = open(match_log, 'w')
+
+stations, station_lats, station_lons = get_stations(stat_file, True)
+
+tmp_filelist = 'temp.filter_list'
+lf_copy = 'temp.lf'
+hf_copy = 'temp.hf'
+# file list is passed to binaries but will only ever contain one item
+def set_filelist(filename):
+    with open(tmp_filelist, 'w') as fp:
+        fp.write(filename)
+
+# Set GEN_ROCK_VS to Vs30 used in the 1D model for the high frequency runs (VREF for HF)
+set GEN_ROCK_VS = 865
+
+for s_index, stat in enumerate(stations):
+    # Following 2 lines assume that Vs30 information is stored in STATFILE, comment out for now
+    #first get minimum of Vref and site_vref_max
+    set vref = `gawk -v stat=$stat -v x=$site_vref_max '{if($1==stat && $2<x)x=$2;}END{print x;}' stat_vs_ref `
+    #get Vs30 for site
+    set vsite = `gawk -v stat=$stat '{if($1==stat)x=$2;}END{print x;}' stat_vs_est `
+
+    # Just set everything to same Vs30, i.e., no site amp will be applied - need to change this.
+    #set vref = $GEN_ROCK_VS
+    #set vsite = $GEN_ROCK_VS
+
+    echo stations[s_index], station_lons[s_index], station_lats[s_index], vref, vsite
+
+    for c_index, comp in enumerate(lf_comps):
+        # working copy of HF file
+        copyfile(os.path.join(hf_accdir, \
+                '%s_%s.%s ' % (hf_prefix, stat, hf_comps[c_index])), hf_copy)
+        set_filelist(hf_copy)
+        # get PGA (needed to determine the level of NL site amp)
+        peak_pipe = Popen([getpeak_bin], stdin = PIPE, stdout = PIPE)
+        peak_output, peak_err = peak_pipe.communicate(hf_copy)
+        pga = peak_output.split()[1]
+        pga = '%11.6f\n' % (pga / 981.0)
+        # TODO: BREAK HERE AND TEST PGA
+        print(pga)
+        print('^^ is that value ok?')
+        exit()
+        # debug
+        logger.write('%s %s %s %s %s' % (stat, comp, pga, vref, vsite))
+        print('   -> %s %s' % (comp, pga))
+        # apply site amplification to HF record
+        call([siteamp_bin, 'pga=%s' % PGA, 'vref=%s' % GEN_ROCK_VS, 'vsite=%s' % vsite, \
+                'model=%s' % site_amp_model, 'vpga=%s' % GEN_ROCK_VS, 'flowcap=%s' % site_flowcap, \
+                'infile=%s' % hf_copy, 'outfile=%s' % hf_copy, \
+                'fmidbot=%s' % site_fmidbot, 'fmin=%s' % site_fmin)]
+        # filter HF record
+        call([tfilter_bin, 'filelist=%s' % tmp_filelist, 'order=%s' % match_hf_ord, \
+                'fhi=%s' % match_hf_fhi, 'flo=%s' % match_hf_flo, \
+                'inbin=0', 'outbin=0', 'phase=0', 'outpath=./'])
+
+        # working copy of LF file
+        copyfile(os.path.join(vel_dir, '%s.%s' % (stat, comp)), lf_copy)
+        set_filelist(lf_copy)
+        # differentiate LF Vel to get LF Acc
+        call([int_bin, 'diff=1', 'inbin=0', 'outbin=0', \
+                'filein=%s' % lf_copy, 'fileout=%s' % lf_copy])
+        # apply site amplification to LF record
+        call([siteamp_bin, 'pga=%s' % PGA, 'vref=%s' % vref, 'vsite=%s' % vsite, \
+                'model=%s' % site_amp_model, 'vpga=%s' % vref, 'flowcap=%s' % site_flowcap, \
+                'infile=%s' % lf_copy, 'outfile=%s' % lf_copy, \
+                'fmidbot=%s' % site_fmidbot, 'fmin=%s' % site_fmin])
+        # filter LF record
+        call([tfilter_bin, 'filelist=%s' % tmp_filelist, 'order=%s' % match_lf_ord, \
+                'fhi=%s' % match_lf_fhi, 'flo=%s' % match_lf_flo, \
+                'inbin=0', 'outbin=0', 'phase=0', 'outpath=./'])
+
+        # combine LF and HF using matched fileters
+        call([match_bin, 'f1=1.00', 't1=%s' % match_lf_tstart, 'inbin1=0' \
+                'infile1=%s' % lf_copy, 'f2=1.00', 't2=%s' % match_hf_tstart, \
+                'inbin2=0', 'infile2=%s' % hf_copy, 'outbin=0', \
+                'outfile=%s%s%s.%s' % (bb_accdir, os.path.sep, stat, comp)])
+        # integrate the BB ACC to get BB VEL
+        file_in = os.path.join(bb_accdir, '%s.%s' % (stat, comp))
+        file_out = os.path.join(bb_veldir, '%s.%s' % (stat, comp))
+        call([int_bin, 'integ=1', 'filein=%s' % file_in, \
+                'inbin=0', 'outbin=0', 'fileout=%s' % file_out)]
+
+logger.close()
+# remove temp files
+os.remove(tmp_filelist)
+os.remove(hf_copy)
+os.remove(lf_copy)
+

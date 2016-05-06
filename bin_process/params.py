@@ -1,4 +1,5 @@
 import os.path
+from platform import node
 if __name__ == '__main__':
     # in case someone has passed this file as a parameter to python
     print('\nDo not run ' + __file__ + \
@@ -14,8 +15,11 @@ params_override = '2010Sep4'
 ######## Global CONSTANTS ########
 run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
 version = '3.0.4'
-# directory name inder RunFolder
+# LPSIM directory name under RunFolder
 extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
+# HFSIM directory name under RunFolder
+hf_run_name = 'HFSim-2011Feb22b560_v2_Cant1D_v2-v5.4.4-rvf0.8_dt'
+bb_run_name = 'BBSim-2011Feb22b560_v2_Cantv1_02-h0.100_dt'
 # prefix used for naming OutBin/prefix{_xyts.e3d,_seis.e3d}
 output_prefix = run_name
 
@@ -26,7 +30,7 @@ n_proc_y = 8
 n_proc_z = 8
 
 ### folowing values are dependent on the velocity model used
-# high pass / low cut frequency, filter for output seimograms
+# low pass frequency, filter for output seimograms
 flo = '1.0' # hertz
 # spatial grid spacing
 hh = '0.100' # km
@@ -95,7 +99,13 @@ global_root = '/nesi/projects/nesi00213'
 
 
 # things that people have their own copies of, eg. RunFolder
-user_root = global_root   # os.path.expanduser('~')   #NOT recommended to use separate user_root in Fitzroy.
+# NOT recommended to use separate user_root in Fitzroy.
+# TODO: detect if machine is Fitzroy, what is the Fitzroy hostname???
+if node() == 'p2n14-c':
+    # running on beatrice
+    user_root = os.path.expanduser('~')
+else:
+    user_root = global_root
 
 # works on Windows and POSIX paths
 user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
@@ -103,7 +113,7 @@ user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
 # directories - main. change global_root with user_root as required
 run_dir = os.path.join(user_root, 'RunFolder')
 srf_dir = os.path.join(user_root, 'RupModel')
-stat_dir = os.path.join('/hpc/home/vap30', 'StationInfo')
+stat_dir = os.path.join(user_root, 'StationInfo')
 vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
 
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
@@ -113,6 +123,8 @@ seis_tmp_dir = os.path.join(user_scratch, extended_run_name, 'SeismoBin')
 
 # directories - derived
 sim_dir = os.path.join(run_dir, extended_run_name)
+hf_sim_dir = os.path.join(run_dir, hf_run_name)
+bb_sim_dir = os.path.join(run_dir, bb_run_name)
 restart_dir = os.path.join(sim_dir, 'Restart')
 bin_output = os.path.join(sim_dir, 'OutBin')
 
@@ -260,10 +272,10 @@ plot_dy = '0.002'
 hf_prefix = '22Feb2011_bev01'
 # binary that simulates the HF data
 hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
-# where to save output
-hf_accdir = 'Acc'
-# more generic, doesn't contain full path
-hf_veldir = 'Vel'
+# HF run acceleration file directory
+hf_accdir = os.path.join(hf_sim_dir, 'Acc')
+# HF run velocity file directory
+hf_veldir = os.path.join(hf_sim_dir, 'Vel')
 # duration of HF sim
 hf_t_len = '100' # seconds
 # HF simulation step. should be small
@@ -308,7 +320,7 @@ hf_seed = '5481190'
 
 ############ acc2vel and match_seismo #############
 
-# binary that integrates (converts acceleration to velocity)
+# binary that integrates / differentiates (Acc <> Vel)
 int_bin = '/hpc/home/rwg43/Bin/integ_diff'
 # binary that applies site amplification
 siteamp_bin = '/hpc/home/rwg43/Bin/wcc_siteamp'
@@ -321,3 +333,40 @@ getpeak_bin = '/hpc/home/rwg43/Bin/wcc_getpeak'
 # components which will be converted (acc2vel)
 int_comps = ['000', '090', 'ver']
 match_log = 'seismo.log'
+# station file with vs30 reference values
+stat_vs_ref = '/hpc/home/hnr12/StationInfo/cantstations_cant1D_v1.vs30ref'
+# station file with vs30 estimates
+stat_vs_est = '/hpc/home/hnr12/StationInfo/cantstations.vs30'
+# filter properties for HF (short period) ground motion
+match_hf_fhi = '1.0'        # high pass frequency, Hz
+match_hf_flo = '1.0e+15'    # low pass frequency, Hz
+match_hf_ord = '4'          # filter order
+match_hf_tstart = '0.0'     # for alignment
+# filter properties for LF (long period) ground motion
+match_lf_fhi = '0.0'        # high pass frequency, Hz
+match_lf_flo = '1.0'        # low pass frequency, Hz
+# '4': standard?, '0': already low pass filtered
+match_lf_ord = '0'          # filter order
+match_lf_tstart = '0.0'     # for alignment
+# list of matching HF and LF components
+match_hf_comps = ['000', '090', 'ver']
+match_lf_comps = ['000', '090', 'ver']
+# acceleration seismo folder for BB
+bb_accdir = os.path.join(bb_sim_dir, 'Acc')
+bb_veldir = os.path.join(bb_sim_dir, 'Vel')
+# vs30 amplification model [cb2008 | bssa2014 | cb2014]
+site_amp_model = 'cb2014'
+# relating to site amplification
+site_vref_max = '1100'  # reference vs30 for cb08/14 amp model
+site_fmin = '0.2'       # 0.2 Hz = 5 sec. point where tapering to unity begins
+site_fmidbot = '0.5'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
+site_flowcap = '0.0'
+
+
+
+
+
+
+
+
+
