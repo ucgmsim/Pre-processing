@@ -173,6 +173,7 @@ unused4
 """.split()
 
 import numpy as np
+from utilities import read_geoNet_list
 class FileComponent(object):
     
     def __init__(self):
@@ -255,15 +256,16 @@ class FileComponent(object):
             self.lines.append(self.vel)
             self.lines.append(self.disp) 
         
-        self.acc = [ np.asarray(_.split(),dtype='f') for _ in self.acc ]
-        self.acc = np.concatenate(self.acc)
-
+        #self.acc = [ np.asarray(_.split(),dtype='f') for _ in self.acc ]
+        #self.acc = np.concatenate(self.acc)
+        self.acc = read_geoNet_list(self.acc)
         if (len(self.vel) is not 0):
-            self.vel = [ np.asarray(_.split(),dtype='f') for _ in self.vel ]
-            self.vel = np.concatenate(self.vel)
-            self.disp= [ np.asarray(_.split(),dtype='f') for _ in self.disp ]
-            self.disp= np.concatenate(self.disp)
-
+            #self.vel = [ np.asarray(_.split(),dtype='f') for _ in self.vel ]
+            #self.vel = np.concatenate(self.vel)
+            #self.disp= [ np.asarray(_.split(),dtype='f') for _ in self.disp ]
+            #self.disp= np.concatenate(self.disp)
+            self.vel = read_geoNet_list(self.vel)
+            self.disp= read_geoNet_list(self.disp)
 
 
         return lines
@@ -284,7 +286,8 @@ class GeoNet_File(object):
         self.vol = vol
         self.base_dir = base_dir
         self._parse()
-    
+        
+   
     def _readFile(self):
         lines = []
         with open("/".join([self.base_dir, self.station_fileName]),'r') as f:
@@ -302,6 +305,14 @@ class GeoNet_File(object):
         lines = self.comp_up.extract(lines)
         
         assert (len(lines) is 0), "D'oh! Final list must be empty"
+        
+        if self.vol == 1:
+            #normalize with g=9810. and get acc in cm/s^2
+            g = 9810. #mm/s^2
+            self.comp_up.acc  *= g/self.comp_up.C_header["line_23"]["local_g"]/10.
+            self.comp_1st.acc *= g/self.comp_1st.C_header["line_23"]["local_g"]/10.
+            self.comp_2nd.acc *= g/self.comp_2nd.C_header["line_23"]["local_g"]/10.
+
         return
     
 if __name__ == "__main__":
