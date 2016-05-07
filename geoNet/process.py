@@ -74,9 +74,6 @@ class SMD(object):
     @property
     def velHF(self):
         if self._vel['HF'] is None:
-#            self._vel['HF'] = ButterWorth.filter(data=self.velBB, 
-#                        btype='highpass', fs=self.fs, ft=self.ft, 
-#                            order=self.order, output=self.output)
             self._vel['HF'] = cumtrapz(y=self.accHF, dx=self.dt, initial=0.)
 
         return self._vel['HF']
@@ -84,9 +81,6 @@ class SMD(object):
     @property
     def velLF(self):
         if self._vel['LF'] is None:
-#            self._vel['LF'] = ButterWorth.filter(data=self.velBB, 
-#                         btype='lowpass', fs=self.fs, ft=self.ft, 
-#                            order=self.order, output=self.output)
             self._vel['LF'] = cumtrapz(y=self.accLF, dx=self.dt, initial=0.)
 
         return self._vel['LF']
@@ -94,9 +88,6 @@ class SMD(object):
     @property
     def dispHF(self):
         if self._disp['HF'] is None:
-#            self._disp['HF'] = ButterWorth.filter(data=self.dispBB, 
-#                          btype='highpass', fs=self.fs, ft=self.ft, 
-#                              order=self.order, output=self.output)
             self._disp['HF'] = cumtrapz(y=self.velHF, dx=self.dt, initial=0.)
 
         return self._disp['HF']
@@ -104,9 +95,6 @@ class SMD(object):
     @property
     def dispLF(self):
         if self._disp['LF'] is None:
-#            self._disp['LF'] = ButterWorth.filter(data=self.dispBB, 
-#                           btype='lowpass', fs=self.fs, ft=self.ft, 
-#                              order=self.order, output=self.output)
             self._disp['LF'] = cumtrapz(y=self.velLF, dx=self.dt, initial=0.)
 
         return self._disp['LF']

@@ -256,14 +256,8 @@ class FileComponent(object):
             self.lines.append(self.vel)
             self.lines.append(self.disp) 
         
-        #self.acc = [ np.asarray(_.split(),dtype='f') for _ in self.acc ]
-        #self.acc = np.concatenate(self.acc)
         self.acc = read_geoNet_list(self.acc)
         if (len(self.vel) is not 0):
-            #self.vel = [ np.asarray(_.split(),dtype='f') for _ in self.vel ]
-            #self.vel = np.concatenate(self.vel)
-            #self.disp= [ np.asarray(_.split(),dtype='f') for _ in self.disp ]
-            #self.disp= np.concatenate(self.disp)
             self.vel = read_geoNet_list(self.vel)
             self.disp= read_geoNet_list(self.disp)
 
