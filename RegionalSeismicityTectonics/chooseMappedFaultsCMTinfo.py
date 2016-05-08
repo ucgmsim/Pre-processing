@@ -61,11 +61,11 @@ def NZ_FLTmodel_2010_to_h5():
 
     nFields=len(fields)
 
-    faults={}
+    mappedFaults={}
 
     #loop over all the fields initializing the list
     for i in range(len(fields)):
-        faults[fields[i]]=[]
+        mappedFaults[fields[i]]=[]
 
     #lines 0 to 14 are header - ignore
 
@@ -74,53 +74,53 @@ def NZ_FLTmodel_2010_to_h5():
     line_counter=nlines_header
     while line_counter < nlines:    
 
-        faults[fields[0]].append(temp[line_counter+1].split(' \n')[0])
+        mappedFaults[fields[0]].append(temp[line_counter+1].split(' \n')[0])
 
-        faults[fields[1]].append(temp[line_counter+2].split(' ')[0])
-        faults[fields[2]].append(temp[line_counter+2].split(' ')[1])
+        mappedFaults[fields[1]].append(temp[line_counter+2].split(' ')[0])
+        mappedFaults[fields[2]].append(temp[line_counter+2].split(' ')[1])
 
-        faults[fields[3]].append(np.float(temp[line_counter+3].strip().split(' ')[0]))
-        faults[fields[4]].append(np.float(temp[line_counter+3].strip().split(' ')[-1]))
+        mappedFaults[fields[3]].append(np.float(temp[line_counter+3].strip().split(' ')[0]))
+        mappedFaults[fields[4]].append(np.float(temp[line_counter+3].strip().split(' ')[-1]))
 
-        faults[fields[5]].append(np.float(temp[line_counter+4].strip().split(' ')[0]))
-        faults[fields[6]].append(np.float(temp[line_counter+4].strip().split(' ')[-1]))
+        mappedFaults[fields[5]].append(np.float(temp[line_counter+4].strip().split(' ')[0]))
+        mappedFaults[fields[6]].append(np.float(temp[line_counter+4].strip().split(' ')[-1]))
 
-        faults[fields[7]].append(np.float(temp[line_counter+5].strip().split(' \n')[0]))
+        mappedFaults[fields[7]].append(np.float(temp[line_counter+5].strip().split(' \n')[0]))
 
-        faults[fields[8]].append(np.float(temp[line_counter+6].strip().split(' \n')[0]))
+        mappedFaults[fields[8]].append(np.float(temp[line_counter+6].strip().split(' \n')[0]))
 
-        faults[fields[9]].append(np.float(temp[line_counter+7].strip().split(' ')[0]))
-        faults[fields[10]].append(np.float(temp[line_counter+7].strip().split(' ')[-1]))
+        mappedFaults[fields[9]].append(np.float(temp[line_counter+7].strip().split(' ')[0]))
+        mappedFaults[fields[10]].append(np.float(temp[line_counter+7].strip().split(' ')[-1]))
 
-        faults[fields[11]].append(np.float(temp[line_counter+8].strip().split('   ')[0]))
-        faults[fields[12]].append(np.float(temp[line_counter+8].strip().split('   ')[1].strip()))       
-        faults[fields[13]].append(np.float(temp[line_counter+8].strip().split('   ')[2].strip()))
+        mappedFaults[fields[11]].append(np.float(temp[line_counter+8].strip().split('   ')[0]))
+        mappedFaults[fields[12]].append(np.float(temp[line_counter+8].strip().split('   ')[1].strip()))       
+        mappedFaults[fields[13]].append(np.float(temp[line_counter+8].strip().split('   ')[2].strip()))
 
-        faults[fields[14]].append(np.float(temp[line_counter+9].strip().split(' ')[0]))
-        faults[fields[15]].append(np.float(temp[line_counter+9].strip().split(' ')[-1]))
+        mappedFaults[fields[14]].append(np.float(temp[line_counter+9].strip().split(' ')[0]))
+        mappedFaults[fields[15]].append(np.float(temp[line_counter+9].strip().split(' ')[-1]))
 
-        faults[fields[16]].append(np.float(temp[line_counter+10].strip().split(' ')[0]))
-        faults[fields[17]].append(np.float(temp[line_counter+10].strip().split(' ')[-1]))
+        mappedFaults[fields[16]].append(np.float(temp[line_counter+10].strip().split(' ')[0]))
+        mappedFaults[fields[17]].append(np.float(temp[line_counter+10].strip().split(' ')[-1]))
 
-        faults[fields[18]].append(np.float(temp[line_counter+11].strip().split(' ')[0]))
-        faults[fields[19]].append(np.float(temp[line_counter+11].strip().split(' ')[-1]))
+        mappedFaults[fields[18]].append(np.float(temp[line_counter+11].strip().split(' ')[0]))
+        mappedFaults[fields[19]].append(np.float(temp[line_counter+11].strip().split(' ')[-1]))
 
-        faults[fields[20]].append(np.int(temp[line_counter+12].strip().split(' \n')[0]))
+        mappedFaults[fields[20]].append(np.int(temp[line_counter+12].strip().split(' \n')[0]))
 
         coords=[]
-        for j in range(faults['NumLocations'][fault_counter]):
+        for j in range(mappedFaults['NumLocations'][fault_counter]):
             lat=np.float(temp[line_counter+13+j].strip().split(' ')[0])
             lon=np.float(temp[line_counter+13+j].strip().split(' ')[-1])
             location=[lat,lon]
             coords.append(location)
         
-        faults[fields[21]].append(coords)  
+        mappedFaults[fields[21]].append(coords)  
         
-        line_counter=line_counter+13+faults['NumLocations'][fault_counter]
+        line_counter=line_counter+13+mappedFaults['NumLocations'][fault_counter]
         fault_counter=fault_counter+1
 
     #save out the dict to .h5
-    h5rw.h5write(out_filename,faults)
+    h5rw.h5write(out_filename,mappedFaults)
 
 
 def GeoNet_CMT_solutions_to_h5():
@@ -152,12 +152,12 @@ def GeoNet_CMT_solutions_to_h5():
     header.split(',')[-1].split('\r')[0] #remove the end of line from the last one
 
     #Put the data in a dictionary
-    quakes={}
+    CMTinfo={}
     for i in range(len(fields)):
-        quakes[fields[i]]=my_data[:,i]
+        CMTinfo[fields[i]]=my_data[:,i]
 
     #save out the unsorted dictionary as .h5
-    h5rw.h5write(out_filename,quakes)
+    h5rw.h5write(out_filename,CMTinfo)
 
 
 def chooseFaultsQuakes(min_Mw,wanted_lat,wanted_lon,faults_filename,quakes_filename,chosen_faults_filename,chosen_quakes_filename):
@@ -166,10 +166,10 @@ def chooseFaultsQuakes(min_Mw,wanted_lat,wanted_lon,faults_filename,quakes_filen
     Inputs: wanted_lat -            list of [minimum, maximum] latitude for chosen area
             wanted_lon -            list of [minimum, maximum] longitude for chosen area
             min_Mw      -           minimum Mw (magnitude) threshold of earthquakes to choose
-            faults_filename -        .h5 filename of all faults
-            quakes_filename -       .h5 filename of all quakes
-            chosen_faults_filename - .h5 filename of the chosen faults
-            chosen_quakes_filename - .h5 filename of the chosen quakes
+            mappedFaults_filename -        .h5 filename of all mapped faults
+            CMTinfo_filename -       .h5 filename of all CMT info
+            chosen_mappedFaults_filename - .h5 filename of the chosen mapped faults
+            chosen_CMTinfo_filename - .h5 filename of the chosen CMT info
 
     Outputs: None.
         """
@@ -178,64 +178,64 @@ def chooseFaultsQuakes(min_Mw,wanted_lat,wanted_lon,faults_filename,quakes_filen
     #1)Read in faults .h5 and sort based on lat and lon
     #Different assumptions possible: all or part of the fault in the lat lon area
 
-    faults=h5rw.h5read(faults_filename)
+    mappedFaults=h5rw.h5read(mappedFaults_filename)
 
-    fields=faults.keys()
+    fields=mappedFaults.keys()
     nFields=len(fields)
 
     #loop over all faults and check if it is wanted
-    nFaults=len(faults['FaultName'])
+    nFaults=len(mappedFaults['FaultName'])
 
     #list of indices of the faults in lat,lon range
-    chosen_fault_indices=[]
+    chosen_mappedFault_indices=[]
 
     for m in range(nFaults):
         #also need to loop over all of NumLocations for each fault    
-        for n in range(faults['NumLocations'][m]):        
-            lat=faults['LocationCoordinates'][m][n][1]
-            lon=faults['LocationCoordinates'][m][n][0]
+        for n in range(mappedFaults['NumLocations'][m]):        
+            lat=mappedFaults['LocationCoordinates'][m][n][1]
+            lon=mappedFaults['LocationCoordinates'][m][n][0]
             if (lat>wanted_lat[0])and(lat<wanted_lat[1])and(lon>wanted_lon[0])and(lon<wanted_lon[1]):
-                chosen_fault_indices.append(m)
+                chosen_mappedFault_indices.append(m)
                 break  #exit for loop if one of the locations is true
 
     #create a new dictionary with just the chosen faults
-    chosen_faults={}
+    chosen_mappedFaults={}
 
     #loop over all the fields initializing the list
     for i in range(len(fields)):
-        chosen_faults[fields[i]]=[]
+        chosen_mappedFaults[fields[i]]=[]
 
     #loop over the fields
     for ii in range(nFields):
-        for jj in range(len(chosen_fault_indices)):
-            chosen_faults[fields[ii]].append(faults[fields[ii]][chosen_fault_indices[jj]])
+        for jj in range(len(chosen_mappedFault_indices)):
+            chosen_mappedFaults[fields[ii]].append(mappedFaults[fields[ii]][chosen_mappedFault_indices[jj]])
    
     #now save out the chosen faults as .h5
-    h5rw.h5write(chosen_faults_filename,chosen_faults)
+    h5rw.h5write(chosen_mappedFaults_filename,chosen_mappedFaults)
 
     #############################################################################################
     #2)Read in quakes .h5 and sort based on lat and lon
     
-    quakes=h5rw.h5read(quakes_filename)
+    CMTinfo=h5rw.h5read(CMTinfo_filename)
 
-    fields=quakes.keys()
+    fields=CMTinfo.keys()
 
-    chosen_quake_indices=[]   #indices of the earthquakes we are choosing
+    chosen_CMTinfo_indices=[]   #indices of the earthquakes we are choosing
 
     #loop over all the quakes
-    for j in range(len(quakes['Mw'])):
-        lat=quakes['Latitude'][j]
-        lon=quakes['Longitude'][j]
-        Mw=quakes['Mw'][j]
+    for j in range(len(CMTinfo['Mw'])):
+        lat=CMTinfo['Latitude'][j]
+        lon=CMTinfo['Longitude'][j]
+        Mw=CMTinfo['Mw'][j]
         if (lat>wanted_lat[0])and(lat<wanted_lat[1])and(lon>wanted_lon[0])and(lon<wanted_lon[1])and(Mw>min_Mw):
-            chosen_quake_indices.append(j)
+            chosen_CMTinfo_indices.append(j)
 
     #now create a dictionary with just the chosen quakes
-    chosen_quakes={}
+    chosen_CMTinfo={}
     for i in range(len(fields)):
-        chosen_quakes[fields[i]]=quakes[fields[i]][chosen_quake_indices]
+        chosen_CMTinfo[fields[i]]=CMTinfo[fields[i]][chosen_CMTinfo_indices]
     
-    h5rw.h5write(chosen_quakes_filename,chosen_quakes)
+    h5rw.h5write(chosen_CMTinfo_filename,chosen_CMTinfo)
 
 
 ###########################################################################################################
