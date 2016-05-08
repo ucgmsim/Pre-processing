@@ -1,15 +1,15 @@
 """
-chooseFaultsQuakes.py
+chooseMappedFaultsCMTinfo.py
 Richard Clare
 Created 04/05/2016
 
 Script to:
 
-1) read in NZ_FLTmodel_2010_Test.h5 and GeoNet_CMT_solutions.h5
+1) read in NZ_FLTmodel_2010_Test.h5 (mapped faults) and GeoNet_CMT_solutions.h5 (CMT info)
 
-2) choose the faults and quakes based on lat, lon and Mw
+2) choose the mapped faults and CMT info based on lat, lon and Mw
 
-3) save the chosen faults and quakes to .h5 again
+3) save the chosen mapped faults and CMT info to .h5 again
 
 """
 
@@ -241,7 +241,7 @@ def chooseFaultsQuakes(min_Mw,wanted_lat,wanted_lon,faults_filename,quakes_filen
 ###########################################################################################################
 #main
 
-#only run these 2 lines if the quake and fault files have been updated
+#only run these 2 lines if the CMTinfo and mappedFault files have been updated
 NZ_FLTmodel_2010_to_h5()
 GeoNet_CMT_solutions_to_h5()
 
@@ -252,17 +252,17 @@ lon=[166.0,174.5]    #min and max respectively
 
 Mw=5.0      #set the minmum Magnitude threshold
 
-faults_filename='NZ_FLTmodel_2010_Test.h5'  #name of the .h5 file containing all faults
-quakes_filename='GeoNet_CMT_solutions.h5'   #name of the .h5 file containing all quakes
+mappedFaults_filename='NZ_FLTmodel_2010_Test.h5'    #name of the .h5 file containing all mappedFaults
+CMTinfo_filename='GeoNet_CMT_solutions.h5'          #name of the .h5 file containing all CMTinof
 
-chosen_faults_filename='chosen_NZ_FLTmodel_2010_Test.h5'    #name of the .h5 file where we save the chosen faults
-chosen_quakes_filename='chosen_GeoNet_CMT_solutions.h5'     #name of the .h5 file where we save the chosen quakes
+chosen_mappedFaults_filename='chosen_NZ_FLTmodel_2010_Test.h5'      #name of the .h5 file where we save the chosen mappedFaults
+chosen_CMTinfo_filename='chosen_GeoNet_CMT_solutions.h5'            #name of the .h5 file where we save the chosen CMTinfo
 
-chooseFaultsQuakes(Mw,lat,lon,faults_filename,quakes_filename,chosen_faults_filename,chosen_quakes_filename)
+chooseFaultsQuakes(Mw,lat,lon,mappedFaults_filename,CMTinfo_filename,chosen_mappedFaults_filename,chosen_CMTinfo_filename)
 
 #to load in the chosen faults and quakes
-#chosen_faults=h5rw.h5read(chosen_faults_filename)
-#chosen_quakes=h5rw.h5read(chosen_quakes_filename)
+chosen_mappedFaults=h5rw.h5read(chosen_mappedFaults_filename)
+chosen_CMTinfo=h5rw.h5read(chosen_CMTinfo_filename)
 
 
 
