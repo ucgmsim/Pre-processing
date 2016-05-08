@@ -39,6 +39,18 @@ def get_stations(source_file, locations = False):
         return stations
     return (stations, station_lats, station_lons)
 
+# returns a dictionary of vrefs or vsites
+# sample line in source file:
+#SITE   VALUE
+def get_vs(source_file):
+    vs = {}
+    with open(source_file, 'r') as sp:
+        for line in sp.readlines():
+            if line[0] not in ['#', '%']:
+                info = line.split()
+                vs[info[0]] = info[1]
+    return vs
+
 
 ################# Verify Section ###################
 # verify functions make sure script resources exist before continuing to run.
@@ -59,6 +71,9 @@ def verify_files(file_list):
 # makes sure logfiles can be created, removes old ones
 def verify_logfiles(logfile_list):
     for logfile in logfile_list:
+        # reformat if just filename without path
+        if os.path.dirname(logfile) == '':
+            logfile = os.path.join(os.getcwd(), logfile)
         # is directory writable?
         if not os.access(os.path.dirname(logfile), os.W_OK):
             raise ResourceError('Can\'t write logfile: %s. Check directory permissions.'\
