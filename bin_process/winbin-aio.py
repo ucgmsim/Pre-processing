@@ -17,45 +17,21 @@ import os
 import os.path
 import sys
 sys.path.append(os.path.abspath(os.path.curdir))
-
-#from shutil import move
 import shutil
 from subprocess import call
 from glob import glob
 
+from shared import *
 from params import *
 if sys.argv[1] == 'test_mode':
+    print('Running under test mode.')
     from postprocess_test.test_params import *
 
-if not os.path.exists(vel_dir):
-    os.makedirs(vel_dir)
+verify_files([FD_STATLIST])
+verify_user_dirs([vel_dir])
 
-if not os.path.isdir(vel_dir):
-    raise IOError('Output directory is not a directory!')
-
-
-#sample line from fd statlist: (warning, last line has no '\n')
-#  171.74765   -43.90236 ADCS
-# create list of values to iterate over
-stat_handle = open(FD_STATLIST, 'r')
-LONS = []
-LATS = []
-STATS = []
-
-lines = stat_handle.readlines()
-#print lines
-
-for line in lines:
-    lon_lat_stat = line.split()
-    if len(lon_lat_stat) == 3:
-        LONS.append(lon_lat_stat[0])
-        LATS.append(lon_lat_stat[1])
-        STATS.append(lon_lat_stat[2])
-
+STATS, LATS, LONS = get_stations(FD_STATLIST, True)
 COMPS = ['080', '170', 'ver']
-
-# -------- END OF USER DEFINED INPUT -------------
-
 AZ_COLUMN = 8
 
 for stat in STATS:

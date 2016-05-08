@@ -1,5 +1,9 @@
 """
 Module which contains shared functions/values.
+
+@date 8 April 2016
+@author Viktor Polak
+@contact viktor.polak@canterbury.ac.nz
 """
 
 import os
@@ -15,6 +19,25 @@ def par_value (variable):
             result = line
     par_handle.close()
     return ''.join(result.split('=')[1:]).rstrip('\n')
+
+# returns a list of stations
+# sample line in source file:
+#   171.74765   -43.90236 ADCS
+def get_stations(source_file, locations = False):
+    stations = []
+    station_lats = []
+    station_lons = []
+    with open(source_file, 'r') as sp:
+        for line in sp.readlines():
+            if line[0] not in  ['#', '%']:
+                info = line.split()
+                stations.append(info[2])
+                if locations:
+                    station_lons.append(info[0])
+                    station_lats.append(info[1])
+    if not locations:
+        return stations
+    return (stations, station_lats, station_lons)
 
 
 ################# Verify Section ###################
@@ -33,11 +56,33 @@ def verify_files(file_list):
         if not os.path.isfile(file_path):
             raise ResourceError('File not found: %s. Check params.py.' % (file_path))
 
+# makes sure logfiles can be created, removes old ones
+def verify_logfiles(logfile_list):
+    for logfile in logfile_list:
+        # is directory writable?
+        if not os.access(os.path.dirname(logfile), os.W_OK):
+            raise ResourceError('Can\'t write logfile: %s. Check directory permissions.'\
+                    % (logfile))
+        if os.path.exists(logfile):
+            os.remove(logfile)
+
 # makes sure required string are not empty
 def verify_strings(string_list):
     for variable in string_list:
         if variable == '':
             raise ResourceError('Variable is empty: %s. Check params.py.' % (variable))
+
+# makes sure list inputs contain values
+def verify_lists(list_list):
+    for req_list in list_list:
+        if len(req_list) < 1:
+            raise ResourceError('List doesn\'t contain any values: %s. Check params.py.' % (req_list))
+
+# makes sure dirs which should already exist, do exist
+def verify_dirs(dir_list):
+    for dir_path in dir_list:
+        if not os.path.isdir(dir_path):
+            raise ResourceError('Directory doesn\'t exist: %s. Check params.py' % (dir_path))
 
 # makes sure user dirs (ones that may be created if not existing) are ready
 def verify_user_dirs(dir_list):

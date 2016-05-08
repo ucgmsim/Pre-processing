@@ -2,7 +2,7 @@ import numpy as np
 import scipy.linalg
 from scipy.integrate import cumtrapz
 from butterworth import ButterWorth, butter_bandpass_filter
-
+from utilities import writeGP
 cos, sin, pi = (np.cos, np.sin, np.pi)
 
 
@@ -28,7 +28,9 @@ class SMD(object):
         self.ft =ft
         self.order=order
         self.output=output
-    
+        
+        if fs < 2.*highcut:
+            self.highcut = fs/2.
     @property
     def accBB(self):
         if self._acc['BB'] is None:
@@ -72,36 +74,28 @@ class SMD(object):
     @property
     def velHF(self):
         if self._vel['HF'] is None:
-            self._vel['HF'] = ButterWorth.filter(data=self.velBB, 
-                        btype='highpass', fs=self.fs, ft=self.ft, 
-                            order=self.order, output=self.output)
+            self._vel['HF'] = cumtrapz(y=self.accHF, dx=self.dt, initial=0.)
 
         return self._vel['HF']
 
     @property
     def velLF(self):
         if self._vel['LF'] is None:
-            self._vel['LF'] = ButterWorth.filter(data=self.velBB, 
-                         btype='lowpass', fs=self.fs, ft=self.ft, 
-                            order=self.order, output=self.output)
+            self._vel['LF'] = cumtrapz(y=self.accLF, dx=self.dt, initial=0.)
 
         return self._vel['LF']
 
     @property
     def dispHF(self):
         if self._disp['HF'] is None:
-            self._disp['HF'] = ButterWorth.filter(data=self.dispBB, 
-                          btype='highpass', fs=self.fs, ft=self.ft, 
-                              order=self.order, output=self.output)
+            self._disp['HF'] = cumtrapz(y=self.velHF, dx=self.dt, initial=0.)
 
         return self._disp['HF']
 
     @property
     def dispLF(self):
         if self._disp['LF'] is None:
-            self._disp['LF'] = ButterWorth.filter(data=self.dispBB, 
-                           btype='lowpass', fs=self.fs, ft=self.ft, 
-                              order=self.order, output=self.output)
+            self._disp['LF'] = cumtrapz(y=self.velLF, dx=self.dt, initial=0.)
 
         return self._disp['LF']
 
@@ -109,7 +103,7 @@ class SMD(object):
 
 class Process(object):
 
-    def __init__(self, gf, automatic=True):
+    def __init__(self, gf, automatic=True, **kwargs):
         
         self.gf = gf
         self.rot_angle = 0.
@@ -123,14 +117,16 @@ class Process(object):
         if automatic:
             self.rotate()
 
-            SMD_kwargs = {'lowcut':0.1, 'highcut':50., 'fs':(1./0.005), 
+            SMD_kwargs = {'lowcut':0.05, 'highcut':50., 'fs':(1./0.005), 
                           'order':4, 'ft':1., 'output':None}
 
-            SMD_kwargs['fs']=self.gf.comp_1st.C_header['line_21']['instrument_freq']
-        
-            self.comp_000 = SMD(self.acc_000, self.delta_t, **SMD_kwargs)
-            self.comp_090 = SMD(self.acc_090, self.delta_t, **SMD_kwargs)
-            self.comp_ver = SMD(self.acc_ver, self.delta_t, **SMD_kwargs)
+            SMD_kwargs['fs']= 1./self.delta_t
+            for key, value in SMD_kwargs.items():
+                kwargs.setdefault(key, value)
+            
+            self.comp_000 = SMD(self.acc_000, self.delta_t, **kwargs)
+            self.comp_090 = SMD(self.acc_090, self.delta_t, **kwargs)
+            self.comp_ver = SMD(self.acc_ver, self.delta_t, **kwargs)
 
     def rot_matrix(self,theta):
         """
@@ -152,25 +148,33 @@ class Process(object):
             
             theta = 360 - comp_1st.angle
         
-        [comp_000, comp_180] = Rot(theta) * [comp_1st, comp_2nd]
+        [comp_090, comp_180] = Rot(theta) * [comp_1st, comp_2nd]
         Then perform a reflection in the y-axis
-        comp_090 = -comp_180
+        comp_000 = -comp_180
 
         self.rot_angle: 
                theta = 360 - comp_1st.angle        
         acc_000:
-                positive axis 1 parallel to N
+                positive axis 1 parallel to E
         acc_090:
-                positive axis 2 parallel to E
+                positive axis 2 parallel to N
         
         """
-        self.rot_angle = 360. - self.gf.comp_1st.angle
+        #self.rot_angle = 360. - self.gf.comp_1st.angle
+        #R = self.rot_matrix(self.rot_angle)
+        #self.acc_000 = R[0,0] * self.gf.comp_1st.acc + R[0,1]*self.gf.comp_2nd.acc
+        #self.acc_090 = -(R[1,0] * self.gf.comp_1st.acc + R[1,1]*self.gf.comp_2nd.acc)
+        #self.acc_090 *= -1.
+        #self.acc_000 *= -1.
+        
+        #For compatibility with orientation as defined by Brendon et al.
+        self.rot_angle = -(90. -self.gf.comp_1st.angle)
         R = self.rot_matrix(self.rot_angle)
-        self.acc_000 = R[0,0] * self.gf.comp_1st.acc + R[0,1]*self.gf.comp_2nd.acc
-        self.acc_090 = -(R[1,0] * self.gf.comp_1st.acc + R[1,1]*self.gf.comp_2nd.acc)
+        self.acc_090 = R[0,0] * self.gf.comp_1st.acc + R[0,1]*self.gf.comp_2nd.acc
+        self.acc_000 = (R[1,0] * self.gf.comp_1st.acc + R[1,1]*self.gf.comp_2nd.acc)
         return
 
-    def save2disk(self,loc, stat_code):
+    def save2disk(self,loc, stat_code, seismo="velLF"):
         """
         The first two rows in .000, .090 and .ver files are
         row1: 
@@ -180,9 +184,8 @@ class Process(object):
             # data points delta(t) HR MN SEC  3 unused floats
         e.g	    22000      0.005   0. 0. -1.  0. 0. 0.  
         """
-        print("\nSaving Rotated Broadband acceleration data for %s to: "
-              % stat_code)
-        print("%s \n" % loc)
+        print("\nSaving Rotated %s  data for %s at:\n %s: "
+              % (seismo, stat_code, loc))
         
         header_000 = stat_code + " 0 broadband\n"
         header_090 = stat_code + " 90 broadband\n"
@@ -191,24 +194,25 @@ class Process(object):
 
         header_000 += " ".join(map(str, [self.comp_000.accBB.size,
                                          self.delta_t,
-                                         "0. 0. "+time_delay+" 0. 0. 0."]
+                                         "0. 0. "+time_delay+" 0. 0. 0.\n"]
                                          ))
         header_090 += " ".join(map(str, [self.comp_090.accBB.size,
                                         self.delta_t,
-                                        "0. 0. "+time_delay+" 0. 0. 0."]
+                                        "0. 0. "+time_delay+" 0. 0. 0.\n"]
                                         ))
         header_ver += " ".join(map(str, [self.comp_ver.accBB.size,
                                          self.delta_t,
-                                         "0. 0. "+time_delay+" 0. 0. 0."]
+                                         "0. 0. "+time_delay+" 0. 0. 0.\n"]
                                          ))
         
-        f = "/".join([loc,stat_code])
-        np.savetxt(".".join([f,"000"]), self.comp_000.accBB,
-                   header=header_000, comments="")
-        np.savetxt(".".join([f,"090"]), self.comp_090.accBB,
-                   header=header_090, comments="")
-        np.savetxt(".".join([f,"ver"]), self.comp_ver.accBB,
-                   header=header_ver, comments="")
+        ncol = 6
+        writeGP(loc, stat_code+".000", self.comp_000.__getattribute__(seismo),
+                header_000, ncol)
+        writeGP(loc, stat_code+".090", self.comp_090.__getattribute__(seismo),
+                header_090, ncol)
+        writeGP(loc, stat_code+".ver", self.comp_ver.__getattribute__(seismo),
+                header_ver, ncol)
+
         return
 
 

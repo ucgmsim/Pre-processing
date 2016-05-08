@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 """
-Tests winbin-aio bo comparing known outputs (in TestCaseVel) to ones generated.
+Tests winbin-aio by comparing known outputs (in TestCaseVel) to ones generated.
 Additional source file is passed to modify variables for testing outputs/inputs.
 If the ASCII files aren't identicle:
     Compare headers (display if different) make sure it contains number of values.
@@ -13,7 +13,7 @@ If the ASCII files aren't identicle:
 USAGE: execute from current directory only (winbin-aio.py must be in parent directory).
     '$ ./winbin-aio_test.py' or '$ python winbin-aio_test.py'
 
-ISSUES: there should only be one main params file in parent, others should extend!
+ISSUES: 
 """
 
 from os.path import basename, exists
@@ -30,10 +30,9 @@ def sha512sum(filepath):
     return hasher.hexdigest()
 
 
-
 print('Running winbin-aio on local test case...')
 with open('/dev/null', 'w') as sink:
-    call(['python', 'winbin-aio.py', 'test_mode'], cwd='..', stderr=sink)
+    call(['python', 'winbin-aio.py', 'test_mode'], cwd='..', stderr = sink)
 
 testcases = map(basename, glob('TestCaseVel/*'))
 for case in testcases:
