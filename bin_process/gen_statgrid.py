@@ -7,7 +7,7 @@ the max shaking over the full ground motion time series.
 USAGE: Execute in directory with shared.py and params.py linked in.
     Remember to edit params.py as required.
 
-Converted to Python. CSH ~ 5.15 seconds vs Python ~ 5.50 seconds.
+Converted to Python. CSH ~ 5.15 seconds vs Python ~ 5.40 seconds.
 @date 10 May 2016
 @author Viktor Polak
 @contact viktor.polak@canterbury.ac.nz
@@ -32,7 +32,7 @@ for line in coords:
     #xcoord = int(info[2])
     #ycoord = int(info[3])
 
-    if int(info[2]) % dx_ts == 0 == int(info[3]) % dy_ts \
+    if int(info[3]) % dy_ts == 0 and int(info[2]) % dx_ts == 0 \
             and X_BND_PAD <= int(info[2]) < nx - X_BND_PAD \
             and Y_BND_PAD <= int(info[3]) < ny - Y_BND_PAD:
         op.write('%10.4f %10.4f %.4d%.4d\n' \
