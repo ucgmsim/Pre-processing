@@ -187,12 +187,8 @@ plot_option = '2'
 # details of the spatial and termporal discretization and spacing
 plot_orig_dt = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)
 
-
-
-#components to consider (0= when only looking at vector magnitude [i.e. ABSMAX=1 further down].
-
+# components to consider (0= when only looking at vector magnitude [i.e. ABSMAX=1 further down].
 plot_comps = '( 0 )'
-
 
 # output dirs and resolution (dpi)
 plot_ps_dir = os.path.join(t_slice_dir, 'PlotFiles')
@@ -217,7 +213,6 @@ plot_fault_add_plane = os.path.join(fault_plane_dir, 'addStandardFaultPlane.sh')
 plot_fault_line = '-W0.5p,black,-'
 plot_fault_top_edge = '-W2p,black'
 plot_fault_hyp_open = '-W1p,black'
-
 
 # set PALETTE = '-Crelief.cpt'
 plot_palette = '-Cgray'
@@ -362,8 +357,15 @@ site_flowcap = '0.0'
 GEN_ROCK_VS = 865
 
 
+########### gen_statgrid ##########
 
-
+# any values to omit near the boundaries
+X_BND_PAD = 0
+Y_BND_PAD = 0
+# input to process
+MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h0.100')
+# output statgrid file
+STATGRID_GEN = 'statgrid-0.5x0.5-nz01_h0.100.ll'
 
 
 
