@@ -46,7 +46,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '2000'
+nt = '10000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -54,7 +54,7 @@ DUMP_ITINC = '4000' # nt
 
 # output timestep in multiples of simulation timestep
 # eg: simulation dt 0.005 sec * dt_ts 20 = 0.1 second increments
-dt_ts = '200'
+dt_ts = '20'
 # x, y, z decimation along axis
 # store output at lower x, y, z resolution by factor provided
 # eg: nx 1400 / dx_ts 5 = 280 points along 1400 nx * 0.1 hh = 140 km
@@ -65,7 +65,7 @@ dz_ts = '1'
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
-ts_total = '10'   # number of slices to generate. sim time = ts_total * dt * dt_ts
+ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
