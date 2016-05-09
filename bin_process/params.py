@@ -46,7 +46,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '20000'
+nt = '2000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -54,7 +54,7 @@ DUMP_ITINC = '4000' # nt
 
 # output timestep in multiples of simulation timestep
 # eg: simulation dt 0.005 sec * dt_ts 20 = 0.1 second increments
-dt_ts = '20'
+dt_ts = '200'
 # x, y, z decimation along axis
 # store output at lower x, y, z resolution by factor provided
 # eg: nx 1400 / dx_ts 5 = 280 points along 1400 nx * 0.1 hh = 140 km
@@ -65,7 +65,7 @@ dz_ts = '1'
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
-ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
+ts_total = '10'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
@@ -99,8 +99,7 @@ global_root = '/nesi/projects/nesi00213'
 
 
 # things that people have their own copies of, eg. RunFolder
-# NOT recommended to use separate user_root in Fitzroy.
-# TODO: detect if machine is Fitzroy, what is the Fitzroy hostname???
+# changes to enable testing on beatrice
 if node() == 'p2n14-c':
     # running on beatrice
     user_root = os.path.expanduser('~')
@@ -149,11 +148,9 @@ FILELIST = 'fdb.filelist'
 
 # Define 'start' time for time-axis (to ensure causality in filering) and scale (typ 1.0)
 TSTRT = '-1.0'
-SCALE = '1.0'
 
 # Define the directory with the station information, and components
 FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
-print FD_STATLIST
 
 ############### gen_ts ###################
 
@@ -289,13 +286,13 @@ hf_sdrop = '50' # average stress-drop, bars
 hf_kappa = '0.045'
 hf_fmax = '10'
 hf_qfexp = '0.6' # Q freq. exponent
-# ???
+# depth to moho
 hf_vs_moho = '999.9'
 # uncertainty (sigma) to consider for fourier amplitude
 hf_fa_sig_1 = '0.0'
 # rupture velocity uncertainty affects corner frequency, scales GMs as f0^2
 hf_rv_sig_1 = '0.1'
-# ??? 2 rays to consider: direct1 and moho2
+# 2 rays to consider: direct1 and moho2
 hf_rayset = '2 1 2'
 # rup vel factor. ratio of rupture : Vs
 hf_rvfac = '0.8'
@@ -314,7 +311,7 @@ hf_site_amp = '1'
 hf_mom = '-1'
 # rupture velocity. '-1': from input rupture model
 hf_rupv = '-1.0'
-# ??? seed? '0': not random, '1': random
+# seed '0': not random, '1': random
 hf_seed = '5481190'
 
 
@@ -361,7 +358,8 @@ site_vref_max = '1100'  # reference vs30 for cb08/14 amp model
 site_fmin = '0.2'       # 0.2 Hz = 5 sec. point where tapering to unity begins
 site_fmidbot = '0.5'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
 site_flowcap = '0.0'
-
+# set to vs30 used in 1D model for high frequency runs (VREF for HF)
+GEN_ROCK_VS = 865
 
 
 

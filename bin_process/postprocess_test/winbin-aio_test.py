@@ -31,8 +31,7 @@ def sha512sum(filepath):
 
 
 print('Running winbin-aio on local test case...')
-with open('/dev/null', 'w') as sink:
-    call(['python', 'winbin-aio.py', 'test_mode'], cwd='..', stderr = sink)
+call(['python', 'winbin-aio.py', 'test_mode'], cwd='..')
 
 testcases = map(basename, glob('TestCaseVel/*'))
 for case in testcases:
