@@ -1,4 +1,16 @@
 #!/usr/bin/env python2
+"""
+Generates 'e3d.par' from the default set, appending new key value pairs of parameters.
+
+@author Viktor Polak, Sung Bae
+@date 6 April 2016
+
+Replaces set_runparams.csh. Converted to python, handles params set in separate file.
+
+USAGE: edit params.py (not this file), execute this file from the same directory.
+
+ISSUES: remove default values in e3d_default.par where not needed.
+"""
 
 from __future__ import print_function
 import fileinput
@@ -6,7 +18,21 @@ import sys
 import os.path
 sys.path.append(os.path.abspath(os.path.curdir))
 from shutil import copyfile
-from params import *
+# attempt to append template file before importing params
+try:
+    # throws NameError if var not set, AssertionError if blank
+    assert(params_override != '')
+    # copy to temp file
+    copyfile('params.py', 'params_joined.py')
+    # append to temp
+    with open('params_joined.py', 'a') as fp:
+        with open('params_override_' + params_override + '.py', 'r') as tp:
+            fp.write(tp.readlines())
+    # import temp
+    import params_joined
+    os.remove('params_joined.py')
+except (AssertionError, NameError, ImportError, OSError):
+    from params import *
 
 try:
     copyfile(default_parfile, parfile)

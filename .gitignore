@@ -5,3 +5,8 @@ OUTs
 VEL
 HobyObs
 HobyVel
+plot_ts_test/test.par
+plot_ts_test/PlotFiles/*
+plot_ts_test/Png/*
+postprocess_test/Vel/*
+postprocess_test/TSFiles/*

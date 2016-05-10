@@ -1,46 +1,41 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
+"""
+Generates ASCII format version of e3d file for each station/component.
+
+@author Viktor Polak, Sung Bae
+@date 5 April 2016
+
+Replaces winbin-aio.csh. Re implemented in python. Using e3d.par.
+
+USAGE: execute from current directory being the simulation directory containing the 'Vel' folder.
+    if outside $sim_dir, link within: 'ln -s location/to/winbin-aio.py simdir/'
+
+ISSUES: think of better filename
+"""
 
 import os
-import os.path
 import sys
 sys.path.append(os.path.abspath(os.path.curdir))
-
-#from shutil import move
 import shutil
 from subprocess import call
 from glob import glob
 
+from shared import *
 from params import *
+if sys.argv[1] == 'test_mode':
+    print('Running under test mode.')
+    from postprocess_test.test_params import *
 
-if not os.path.exists(vel_dir):
-    os.makedirs(vel_dir)
+fdbin2wcc_bin = os.path.join(wcc_prog_dir, 'fdbin2wcc')
 
-if not os.path.isdir(vel_dir):
-    raise IOError('Output directory is not a directory!')
+verify_binaries([fdbin2wcc_bin])
+verify_files([FD_STATLIST])
+verify_logfiles([FILELIST])
+verify_strings([output_prefix, scale, TSTRT])
+verify_user_dirs([vel_dir, bin_output])
 
-
-#sample line from fd statlist: (warning, last line has no '\n')
-#  171.74765   -43.90236 ADCS
-# create list of values to iterate over
-stat_handle = open(FD_STATLIST, 'r')
-LONS = []
-LATS = []
-STATS = []
-
-lines = stat_handle.readlines()
-#print lines
-
-for line in lines:
-    lon_lat_stat = filter(None, line.rstrip('\n').split(' '))
-    if len(lon_lat_stat)==3:
-        LONS.append(lon_lat_stat[0])
-        LATS.append(lon_lat_stat[1])
-        STATS.append(lon_lat_stat[2])
-
+STATS, LATS, LONS = get_stations(FD_STATLIST, True)
 COMPS = ['080', '170', 'ver']
-
-# -------- END OF USER DEFINED INPUT -------------
-
 AZ_COLUMN = 8
 
 for stat in STATS:
@@ -52,25 +47,21 @@ FLIP = ['1', '1', '-1']
 
 list_handle = open(FILELIST, 'w')
 
-filepattern= os.path.join(bin_output, output_prefix+ '_seis*.e3d')
+filepattern = os.path.join(bin_output, output_prefix+ '_seis*.e3d')
 print filepattern
-list_of_files = '\n'.join([file_path for file_path in glob(filepattern)])+'\n'
+list_of_files = '\n'.join([file_path for file_path in glob(filepattern)]) + '\n'
 print list_of_files
 list_handle.write(list_of_files)
 list_handle.close()
 
 for s_index, stat in enumerate(STATS):
-    # never used??
-    cdist = -999
-    vsite = -999
-
     print(LONS[s_index] + ' ' + LATS[s_index] + ' ' + stat)
 
     statfile = os.path.join(vel_dir, stat)
 
     for c_index, comp in enumerate(COMPS):
-        cmd = [os.path.join(wcc_prog_dir,'fdbin2wcc'), 'all_in_one=1', 'filelist=' + FILELIST,
-                'ix=' + IX[c_index], 'scale=' + SCALE, 'flip=' + FLIP[c_index], 'tst=' + TSTRT,
+        cmd = [fdbin2wcc_bin, 'all_in_one=1', 'filelist=' + FILELIST,
+                'ix=' + IX[c_index], 'scale=' + scale, 'flip=' + FLIP[c_index], 'tst=' + TSTRT,
                 'stat=' + stat, 'comp=' + comp, 'outfile=' + statfile + '.' + comp,
                 'nseis_comps=9', 'swap_bytes=0', 'tst2zero=0', 'outbin=0'] 
         print ' '.join(cmd)
@@ -80,15 +71,11 @@ for s_index, stat in enumerate(STATS):
     print ' '.join(cmd)
     call(cmd)
 
-   
-    for i in range(2): 
+    # only getting rid of '080' and '170', not 'ver'
+    for i in xrange(len(COMPS) - 1):
         try:
             os.remove('%s.%s'%(statfile,COMPS[i]))
         except OSError:
             pass
- 
 
-
-    
-    
 
