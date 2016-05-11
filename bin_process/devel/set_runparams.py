@@ -69,7 +69,7 @@ configs = ['version=' + version + '-mpi', \
 'smodfile=' + SMOD, \
 'dmodfile=' + DMOD, \
 'qpfrac=100', \
-'qs2frac=50', \
+'qsfrac=50', \
 'qpqs_factor=2.0', \
 'fmax=25.0', \
 'fmin=0.01', \
@@ -83,7 +83,7 @@ configs = ['version=' + version + '-mpi', \
 'dump_itinc=' + DUMP_ITINC, \
 'main_dump_dir=' + bin_output, \
 'nseis=1', \
-'seiscord=' + stat_coords, \
+'seiscords=' + stat_coords, \
 'seisdir=' + seis_tmp_dir, \
  \
 'ts_xy=1', \
