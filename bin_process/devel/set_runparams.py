@@ -35,14 +35,8 @@ except (AssertionError, NameError, ImportError, OSError):
     from params import *
 
 try:
-    copyfile(default_parfile, parfile)
-except IOError:
-    print('Cannot copy default_parfile to parfile! in ' + __file__, file = sys.stderr)
-    raise
-
-try:
-    # default parfile is appended to
-    par_handle = open(parfile, 'a')
+    # parameter file will be written to
+    par_handle = open(parfile, 'w')
 except IOError:
     print('parfile cannot be opened to append data in ' + __file__, file = sys.stderr)
     raise
@@ -75,7 +69,7 @@ configs = ['version=' + version + '-mpi', \
 'smodfile=' + SMOD, \
 'dmodfile=' + DMOD, \
 'qpfrac=100', \
-'qsfrac=50', \
+'qs2frac=50', \
 'qpqs_factor=2.0', \
 'fmax=25.0', \
 'fmin=0.01', \
@@ -89,7 +83,7 @@ configs = ['version=' + version + '-mpi', \
 'dump_itinc=' + DUMP_ITINC, \
 'main_dump_dir=' + bin_output, \
 'nseis=1', \
-'seiscords=' + stat_coords, \
+'seiscord=' + stat_coords, \
 'seisdir=' + seis_tmp_dir, \
  \
 'ts_xy=1', \
@@ -113,6 +107,40 @@ configs = ['version=' + version + '-mpi', \
 'restart_itinc=' + RESTART_ITINC, \
 'read_restart=' + READ_RESTART, \
 'restartname=' + run_name, \
+\
+# extras found in default parfile
+'logdir=Rlog', \
+'span=1', \
+'intmem=1', \
+'maxmem=1500', \
+'order=4', \
+'model_style=1', \
+'elas_only=0', \
+'freesurf=1', \
+'dampwidth=0', \
+'qbndmax=100.0', \
+'stype=2tri-p10-h20', \
+'tzero=0.6', \
+'slipout=SlipOut/slipout-k2', \
+'geoproj=1', \
+'report=100', \
+'all_in_one=1', \
+'xseis=0', \
+'iy_xs=60', \
+'iz_xs=1', \
+'dxout=1', \
+'yseis=0', \
+'ix_ys=100', \
+'iz_ys=1', \
+'dyout=1', \
+'zseis=0', \
+'ix_zs=100', \
+'iy_zs=50', \
+'dzout=1', \
+'ts_xz=0', \
+'iy_ts=2', \
+'ts_yz=0', \
+'ix_ts=99', \
 \
 # plot_ts.sh
 'plot_main_title="' + plot_main_title + '"', \
