@@ -28,5 +28,5 @@
 export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
- 
-csh plot_ts_beatrice.csh
+export BINPROCESS=/hpc/scratch/nesi00213/Pre-processing/bin_process/20160511 
+bash $BINPROCESS/plot_ts.sh
