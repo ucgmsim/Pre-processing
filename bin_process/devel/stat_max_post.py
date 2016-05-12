@@ -1,0 +1,39 @@
+#!/usr/bin/env python2
+
+# h (0.0->1.0), s (0.0->1.0), v (0.0->255)
+from colorsys import hsv_to_rgb
+from shared import *
+
+round_int_str = lambda x: str(int(round(x)))
+
+MAX_STATFILE = 'stations_max.ll.bak'
+COLOUR_STATFILE = 'stations_colour.ll'
+verify_files([MAX_STATFILE])
+verify_logfiles([COLOUR_STATFILE])
+
+# find max for scaling factor
+max_stat = 0.0
+with open(MAX_STATFILE, 'r') as sp:
+    for line in sp:
+        if float(line.split()[2]) > max_stat:
+            max_stat = float(line.split()[2])
+
+# modify lines before writing them back
+old_lines = []
+with open(MAX_STATFILE, 'r') as sp:
+    old_lines = sp.readlines()
+
+# Scaling Background:
+# HSV: Saturation = 100%, Value/Lightness = 50%
+# H: 1/3 (green minimum) -> 0 (red maximum)
+# Motion: 0 (green minimum) -> max_stat (red maximum)
+factor = 2.0/3.0 / max_stat
+# 1/3 - (station max * factor) = desired hue
+
+# GMT colour format: R/G/B@A (A: 0 opaque -> 100 transparent)
+for line in old_lines:
+    h = 2.0/3.0 - (float(line.split()[2]) * factor)
+    print('%s %s@20' % (line.rstrip(), '/'.join(map(round_int_str, hsv_to_rgb(h, 1.0, 255.0)))))
+
+
+
