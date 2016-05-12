@@ -139,10 +139,11 @@ while read line; do
     echo -ne "\r$a"
     a=$(($a + 1))
     loc=$(echo $line | awk '{print $1" "$2};')
-    gmt psxy $att -Sj -G0/205/0@20 -O -K << END >> "$plot_file"
+    colour=$(echo $line | awk '{print $4};')
+    gmt psxy $att -Sj -G$colour -O -K << END >> "$plot_file"
 $loc 10 0.0246 0.0246
 END
-done < statgrid-0.5x0.5-nz01_h0.100.ll
+done < test.ll
 echo
 
 

@@ -13,15 +13,32 @@ params_override = '2010Sep4'
 # parameters are written to files, need to be strings
 
 ######## Global CONSTANTS ########
-run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
+run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04'
 version = '3.0.4'
 # LPSIM directory name under RunFolder
-extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
+extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04'
 # HFSIM directory name under RunFolder
-hf_run_name = 'HFSim-2011Feb22b560_v2_Cant1D_v2-v5.4.4-rvf0.8_dt'
-bb_run_name = 'BBSim-2011Feb22b560_v2_Cantv1_02-h0.100_dt'
+hf_run_name = 'HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt'
+bb_run_name = 'BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500'
 # prefix used for naming OutBin/prefix{_xyts.e3d,_seis.e3d}
 output_prefix = run_name
+
+
+# things that everyone doesn't have, eg. binaries are within here
+global_root = '/nesi/projects/nesi00213'
+
+
+# things that people have their own copies of, eg. RunFolder
+# changes to enable testing on beatrice
+if node() == 'p2n14-c':
+    # running on beatrice
+    user_root = os.path.expanduser('~')
+else:
+    user_root = global_root
+
+# works on Windows and POSIX paths
+user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
+
 
 # keep as int, processed before writing to file
 # only product is stored
@@ -46,7 +63,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '10000'
+nt = '20000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -76,7 +93,6 @@ lonlat_out = '1'
 scale = '1.0'
 
 # EMOD3D parameters template and complete parameter files
-default_parfile = 'e3d_default.par'
 parfile = 'e3d.par' # update load leveler file
 
 #FD_VMODFILE = 'Cant1D_v1.fd_modfile'     #This line was for a 1D Vp,Vs,rho model
@@ -93,21 +109,6 @@ RESTART_ITINC = '20000'
 
 
 n_proc = str(n_proc_x * n_proc_y * n_proc_z)
-
-# things that everyone doesn't have, eg. binaries are within here
-global_root = '/nesi/projects/nesi00213'
-
-
-# things that people have their own copies of, eg. RunFolder
-# changes to enable testing on beatrice
-if node() == 'p2n14-c':
-    # running on beatrice
-    user_root = os.path.expanduser('~')
-else:
-    user_root = global_root
-
-# works on Windows and POSIX paths
-user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
 
 # directories - main. change global_root with user_root as required
 run_dir = os.path.join(user_root, 'RunFolder')
@@ -126,12 +127,12 @@ hf_sim_dir = os.path.join(run_dir, hf_run_name)
 bb_sim_dir = os.path.join(run_dir, bb_run_name)
 restart_dir = os.path.join(sim_dir, 'Restart')
 bin_output = os.path.join(sim_dir, 'OutBin')
+log_dir = os.path.join(sim_dir, 'Rlog')
 
 # files
 srf_file = os.path.join(srf_dir, '2010Sept4_m7pt1/Srf/bev01.srf')
 stat_file = os.path.join(stat_dir, 'cantstations.ll')
 stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
-
 
 
 ############# winbin-aio ##############
@@ -150,7 +151,7 @@ FILELIST = 'fdb.filelist'
 TSTRT = '-1.0'
 
 # Define the directory with the station information, and components
-FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
+FD_STATLIST = os.path.join(stat_dir,'fd_nz01-h0.100.ll')
 
 ############### gen_ts ###################
 
@@ -163,7 +164,8 @@ ABSMAX = '1'
 
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
 
-GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
+GRIDFILE = os.path.join(vel_mod_params_dir, 'gridout_nz01-h') + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
+
 
 t_slice_dir = os.path.join(sim_dir, 'TSlice')
 ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
@@ -261,9 +263,9 @@ plot_dy = '0.002'
 ##############################################
 
 # output files in format of: hf_prefix + '_STAT.COMP'
-hf_prefix = '22Feb2011_bev01'
+hf_prefix = '4Sept2010_bev01'
 # binary that simulates the HF data
-hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
+hf_sim_bin = os.path.join(global_root,'EMOD3D/StochSim/Src/V5.4/hb_high_v5.4.5')
 # HF run acceleration file directory
 hf_accdir = os.path.join(hf_sim_dir, 'Acc')
 # HF run velocity file directory
@@ -273,9 +275,9 @@ hf_t_len = '100' # seconds
 # HF simulation step. should be small
 hf_dt = '0.005' # seconds
 # slip model
-hf_slip = '/hpc/home/hnr12/RupModel/2011Feb22_m6pt2/Stoch/m6.20-16.0x9.0_s560.stoch'
+hf_slip = os.path.join(global_root,'RupModel/2010Sept4_m7pt1/Stoch/bev01.stoch')
 # 1D velocity model
-hf_v_model = '/hpc/home/hnr12/VelocityModel/Mod-1D/Cant1D_v2-midQ.1d'
+hf_v_model = os.path.join(global_root,'VelocityModel/Mod-1D/Cant1D_v2-midQ.1d')
 # for western US, check applicability to NZ
 hf_sdrop = '50' # average stress-drop, bars
 hf_kappa = '0.045'
@@ -313,22 +315,25 @@ hf_seed = '5481190'
 ############ acc2vel and match_seismo #############
 
 # binary that integrates / differentiates (Acc <> Vel)
-int_bin = '/hpc/home/rwg43/Bin/integ_diff'
+int_bin = os.path.join(wcc_prog_dir,'integ_diff')
+
 # binary that applies site amplification
-siteamp_bin = '/hpc/home/rwg43/Bin/wcc_siteamp'
+siteamp_bin = os.path.join(wcc_prog_dir,'wcc_siteamp')
+
 # binary that applies ??? filter
-tfilter_bin = '/hpc/home/rwg43/Bin/wcc_tfilter'
+tfilter_bin = os.path.join(wcc_prog_dir,'wcc_tfilter')
 # binary that adds LF and HF using matched filters
-match_bin = '/hpc/home/rwg43/Bin/wcc_add'
+match_bin = os.path.join(wcc_prog_dir,'wcc_add')
+
 # binary which returns PGA
-getpeak_bin = '/hpc/home/rwg43/Bin/wcc_getpeak'
+getpeak_bin = os.path.join(wcc_prog_dir,'wcc_getpeak')
 # components which will be converted (acc2vel)
 int_comps = ['000', '090', 'ver']
 match_log = 'seismo.log'
 # station file with vs30 reference values
-stat_vs_ref = '/hpc/home/hnr12/StationInfo/cantstations_cant1D_v1.vs30ref'
+stat_vs_ref = os.path.join(stat_dir,'cantstations_cant1D_v1.vs30ref')
 # station file with vs30 estimates
-stat_vs_est = '/hpc/home/hnr12/StationInfo/cantstations.vs30'
+stat_vs_est = os.path.join(stat_dir,'cantstations.vs30')
 # filter properties for HF (short period) ground motion
 match_hf_fhi = '1.0'        # high pass frequency, Hz
 match_hf_flo = '1.0e+15'    # low pass frequency, Hz
@@ -354,7 +359,7 @@ site_fmin = '0.2'       # 0.2 Hz = 5 sec. point where tapering to unity begins
 site_fmidbot = '0.5'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
 site_flowcap = '0.0'
 # set to vs30 used in 1D model for high frequency runs (VREF for HF)
-GEN_ROCK_VS = 865
+GEN_ROCK_VS = 500
 
 
 ########### gen_statgrid ##########

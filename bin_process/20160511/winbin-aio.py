@@ -22,7 +22,8 @@ from glob import glob
 
 from shared import *
 from params import *
-if sys.argv[1] == 'test_mode':
+print sys.argv
+if len(sys.argv)>1 and sys.argv[1] == 'test_mode':
     print('Running under test mode.')
     from postprocess_test.test_params import *
 

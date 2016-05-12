@@ -11,8 +11,9 @@ Converted to Python.
 @author Viktor Polak
 @contact viktor.polak@canterbury.ac.nz
 """
-
+import sys
 import os.path
+sys.path.append(os.path.abspath(os.path.curdir))
 from subprocess import call
 from shared import *
 from params import *
