@@ -24,6 +24,11 @@ verify_strings([ts_start, ts_total, ts_inc, ts_out_prefix, swap_bytes, scale, \
         dx_ts, dy_ts, dz_ts, ABSMAX, lonlat_out])
 verify_user_dirs([ts_out_dir])
 
+print ts_start+" "+ts_total
+ts_start = int(ts_start)
+ts_total = int(ts_total)
+ts_inc = int(ts_inc)
+
 for tscnt in range(ts_start, ts_total):
     tsnum = str(int(tscnt * ts_inc))
 

@@ -1,11 +1,11 @@
 # Example MPI LoadLeveler Job file
 # @ shell = /bin/bash
 #
-# @ job_name = fdrun-mpi
+# @ job_name = run_emod3d
 #
 # @ job_type = parallel
 #
-# @ wall_clock_limit     = 2:00:00
+# @ wall_clock_limit     = 4:00:00
 #
 # @ account_no = nesi00213
 #
@@ -19,7 +19,7 @@
 # @ task_affinity = core(1)
 #
 # @ queue
-
-python ./set_runparams.py
+export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/stable
+python $BINPROCESS/set_runparams.py
 poe /nesi/projects/nesi00213/EMOD3D/Mpi/Emod3d/V3.0.4/bin/powerpc-AIX-nesi2/emod3d-mpi -args "par=e3d.par"
 

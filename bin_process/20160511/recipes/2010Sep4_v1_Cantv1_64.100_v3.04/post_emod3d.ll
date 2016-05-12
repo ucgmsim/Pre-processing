@@ -19,7 +19,6 @@
 # @ queue
  
 # @ step_name = winbin_aio
-# @ dependency = merge_tsP3==0
 # @ job_type = serial 
 # @ wall_clock_limit     = 0:20:00
 # @ output = $(job_name).$(step_name).$(schedd_host).$(jobid).o
@@ -27,12 +26,30 @@
 # @ queue
 
 # @ step_name = gen_ts
-# @ dependency = winbin_aio==0
+# @ dependency = merge_tsP3==0
 # @ job_type = serial 
 # @ wall_clock_limit     = 0:20:00
 # @ output = $(job_name).$(step_name).$(schedd_host).$(jobid).o
 # @ error = $(job_name).$(step_name).$(schedd_host).$(jobid).e
 # @ queue
+
+# @ step_name = hf
+# @ dependency = winbin_aio==0
+# @ job_type = serial 
+# @ wall_clock_limit     = 1:00:00
+# @ output = $(job_name).$(step_name).$(schedd_host).$(jobid).o
+# @ error = $(job_name).$(step_name).$(schedd_host).$(jobid).e
+# @ queue
+
+# @ step_name = bb
+# @ dependency = hf==0
+# @ job_type = serial 
+# @ wall_clock_limit     = 0:10:00
+# @ output = $(job_name).$(step_name).$(schedd_host).$(jobid).o
+# @ error = $(job_name).$(step_name).$(schedd_host).$(jobid).e
+# @ queue
+
+export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/20160511
 
 case $LOADL_STEP_NAME in
 	merge_tsP3)
@@ -43,9 +60,16 @@ case $LOADL_STEP_NAME in
 		echo "NFILES=$NFILES OUTFILE=$OUTFILE" 
 		time poe $exe filelist=tmp.filelist outfile=$OUTFILE nfiles=$NFILES ;;
 	winbin_aio)
-		python winbin-aio.py ;;
+		python $BINPROCESS/winbin-aio.py ;;
 	gen_ts)
-		python gen_ts.py ;;
+		python $BINPROCESS/gen_ts.py ;;
+
+	hf)
+		python $BINPROCESS/hfsims-stats.py ;;
+	bb)
+		python $BINPROCESS/match_seismo.py ;;
+
+
 esac
 
 

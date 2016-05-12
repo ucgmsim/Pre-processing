@@ -11,8 +11,9 @@ Converted to python.
 @author Viktor Polak
 @contact viktor.polak@canterbury.ac.nz
 """
-
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.curdir))
 from subprocess import call, Popen, PIPE
 from shared import *
 from params import *
@@ -25,7 +26,7 @@ verify_files([stat_file, hf_slip, hf_v_model])
 verify_strings([hf_prefix, hf_t_len, hf_dt, hf_vs_moho, hf_fa_sig_1, hf_rv_sig_1, \
         hf_sdrop, hf_kappa, hf_qfexp, hf_rayset, hf_rvfac, hf_shal_rvfac, hf_deep_rvfac, \
         hf_czero, hf_site_amp, hf_mom, hf_rupv, hf_seed, hf_fmax, hf_calpha])
-verify_dirs([hf_sim_dir])
+verify_dirs([hf_sim_dir],create=True)
 verify_logfiles([local_statfile])
 verify_user_dirs([hf_accdir])
 
