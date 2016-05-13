@@ -94,13 +94,10 @@ def verify_lists(list_list):
             raise ResourceError('List doesn\'t contain any values: %s. Check params.py.' % (req_list))
 
 # makes sure dirs which should already exist, do exist
-def verify_dirs(dir_list, create=False):
+def verify_dirs(dir_list):
     for dir_path in dir_list:
         if not os.path.isdir(dir_path):
-            if create:
-                os.makedirs(dir_path)
-            else:
-                raise ResourceError('Directory doesn\'t exist: %s. Check params.py' % (dir_path))
+            raise ResourceError('Directory doesn\'t exist: %s. Check params.py' % (dir_path))
 
 # makes sure user dirs (ones that may be created if not existing) are ready
 def verify_user_dirs(dir_list):

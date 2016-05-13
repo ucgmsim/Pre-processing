@@ -36,8 +36,7 @@ verify_strings([hf_prefix, match_hf_fhi, match_hf_flo, match_hf_ord, match_hf_ts
         site_amp_model, site_vref_max, site_fmin, site_fmidbot, site_flowcap, \
         GEN_ROCK_VS])
 verify_lists([match_hf_comps, match_lf_comps])
-verify_dirs([bb_sim_dir],create=True)
-verify_user_dirs([bb_accdir, bb_veldir, hf_accdir, hf_veldir, vel_dir])
+verify_user_dirs([bb_sim_dir, bb_accdir, bb_veldir, hf_accdir, hf_veldir, vel_dir])
 
 logger = open(match_log, 'w')
 
