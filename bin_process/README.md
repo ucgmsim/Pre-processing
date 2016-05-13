@@ -1,4 +1,4 @@
-# How to run a emod3d workflow on NIWA Fitzroy
+# How to run QuakeCoRE workflow on NIWA Fitzroy
 
 Log into Fitzroy. If you don't have an account, contact hpcf-admins@niwa.co.nz
 ```
