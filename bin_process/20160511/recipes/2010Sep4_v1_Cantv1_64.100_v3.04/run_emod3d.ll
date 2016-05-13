@@ -19,7 +19,7 @@
 # @ task_affinity = core(1)
 #
 # @ queue
-export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/stable
+export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/20160511
 python $BINPROCESS/set_runparams.py
 poe /nesi/projects/nesi00213/EMOD3D/Mpi/Emod3d/V3.0.4/bin/powerpc-AIX-nesi2/emod3d-mpi -args "par=e3d.par"
 
