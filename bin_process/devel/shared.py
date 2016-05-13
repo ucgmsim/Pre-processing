@@ -106,7 +106,7 @@ def verify_user_dirs(dir_list, reset = False):
             os.makedirs(dir_path)
         elif reset:
             # empty directory
-            os.rmtree(dir_path)
+            shutil.rmtree(dir_path)
             os.makedirs(dir_path)
 
 # makes sure binary paths are valid binaries
