@@ -135,15 +135,15 @@ Submit the job.
 llsubmit run_emod3d.ll
 ```
 
-This will produce a number of *_xyts-????.e3d and *_seis-????.e3d files under OutBin. 
+This will produce a number of xxxx_xyts-????.e3d and xxxx_seis-????.e3d files under OutBin. 
 
 Examine/edit post_emod3d.ll. This has a number of steps organized to execute in series/parallel. 
 
 + merge_tsP3 -> gen_ts 
 + winbin_aio -> hf -> bb
 
-Except for merge_tsP3, all steps are single process jobs (merge_tsP3 uses 4 processes, and found to be adequate even for a very large job). You may need to edit wall_clock_limit, but it is most likely unnecessary.
-Note that merge_tsP3 assumes that all the *xyts-????.e3d files are kept in **OutBin** directory, and the merged file will be also stored there.
+Except for merge_tsP3, all steps are single process jobs (merge_tsP3 uses 4 processes which should be adequate for most cases). You may need to edit wall_clock_limit for each step (most likely unnecessary)
+Note that merge_tsP3 assumes that all the xxxx_xyts-????.e3d files are kept in **OutBin** directory, and the merged file will be also stored there.
 ```
 # @ shell = /bin/bash
 #
@@ -232,18 +232,15 @@ ADCS.090  CBGS.000  CHHC.ver  CSHS.090  D09C.000  D15C.ver  DSLC.090  GODS.000  
 + hf : RunFolder/HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt directory (if previously non-existent) and Acc subdirectory
 + bb:  RunFolder/BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500 directory (if previously non-existent) and Vel and Acc subdirectory 
 
-
 Go to Linux node. Edit plot_ts.ll (Can be used untouched in most cases), and submit
 ```
 llsubmit plot_ts.ll
 ```
 
 If a movie file from generated Png files is desired, go to TSlice/Png directory and run
-
 ```
 convert -delay 5 *.png <filename>.gif
 ```
-
 
 If everything went smoothly, contribute to the recipe repository!
 
