@@ -30,3 +30,4 @@ export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
 export BINPROCESS=/hpc/scratch/nesi00213/Pre-processing/bin_process/20160511 
 bash $BINPROCESS/plot_ts.sh
+bash $BINPROCESS/make_movie.sh
