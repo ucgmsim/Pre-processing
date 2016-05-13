@@ -1,11 +1,11 @@
-# Example MPI LoadLeveler Job file
+# Made for Beatrice P7. Need to be replaced when Linux node becomes available for Fitzroy
 # @ shell = /bin/bash
 #
 # @ job_name = plot_ts
 #
 # @ job_type = serial 
 #
-# @ wall_clock_limit = 04:00:00
+# @ wall_clock_limit = 00:30:00
 #
 # Groups to select from: UC, UC_merit, NZ, NZ_merit
 # @ group = NZ_merit 
