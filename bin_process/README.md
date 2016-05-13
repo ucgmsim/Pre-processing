@@ -245,6 +245,7 @@ convert -delay 5 *.png <filename>.gif
 If everything went smoothly, contribute to the recipe repository!
 
 Known issues:
+
 1. If a step in post_emod3d.ll has an error and terminates, and a job needs to be resubmitted, steps that had no problem will be computed again. To avoid this, you will need to edit post_emod3d.ll before resubmission.
 2. HF produces Acc result and you can use acc2vel.py to convert to Vel (groundMotionStationAnalysis needs to Vel input). 
 As acc2vel.py uses parameters set in params.py, you will need to run it from LP.... directory or need to create a symbolic link to params.py from the HF directory and run it there.
