@@ -169,7 +169,7 @@ gmt psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_f
 END
 # set the color scale
 gmt psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground velocity (cm/s)": >> "$plot_file_template"
-# specify the X and Y offsets for plotting (I dont really understand this yet)
+# specify the X and Y offsets` for plotting (I dont really understand this yet)
 gmt psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
 END
 # try a different version of plotting
@@ -182,6 +182,15 @@ gmt pscoast -R -J -O -K -Q >> "$plot_file_template"
 # add urban areas
 URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
 gmt psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
+# main title
+gmt pstext $att -N -O -K -D0.0/0.35 \
+        -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file_template"
+$plot_x_min $plot_y_max $plot_main_title
+END
+# subtitle part 1 (static)
+gmt pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file_template"
+$plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
+END
 echo Template Complete.
 ####################### END TEMPLATE ###########################
 
@@ -257,14 +266,8 @@ render_slice() {
                 -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
                 $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
 
-        # main title
-        gmt pstext $att -N -O -K -D0.0/0.35 \
-                -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file" #
-$plot_x_min $plot_y_max $plot_main_title
-END
-        # subtitle
+        # subtitle part 2 (dynamic)
         gmt pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
-$plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
 $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec
 END
 
