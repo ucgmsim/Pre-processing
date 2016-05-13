@@ -1,5 +1,17 @@
 # How to run QuakeCoRE workflow on NIWA Fitzroy
 
+## Quick Summary ##
+
+1. Make a directory under RunFolder
+2. Copy recipe files
+3. Edit params.py
+4. llsubmit run_emod3d.ll
+5. llsubmit post_emod3d.ll
+6. (Linux) llsubmit plot_ts.ll
+
+
+## Step-by-step Instruction ##
+
 Log into Fitzroy. If you don't have an account, contact hpcf-admins@niwa.co.nz
 ```
 ssh <username>@fitzroy.nesi.org.nz
@@ -30,6 +42,7 @@ If there is no recipe available, select one that looks most relevant to the mode
 ```
 cp /nesi/projects/nesi00213/Pre-processing/bin_process/stable/recipes/2010Sep4_v1_Cantv1_64.100_v3.04/* .
 ```
+
 
 Examine/Edit params.py. 
 This file is roughly composed of 7 parts. Some important ones that need more attentions are listed below. In particular, the product of n_proc_x, n_proc_y and n_proc_z should be the same as the total number of processes. (512 in this example)
