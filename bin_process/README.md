@@ -45,7 +45,7 @@ cp /nesi/projects/nesi00213/Pre-processing/bin_process/stable/recipes/2010Sep4_v
 
 
 Examine/Edit params.py. 
-This file is roughly composed of 7 parts. Some important ones that need more attentions are listed below. In particular, the product of n_proc_x, n_proc_y and n_proc_z should be the same as the total number of processes. (512 in this example)
+This file is roughly composed of 6 parts. Some important ones that need more attentions are listed below. In particular, the product of n_proc_x, n_proc_y and n_proc_z should be the same as the total number of processes. (512 in this example)
 ```
 ........
 ######## Global CONSTANTS ########
