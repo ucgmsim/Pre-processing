@@ -37,7 +37,8 @@ verify_strings([hf_prefix, match_hf_fhi, match_hf_flo, match_hf_ord, match_hf_ts
         GEN_ROCK_VS])
 verify_lists([match_hf_comps, match_lf_comps])
 verify_dirs([bb_sim_dir],create=True)
-verify_user_dirs([bb_accdir, bb_veldir, hf_accdir, hf_veldir, vel_dir])
+verify_user_dirs([bb_accdir, bb_veldir], reset=True) #output directories are best to start from scratch
+verify_user_dirs([hf_accdir, vel_dir])
 
 logger = open(match_log, 'w')
 

@@ -22,7 +22,6 @@ from glob import glob
 
 from shared import *
 from params import *
-print sys.argv
 if len(sys.argv)>1 and sys.argv[1] == 'test_mode':
     print('Running under test mode.')
     from postprocess_test.test_params import *
@@ -33,7 +32,8 @@ verify_binaries([fdbin2wcc_bin])
 verify_files([FD_STATLIST])
 verify_logfiles([FILELIST])
 verify_strings([output_prefix, scale, TSTRT])
-verify_user_dirs([vel_dir, bin_output])
+verify_user_dirs([vel_dir],reset=True) #Vel directory is best to start from empty
+verify_user_dirs([bin_output])
 
 STATS, LATS, LONS = get_stations(FD_STATLIST, True)
 COMPS = ['080', '170', 'ver']
