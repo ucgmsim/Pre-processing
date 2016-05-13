@@ -1,4 +1,4 @@
-How to run a emod3d workflow on NIWA Fitzroy
+# How to run a emod3d workflow on NIWA Fitzroy
 
 Log into Fitzroy
 ```
@@ -34,7 +34,78 @@ If there is no recipe available, select one that looks most relevant to the mode
 cp /nesi/projects/nesi00213/Pre-processing/bin_process/stable/recipes/2010Sep4_v1_Cantv1_64.100_v3.04/* .
 ```
 
-Examine/Edit params.py 
+Examine/Edit params.py. 
+This file is roughly composed of 7 parts. Some important ones that need more attentions are listed below.
+```
+........
+######## Global CONSTANTS ########
+run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04'
+version = '3.0.4'
+# LPSIM directory name under RunFolder
+extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04'
+# HFSIM directory name under RunFolder
+hf_run_name = 'HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt'
+bb_run_name = 'BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500'
+# prefix used for naming OutBin/prefix{_xyts.e3d,_seis.e3d}
+output_prefix = run_name #If output file names are different from the directory name. 
+....
+# keep as int, processed before writing to file
+# only product is stored
+n_proc_x = 8
+n_proc_y = 8
+n_proc_z = 8
+
+### folowing values are dependent on the velocity model used
+# low pass frequency, filter for output seimograms
+flo = '1.0' # hertz
+# spatial grid spacing
+hh = '0.100' # km
+# x, y, z grid size (multiples of grid spacing)
+nx = '1400'
+ny = '1200'
+nz = '460'
+# model reference location
+MODEL_LAT = '-43.6000'
+MODEL_LON = '172.3000'
+MODEL_ROT = '-10.0'
+###
+
+# cap number of timesteps in simulation, not all timesteps have outputs
+# max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
+nt = '20000'
+# dt should be 0.005 (or smaller), small increments required in simulation
+dt = '0.005'
+# how often to save outputs (measured in simulation timesteps)
+DUMP_ITINC = '4000' # nt
+
+....
+
+# which time slices to iterate over
+ts_start = '0'     # first one is 0
+ts_inc = '1'       # increment, larger than 1 to skip
+ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
+....
+vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
+vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
+....
+# files
+srf_file = os.path.join(srf_dir, '2010Sept4_m7pt1/Srf/bev01.srf')
+stat_file = os.path.join(stat_dir, 'cantstations.ll')
+stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
+
+
+############# winbin-aio ##############
+....
+############### gen_ts ###################
+....
+################## plot_ts ####################
+....
+############ acc2vel and match_seismo #############
+....
+########### gen_statgrid ##########
+....
+
+```
 
 Examine/Edit run_emod3d.ll. Pay attention to the wall_clock_limit, node, and tasks_per_node. 
 Each node can run 32 tasks in normal mode. You can also specify 64 tasks per node in SMT mode.
@@ -72,10 +143,12 @@ Submit the job.
 llsubmit run_emod3d.ll
 ```
 
+This will produce a number of xxxx_xyts.e3d and xxxx_seis.e3d files under OutBin.
+
 Examine/edit post_emod3d.ll. This has a number of steps organized to execute in series/parallel. 
 
-(1). merge_tsP3 -> gen_ts 
-(2). winbin_aio -> hf -> bb
++ merge_tsP3 -> gen_ts 
++ winbin_aio -> hf -> bb
 
 Except for merge_tsP3, all steps are single process jobs. Just pay attention to wall_clock_limit. 
 The specified wall_clock_limit's have been tested sufficient.
