@@ -1,5 +1,20 @@
+"""Parameter file for running Emod3D AND the post-processing of .e3d binary files.
+
+params.py
+
+13/5/2016
+
+Authors: Viktor Polak, Sung Bae, Richard Clare
+
+TODO: output_prefix, extended_run_name are redundant and should be removed
+      various other file/dir names should be automated as indicated by TODO in the code
+
+"""
+
 import os.path
 from platform import node
+import datetime
+
 if __name__ == '__main__':
     # in case someone has passed this file as a parameter to python
     print('\nDo not run ' + __file__ + \
@@ -13,15 +28,7 @@ params_override = '2010Sep4'
 # parameters are written to files, need to be strings
 
 ######## Global CONSTANTS ########
-run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
 version = '3.0.4'
-# LPSIM directory name under RunFolder
-extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_Test'
-# HFSIM directory name under RunFolder
-hf_run_name = 'HFSim-2011Feb22b560_v2_Cant1D_v2-v5.4.4-rvf0.8_dt'
-bb_run_name = 'BBSim-2011Feb22b560_v2_Cantv1_02-h0.100_dt'
-# prefix used for naming OutBin/prefix{_xyts.e3d,_seis.e3d}
-output_prefix = run_name
 
 # keep as int, processed before writing to file
 # only product is stored
@@ -91,7 +98,6 @@ ENABLE_RESTART = '0'
 READ_RESTART = '0'
 RESTART_ITINC = '20000'
 
-
 n_proc = str(n_proc_x * n_proc_y * n_proc_z)
 
 # things that everyone doesn't have, eg. binaries are within here
@@ -116,24 +122,31 @@ run_dir = os.path.join(user_root, 'RunFolder')
 srf_dir = os.path.join(user_root, 'RupModel')
 stat_dir = os.path.join(user_root, 'StationInfo')
 vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
-
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
 wcc_prog_dir = os.path.join(global_root, 'EMOD3D/WccFormat/bin/powerpc-AIX-nesi2-xlc')
-
-seis_tmp_dir = os.path.join(user_scratch, extended_run_name, 'SeismoBin')
-
-# directories - derived
-sim_dir = os.path.join(run_dir, extended_run_name)
-hf_sim_dir = os.path.join(run_dir, hf_run_name)
-bb_sim_dir = os.path.join(run_dir, bb_run_name)
-restart_dir = os.path.join(sim_dir, 'Restart')
-bin_output = os.path.join(sim_dir, 'OutBin')
 
 # files
 srf_file = os.path.join(srf_dir, '2010Sept4_m7pt1/Srf/bev01.srf')
 stat_file = os.path.join(stat_dir, 'cantstations.ll')
-stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
+stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')    #TODO automate
 
+#automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
+userString=datetime.date.today().strftime("%d%B%Y")   #additional string to customize (today's date for starters)
+hString='-h'+str(hh)
+srfString=srf_file.split('RupModel/')[-1].split('_')[0]+'_'+srf_file.split('/')[-1].split('.')[0] 
+vModelString='VM'+str(v_mod_ver)
+vString='_EMODv'+version
+run_name=('LPSim-'+srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
+
+# prefix used for naming OutBin/prefix{_xyts.e3d,_seis.e3d}
+output_prefix = run_name        #redundnat
+extended_run_name=run_name      #redundant
+
+# directories - derived
+seis_tmp_dir = os.path.join(user_scratch, extended_run_name, 'SeismoBin')
+sim_dir = os.path.join(run_dir, extended_run_name)
+restart_dir = os.path.join(sim_dir, 'Restart')
+bin_output = os.path.join(sim_dir, 'OutBin')
 
 
 ############# winbin-aio ##############
@@ -152,7 +165,7 @@ FILELIST = 'fdb.filelist'
 TSTRT = '-1.0'
 
 # Define the directory with the station information, and components
-FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'
+FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'   #TODO automate
 
 ############### gen_ts ###################
 
@@ -175,8 +188,8 @@ ts_out_prefix = os.path.join(ts_out_dir, run_name)
 
 
 # main title and subtitles that appears at the top of the picture
-plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'
-plot_sub_title = 'Beavan 1Fault, Stoch Slip, v1.64'
+plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'        #TODO automate
+plot_sub_title = 'Beavan 1Fault, Stoch Slip, v1.64'     #TODO automate
 
 # input can be provided either via the "._xyts.e3d" file (option=1)
 # or via all of the individual TSFiles, which are obtained from gen_ts.csh 
@@ -263,13 +276,9 @@ plot_dy = '0.002'
 ##############################################
 
 # output files in format of: hf_prefix + '_STAT.COMP'
-hf_prefix = '22Feb2011_bev01'
+hf_prefix=srfString
 # binary that simulates the HF data
 hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
-# HF run acceleration file directory
-hf_accdir = os.path.join(hf_sim_dir, 'Acc')
-# HF run velocity file directory
-hf_veldir = os.path.join(hf_sim_dir, 'Vel')
 # duration of HF sim
 hf_t_len = '100' # seconds
 # HF simulation step. should be small
@@ -311,6 +320,22 @@ hf_rupv = '-1.0'
 # seed '0': not random, '1': random
 hf_seed = '5481190'
 
+#automatic generation of the HF and BB run_names
+#derive the relevant strings first
+hfVString='hf'+hf_sim_bin.split('_')[-1]     #take the version no as everything after the last underscore
+rvfString='rvf'+hf_rvfac
+velModelString=hf_v_model.split('/')[-1]
+
+hf_run_name = ('HFSim-'+hf_prefix+'_'+velModelString+'_'+hfVString+'_'+rvfString+'_'+userString).replace('.','p')   #replace the decimal points with p
+bb_run_name=('BBSim-'+hf_prefix+'_'+vModelString+hString+vString+'_'+hfVString+'_'+rvfString+'_'+userString).replace('.','p') #replace the decimal points with p
+
+#directories derived
+hf_sim_dir = os.path.join(run_dir, hf_run_name)
+bb_sim_dir = os.path.join(run_dir, bb_run_name)
+# HF run acceleration file directory
+hf_accdir = os.path.join(hf_sim_dir, 'Acc')
+# HF run velocity file directory
+hf_veldir = os.path.join(hf_sim_dir, 'Vel')
 
 ############ acc2vel and match_seismo #############
 
@@ -365,9 +390,9 @@ GEN_ROCK_VS = 865
 X_BND_PAD = 0
 Y_BND_PAD = 0
 # input to process
-MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h0.100')
+MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h0.100') #TODO automate
 # output statgrid file
-STATGRID_GEN = 'statgrid-0.5x0.5-nz01_h0.100.ll'
+STATGRID_GEN = 'statgrid-0.5x0.5-nz01_h0.100.ll'    #TODO automate
 
 
 ########### stat_max.py #########
