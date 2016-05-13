@@ -32,7 +32,7 @@ cp /nesi/projects/nesi00213/Pre-processing/bin_process/stable/recipes/2010Sep4_v
 ```
 
 Examine/Edit params.py. 
-This file is roughly composed of 7 parts. Some important ones that need more attentions are listed below.
+This file is roughly composed of 7 parts. Some important ones that need more attentions are listed below. In particular, the product of n_proc_x, n_proc_y and n_proc_z should be the same as the total number of processes. (512 in this example)
 ```
 ........
 ######## Global CONSTANTS ########
@@ -101,7 +101,7 @@ stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 
 ```
 Examine/Edit run_emod3d.ll. Pay attention to the wall_clock_limit, node, and tasks_per_node. 
-Each node can run 32 tasks in normal mode. You can also specify 64 tasks per node in SMT mode.
+Each node can run 32 tasks in normal mode. You can also specify 64 tasks per node in SMT mode. In this example, we use node * tasks_per_node = 512 tasks.
 
 ```
 # @ shell = /bin/bash
