@@ -104,15 +104,14 @@ def verify_dirs(dir_list, create=False):
                 raise ResourceError('Directory doesn\'t exist: %s. Check params.py' % (dir_path))
 
 # makes sure user dirs (ones that may be created if not existing) are ready
-def verify_user_dirs(dir_list,reset=False):
+def verify_user_dirs(dir_list, reset = False):
     for dir_path in dir_list:
-        if os.path.isdir(dir_path):
-            if reset:
-                shutil.rmtree(dir_path) #delete the directory and its all files and recreate
-                os.makedirs(dir_path)
-        else:
+        if not os.path.isdir(dir_path):
             os.makedirs(dir_path)
-	
+        elif reset:
+            # empty directory
+            shutil.rmtree(dir_path)
+            os.makedirs(dir_path)
 
 # makes sure binary paths are valid binaries
 def verify_binaries(bin_list):
