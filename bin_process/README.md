@@ -1,10 +1,9 @@
 # How to run a emod3d workflow on NIWA Fitzroy
 
-Log into Fitzroy
+Log into Fitzroy. If you don't have an account, contact hpcf-admins@niwa.co.nz
 ```
 ssh <username>@fitzroy.nesi.org.nz
 ```
-If you don't have an account, contact hpcf-admins@niwa.co.nz .
 
 Go to the project directory
 ```
@@ -22,14 +21,12 @@ cd LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04
 ```
 
 This repository contains a number of recipes that can be reused. See if a recipe for your modelling is already available
-
 ```
 ls /nesi/projects/nesi00213/Pre-processing/bin_process/stable/recipes
 ```
 
 If you found a recipe, copy them to this directory. 
 If there is no recipe available, select one that looks most relevant to the model you will be running, and edit them to suit your needs.
-
 ```
 cp /nesi/projects/nesi00213/Pre-processing/bin_process/stable/recipes/2010Sep4_v1_Cantv1_64.100_v3.04/* .
 ```
@@ -77,9 +74,7 @@ nt = '20000'
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
 DUMP_ITINC = '4000' # nt
-
 ....
-
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
@@ -93,7 +88,6 @@ srf_file = os.path.join(srf_dir, '2010Sept4_m7pt1/Srf/bev01.srf')
 stat_file = os.path.join(stat_dir, 'cantstations.ll')
 stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 
-
 ############# winbin-aio ##############
 ....
 ############### gen_ts ###################
@@ -106,7 +100,6 @@ stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 ....
 
 ```
-
 Examine/Edit run_emod3d.ll. Pay attention to the wall_clock_limit, node, and tasks_per_node. 
 Each node can run 32 tasks in normal mode. You can also specify 64 tasks per node in SMT mode.
 
@@ -136,23 +129,21 @@ python $BINPROCESS/set_runparams.py
 poe /nesi/projects/nesi00213/EMOD3D/Mpi/Emod3d/V3.0.4/bin/powerpc-AIX-nesi2/emod3d-mpi -args "par=e3d.par"
 
 ```
-
 Submit the job.
 
 ```
 llsubmit run_emod3d.ll
 ```
 
-This will produce a number of xxxx_xyts.e3d and xxxx_seis.e3d files under OutBin.
+This will produce a number of *_xyts-????.e3d and *_seis-????.e3d files under OutBin. 
 
 Examine/edit post_emod3d.ll. This has a number of steps organized to execute in series/parallel. 
 
 + merge_tsP3 -> gen_ts 
 + winbin_aio -> hf -> bb
 
-Except for merge_tsP3, all steps are single process jobs. Just pay attention to wall_clock_limit. 
-The specified wall_clock_limit's have been tested sufficient.
-
+Except for merge_tsP3, all steps are single process jobs (merge_tsP3 uses 4 processes, and found to be adequate even for a very large job). You may need to edit wall_clock_limit, but it is most likely unnecessary.
+Note that merge_tsP3 assumes that all the *xyts-????.e3d files are kept in **OutBin** directory, and the merged file will be also stored there.
 ```
 # @ shell = /bin/bash
 #
@@ -230,11 +221,19 @@ Submit the post-process job
 ```
 llsubmit post_emod3d.ll
 ```
-After the job is completed, you should see a merged _xtys.e3d file under "OutBin", newly created "Vel" and "TSlice" under current directory.
-Outputs for hf and bb modelling are stored in newly created (if previously non-existent) HF_xxxxx and BB_xxxxx (where xxxxx are replaced by hf_run_name and bb_run_name specified in params.py) under RunFolder.
+Output of each steps is:
++ merge_tsp3: A merged file LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_xyts.e3d under "OutBin"
++ winbin-aio: A newly created "Vel" directory and files that look like below. These are produced from OutBin/xxxx_seis-????.e3d files.
+```
+ADCS.000  CACS.ver  CHHC.090  CSHS.000  D06C.ver  D15C.090  DSLC.000  GDLC.ver  HHSS.090  HVSC.000  KPOC.ver  LPOC.090  MTHS.000  NNBS.ver  PPHS.090  RHSC.000  ROLC.ver  SHLC.090  SPFS.000  STKS.ver  WCSS.090
+ADCS.090  CBGS.000  CHHC.ver  CSHS.090  D09C.000  D15C.ver  DSLC.090  GODS.000  HHSS.ver  HVSC.090  LINC.000  LPOC.ver  MTHS.090  ...
+```
++ gen_ts: A newly created TSlice/TSFiles directory  and LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04_ts0000.0 ~ _ts0399.0 files. (399 is due to ts_total = 400 in params.py). This step depends on merge_tsP3.
++ hf : RunFolder/HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt directory (if previously non-existent) and Acc subdirectory
++ bb:  RunFolder/BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500 directory (if previously non-existent) and Vel and Acc subdirectory 
 
-plot_ts needs to be done by a POWER-based linux. Go to the linux node, and edit plot_ts.ll if required, then submit
 
+Go to Linux node. Edit plot_ts.ll (Can be used untouched in most cases), and submit
 ```
 llsubmit plot_ts.ll
 ```
@@ -249,8 +248,8 @@ convert -delay 5 *.png <filename>.gif
 If everything went smoothly, contribute to the recipe repository!
 
 Known issues:
-1. If a step in post_emod3d.ll has an error and terminates, and a job needs to be resubmitted, steps that had no problem will be computed again.
-To avoid this, you will need to edit post_emod3d.ll before resubmission.
+1. If a step in post_emod3d.ll has an error and terminates, and a job needs to be resubmitted, steps that had no problem will be computed again. To avoid this, you will need to edit post_emod3d.ll before resubmission.
 2. HF produces Acc result and you can use acc2vel.py to convert to Vel (groundMotionStationAnalysis needs to Vel input). 
 As acc2vel.py uses parameters set in params.py, you will need to run it from LP.... directory or need to create a symbolic link to params.py from the HF directory and run it there.
-
+3. HF Acc and LP Vel are used as inputs for BB, and historic garbage files (if exists) may impact the output.
+4. Currently, plot_ts.ll needs to be submitted at Beatrice and it requires editing of path in e3d.par.
