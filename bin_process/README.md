@@ -236,10 +236,11 @@ Go to Linux node. Edit plot_ts.ll (Can be used untouched in most cases), and sub
 ```
 llsubmit plot_ts.ll
 ```
+This will produce Png and Ps files under TSlice directory per each time slice.
+In addition, plot_ts.ll execute make_movie.sh after plotting is completed, which will produce a movie named after the run_name in the working directory.
 
-If a movie file from generated Png files is desired, go to TSlice/Png directory and run
 ```
-convert -delay 5 *.png <filename>.gif
+-rw-r--r-- 1 seb56 n00213 52636372 May 13 15:38 LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04.gif
 ```
 
 If everything went smoothly, contribute to the recipe repository!
