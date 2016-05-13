@@ -249,5 +249,5 @@ Known issues:
 1. If a step in post_emod3d.ll has an error and terminates, and a job needs to be resubmitted, steps that had no problem will be computed again. To avoid this, you will need to edit post_emod3d.ll before resubmission.
 2. HF produces Acc result and you can use acc2vel.py to convert to Vel (groundMotionStationAnalysis needs to Vel input). 
 As acc2vel.py uses parameters set in params.py, you will need to run it from LP.... directory or need to create a symbolic link to params.py from the HF directory and run it there.
-3. HF Acc and LP Vel are used as inputs for BB, and historic garbage files (if exists) may impact the output.
+3. HF Acc and LP Vel are used as inputs for BB, and historic garbage files (if exists) may impact the output. These directories are now **all emptied before the computation**. If files need to be kept, **make a backup** manually.
 4. Currently, plot_ts.ll needs to be submitted at Beatrice and it requires editing of path in e3d.par.
