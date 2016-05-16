@@ -15,12 +15,10 @@ ISSUES:
 
 import os.path
 from math import sqrt
+# use builtin zip in python3
 from itertools import izip
 from shared import *
 from params import *
-
-# return square sum
-ss = lambda a, b: float(a) ** 2 + float(b) ** 2
 
 verify_files([FD_STATLIST])
 verify_logfiles([MAX_STATFILE])
@@ -48,22 +46,17 @@ for i, stat in enumerate(stats):
     v2p.readline()
     v2p.readline()
 
-    max_value = 0.0
-    cur_value = 0.0
-    #TODO: which method is faster?
+    max_val = 0.0
     # note assumption: files generated together so same no. of values per line
     for line in v1p:
-        #for c000, c090 in izip(map(float, line.split()), map(float, v2p.readline().split())):
-        cur_value = max(map(ss, line.split(), v2p.readline().split()))
-        if cur_value > max_value:
-            max_value = cur_value
+        for c000, c090 in izip(map(float, line.split()), map(float, v2p.readline().split())):
             # no need to square root until finished
-            #if c000**2 + c090**2 > max_val:
-            #    max_val = c000**2 + c090**2
+            if c000**2 + c090**2 > max_val:
+                max_val = c000**2 + c090**2
 
     v1p.close()
     v2p.close()
-    op.write('%s %s %f\n' % (lons[i], lats[i], sqrt(max_value)))
+    op.write('%s %s %f\n' % (lons[i], lats[i], sqrt(max_val)))
 
 op.close()
 # new line after previous stdout.write()
