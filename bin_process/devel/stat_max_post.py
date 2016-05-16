@@ -6,10 +6,7 @@ from shared import *
 
 round_int_str = lambda x: str(int(round(x)))
 
-MAX_STATFILE = 'stations_max.ll.bak'
-COLOUR_STATFILE = 'stations_colour.ll'
 verify_files([MAX_STATFILE])
-verify_logfiles([COLOUR_STATFILE])
 
 # find max for scaling factor
 max_stat = 0.0
@@ -30,10 +27,11 @@ with open(MAX_STATFILE, 'r') as sp:
 factor = 2.0/3.0 / max_stat
 # 1/3 - (station max * factor) = desired hue
 
-# GMT colour format: R/G/B@A (A: 0 opaque -> 100 transparent)
-for line in old_lines:
-    h = 2.0/3.0 - (float(line.split()[2]) * factor)
-    print('%s %s@20' % (line.rstrip(), '/'.join(map(round_int_str, hsv_to_rgb(h, 1.0, 255.0)))))
+with open(MAX_STATFILE, 'w') as op:
+    # GMT colour format: R/G/B@A (A: 0 opaque -> 100 transparent)
+    for line in old_lines:
+        h = 2.0/3.0 - (float(line.split()[2]) * factor)
+        op.write('%s %s %s@20' % (line.rstrip(), str(max_stat), '/'.join(map(round_int_str, hsv_to_rgb(h, 1.0, 255.0)))))
 
 
 
