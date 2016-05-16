@@ -20,11 +20,20 @@
 #   plot_topo_a_max, plot_topo_a_below, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
 #   
 source e3d.par
-# script is run with second parameter to indicate testing/override parameters
-if [ "$2" != '' ]; then
-    echo Running with test params from $2
-    source "$2"
-fi
+
+# outputs
+plot_file=motion-map.ps
+png_file=motion-map.png
+
+# output containing lat, long, val, max_val, colour_val
+input='stations_max.ll'
+max=$(head -n 1 $input | awk '{printf "%.3f", $4}')
+# range of the scale
+bar_max=$(head -n 1 $input | awk '{printf "%.2f", $4}')
+# colour increments on scale
+bar_inc=$(head -n 1 $input | awk '{printf "%.2f", $4/17}')
+# number increments on scale
+bar_num=$(head -n 1 $input | awk '{printf "%.2f", $4/17*3}')
 
 # used by 'ts2xyz' bin, not used with plot_option=2
 grid_file="${vel_mod_params_dir}/gridout_nz01-h${h}"
@@ -45,7 +54,7 @@ gmt grdmath landmask.grd modelmask.grd MUL = allmask.grd
 \rm tmp.modelpath
 
 # create color palette for plotting the topography
-base_cpt=y2r_brown.cpt
+base_cpt=b2r_240hue.cpt
 
 # avg Lon/Lat (midpoint of the TSlice image for the geo projection)
 avg_ll=(`echo $plot_x_min $plot_x_max $plot_y_min $plot_y_max | gawk '{print 0.5*($1+$2),0.5*($3+$4);}'`)
@@ -53,56 +62,39 @@ avg_ll=(`echo $plot_x_min $plot_x_max $plot_y_min $plot_y_max | gawk '{print 0.5
 att="-JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} -R${plot_region}"
 
 # color palette for velocity
-gmt makecpt -Chot -I -T0/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
+# seis: R-O-Y-G-B -I(nverted) -T(min)/(max)/(inc)
+gmt makecpt -Cseis -I -T0/$bar_max/$bar_inc -A20 > $base_cpt
 
 # set all plotting defaults to use
 gmt gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
 
-###################### BEGIN TEMPLATE ##########################
-echo Creating PS Template...
-plot_file_template=plot_template.ps
 # specify plot and panel size (defaults 8.5 x 11)
 edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
-gmt psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
+gmt psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file" #-W0/180/180/180
 0.3 1.0
 0.3 7.8
 6.5 7.8
 6.5 1.0
 END
 # set the color scale
-gmt psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground velocity (cm/s)": >> "$plot_file_template"
+gmt psscale -C$base_cpt -Ef -D3.5/2.0/4.0/0.15h -K -O -Ba${bar_num}f${bar_num}:"ground velocity (cm/s)": >> "$plot_file"
 # specify the X and Y offsets for plotting (I dont really understand this yet)
-gmt psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
+gmt psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file" 2>/dev/null #-W5/255/255/0
 END
 # try a different version of plotting
 # clippath for land
-gmt pscoast $att -Df -Gc -K -O >> "$plot_file_template"
+gmt pscoast $att -Df -Gc -K -O >> "$plot_file"
 # land
-gmt grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file_template"
+gmt grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file"
 # clear clippath
-gmt pscoast -R -J -O -K -Q >> "$plot_file_template"
+gmt pscoast -R -J -O -K -Q >> "$plot_file"
 # add urban areas
 URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
-gmt psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
-echo Template Complete.
-####################### END TEMPLATE ###########################
-
-# $2 is $tsspot
-# $3 is $tsfnum
-
-# outputs
-plot_file=motion-map.ps
-png_file=motion-map.png
-cp "$plot_file_template" "$plot_file"
+gmt psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file"
 
 # add coastline
 gmt pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file"
 gmt pscoast -A0/2/2 $att -Df -W1,black -K -O >> "$plot_file"
-
-# call fault plane routine
-bash ${plot_fault_add_plane} "$plot_file" \
-        -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
-        $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
 
 # main title
 gmt pstext $att -N -O -K -D0.0/0.35 \
@@ -112,25 +104,7 @@ END
 # subtitle
 gmt pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
 $plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
-END
-
-# scale to show distance
-gmt psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
-
-# add sites
-for i in "${!plot_s_lon[@]}"; do
-    gmt psxy $att -S$plot_s_sym -G$plot_s_fil -W$plot_s_lin -O -K << END >> "$plot_file"
-${plot_s_lon[$i]} ${plot_s_lat[$i]}
-END
-done
-
-# add 2 test sites
-gmt psxy $att -Sr -G0/205/0 -O -K << END >> "$plot_file"
-172.3 -43.75 0.025 0.025
-END
-# 25 km / 20 = 1.25
-gmt psxy $att -Sr -G205/0/0@60 -O -K << END >> "$plot_file"
-172.30620793 -43.74999983 0.025 0.025
+$plot_x_max $plot_y_max 16,Helvetica,black RB peak=$max cm/s
 END
 
 a=1
@@ -139,23 +113,24 @@ while read line; do
     echo -ne "\r$a"
     a=$(($a + 1))
     loc=$(echo $line | awk '{print $1" "$2};')
-    colour=$(echo $line | awk '{print $4};')
+    colour=$(echo $line | awk '{print $5};')
     gmt psxy $att -Sj -G$colour -O -K << END >> "$plot_file"
-$loc 10 0.0246 0.0246
+$loc 10 0.025 0.025
 END
-done < test.ll
+done < $input
 echo
 
+# call fault plane routine
+bash ${plot_fault_add_plane} "$plot_file" \
+        -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+        $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
 
-# plot strong motion station locations
-#gmt psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
-# shift plotting origin (for 3 component plotting)
-gmt psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
-END
+# scale to show distance
+gmt psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
 
 # finalize postscript (i.e. no -K)
 gmt psxy -V $att -L -W5,255/255/0 -O << END >>  "$plot_file" 2>/dev/null
 END
 # ps -> png
-gmt ps2raster "$plot_file" -A -TG -E4800 -D./
+gmt ps2raster "$plot_file" -A -TG -E2400 -D./
 
