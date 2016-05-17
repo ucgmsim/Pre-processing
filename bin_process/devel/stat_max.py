@@ -20,7 +20,7 @@ from itertools import izip
 from shared import *
 from params import *
 
-verify_files([FD_STATLIST])
+verify_files([FD_STATLIST, stat_file])
 verify_logfiles([MAX_STATFILE])
 verify_strings([])
 verify_user_dirs([])
@@ -30,6 +30,8 @@ stat_count = len(stats)
 
 # output
 op = open(MAX_STATFILE, 'w')
+# retrieve actual lon/lat from here
+sp = open(stat_file, 'r')
 
 for i, stat in enumerate(stats):
     # assume mostly no exceptions, use try block for speed
@@ -56,9 +58,13 @@ for i, stat in enumerate(stats):
 
     v1p.close()
     v2p.close()
-    op.write('%s %s %f\n' % (lons[i], lats[i], sqrt(max_val)))
+    orig_ll = sp.readline().split()
+    while orig_ll[2] != stat:
+        orig_ll = sp.readline().split()
+    op.write('%s %s %f\n' % (orig_ll[0], orig_ll[1], sqrt(max_val)))
 
 op.close()
+sp.close()
 # new line after previous stdout.write()
 print('')
 
