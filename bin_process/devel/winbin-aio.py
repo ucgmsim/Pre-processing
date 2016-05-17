@@ -31,11 +31,13 @@ fdbin2wcc_bin = os.path.join(wcc_prog_dir, 'fdbin2wcc')
 verify_binaries([fdbin2wcc_bin])
 verify_files([FD_STATLIST])
 verify_logfiles([FILELIST])
-verify_strings([output_prefix, scale, TSTRT])
+verify_strings([output_prefix, scale, TSTRT, MODEL_ROT])
 verify_user_dirs([vel_dir, bin_output])
 
 STATS, LATS, LONS = get_stations(FD_STATLIST, True)
-COMPS = ['080', '170', 'ver']
+comp1 = str(int(90 + float(MODEL_ROT))).zfill(3)
+comp2 = str(int(comp1) + 90).zfill(3)
+COMPS = [comp1, comp2, 'ver']
 AZ_COLUMN = 8
 
 for stat in STATS:
@@ -67,15 +69,23 @@ for s_index, stat in enumerate(STATS):
         print ' '.join(cmd)
         call(cmd)
 
-    cmd = [os.path.join(wcc_prog_dir,'wcc_rotate'),'filein1=' + statfile + '.' + COMPS[0],'inbin1=0', 'filein2=' +  statfile + '.' + COMPS[1],'inbin2=0','fileout1=' + statfile + '.000', 'outbin1=0','fileout2=' + statfile+'.090','outbin2=0', 'rot=0.0']
+    # XXX: THIS IS WRONG. ROT IS RELATED TO MODEL_ROT. FORWARDS OR BACKWARDS?
+    # ONLY CALL THIS IF MODEL_ROT != 0?
+    cmd = [os.path.join(wcc_prog_dir,'wcc_rotate'), \
+        'filein1=' + statfile + '.' + COMPS[0],'inbin1=0', \
+        'filein2=' +  statfile + '.' + COMPS[1],'inbin2=0', \
+        'fileout1=' + statfile + '.000', 'outbin1=0', \
+        'fileout2=' + statfile + '.090', 'outbin2=0', \
+        'rot=0.0']
     print ' '.join(cmd)
     call(cmd)
 
-    # only getting rid of '080' and '170', not 'ver'
-    for i in xrange(len(COMPS) - 1):
-        try:
-            os.remove('%s.%s'%(statfile,COMPS[i]))
-        except OSError:
-            pass
+    # only getting rid of pre-rotated files
+    if int(float(MODEL_ROT)) != 0:
+        for i in xrange(len(COMPS) - 1):
+            try:
+                os.remove('%s.%s'%(statfile,COMPS[i]))
+            except OSError:
+                pass
 
 
