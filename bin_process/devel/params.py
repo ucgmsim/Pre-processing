@@ -398,6 +398,6 @@ STATGRID_GEN = 'statgrid-0.5x0.5-nz01_h0.100.ll'    #TODO automate
 ########### stat_max.py #########
 
 # where maximum values are stored
-MAX_STATFILE = 'stations_max.ll'
+MAX_STATFILE = 'stations_max.bin'
 
 

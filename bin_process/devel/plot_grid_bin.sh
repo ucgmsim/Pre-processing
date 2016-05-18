@@ -25,19 +25,9 @@ source e3d.par
 plot_file=motion-map.ps
 png_file=motion-map.png
 
-# output containing lat, long, val, max_val, colour_val
-input='stations_max.ll'
-max=$(head -n 1 $input | awk '{printf "%.3f", $4}')
-# range of the scale
-bar_max=$(head -n 1 $input | awk '{printf "%.2f", $4}')
-# colour increments on scale
-bar_inc=$(head -n 1 $input | awk '{printf "%.2f", $4/17}')
-# number increments on scale
-if [ $(printf "%.0f" "$max") -gt 120 ]; then
-    bar_num=$(echo -n $bar_inc | awk '{printf "%.1f", $1*3}')
-else
-    bar_num=$(echo -n $bar_inc | awk '{printf "%.2f", $1*3}')
-fi
+# output containing lon, lat, max_val in 32bit float binary
+# TODO: add to e3d.par or make python version
+input='stations_max.bin'
 
 # used by 'ts2xyz' bin, not used with plot_option=2
 grid_file="${vel_mod_params_dir}/gridout_nz01-h${h}"
@@ -58,16 +48,16 @@ gmt grdmath landmask.grd modelmask.grd MUL = allmask.grd
 \rm tmp.modelpath
 
 # create color palette for plotting the topography
-base_cpt=b2r_240hue.cpt
+base_cpt=y2r_hot.cpt
 
 # avg Lon/Lat (midpoint of the TSlice image for the geo projection)
 avg_ll=(`echo $plot_x_min $plot_x_max $plot_y_min $plot_y_max | gawk '{print 0.5*($1+$2),0.5*($3+$4);}'`)
 # plot projection and region in GMT format for ease of use later
 att="-JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} -R${plot_region}"
 
-# color palette for velocity
+# color palette for velocity, execute gmt makecpt for more info
 # seis: R-O-Y-G-B -I(nverted) -T(min)/(max)/(inc)
-gmt makecpt -Cseis -I -T0/$bar_max/$bar_inc -A20 > $base_cpt
+gmt makecpt -Chot -I -T0/80/1 -A50 > $base_cpt
 
 # set all plotting defaults to use
 gmt gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
@@ -81,7 +71,7 @@ gmt psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_f
 6.5 1.0
 END
 # set the color scale
-gmt psscale -C$base_cpt -Ef -D3.5/2.0/4.0/0.15h -K -O -Ba${bar_num}f${bar_num}:"ground velocity (cm/s)": >> "$plot_file"
+gmt psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba10f$10:"ground velocity (cm/s)": >> "$plot_file"
 # specify the X and Y offsets for plotting (I dont really understand this yet)
 gmt psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file" 2>/dev/null #-W5/255/255/0
 END
@@ -96,6 +86,15 @@ gmt pscoast -R -J -O -K -Q >> "$plot_file"
 URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
 gmt psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file"
 
+# create ground motion intensity surface
+gmt surface $input -Gmotion.surface -I$plot_dx/$plot_dy \
+        -R$plot_ts_region -T0.0 -bi3f
+# clip minimum (prevents scattered spots)
+gmt grdclip motion.surface -Gmotion.surface \
+        -Sb${plot_topo_a_min}/$plot_topo_a_below
+# add surface as image to plot
+gmt grdimage motion.surface $att -C$base_cpt -Q -t50 -K -O >> "$plot_file"
+
 # add coastline
 gmt pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file"
 gmt pscoast -A0/2/2 $att -Df -W1,black -K -O >> "$plot_file"
@@ -108,23 +107,10 @@ END
 # subtitle
 gmt pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
 $plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
-$plot_x_max $plot_y_max 16,Helvetica,black RB peak=$max cm/s
+$plot_x_max $plot_y_max 16,Helvetica,black RB peak velocity
 END
 
-a=1
-echo
-while read line; do
-    echo -ne "\r$a"
-    a=$(($a + 1))
-    loc=$(echo $line | awk '{print $1" "$2};')
-    colour=$(echo $line | awk '{print $5};')
-    gmt psxy $att -Sj -G$colour -O -K << END >> "$plot_file"
-$loc 10 0.025 0.025
-END
-done < $input
-echo
-
-# call fault plane routine
+# fault plane routine
 bash ${plot_fault_add_plane} "$plot_file" \
         -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
         $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
@@ -135,6 +121,7 @@ gmt psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$p
 # finalize postscript (i.e. no -K)
 gmt psxy -V $att -L -W5,255/255/0 -O << END >>  "$plot_file" 2>/dev/null
 END
-# ps -> png
-gmt ps2raster "$plot_file" -A -TG -E2400 -D./
+# ps -> png, takes a while with high resolution, 4800 works, 9600 is too high
+echo Postscript complete, creating PNG...
+gmt ps2raster "$plot_file" -A -TG -E600 -D./
 
