@@ -1,6 +1,8 @@
 import os
 import sys
 import datetime
+import glob
+import shutil
 
 emod3d_version = '3.0.4'
 
@@ -27,6 +29,16 @@ srf_dir = os.path.join(user_root, 'RupModel')
 v_mod_ver = 'v1.64'
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
 hh = '0.100'
+
+def make_dirs(dir_list, reset = False):
+    for dir_path in dir_list:
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+        elif reset:
+            # empty directory
+            shutil.rmtree(dir_path)
+            os.makedirs(dir_path)   
+
 
 def user_select(options):
     try:
@@ -98,6 +110,11 @@ def main():
     srf_file_options.sort()
     srf_file_selected = show_multiple_choice(srf_file_options)
     print srf_file_selected
+
+    print "===================================="
+    print "Enter HH (eg. 0.100, 0.500)"
+    print "===================================="
+    hh = raw_input()
     
 
     #automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
@@ -138,13 +155,17 @@ def main():
     recipe_selected = show_multiple_choice(recipes)
     print recipe_selected
 
+    recipe_selected_dir = os.path.join(recipe_dir,recipe_selected)
+    run_name_dir = os.path.join(run_dir,run_name)
     print "====================================="
     print "Directory %s created" %run_name
-    print "Recipes from %s copied" %os.path.join(recipe_dir,recipe_selected)
+    print "Recipes from %s copied" %recipe_selected_dir
     print "====================================="
+ 
+    make_dirs([run_name_dir, os.path.join(run_name_dir,"LF"), os.path.join(run_name_dir,"HF"), os.path.join(run_name_dir,"BB")])
 
-
-
+    for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
+        shutil.copy(filename, run_name_dir)
 
 if __name__ == '__main__':
     main()
