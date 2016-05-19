@@ -26,9 +26,6 @@ print bin_process_dir
 
 srf_dir = os.path.join(user_root, 'RupModel')
 
-v_mod_ver = 'v1.64'
-vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
-hh = '0.100'
 
 def make_dirs(dir_list, reset = False):
     for dir_path in dir_list:
@@ -115,7 +112,17 @@ def main():
     print "Enter HH (eg. 0.100, 0.500)"
     print "===================================="
     hh = raw_input()
+
+    print "===================================="
+    print "Select CanterburyVelocityModel"
+    print "===================================="
     
+    vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel')
+    v_mod_ver_options = os.listdir(vel_mod_dir)
+    v_mod_ver_options.sort()
+    v_mod_ver = show_multiple_choice(v_mod_ver_options)
+    print v_mod_ver    
+
 
     #automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
     userString=datetime.date.today().strftime("%d%B%Y")   #additional string to customize (today's date for starters)
@@ -166,6 +173,12 @@ def main():
 
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
         shutil.copy(filename, run_name_dir)
+
+    f=open(os.path.join(run_name_dir,"config.py"),"w");
+    f.write("run_name='%s'\n" %run_name)
+    f.write("global_root='%s'\n" %global_root)
+    f.close()
+
 
 if __name__ == '__main__':
     main()
