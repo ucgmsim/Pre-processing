@@ -1,42 +1,84 @@
 import os
 import sys
 import datetime
+import glob
+import shutil
+
+emod3d_version = '3.0.4'
 
 # things that everyone doesn't have, eg. binaries are within here
-global_root = '/nesi/projects/nesi00213'
 
-
+#run_dir = os.path.dirname(os.path.realpath(__file__))
+run_dir = os.path.abspath(os.path.curdir)
+global_root = os.path.realpath(os.path.join(run_dir,os.path.pardir))
 user_root = global_root
 
-# works on Windows and POSIX paths
-user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
+bin_process_dir = os.path.join(global_root, 'Pre-processing/bin_process/stable')
+print bin_process_dir
+bin_process_ver = os.readlink(bin_process_dir)
+bin_process_dir = os.path.realpath(os.path.join(bin_process_dir,os.path.pardir,bin_process_ver))
+
+print bin_process_ver
+print bin_process_dir
+
 
 # directories - main. change global_root with user_root as required
-run_dir = os.path.join(user_root, 'RunFolder')
+
 srf_dir = os.path.join(user_root, 'RupModel')
-stat_dir = os.path.join(user_root, 'StationInfo')
-vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
-v_mod_ver = 'v1.64'
-vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
-wcc_prog_dir = os.path.join(global_root, 'EMOD3D/WccFormat/bin/powerpc-AIX-nesi2-xlc')
 
-# files
-srf_file = os.path.join(srf_dir, '2010Sept4_m7pt1/Srf/bev01.srf')
-print srf_file
 
-stat_file = os.path.join(stat_dir, 'cantstations.ll')
-stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')    #TODO automate
-hh = '0.100'
-version = '3.0.4'
+def make_dirs(dir_list, reset = False):
+    for dir_path in dir_list:
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+        elif reset:
+            # empty directory
+            shutil.rmtree(dir_path)
+            os.makedirs(dir_path)   
+
+
+def user_select(options):
+    try:
+        selected_number = input("Enter the number you wish to select (1-%d):" %len(options))
+    except NameError:
+        print "Check your input."
+        user_select(options)
+    else:
+        try:
+            selected_number = int(selected_number)
+        except ValueError:
+            print "Input should be a number."
+            user_select(options)
+        else:
+            try:
+                return selected_number
+            except IndexError:
+                print "Input should be a number in (1-%d)" %len(options)
+                user_select(options)
+
+
+def show_multiple_choice(options):
+    for i,option in enumerate(options):
+        print "%2d. %s" %(i+1 , option)
+    selected_number = user_select(options)
+    return options[selected_number-1]
+
+def show_yes_no_question():
+    options = ["Yes","No"]
+    for i, option in enumerate(options):
+        print "%2d. %s" %(i+1 , option)
+    selected_number = user_select(options)
+    return (selected_number == 1 ) #True if selected Yes
 
 def main():
 
 #    if(len(sys.argv) <6):
-#        print "Usage: %s srf_file hh v_mod_ver version userString....." %sys.argv[0]
-#        print "     where"
-#        print "         srf_file path:  eg. bev01.srf"
-#        print "         hh: eg. 0.100"
-#        print "         v_mod_ver: v1.64
+#        print "Usage: %s srf_file hh velocity_model_path v_mod_ver userString....." %sys.argv[0]
+#        print "   where"
+#        print "     srf_file path:  eg. bev01.srf"
+#        print "     velocity_model_path: dirname of rho3dfile.d, vp3dfile.p, vs3dfile.s (eg:...CanterburyVelocityModel/v1.64)
+#        print "     hh: eg. 0.100"
+
 #        sys.exit()
 	
 #    hh = sys.argv[1]
@@ -44,24 +86,106 @@ def main():
 #    v_mod_ver = sys.argv[3]
 #    version = sys.argv[4]
 #    userString = '_'.join(sys.argv[5:])
+    print "===================================="
+    print "Select Rupture Model - Step 1."
+    print "===================================="
+    srf_options = os.listdir(srf_dir)
+    srf_options.sort()
+    srf_selected = show_multiple_choice(srf_options)
+
+    print srf_selected
+    srf_selected_dir = os.path.join(srf_dir,srf_selected,"Srf")
+    try:
+        srf_file_options = os.listdir(srf_selected_dir)
+    except OSError:
+        print "No such Srf directory : %s" %srf_selected_dir
+        sys.exit()
+
+    print "===================================="
+    print "Select Rupture Model - Step 2."
+    print "===================================="
+    srf_file_options.sort()
+    srf_file_selected = show_multiple_choice(srf_file_options)
+    print srf_file_selected
+    srf_file = os.path.join(srf_selected_dir,srf_file_selected)
+    print srf_file
 
 
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    print script_dir
-    recipe_dir = os.path.join(script_dir,"recipes")
-    print recipe_dir
-    recipes = os.listdir(recipe_dir)
+    print "===================================="
+    print "Enter HH (eg. 0.100, 0.500)"
+    print "===================================="
+    hh = raw_input()
+
+    print "===================================="
+    print "Select CanterburyVelocityModel"
+    print "===================================="
+    
+    vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel')
+    v_mod_ver_options = os.listdir(vel_mod_dir)
+    v_mod_ver_options.sort()
+    v_mod_ver = show_multiple_choice(v_mod_ver_options)
+    print v_mod_ver    
+    vel_mod_dir = os.path.join(vel_mod_dir,v_mod_ver)
 
 
     #automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
     userString=datetime.date.today().strftime("%d%B%Y")   #additional string to customize (today's date for starters)
     hString='-h'+hh
-    srfString=srf_file.split('RupModel/')[-1].split('_')[0]+'_'+srf_file.split('/')[-1].split('.')[0] 
+    srfString=srf_selected.split("_")[0]+"_"+os.path.splitext(srf_file_selected)[0]
     vModelString='VM'+str(v_mod_ver)
-    vString='_EMODv'+version
+    vString='_EMODv'+emod3d_version
     run_name=('LPSim-'+srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
 
+
+    # LPSim-2010Sept4_bev01_VMv1p64-h0p100_EMODv3p0p4_19May2016
+    print "===================================="
+    print "Automated Run Name: ",
     print run_name
+    print "===================================="
+    print "Do you wish to proceed?"
+    yes= show_yes_no_question()
+    if not yes:
+        userString = raw_input("Add more text (will be appended to the name above) ")
+        run_name= run_name+"_"+userString
+            
+        print "===================================="
+        print "Revised Run Name: ",
+        print run_name
+        print "===================================="
+        
+
+    
+
+    recipe_dir = os.path.join(bin_process_dir,"recipes")
+    print recipe_dir
+    recipes = os.listdir(recipe_dir)
+
+    print "===================================="
+    print "Selected Recipes"
+    print "===================================="
+    recipe_selected = show_multiple_choice(recipes)
+    print recipe_selected
+
+    recipe_selected_dir = os.path.join(recipe_dir,recipe_selected)
+    sim_dir = os.path.join(run_dir,run_name)
+    print "====================================="
+    print "Directory %s created" %run_name
+    print "Recipes from %s copied" %recipe_selected_dir
+    print "====================================="
+ 
+    make_dirs([sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB")])
+
+    for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
+        shutil.copy(filename, sim_dir)
+
+    f=open(os.path.join(sim_dir,"params_base.py"),"w");
+    f.write("run_name='%s'\n" %run_name)
+    f.write("global_root='%s'\n" %global_root)
+    f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
+    f.write("sim_dir='%s'\n"%sim_dir)
+    f.write("srf_dir='%s'\n"%srf_dir)
+    f.write("srf_file='%s'\n"%srf_file)
+    f.close()
 
 
 if __name__ == '__main__':
