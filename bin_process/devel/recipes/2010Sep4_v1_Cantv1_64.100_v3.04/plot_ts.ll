@@ -5,7 +5,7 @@
 #
 # @ job_type = serial 
 #
-# @ wall_clock_limit = 04:00:00
+# @ wall_clock_limit = 00:30:00
 #
 # Groups to select from: UC, UC_merit, NZ, NZ_merit
 # @ group = NZ_merit 
@@ -28,5 +28,6 @@
 export MP_EAGER_LIMIT=65536
 export MP_SHARED_MEMORY=yes
 export MEMORY_AFFINITY=MCM
- 
-csh plot_ts_beatrice.csh
+export BINPROCESS=/hpc/scratch/nesi00213/Pre-processing/bin_process/devel
+bash $BINPROCESS/plot_ts.sh
+bash $BINPROCESS/make_movie.sh

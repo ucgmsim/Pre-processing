@@ -32,7 +32,8 @@ verify_binaries([fdbin2wcc_bin])
 verify_files([FD_STATLIST])
 verify_logfiles([FILELIST])
 verify_strings([output_prefix, scale, TSTRT, MODEL_ROT])
-verify_user_dirs([vel_dir, bin_output])
+verify_user_dirs([vel_dir],reset=True) #Vel directory is best to start from empty
+verify_user_dirs([bin_output])
 
 STATS, LATS, LONS = get_stations(FD_STATLIST, True)
 comp1 = str(int(90 + float(MODEL_ROT))).zfill(3)

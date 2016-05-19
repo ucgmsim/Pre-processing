@@ -7,6 +7,7 @@ Module which contains shared functions/values.
 """
 
 import os
+import shutil
 
 # reads a parameter from the parameters file (e3d.par)
 # should not be necessary as you can just 'from params import *' (params.py)
