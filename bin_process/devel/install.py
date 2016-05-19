@@ -107,6 +107,9 @@ def main():
     srf_file_options.sort()
     srf_file_selected = show_multiple_choice(srf_file_options)
     print srf_file_selected
+    srf_file = os.path.join(srf_selected_dir,srf_file_selected)
+    print srf_file
+
 
     print "===================================="
     print "Enter HH (eg. 0.100, 0.500)"
@@ -122,6 +125,7 @@ def main():
     v_mod_ver_options.sort()
     v_mod_ver = show_multiple_choice(v_mod_ver_options)
     print v_mod_ver    
+    vel_mod_dir = os.path.join(vel_mod_dir,v_mod_ver)
 
 
     #automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
@@ -163,20 +167,24 @@ def main():
     print recipe_selected
 
     recipe_selected_dir = os.path.join(recipe_dir,recipe_selected)
-    run_name_dir = os.path.join(run_dir,run_name)
+    sim_dir = os.path.join(run_dir,run_name)
     print "====================================="
     print "Directory %s created" %run_name
     print "Recipes from %s copied" %recipe_selected_dir
     print "====================================="
  
-    make_dirs([run_name_dir, os.path.join(run_name_dir,"LF"), os.path.join(run_name_dir,"HF"), os.path.join(run_name_dir,"BB")])
+    make_dirs([sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB")])
 
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
-        shutil.copy(filename, run_name_dir)
+        shutil.copy(filename, sim_dir)
 
-    f=open(os.path.join(run_name_dir,"config.py"),"w");
+    f=open(os.path.join(sim_dir,"params_base.py"),"w");
     f.write("run_name='%s'\n" %run_name)
     f.write("global_root='%s'\n" %global_root)
+    f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
+    f.write("sim_dir='%s'\n"%sim_dir)
+    f.write("srf_dir='%s'\n"%srf_dir)
+    f.write("srf_file='%s'\n"%srf_file)
     f.close()
 
 
