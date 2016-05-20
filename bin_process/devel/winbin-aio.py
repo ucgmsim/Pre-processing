@@ -22,6 +22,7 @@ from glob import glob
 
 from shared import *
 from params import *
+
 if len(sys.argv) > 1 and sys.argv[1] == 'test_mode':
     print('Running under test mode.')
     from postprocess_test.test_params import *
@@ -31,7 +32,7 @@ fdbin2wcc_bin = os.path.join(wcc_prog_dir, 'fdbin2wcc')
 verify_binaries([fdbin2wcc_bin])
 verify_files([FD_STATLIST])
 verify_logfiles([FILELIST])
-verify_strings([output_prefix, scale, TSTRT, MODEL_ROT])
+verify_strings([run_name, scale, TSTRT, MODEL_ROT])
 verify_user_dirs([vel_dir],reset=True) #Vel directory is best to start from empty
 verify_user_dirs([bin_output])
 
@@ -50,7 +51,7 @@ FLIP = ['1', '1', '-1']
 
 list_handle = open(FILELIST, 'w')
 
-filepattern = os.path.join(bin_output, output_prefix+ '_seis*.e3d')
+filepattern = os.path.join(bin_output, run_name+ '_seis*.e3d')
 print filepattern
 list_of_files = '\n'.join([file_path for file_path in glob(filepattern)]) + '\n'
 print list_of_files

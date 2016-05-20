@@ -1,5 +1,7 @@
 import os.path
 from platform import node
+from params_base import *
+
 if __name__ == '__main__':
     # in case someone has passed this file as a parameter to python
     print('\nDo not run ' + __file__ + \
@@ -13,19 +15,15 @@ params_override = '2010Sep4'
 # parameters are written to files, need to be strings
 
 ######## Global CONSTANTS ########
-run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04'
-version = '3.0.4'
+
 # LPSIM directory name under RunFolder
-extended_run_name = 'LPSim-2010Sept4_v1_Cantv1_64-h0.100_v3.04'
+
 # HFSIM directory name under RunFolder
 hf_run_name = 'HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt'
 bb_run_name = 'BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500'
-# prefix used for naming OutBin/prefix{_xyts.e3d,_seis.e3d}
-output_prefix = run_name
 
 
 # things that everyone doesn't have, eg. binaries are within here
-global_root = '/nesi/projects/nesi00213'
 
 
 # things that people have their own copies of, eg. RunFolder
@@ -101,7 +99,6 @@ PMOD = 'vp3dfile.p'
 SMOD = 'vs3dfile.s'
 DMOD = 'rho3dfile.d'
 
-v_mod_ver = 'v1.64'
 
 ENABLE_RESTART = '0'
 READ_RESTART = '0'
@@ -111,18 +108,17 @@ RESTART_ITINC = '20000'
 n_proc = str(n_proc_x * n_proc_y * n_proc_z)
 
 # directories - main. change global_root with user_root as required
-run_dir = os.path.join(user_root, 'RunFolder')
-srf_dir = os.path.join(user_root, 'RupModel')
+
 stat_dir = os.path.join(user_root, 'StationInfo')
 vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
 
-vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
+
 wcc_prog_dir = os.path.join(global_root, 'EMOD3D/WccFormat/bin/powerpc-AIX-nesi2-xlc')
 
-seis_tmp_dir = os.path.join(user_scratch, extended_run_name, 'SeismoBin')
+seis_tmp_dir = os.path.join(user_scratch, run_name, 'SeismoBin')
 
 # directories - derived
-sim_dir = os.path.join(run_dir, extended_run_name)
+sim_dir = os.path.join(run_dir, run_name)
 hf_sim_dir = os.path.join(run_dir, hf_run_name)
 bb_sim_dir = os.path.join(run_dir, bb_run_name)
 restart_dir = os.path.join(sim_dir, 'Restart')
@@ -130,7 +126,6 @@ bin_output = os.path.join(sim_dir, 'OutBin')
 log_dir = os.path.join(sim_dir, 'Rlog')
 
 # files
-srf_file = os.path.join(srf_dir, '2010Sept4_m7pt1/Srf/bev01.srf')
 stat_file = os.path.join(stat_dir, 'cantstations.ll')
 stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 
@@ -155,7 +150,7 @@ FD_STATLIST = os.path.join(stat_dir,'fd_nz01-h0.100.ll')
 
 ############### gen_ts ###################
 
-ts_file = os.path.join(bin_output, output_prefix+ '_xyts.e3d') #the file created by merge_ts
+ts_file = os.path.join(bin_output, run_name+ '_xyts.e3d') #the file created by merge_ts
 
 # TODO: not used anywhere???
 # ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0

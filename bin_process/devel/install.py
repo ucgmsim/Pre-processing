@@ -5,7 +5,7 @@ import glob
 import shutil
 
 emod3d_version = '3.0.4'
-bin_process_ver = '20160511'
+bin_process_ver = 'devel'
 
 # things that everyone doesn't have, eg. binaries are within here
 
@@ -14,13 +14,12 @@ run_dir = os.path.abspath(os.path.curdir)
 global_root = os.path.realpath(os.path.join(run_dir,os.path.pardir))
 user_root = global_root
 bin_process_dir = os.path.join(global_root, 'Pre-processing/bin_process',bin_process_ver)
-print bin_process_dir
 # if bin_process_ver was not hardcoded and given as "stable" the following can workout the real version.
 #bin_process_ver = os.readlink(bin_process_dir)
 #bin_process_dir = os.path.realpath(os.path.join(bin_process_dir,os.path.pardir,bin_process_ver))
 
-print bin_process_ver
-print bin_process_dir
+#print bin_process_ver
+#print bin_process_dir
 
 
 # directories - main. change global_root with user_root as required
@@ -116,7 +115,7 @@ def q3():
 
 def q4(vel_mod_dir):
     show_horizontal_line()
-    print "Select CanterburyVelocityModel"
+    print "Select one of available CanterburyVelocityModels (from %s)" %vel_mod_dir
     show_horizontal_line()
     
     v_mod_ver_options = os.listdir(vel_mod_dir)
@@ -160,10 +159,9 @@ def q6(run_name,yes):
     return new_run_name
 
 def q7(recipe_dir):
-    print recipe_dir
     recipes = os.listdir(recipe_dir)
     show_horizontal_line()
-    print "Selected Recipes"
+    print "Choose one of available recipes (from %s)" % recipe_dir
     show_horizontal_line()
     recipe_selected = show_multiple_choice(recipes)
     print recipe_selected
@@ -172,16 +170,16 @@ def q7(recipe_dir):
 
 
 def q8(run_name,recipe_selected_dir):
-    show_horizontal_line()
+    show_horizontal_line(c="*")
     print "To be created: \n%s" %run_name
     print "Recipe to be copied from \n%s" %recipe_selected_dir
-    show_horizontal_line()
+    show_horizontal_line(c="*")
 
     print "Do you wish to proceed?"
     return show_yes_no_question()
 
 
-def action(sim_dir,recipe_selected_dir,run_name,global_root,vel_mod_dir_full,srf_dir,srf_file):
+def action(sim_dir,recipe_selected_dir,run_name,version, global_root,run_dir, vel_mod_dir,srf_dir,srf_file):
     make_dirs([sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB")])
 
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
@@ -189,11 +187,13 @@ def action(sim_dir,recipe_selected_dir,run_name,global_root,vel_mod_dir_full,srf
 
     f=open(os.path.join(sim_dir,"params_base.py"),"w");
     f.write("run_name='%s'\n" %run_name)
+    f.write("version='%s'\n" %version)
     f.write("global_root='%s'\n" %global_root)
-    f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
+    f.write("run_dir='%s'\n"%run_dir)
     f.write("sim_dir='%s'\n"%sim_dir)
     f.write("srf_dir='%s'\n"%srf_dir)
     f.write("srf_file='%s'\n"%srf_file)
+    f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
     f.close()
 
 def show_instruction(sim_dir):
@@ -227,7 +227,7 @@ def main():
         sys.exit()
 
     sim_dir = os.path.join(run_dir,run_name)
-    action(sim_dir,recipe_selected_dir,run_name,global_root,vel_mod_dir_full,srf_dir,srf_file)
+    action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, run_dir, vel_mod_dir_full, srf_dir,srf_file)
     print "Installation completed"
     show_instruction(sim_dir)
 
