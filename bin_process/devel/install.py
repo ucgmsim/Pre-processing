@@ -107,7 +107,7 @@ def q3():
     show_horizontal_line()
     print "Select HH "
     show_horizontal_line()
-    hh_options = ['0.100','0.500']
+    hh_options = ['0.100','0.200','0.400']
     hh = show_multiple_choice(hh_options)
     print hh
     return hh
@@ -135,7 +135,6 @@ def q5(hh,srf_selected,srf_file_selected,v_mod_ver,emod3d_version):
     vModelString='VM'+str(v_mod_ver)
     vString='_EMODv'+emod3d_version
     run_name=(srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
-    #run_name=('LPSim-'+srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
     # LPSim-2010Sept4_bev01_VMv1p64-h0p100_EMODv3p0p4_19May2016
 
     yes = happy_name(run_name)
