@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 source e3d.par
 
+# https://trac.ffmpeg.org/wiki/Create%20a%20video%20slideshow%20from%20images
+
 # movie speed, can be fractional
 # doesn't affect filesize when using qtrle codec
 # 1: movie time = simulation time
 # 2: movie twice as fast
 speed=2
-# make sure fps > 1 (result is int)
+# make sure fps >= 1 (result is int)
 fps=$(echo "1/($dt * $dtts) * $speed" | bc)
 
 # create quicktime animation (flexible resolution, high quality, low size)
