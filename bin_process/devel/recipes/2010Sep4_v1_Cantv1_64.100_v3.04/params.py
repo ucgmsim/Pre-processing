@@ -61,7 +61,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '20000'
+nt = '4000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -80,7 +80,7 @@ dz_ts = '1'
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
-ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
+ts_total = '80'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
@@ -118,12 +118,14 @@ wcc_prog_dir = os.path.join(global_root, 'EMOD3D/WccFormat/bin/powerpc-AIX-nesi2
 seis_tmp_dir = os.path.join(user_scratch, run_name, 'SeismoBin')
 
 # directories - derived
-sim_dir = os.path.join(run_dir, run_name)
-hf_sim_dir = os.path.join(run_dir, hf_run_name)
-bb_sim_dir = os.path.join(run_dir, bb_run_name)
-restart_dir = os.path.join(sim_dir, 'Restart')
-bin_output = os.path.join(sim_dir, 'OutBin')
-log_dir = os.path.join(sim_dir, 'Rlog')
+#sim_dir = os.path.join(run_dir, run_name)
+#hf_sim_dir = os.path.join(run_dir, hf_run_name)
+#bb_sim_dir = os.path.join(run_dir, bb_run_name)
+
+restart_dir = os.path.join(lf_sim_dir, 'Restart')
+bin_output = os.path.join(lf_sim_dir, 'OutBin')
+log_dir = os.path.join(lf_sim_dir, 'Rlog')
+slipout_dir = os.path.join(lf_sim_dir,'SlipOut')
 
 # files
 stat_file = os.path.join(stat_dir, 'cantstations.ll')
@@ -138,7 +140,7 @@ stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 SEISDIR = bin_output
 
 # Define folder to write velocity seismograms to
-vel_dir = os.path.join(sim_dir,'Vel')
+vel_dir = os.path.join(lf_sim_dir,'Vel')
 
 FILELIST = 'fdb.filelist'
 
@@ -162,7 +164,7 @@ LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for
 GRIDFILE = os.path.join(vel_mod_params_dir, 'gridout_nz01-h') + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
 
 
-t_slice_dir = os.path.join(sim_dir, 'TSlice')
+t_slice_dir = os.path.join(lf_sim_dir, 'TSlice')
 ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
 ts_out_prefix = os.path.join(ts_out_dir, run_name)
 

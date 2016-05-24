@@ -54,7 +54,7 @@ export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/20160511
 case $LOADL_STEP_NAME in
 	merge_tsP3)
 		exe=/nesi/projects/nesi00213/EMOD3D/merge_ts/merge_tsP3_par 
-		ls -X OutBin/*xyts-?????.e3d >tmp.filelist 
+		ls -X LF/OutBin/*xyts-?????.e3d >tmp.filelist 
 		NFILES=`cat tmp.filelist |wc -l|sed -e 's/ //g'` 
 		OUTFILE=`head -1 tmp.filelist  |sed -e 's/-[0-9]*.e3d/.e3d/g'` 
 		echo "NFILES=$NFILES OUTFILE=$OUTFILE" 

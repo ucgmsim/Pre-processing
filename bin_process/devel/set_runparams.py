@@ -43,7 +43,6 @@ except IOError:
 
 configs = ['version=' + version + '-mpi', \
 'name=' + run_name, \
-'extended_name=' + extended_run_name, \
 'nproc=' + n_proc, \
 'nx=' + nx, \
 'ny=' + ny, \
@@ -107,9 +106,10 @@ configs = ['version=' + version + '-mpi', \
 'restart_itinc=' + RESTART_ITINC, \
 'read_restart=' + READ_RESTART, \
 'restartname=' + run_name, \
+'logdir=' + log_dir , \
+'slipout=' + slipout_dir+'/slipout-k2', \
 \
 # extras found in default parfile
-'logdir=Rlog', \
 'span=1', \
 'intmem=1', \
 'maxmem=1500', \
@@ -121,7 +121,6 @@ configs = ['version=' + version + '-mpi', \
 'qbndmax=100.0', \
 'stype=2tri-p10-h20', \
 'tzero=0.6', \
-'slipout=SlipOut/slipout-k2', \
 'geoproj=1', \
 'report=100', \
 'all_in_one=1', \
