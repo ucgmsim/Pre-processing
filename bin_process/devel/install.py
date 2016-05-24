@@ -134,7 +134,8 @@ def q5(hh,srf_selected,srf_file_selected,v_mod_ver,emod3d_version):
     srfString=srf_selected.split("_")[0]+"_"+os.path.splitext(srf_file_selected)[0]
     vModelString='VM'+str(v_mod_ver)
     vString='_EMODv'+emod3d_version
-    run_name=('LPSim-'+srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
+    run_name=(srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
+    #run_name=('LPSim-'+srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
     # LPSim-2010Sept4_bev01_VMv1p64-h0p100_EMODv3p0p4_19May2016
 
     yes = happy_name(run_name)
@@ -180,7 +181,7 @@ def q8(run_name,recipe_selected_dir):
 
 
 def action(sim_dir,recipe_selected_dir,run_name,version, global_root,run_dir, vel_mod_dir,srf_dir,srf_file):
-    make_dirs([sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB")])
+    make_dirs([sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")])
 
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
         shutil.copy(filename, sim_dir)
