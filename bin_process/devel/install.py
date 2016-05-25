@@ -193,7 +193,7 @@ def q8(run_name,recipe_selected_dir):
 
 def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_file):
 
-    dir_list = [sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB")]
+    dir_list = [sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")])
     if not os.path.isdir(user_root):
 	dir_list.insert(0,user_root)
  
