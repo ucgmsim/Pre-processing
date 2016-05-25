@@ -3,6 +3,7 @@ import sys
 import datetime
 import glob
 import shutil
+import getpass
 
 emod3d_version = '3.0.4'
 bin_process_ver = 'devel'
@@ -12,7 +13,9 @@ bin_process_ver = 'devel'
 #run_dir = os.path.dirname(os.path.realpath(__file__))
 run_dir = os.path.abspath(os.path.curdir)
 global_root = os.path.realpath(os.path.join(run_dir,os.path.pardir))
-user_root = global_root
+user = getpass.getuser()
+user_root = os.path.join(run_dir,user) #global_root
+
 bin_process_dir = os.path.join(global_root, 'Pre-processing/bin_process',bin_process_ver)
 # if bin_process_ver was not hardcoded and given as "stable" the following can workout the real version.
 #bin_process_ver = os.readlink(bin_process_dir)
@@ -24,7 +27,7 @@ bin_process_dir = os.path.join(global_root, 'Pre-processing/bin_process',bin_pro
 
 # directories - main. change global_root with user_root as required
 
-srf_dir = os.path.join(user_root, 'RupModel')
+srf_dir = os.path.join(global_root, 'RupModel')
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel')
 recipe_dir = os.path.join(bin_process_dir,"recipes")
 
@@ -36,6 +39,15 @@ def make_dirs(dir_list, reset = False):
             # empty directory
             shutil.rmtree(dir_path)
             os.makedirs(dir_path)   
+    
+def set_permission(dir_path,mode): 
+#recursively sets permission. mode should be given in 0o777 format. eg. 0o750
+    for root, dirs, files in os.walk(dir_path):
+        os.chmod(root,mode)
+        for d in dirs:
+            os.chmod(os.path.join(root,d),mode)
+        for f in files:
+            os.chmod(os.path.join(root,f),mode)
 
 
 def user_select(options):
@@ -179,8 +191,13 @@ def q8(run_name,recipe_selected_dir):
     return show_yes_no_question()
 
 
-def action(sim_dir,recipe_selected_dir,run_name,version, global_root,run_dir, vel_mod_dir,srf_dir,srf_file):
-    make_dirs([sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB")])
+def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_file):
+
+    dir_list = [sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB")]
+    if not os.path.isdir(user_root):
+	dir_list.insert(0,user_root)
+ 
+    make_dirs(dir_list)
 
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
         shutil.copy(filename, sim_dir)
@@ -189,12 +206,15 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root,run_dir, ve
     f.write("run_name='%s'\n" %run_name)
     f.write("version='%s'\n" %version)
     f.write("global_root='%s'\n" %global_root)
+    f.write("user_root='%s'\n" %user_root)
     f.write("run_dir='%s'\n"%run_dir)
     f.write("sim_dir='%s'\n"%sim_dir)
     f.write("srf_dir='%s'\n"%srf_dir)
     f.write("srf_file='%s'\n"%srf_file)
     f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
     f.close()
+    set_permission(dir_list[0],0o750) #if user_root is first time created, recursively set permission from there. otherwise, set permission from sim_dir
+
 
 def show_instruction(sim_dir):
     show_horizontal_line()
@@ -210,7 +230,7 @@ def show_instruction(sim_dir):
 def main():
 
     show_horizontal_line(c="*")
-    print " "*40+"EMOD3D Job Preparation"
+    print " "*37+"EMOD3D Job Preparationi Ver."+bin_process_ver
     show_horizontal_line(c="*")
 
     srf_selected,srf_selected_dir,srf_file_options = q1(srf_dir)
@@ -226,8 +246,9 @@ def main():
         print "Installation exited"
         sys.exit()
 
-    sim_dir = os.path.join(run_dir,run_name)
-    action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, run_dir, vel_mod_dir_full, srf_dir,srf_file)
+    sim_dir = os.path.join(user_root,run_name)
+    action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, user_root, run_dir, vel_mod_dir_full, srf_dir,srf_file)
+
     print "Installation completed"
     show_instruction(sim_dir)
 

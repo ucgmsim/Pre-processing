@@ -26,16 +26,8 @@ bb_run_name = 'BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500'
 # things that everyone doesn't have, eg. binaries are within here
 
 
-# things that people have their own copies of, eg. RunFolder
-# changes to enable testing on beatrice
-if node() == 'p2n14-c':
-    # running on beatrice
-    user_root = os.path.expanduser('~')
-else:
-    user_root = global_root
-
 # works on Windows and POSIX paths
-user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
+user_scratch = os.path.join(user_root, 'scratch')
 
 
 # keep as int, processed before writing to file
@@ -61,7 +53,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '4000'
+nt = '20000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -80,7 +72,7 @@ dz_ts = '1'
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
-ts_total = '80'   # number of slices to generate. sim time = ts_total * dt * dt_ts
+ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
@@ -109,8 +101,8 @@ n_proc = str(n_proc_x * n_proc_y * n_proc_z)
 
 # directories - main. change global_root with user_root as required
 
-stat_dir = os.path.join(user_root, 'StationInfo')
-vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
+stat_dir = os.path.join(global_root, 'StationInfo')
+vel_mod_params_dir = os.path.join(global_root, 'VelocityModel/ModelParams')
 
 
 wcc_prog_dir = os.path.join(global_root, 'EMOD3D/WccFormat/bin/powerpc-AIX-nesi2-xlc')
