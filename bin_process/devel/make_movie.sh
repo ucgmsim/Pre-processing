@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 source e3d.par
+ffbuild=/nesi/home/vap30/bin/$(uname -s)/ffmpeg
 
 # https://trac.ffmpeg.org/wiki/Create%20a%20video%20slideshow%20from%20images
 
@@ -27,7 +28,7 @@ echo Movie creation starts
 echo
 # ffmpeg would wait for user input (stderr) to ask y/N overwrite
 if [ -e "$name.mov" ]; then rm "$name.mov"; fi
-ffmpeg -framerate $fps -i $plot_png_dir/ts-str%04d.png \
+ffbuild -framerate $fps -i $plot_png_dir/ts-str%04d.png \
         -c:v qtrle -r $fps $name.mov 2>/dev/null
 echo Movie creation ends
 
