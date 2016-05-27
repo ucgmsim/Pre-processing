@@ -85,8 +85,12 @@ configs = ['version=' + version + '-mpi', \
 'seiscords=' + stat_coords, \
 'seisdir=' + seis_tmp_dir, \
  \
-'ts_xy=1', \
-'iz_ts=1', \
+'ts_xy=' + ts_xy, \
+'iz_ts=' + iz_ts, \
+'ts_xz=' + ts_xz, \
+'iy_ts=' + iy_ts, \
+'ts_yz=' + ts_yz, \
+'ix_ts=' + ix_ts, \
 'dtts=' + dt_ts, \
 'dxts=' + dx_ts, \
 'dyts=' + dy_ts, \

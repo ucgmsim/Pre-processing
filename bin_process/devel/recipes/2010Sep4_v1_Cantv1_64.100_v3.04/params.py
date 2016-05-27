@@ -19,8 +19,8 @@ params_override = '2010Sep4'
 # LPSIM directory name under RunFolder
 
 # HFSIM directory name under RunFolder
-hf_run_name = 'HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt'
-bb_run_name = 'BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500'
+#hf_run_name = 'HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt'
+#bb_run_name = 'BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500'
 
 
 # things that everyone doesn't have, eg. binaries are within here
@@ -68,6 +68,16 @@ dt_ts = '20'
 dx_ts = '5'
 dy_ts = '5'
 dz_ts = '1'
+
+ts_xy='1'
+iz_ts='1'
+
+is_xz='0'
+iy_ts='2'
+
+ts_yz='0'
+ix_ts='99'
+
 
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
