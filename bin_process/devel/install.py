@@ -4,6 +4,7 @@ import datetime
 import glob
 import shutil
 import getpass
+from shared import *
 
 emod3d_version = '3.0.4'
 bin_process_ver = 'devel'
@@ -12,7 +13,7 @@ bin_process_ver = 'devel'
 
 #run_dir = os.path.dirname(os.path.realpath(__file__))
 run_dir = os.path.abspath(os.path.curdir)
-global_root = os.path.realpath(os.path.join(run_dir,os.path.pardir))
+global_root = os.path.abspath(os.path.join(run_dir,os.path.pardir))
 user = getpass.getuser()
 user_root = os.path.join(run_dir,user) #global_root
 
@@ -30,63 +31,9 @@ bin_process_dir = os.path.join(global_root, 'Pre-processing/bin_process',bin_pro
 srf_dir = os.path.join(global_root, 'RupModel')
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel')
 recipe_dir = os.path.join(bin_process_dir,"recipes")
+v_mod_1d_dir = os.path.join(global_root,'VelocityModel','Mod-1D')
 
-def make_dirs(dir_list, reset = False):
-    for dir_path in dir_list:
-        if not os.path.isdir(dir_path):
-            os.makedirs(dir_path)
-        elif reset:
-            # empty directory
-            shutil.rmtree(dir_path)
-            os.makedirs(dir_path)   
-    
-def set_permission(dir_path,mode): 
-#recursively sets permission. mode should be given in 0o777 format. eg. 0o750
-    for root, dirs, files in os.walk(dir_path):
-        os.chmod(root,mode)
-        for d in dirs:
-            os.chmod(os.path.join(root,d),mode)
-        for f in files:
-            os.chmod(os.path.join(root,f),mode)
-
-
-def user_select(options):
-    try:
-        selected_number = input("Enter the number you wish to select (1-%d):" %len(options))
-    except NameError:
-        print "Check your input."
-        user_select(options)
-    else:
-        try:
-            selected_number = int(selected_number)
-        except ValueError:
-            print "Input should be a number."
-            user_select(options)
-        else:
-            try:
-                return selected_number
-            except IndexError:
-                print "Input should be a number in (1-%d)" %len(options)
-                user_select(options)
-
-
-def show_multiple_choice(options):
-    for i,option in enumerate(options):
-        print "%2d. %s" %(i+1 , option)
-    selected_number = user_select(options)
-    return options[selected_number-1]
-
-def show_yes_no_question():
-    options = ["Yes","No"]
-    for i, option in enumerate(options):
-        print "%2d. %s" %(i+1 , option)
-    selected_number = user_select(options)
-    return (selected_number == 1 ) #True if selected Yes
-
-
-def show_horizontal_line(c='=',length=100):
-    print c*length
-
+   
 def q1(srf_dir):
     show_horizontal_line()
     print "Select Rupture Model - Step 1."
@@ -112,7 +59,20 @@ def q2(srf_selected_dir,srf_file_options):
     srf_file_selected = show_multiple_choice(srf_file_options)
     print srf_file_selected
     srf_file_path = os.path.join(srf_selected_dir,srf_file_selected)
-    return srf_file_selected,srf_file_path
+    stoch_selected_dir = os.path.abspath(os.path.join(srf_selected_dir,os.path.pardir,'Stoch'))
+    if not os.path.isdir(stoch_selected_dir):
+        print "Error: Corresponding Stoch directory is not found:\n%s" %stoch_selected_dir
+        sys.exit()
+    stoch_file_path = os.path.join(stoch_selected_dir,srf_file_selected).replace(".srf",".stoch")
+    if not os.path.isfile(stoch_file_path):
+        print "Error: Corresponding Stock file is not found:\n%s" %stoch_file_path
+        sys.exit()
+
+    print "Corresponding Stock file is also found:\n%s" %stoch_file_path
+    
+    return srf_file_selected,srf_file_path,stoch_file_path
+
+
 
 
 def q3():
@@ -190,14 +150,31 @@ def q8(run_name,recipe_selected_dir):
     print "Do you wish to proceed?"
     return show_yes_no_question()
 
+def q9(v_mod_1d_dir): 
+    show_horizontal_line()
+    print "Select one of 1D Velocity models (from %s)" %v_mod_1d_dir
+    show_horizontal_line()
+ 
+    v_mod_1d_options = glob.glob(os.path.join(v_mod_1d_dir,'*.1d'))
+    v_mod_1d_options.sort()
 
-def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_file):
+    v_mod_1d_selected = show_multiple_choice(v_mod_1d_options)
+    print v_mod_1d_selected #full path
+    v_mod_1d_name = os.path.basename(v_mod_1d_selected).replace('.1d','')
+    print v_mod_1d_name
 
-    dir_list = [sim_dir, os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")])
+    return v_mod_1d_name,v_mod_1d_selected
+
+     
+def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_file,stoch_file):
+
+    lf_sim_dir, hf_sim_dir, bb_sim_dir, figures_dir  = os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")
+
+    dir_list = [lf_sim_dir, hf_sim_dir, bb_sim_dir, figures_dir]
     if not os.path.isdir(user_root):
 	dir_list.insert(0,user_root)
  
-    make_dirs(dir_list)
+    verify_user_dirs(dir_list)
 
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
         shutil.copy(filename, sim_dir)
@@ -205,13 +182,22 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     f=open(os.path.join(sim_dir,"params_base.py"),"w");
     f.write("run_name='%s'\n" %run_name)
     f.write("version='%s'\n" %version)
+    f.write("bin_process_ver='%s'\n" %bin_process_ver)
+
     f.write("global_root='%s'\n" %global_root)
     f.write("user_root='%s'\n" %user_root)
     f.write("run_dir='%s'\n"%run_dir)
     f.write("sim_dir='%s'\n"%sim_dir)
+    f.write("lf_sim_dir='%s'\n"%lf_sim_dir)
+    f.write("hf_sim_dir='%s'\n"%hf_sim_dir)
+    f.write("bb_sim_dir='%s'\n"%bb_sim_dir)
+    f.write("figures_dir='%s'\n"%figures_dir)
     f.write("srf_dir='%s'\n"%srf_dir)
     f.write("srf_file='%s'\n"%srf_file)
+    f.write("stoch_file='%s'\n"%stoch_file)
     f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
+    f.write("v_mod_1d_dir='%s'\n"%v_mod_1d_dir)
+
     f.close()
     set_permission(dir_list[0],0o750) #if user_root is first time created, recursively set permission from there. otherwise, set permission from sim_dir
 
@@ -234,7 +220,7 @@ def main():
     show_horizontal_line(c="*")
 
     srf_selected,srf_selected_dir,srf_file_options = q1(srf_dir)
-    srf_file_selected, srf_file = q2(srf_selected_dir, srf_file_options)
+    srf_file_selected, srf_file, stoch_file = q2(srf_selected_dir, srf_file_options)
     hh = q3()
     v_mod_ver,vel_mod_dir_full = q4(vel_mod_dir)
     yes, run_name = q5(hh,srf_selected,srf_file_selected,v_mod_ver,emod3d_version)
@@ -247,7 +233,7 @@ def main():
         sys.exit()
 
     sim_dir = os.path.join(user_root,run_name)
-    action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, user_root, run_dir, vel_mod_dir_full, srf_dir,srf_file)
+    action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, user_root, run_dir, vel_mod_dir_full, srf_dir,srf_file,stoch_file)
 
     print "Installation completed"
     show_instruction(sim_dir)

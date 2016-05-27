@@ -118,3 +118,53 @@ def verify_binaries(bin_list):
         if not os.access(bin_path, os.X_OK):
             raise ResourceError('Binary not executable: %s. Check file permissions.' % (bin_path))
 
+
+
+ 
+#recursively sets permission. mode should be given in 0o777 format. eg. 0o750
+def set_permission(dir_path,mode): 
+    for root, dirs, files in os.walk(dir_path):
+        os.chmod(root,mode)
+        for d in dirs:
+            os.chmod(os.path.join(root,d),mode)
+        for f in files:
+            os.chmod(os.path.join(root,f),mode)
+
+
+def user_select(options):
+    try:
+        selected_number = input("Enter the number you wish to select (1-%d):" %len(options))
+    except NameError:
+        print "Check your input."
+        user_select(options)
+    else:
+        try:
+            selected_number = int(selected_number)
+        except ValueError:
+            print "Input should be a number."
+            user_select(options)
+        else:
+            try:
+                return selected_number
+            except IndexError:
+                print "Input should be a number in (1-%d)" %len(options)
+                user_select(options)
+
+
+def show_multiple_choice(options):
+    for i,option in enumerate(options):
+        print "%2d. %s" %(i+1 , option)
+    selected_number = user_select(options)
+    return options[selected_number-1]
+
+def show_yes_no_question():
+    options = ["Yes","No"]
+    for i, option in enumerate(options):
+        print "%2d. %s" %(i+1 , option)
+    selected_number = user_select(options)
+    return (selected_number == 1 ) #True if selected Yes
+
+
+def show_horizontal_line(c='=',length=100):
+    print c*length
+

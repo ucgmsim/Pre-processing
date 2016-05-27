@@ -49,7 +49,7 @@
 # @ error = $(job_name).$(step_name).$(schedd_host).$(jobid).e
 # @ queue
 
-export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/20160511
+export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/devel
 
 case $LOADL_STEP_NAME in
 	merge_tsP3)

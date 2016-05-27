@@ -72,7 +72,7 @@ dz_ts = '1'
 ts_xy='1'
 iz_ts='1'
 
-is_xz='0'
+ts_xz='0'
 iy_ts='2'
 
 ts_yz='0'
