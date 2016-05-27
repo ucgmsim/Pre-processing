@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 source e3d.par
 ffbuild=/nesi/home/vap30/bin/$(uname -s)/ffmpeg
-if [ "$(uname -s)" == "Linux" ]; then
-    echo Warning: runing on linux VM, performance will be affected.
-    echo Running directly on AIX node is recommended.
-fi
 
 # https://trac.ffmpeg.org/wiki/Create%20a%20video%20slideshow%20from%20images
 
@@ -32,7 +28,6 @@ echo
 echo Movie creation starts
 echo
 ffbuild -y -framerate $fps -i $plot_png_dir/ts-str%04d.png \
-        -vf scale="'if(gt(a,1024/768),1024,-1)':'if(gt(a,1024/768),-1,768)'" \
         -c:v qtrle -r $fps $name.mov 2>/dev/null
 echo Movie creation ends
 
