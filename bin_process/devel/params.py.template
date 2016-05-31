@@ -384,15 +384,31 @@ site_flowcap = '0.0'
 GEN_ROCK_VS = 865
 
 
-########### gen_statgrid ##########
+########### statgrid ##########
 
-# any values to omit near the boundaries
+# any values to omit near boundaries
+# used when generating the statgrid
 X_BND_PAD = 0
 Y_BND_PAD = 0
-# input to process
-MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h0.100') #TODO automate
+# stations to omit near boundaries
+# used when processing stations > grid coords
+X_BND = 0 # original was 30
+Y_BND = 0 # original was 30
+# wcc options
+CENTER_ORIGIN = '1'
+# distance calculation
+GEOPROJ = '1'
+# binaries
+XYZ2LL_BIN = '/hpc/home/rwg43/Bin/xyz2lonlat'
+LL2GRID_BIN = '/hpc/home/rwg43/Bin/latlon2statgrid'
+# station file list for generating station grid
+STAT_FILES = [stat_file]
+
+# input for statgrid gen
+MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h%s' % (hh))
 # output statgrid file
-STATGRID_GEN = 'statgrid-0.5x0.5-nz01_h0.100.ll'    #TODO automate
+STATGRID_GEN = 'statgrid-%sx%s-nz01_h%s.ll' % \
+        (float(hh) * float(dx_ts), float(hh) * float(dy_ts), hh)
 
 
 ########### stat_max.py #########

@@ -1,19 +1,26 @@
+#!/usr/bin/env python2
+emod3d_version = '3.0.4'
+bin_process_ver = 'devel'
+bin_process_path = '/nesi/projects/nesi00213/Pre-processing/bin_process/'
+
 import os
+import os.path
 import sys
 import datetime
 import glob
 import shutil
 import getpass
+sys.path.append(os.path.join(bin_process_path,bin_process_ver)) #unnecessary if this file is a symbolic link
 from shared import *
-
-emod3d_version = '3.0.4'
-bin_process_ver = 'devel'
 
 # things that everyone doesn't have, eg. binaries are within here
 
 #run_dir = os.path.dirname(os.path.realpath(__file__))
-run_dir = os.path.abspath(os.path.curdir)
-global_root = os.path.abspath(os.path.join(run_dir,os.path.pardir))
+#run_dir = os.path.abspath(os.path.curdir)
+#global_root = os.path.abspath(os.path.join(run_dir,os.path.pardir))
+run_dir = '/nesi/projects/nesi00213/RunFolder'
+global_root = os.path.join(run_dir,os.path.pardir)
+
 user = getpass.getuser()
 user_root = os.path.join(run_dir,user) #global_root
 
@@ -109,28 +116,11 @@ def q5(hh,srf_selected,srf_file_selected,v_mod_ver,emod3d_version):
     run_name=(srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
     # LPSim-2010Sept4_bev01_VMv1p64-h0p100_EMODv3p0p4_19May2016
 
-    yes = happy_name(run_name)
+    yes = confirm_name(run_name)
     return yes, run_name
 
-def happy_name(run_name):
-    show_horizontal_line()
-    print "Automated Run Name: ",
-    print run_name
-    show_horizontal_line()
-    print "Do you wish to proceed?"
-    return show_yes_no_question()
 
-def q6(run_name,yes):
-    new_run_name = run_name
-    print "Yes? ",yes
-    while not yes:
-        userString = raw_input("Add more text (will be appended to the name above) ")
-        userString=userString.replace(" ","_")
-        new_run_name= run_name+"_"+userString
-        yes = happy_name(new_run_name)
-    return new_run_name
-
-def q7(recipe_dir):
+def q6(recipe_dir):
     recipes = os.listdir(recipe_dir)
     show_horizontal_line()
     print "Choose one of available recipes (from %s)" % recipe_dir
@@ -141,7 +131,7 @@ def q7(recipe_dir):
     return recipe_selected_dir
 
 
-def q8(run_name,recipe_selected_dir):
+def q7(run_name,recipe_selected_dir):
     show_horizontal_line(c="*")
     print "To be created: \n%s" %run_name
     print "Recipe to be copied from \n%s" %recipe_selected_dir
@@ -150,27 +140,13 @@ def q8(run_name,recipe_selected_dir):
     print "Do you wish to proceed?"
     return show_yes_no_question()
 
-def q9(v_mod_1d_dir): 
-    show_horizontal_line()
-    print "Select one of 1D Velocity models (from %s)" %v_mod_1d_dir
-    show_horizontal_line()
- 
-    v_mod_1d_options = glob.glob(os.path.join(v_mod_1d_dir,'*.1d'))
-    v_mod_1d_options.sort()
-
-    v_mod_1d_selected = show_multiple_choice(v_mod_1d_options)
-    print v_mod_1d_selected #full path
-    v_mod_1d_name = os.path.basename(v_mod_1d_selected).replace('.1d','')
-    print v_mod_1d_name
-
-    return v_mod_1d_name,v_mod_1d_selected
 
      
 def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_file,stoch_file):
 
     lf_sim_dir, hf_sim_dir, bb_sim_dir, figures_dir  = os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")
 
-    dir_list = [lf_sim_dir, hf_sim_dir, bb_sim_dir, figures_dir]
+    dir_list = [sim_dir, lf_sim_dir, hf_sim_dir, bb_sim_dir, figures_dir]
     if not os.path.isdir(user_root):
 	dir_list.insert(0,user_root)
  
@@ -224,10 +200,10 @@ def main():
     hh = q3()
     v_mod_ver,vel_mod_dir_full = q4(vel_mod_dir)
     yes, run_name = q5(hh,srf_selected,srf_file_selected,v_mod_ver,emod3d_version)
-    run_name = q6(run_name,yes)
+    run_name = add_name_suffix(run_name,yes)
     
-    recipe_selected_dir= q7(recipe_dir)
-    final_yes = q8(run_name,recipe_selected_dir)
+    recipe_selected_dir= q6(recipe_dir)
+    final_yes = q7(run_name,recipe_selected_dir)
     if not final_yes:
         print "Installation exited"
         sys.exit()

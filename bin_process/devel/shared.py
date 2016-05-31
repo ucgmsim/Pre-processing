@@ -122,12 +122,16 @@ def verify_binaries(bin_list):
 
  
 #recursively sets permission. mode should be given in 0o777 format. eg. 0o750
-def set_permission(dir_path,mode): 
+def set_permission(dir_path,mode):
+
+    print "Permission %s : %o" %(dir_path,mode)
+    os.chmod(dir_path,mode)
     for root, dirs, files in os.walk(dir_path):
-        os.chmod(root,mode)
         for d in dirs:
-            os.chmod(os.path.join(root,d),mode)
+            print "Permission %s : %o" %(os.path.join(root,d),mode)
+            os.chmod(os.path.join(root,d),mode) 
         for f in files:
+            print "Permission %s : %o" %(os.path.join(root,f),mode)
             os.chmod(os.path.join(root,f),mode)
 
 
@@ -145,10 +149,12 @@ def user_select(options):
             user_select(options)
         else:
             try:
-                return selected_number
+                v = options[selected_number-1]
             except IndexError:
                 print "Input should be a number in (1-%d)" %len(options)
-                user_select(options)
+                selected_number = user_select(options)
+            return selected_number
+         
 
 
 def show_multiple_choice(options):
@@ -167,4 +173,23 @@ def show_yes_no_question():
 
 def show_horizontal_line(c='=',length=100):
     print c*length
+
+def confirm_name(name):
+    show_horizontal_line()
+    print "Automated Name: ",
+    print name
+    show_horizontal_line()
+    print "Do you wish to proceed?"
+    return show_yes_no_question()
+
+def add_name_suffix(name,yes):
+    new_name = name
+    print "Yes? ",yes
+    while not yes:
+        userString = raw_input("Add more text (will be appended to the name above) ")
+        userString=userString.replace(" ","_")
+        new_name= name+"_"+userString
+        yes = confirm_name(new_name)
+    return new_name
+
 
