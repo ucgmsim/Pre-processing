@@ -46,7 +46,6 @@ for stat in STATS:
     print(stat)
 
 
-IX = ['0', '1', '2']
 FLIP = ['1', '1', '-1']
 
 list_handle = open(FILELIST, 'w')
@@ -65,7 +64,7 @@ for s_index, stat in enumerate(STATS):
 
     for c_index, comp in enumerate(COMPS):
         cmd = [fdbin2wcc_bin, 'all_in_one=1', 'filelist=' + FILELIST,
-                'ix=' + IX[c_index], 'scale=' + scale, 'flip=' + FLIP[c_index], 'tst=' + TSTRT,
+                'ix=' + str(c_index), 'scale=' + scale, 'flip=' + FLIP[c_index], 'tst=' + TSTRT,
                 'stat=' + stat, 'comp=' + comp, 'outfile=' + statfile + '.' + comp,
                 'nseis_comps=9', 'swap_bytes=0', 'tst2zero=0', 'outbin=0'] 
         print ' '.join(cmd)
