@@ -38,3 +38,6 @@ for tscnt in range(int(ts_start), int(ts_total)):
             'absmax=' + ABSMAX, 'read_header=1', 'outbin=1', 'lonlat=' + lonlat_out, 'geoproj=1']
     print ' '.join(cmd)
     call(cmd)
+
+
+set_permission(ts_out_dir)

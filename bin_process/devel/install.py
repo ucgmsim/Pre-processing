@@ -1,7 +1,10 @@
 #!/usr/bin/env python2
 emod3d_version = '3.0.4'
 bin_process_ver = 'devel'
+
+global_root='/nesi/projects/nesi00213/'
 bin_process_path = '/nesi/projects/nesi00213/Pre-processing/bin_process/'
+install_bb_name='install_bb.py'
 
 import os
 import os.path
@@ -10,31 +13,16 @@ import datetime
 import glob
 import shutil
 import getpass
-sys.path.append(os.path.join(bin_process_path,bin_process_ver)) #unnecessary if this file is a symbolic link
+
+bin_process_dir = os.path.join(bin_process_path,bin_process_ver)
+sys.path.append(bin_process_dir)  #unnecessary if this file is a symbolic link
 from shared import *
-
-# things that everyone doesn't have, eg. binaries are within here
-
-#run_dir = os.path.dirname(os.path.realpath(__file__))
-#run_dir = os.path.abspath(os.path.curdir)
-#global_root = os.path.abspath(os.path.join(run_dir,os.path.pardir))
-run_dir = '/nesi/projects/nesi00213/RunFolder'
-global_root = os.path.join(run_dir,os.path.pardir)
-
-user = getpass.getuser()
-user_root = os.path.join(run_dir,user) #global_root
-
-bin_process_dir = os.path.join(global_root, 'Pre-processing/bin_process',bin_process_ver)
-# if bin_process_ver was not hardcoded and given as "stable" the following can workout the real version.
-#bin_process_ver = os.readlink(bin_process_dir)
-#bin_process_dir = os.path.realpath(os.path.join(bin_process_dir,os.path.pardir,bin_process_ver))
-
-#print bin_process_ver
-#print bin_process_dir
 
 
 # directories - main. change global_root with user_root as required
-
+run_dir = os.path.join(global_root,'RunFolder')
+user = getpass.getuser()
+user_root = os.path.join(run_dir,user) #global_root
 srf_dir = os.path.join(global_root, 'RupModel')
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel')
 recipe_dir = os.path.join(bin_process_dir,"recipes")
@@ -144,9 +132,9 @@ def q7(run_name,recipe_selected_dir):
      
 def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_file,stoch_file):
 
-    lf_sim_dir, hf_sim_dir, bb_sim_dir, figures_dir  = os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")
+    lf_sim_dir, hf_dir, bb_dir, figures_dir  = os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")
 
-    dir_list = [sim_dir, lf_sim_dir, hf_sim_dir, bb_sim_dir, figures_dir]
+    dir_list = [sim_dir, lf_sim_dir, hf_dir, bb_dir, figures_dir]
     if not os.path.isdir(user_root):
 	dir_list.insert(0,user_root)
  
@@ -165,17 +153,22 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     f.write("run_dir='%s'\n"%run_dir)
     f.write("sim_dir='%s'\n"%sim_dir)
     f.write("lf_sim_dir='%s'\n"%lf_sim_dir)
-    f.write("hf_sim_dir='%s'\n"%hf_sim_dir)
-    f.write("bb_sim_dir='%s'\n"%bb_sim_dir)
+    f.write("hf_dir='%s'\n"%hf_dir)
+    f.write("bb_dir='%s'\n"%bb_dir)
     f.write("figures_dir='%s'\n"%figures_dir)
     f.write("srf_dir='%s'\n"%srf_dir)
     f.write("srf_file='%s'\n"%srf_file)
-    f.write("stoch_file='%s'\n"%stoch_file)
+    f.write("hf_slip='%s'\n"%stoch_file)
     f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
     f.write("v_mod_1d_dir='%s'\n"%v_mod_1d_dir)
 
     f.close()
-    set_permission(dir_list[0],0o750) #if user_root is first time created, recursively set permission from there. otherwise, set permission from sim_dir
+    try: 
+        os.symlink(os.path.join(bin_process_dir,install_bb_name),os.path.join(sim_dir,install_bb_name))
+    except OSError:
+        print "%s already exists." %install_bb_name
+
+    set_permission(dir_list[0]) #if user_root is first time created, recursively set permission from there. otherwise, set permission from sim_dir
 
 
 def show_instruction(sim_dir):

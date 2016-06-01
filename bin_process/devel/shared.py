@@ -122,7 +122,7 @@ def verify_binaries(bin_list):
 
  
 #recursively sets permission. mode should be given in 0o777 format. eg. 0o750
-def set_permission(dir_path,mode):
+def set_permission(dir_path,mode=0o750):
 
     print "Permission %s : %o" %(dir_path,mode)
     os.chmod(dir_path,mode)

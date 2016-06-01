@@ -53,7 +53,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '20000'
+nt = '2000' #'20000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -82,7 +82,7 @@ ix_ts='99'
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
-ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
+ts_total = '40' # '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
@@ -261,22 +261,15 @@ plot_dy = '0.002'
 # check source code in bin dir for more help #
 ##############################################
 
-# output files in format of: hf_prefix + '_STAT.COMP'
-hf_prefix = '4Sept2010_bev01'
 # binary that simulates the HF data
 hf_sim_bin = os.path.join(global_root,'EMOD3D/StochSim/Src/V5.4/hb_high_v5.4.5')
-# HF run acceleration file directory
-hf_accdir = os.path.join(hf_sim_dir, 'Acc')
-# HF run velocity file directory
-hf_veldir = os.path.join(hf_sim_dir, 'Vel')
+hf_prefix = 'hf'
 # duration of HF sim
 hf_t_len = '100' # seconds
 # HF simulation step. should be small
 hf_dt = '0.005' # seconds
 # slip model
-hf_slip = os.path.join(global_root,'RupModel/2010Sept4_m7pt1/Stoch/bev01.stoch')
 # 1D velocity model
-hf_v_model = os.path.join(global_root,'VelocityModel/Mod-1D/Cant1D_v2-midQ.1d')
 # for western US, check applicability to NZ
 hf_sdrop = '50' # average stress-drop, bars
 hf_kappa = '0.045'
@@ -347,9 +340,6 @@ match_lf_tstart = '0.0'     # for alignment
 # list of matching HF and LF components
 match_hf_comps = ['000', '090', 'ver']
 match_lf_comps = ['000', '090', 'ver']
-# acceleration seismo folder for BB
-bb_accdir = os.path.join(bb_sim_dir, 'Acc')
-bb_veldir = os.path.join(bb_sim_dir, 'Vel')
 # vs30 amplification model [cb2008 | bssa2014 | cb2014]
 site_amp_model = 'cb2014'
 # relating to site amplification
