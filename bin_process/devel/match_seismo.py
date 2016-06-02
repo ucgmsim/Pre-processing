@@ -21,6 +21,7 @@ from shutil import copyfile
 from subprocess import call, Popen, PIPE
 from shared import *
 from params import *
+from params_base_bb import *
 
 # working files
 tmp_filelist = 'temp.filter_list'
@@ -113,6 +114,8 @@ for s_index, stat in enumerate(stations):
         # integrate the BB ACC to get BB VEL
         file_in = os.path.join(bb_accdir, '%s.%s' % (stat, comp))
         file_out = os.path.join(bb_veldir, '%s.%s' % (stat, comp))
+        print "file_in=%si\nfile_out=%s" %(file_in,file_out)
+
         call([int_bin, 'integ=1', 'filein=%s' % file_in, \
                 'inbin=0', 'outbin=0', 'fileout=%s' % file_out])
 
@@ -121,4 +124,5 @@ logger.close()
 os.remove(tmp_filelist)
 os.remove(hf_copy)
 os.remove(lf_copy)
+set_permission(bb_sim_dir)
 
