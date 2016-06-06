@@ -96,7 +96,7 @@ def q4(vel_mod_dir):
 
 def q5(hh,srf_selected,srf_file_selected,v_mod_ver,emod3d_version):
     #automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
-    userString=datetime.date.today().strftime("%d%B%Y")   #additional string to customize (today's date for starters)
+    userString=datetime.date.today().strftime("%y%m%d")   #additional string to customize (today's date for starters)
     hString='-h'+hh
     srfString=srf_selected.split("_")[0]+"_"+os.path.splitext(srf_file_selected)[0]
     vModelString='VM'+str(v_mod_ver)
@@ -180,6 +180,9 @@ def show_instruction(sim_dir):
     print "    3.   llsubmit run_emod3d.ll"
     print "    4.   llsubmit post_emod3d.ll"
     print "    5.   (Linux) bash plot_ts.sh"
+    print "    6.   python install_bb.py"
+    print "    7.   llsubmit run_bb.ll"
+
 
 
 def main():

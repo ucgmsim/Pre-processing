@@ -33,22 +33,6 @@
 # @ error = $(job_name).$(step_name).$(schedd_host).$(jobid).e
 # @ queue
 
-# @ step_name = hf
-# @ dependency = winbin_aio==0
-# @ job_type = serial 
-# @ wall_clock_limit     = 1:00:00
-# @ output = $(job_name).$(step_name).$(schedd_host).$(jobid).o
-# @ error = $(job_name).$(step_name).$(schedd_host).$(jobid).e
-# @ queue
-
-# @ step_name = bb
-# @ dependency = hf==0
-# @ job_type = serial 
-# @ wall_clock_limit     = 0:10:00
-# @ output = $(job_name).$(step_name).$(schedd_host).$(jobid).o
-# @ error = $(job_name).$(step_name).$(schedd_host).$(jobid).e
-# @ queue
-
 export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/devel
 
 case $LOADL_STEP_NAME in
@@ -63,13 +47,6 @@ case $LOADL_STEP_NAME in
 		python $BINPROCESS/winbin-aio.py ;;
 	gen_ts)
 		python $BINPROCESS/gen_ts.py ;;
-
-	hf)
-		python $BINPROCESS/hfsims-stats.py ;;
-	bb)
-		python $BINPROCESS/match_seismo.py ;;
-
-
 esac
 
 

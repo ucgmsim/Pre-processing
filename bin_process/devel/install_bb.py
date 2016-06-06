@@ -51,8 +51,18 @@ def action(hf_run_name,v_mod_1d_selected):
     f.write("bb_accdir='%s'\n"%os.path.join(bb_sim_dir,"Acc"))
     f.write("bb_veldir='%s'\n"%os.path.join(bb_sim_dir,"Vel"))
     f.write("hf_v_model='%s'\n"%v_mod_1d_selected)
-
     f.close()
+
+    #creating symbolic link between matching HF and BB directories
+#    try: 
+#        os.symlink(bb_sim_dir,os.path.join(hf_sim_dir,"BB"))
+#    except OSError:
+#        print "Directory already exists: %s" %os.path.join(hf_sim_dir,"BB")
+#    try: 
+#        os.symlink(hf_sim_dir,os.path.join(bb_sim_dir,"HF"))
+#    except OSError:
+#        print "Directory already exists: %s" %os.path.join(bb_sim_dir,"HF")
+
     set_permission(hf_sim_dir)
     set_permission(bb_sim_dir)
 
