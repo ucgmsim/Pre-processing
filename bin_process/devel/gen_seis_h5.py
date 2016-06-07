@@ -10,15 +10,21 @@ Saves to HDF5 file for all grid points.
 ISSUES: All options of EMOD3D are not considered. eg: scale.
 """
 
-from array import array
+from glob import glob
 from itertools import izip
 from math import sin, cos, radians
 from os import stat
 from struct import unpack
 from sys import byteorder
 
+from mpi4py import MPI
 import numpy as np
 import h5py as h5
+
+# MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank() # process number
+size = comm.Get_size() # total process number
 
 # 8 byte c-string has up to 7 characters
 STAT_CHAR = 8
@@ -35,9 +41,14 @@ N_COMPS = 9
 MY_COMPS = {0:'090', 1:'000', 2:'VUP'}
 N_MY_COMPS = len(MY_COMPS)
 
-seis_file = 'LPSim-2011Feb22b560_v1_Cantv1_64-h0.100_v3.04_seis-01669.e3d'
 h5_file = 'virtual.hdf5'
-h5p = h5.File(h5_file, 'a')
+# cannot be 'a' mode with MPI comm
+# bug or missuse causes failiure to create groups
+h5p = h5.File(h5_file, 'w', driver = 'mpio', comm = comm)
+h5p.atomic = True
+
+seis_file_list = glob('OutBin/*_seis-?????.e3d')
+rank_file_list = seis_file_list[rank::size]
 
 # automatic endianness detection
 # first assume that endianness is native, check if filesize matches
@@ -56,103 +67,109 @@ def get_swap(fp):
         return False
     return True
 
-fp = open(seis_file, 'rb')
-# whether in non-native endian
-swap = get_swap(fp)
-# speed optimise
-seek = fp.seek
-read = fp.read
+for si, seis_file in enumerate(rank_file_list):
+    print('[R%d] processing %d of %d...' \
+            % (rank, rank + si * size, len(seis_file_list)))
+    fp = open(seis_file, 'rb')
+    # whether in non-native endian
+    swap = get_swap(fp)
+    # speed optimise
+    seek = fp.seek
+    read = fp.read
 
-# python format string, can handle byte swapping
-if swap:
-    if byteorder == 'little':
-        # big endian src, little endian local
-        INT_S = '>i'
-        FLT_S = '>f'
+    # python format string, can handle byte swapping
+    if swap:
+        if byteorder == 'little':
+            # big endian src, little endian local
+            INT_S = '>i'
+            FLT_S = '>f'
+        else:
+            # little endian src, big endian local
+            INT_S = '<i'
+            FLT_S = '<f'
     else:
-        # little endian src, big endian local
-        INT_S = '<i'
-        FLT_S = '<f'
-else:
-    # no byte swapping
-    INT_S = 'i'
-    FLT_S = 'f'
+        # no byte swapping
+        INT_S = 'i'
+        FLT_S = 'f'
 
-# shortcuts for processing input
-read_int = lambda : unpack(INT_S, read(SIZE_INT))[0]
-read_flt = lambda : unpack(FLT_S, read(SIZE_FLT))[0]
+    # shortcuts for processing input
+    read_int = lambda : unpack(INT_S, read(SIZE_INT))[0]
+    read_flt = lambda : unpack(FLT_S, read(SIZE_FLT))[0]
 
-seek(0)
-num_stat = read_int()
-# read what is assumed to be common amongst stations from first station
-seek(SIZE_INT * 5)
-nt = read_int()
-dt = read_flt()
-hh = read_flt()
-rot = read_flt()
+    seek(0)
+    num_stat = read_int()
+    # read what is assumed to be common amongst stations from first station
+    seek(SIZE_INT * 5)
+    nt = read_int()
+    dt = read_flt()
+    hh = read_flt()
+    rot = read_flt()
 
-# write common data to HDF5
-try:
-    h5p.attrs['NSTAT'] += num_stat
-except KeyError:
-    h5p.attrs['NSTAT'] = num_stat
-    h5p.attrs['NT'] = nt
-    h5p.attrs['DT'] = dt
-    h5p.attrs['HH'] = hh
-    h5p.attrs['ROT'] = rot
+    # write common data to HDF5
+    try:
+        h5p.attrs['NSTAT'] += num_stat
+    except KeyError:
+        h5p.attrs['NSTAT'] = num_stat
+        h5p.attrs['NT'] = nt
+        h5p.attrs['DT'] = dt
+        h5p.attrs['HH'] = hh
+        h5p.attrs['ROT'] = rot
 
-# read at once, all component data below header as float array
-# major speedup compared to manual processing
-seek(SIZE_INT + num_stat * SIZE_SEISHEAD)
-# below method would be faster if could disregard the rest
-#dt = np.dtype([ 
-#        ('c1', FLT_S),
-#        ('c2', FLT_S),
-#        ('c3', FLT_S),
-#        ('rest', np.void(SIZE_FLT * 6))])
-comp_data = np.fromfile(fp, dtype = FLT_S)
-# rotation matrix for converting to 000, 090
-# ver is inverted (* -1)
-theta = radians(rot)
-rot_matrix = np.array([[cos(theta), -sin(theta), 0], \
-        [-sin(theta), -cos(theta), 0], \
-        [0, 0, -1]])
+    # read at once, all component data below header as float array
+    # major speedup compared to manual processing
+    seek(SIZE_INT + num_stat * SIZE_SEISHEAD)
+    # below method would be faster if could disregard the rest
+    #dt = np.dtype([ 
+    #        ('c1', FLT_S),
+    #        ('c2', FLT_S),
+    #        ('c3', FLT_S),
+    #        ('rest', np.void(SIZE_FLT * 6))])
+    comp_data = np.fromfile(fp, dtype = FLT_S)
+    # rotation matrix for converting to 000, 090
+    # ver is inverted (* -1)
+    theta = radians(rot)
+    rot_matrix = np.array([[cos(theta), -sin(theta), 0], \
+            [-sin(theta), -cos(theta), 0], \
+            [0, 0, -1]])
 
-for stat_i in xrange(num_stat):
-    seek(SIZE_INT + (stat_i + 1) * SIZE_SEISHEAD - STAT_CHAR)
-    if len(str(read(STAT_CHAR)).rstrip('\0')) == VSTAT_LEN:
-        # station is a virtual entry
+    for stat_i in xrange(num_stat):
+        seek(SIZE_INT + (stat_i + 1) * SIZE_SEISHEAD - STAT_CHAR)
+        if len(str(read(STAT_CHAR)).rstrip('\0')) == VSTAT_LEN:
+            # station is a virtual entry
 
-        seek( - STAT_CHAR - 5 * SIZE_FLT - 4 * SIZE_INT, 1)
-        x = read_int()
-        y = read_int()
-        seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
+            seek( - STAT_CHAR - 5 * SIZE_FLT - 4 * SIZE_INT, 1)
+            x = read_int()
+            y = read_int()
 
-        # station group in HDF5 (XXXXYYYY)
-        g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
-        try:
-            s_group = h5p.create_group(g_name)
-        except ValueError:
-            # most likely group created previously
-            s_group = h5p[g_name]
+            # station group in HDF5 (XXXXYYYY)
+            g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
+            try:
+                s_group = h5p.create_group(g_name)
+                break
+            except ValueError:
+                # if group created previously
+                # also happens if opened in 'a' mode with MPI multiple open
+                print('failed to create %s' % g_name)
+                s_group = h5p[g_name]
 
-        s_group.attrs['X'] = x
-        s_group.attrs['Y'] = y
-        s_group.attrs['LAT'] = read_flt()
-        s_group.attrs['LON'] = read_flt()
+            s_group.attrs['X'] = x
+            s_group.attrs['Y'] = y
+            seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
+            s_group.attrs['LAT'] = read_flt()
+            s_group.attrs['LON'] = read_flt()
 
-        comps = np.dot(np.dstack(( \
-                comp_data[0 + stat_i * N_COMPS : : num_stat * N_COMPS], \
-                comp_data[1 + stat_i * N_COMPS : : num_stat * N_COMPS], \
-                comp_data[2 + stat_i * N_COMPS : : num_stat * N_COMPS])), rot_matrix)
+            comps = np.dot(np.dstack(( \
+                    comp_data[0 + stat_i * N_COMPS : : num_stat * N_COMPS], \
+                    comp_data[1 + stat_i * N_COMPS : : num_stat * N_COMPS], \
+                    comp_data[2 + stat_i * N_COMPS : : num_stat * N_COMPS])), rot_matrix)
 
-        try:
-            h5p.create_dataset(g_name + '/VEL', (nt, N_MY_COMPS), \
-                    dtype='f', data = comps)
-        except RuntimeError:
-            # this station had beed added before
-            h5p[g_name + '/VEL'][...] = comps
+            try:
+                h5p.create_dataset(g_name + '/VEL', (nt, N_MY_COMPS), \
+                        dtype='f', data = comps)
+            except RuntimeError:
+                # this station had beed added before
+                h5p[g_name + '/VEL'][...] = comps
 
+    fp.close()
 
-fp.close()
 h5p.close()
