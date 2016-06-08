@@ -11,7 +11,6 @@ ISSUES: All options of EMOD3D are not considered. eg: scale.
 """
 
 from glob import glob
-from itertools import izip
 from math import sin, cos, radians
 from os import stat
 from struct import unpack
@@ -20,11 +19,6 @@ from sys import byteorder
 from mpi4py import MPI
 import numpy as np
 import h5py as h5
-
-# MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank() # process number
-size = comm.Get_size() # total process number
 
 # 8 byte c-string has up to 7 characters
 STAT_CHAR = 8
@@ -41,15 +35,6 @@ N_COMPS = 9
 MY_COMPS = {0:'090', 1:'000', 2:'VUP'}
 N_MY_COMPS = len(MY_COMPS)
 
-h5_file = 'virtual.hdf5'
-# cannot be 'a' mode with MPI comm
-# bug or missuse causes failiure to create groups
-h5p = h5.File(h5_file, 'w', driver = 'mpio', comm = comm)
-h5p.atomic = True
-
-seis_file_list = glob('OutBin/*_seis-?????.e3d')
-rank_file_list = seis_file_list[rank::size]
-
 # automatic endianness detection
 # first assume that endianness is native, check if filesize matches
 def get_swap(fp):
@@ -63,53 +48,63 @@ def get_swap(fp):
     # assuming correct values read, this is the filesize
     fs = SIZE_INT + ns * (SIZE_SEISHEAD + SIZE_FLT * N_COMPS * nt)
     
-    if fs == stat(seis_file).st_size:
+    if fs == stat(fp.name).st_size:
         return False
     return True
 
-for si, seis_file in enumerate(rank_file_list):
-    print('[R%d] processing %d of %d...' \
-            % (rank, rank + si * size, len(seis_file_list)))
+h5_file = 'virtual.hdf5'
+# HDF5 throws errors when opened in 'w' mode
+# happens when creating some groups (not duplicates)
+h5p = h5.File(h5_file, 'a')
+seis_file_list = glob('OutBin/*_seis-?????.e3d')
+
+fp = open(seis_file_list[0], 'rb')
+if get_swap(fp):
+    if byteorder == 'little':
+        # big endian src, little endian local
+        INT_S = '>i'
+        FLT_S = '>f'
+    else:
+        # little endian src, big endian local
+        INT_S = '<i'
+        FLT_S = '<f'
+else:
+    # no byte swapping
+    INT_S = 'i'
+    FLT_S = 'f'
+fp.close()
+
+for si, seis_file in enumerate(seis_file_list):
+    print('processing %d of %d...' \
+            % (si + 1, len(seis_file_list)))
     fp = open(seis_file, 'rb')
-    # whether in non-native endian
-    swap = get_swap(fp)
     # speed optimise
     seek = fp.seek
     read = fp.read
-
-    # python format string, can handle byte swapping
-    if swap:
-        if byteorder == 'little':
-            # big endian src, little endian local
-            INT_S = '>i'
-            FLT_S = '>f'
-        else:
-            # little endian src, big endian local
-            INT_S = '<i'
-            FLT_S = '<f'
-    else:
-        # no byte swapping
-        INT_S = 'i'
-        FLT_S = 'f'
 
     # shortcuts for processing input
     read_int = lambda : unpack(INT_S, read(SIZE_INT))[0]
     read_flt = lambda : unpack(FLT_S, read(SIZE_FLT))[0]
 
-    seek(0)
     num_stat = read_int()
-    # read what is assumed to be common amongst stations from first station
-    seek(SIZE_INT * 5)
-    nt = read_int()
-    dt = read_flt()
-    hh = read_flt()
-    rot = read_flt()
 
     # write common data to HDF5
     try:
         h5p.attrs['NSTAT'] += num_stat
     except KeyError:
         h5p.attrs['NSTAT'] = num_stat
+        # read what is assumed to be common amongst stations from first station
+        seek(SIZE_INT * 5)
+        nt = read_int()
+        dt = read_flt()
+        hh = read_flt()
+        rot = read_flt()
+        # rotation matrix for converting to 090, 000
+        # ver is inverted (* -1)
+        theta = radians(rot)
+        rot_matrix = np.array([[cos(theta), -sin(theta), 0], \
+                [-sin(theta), -cos(theta), 0], \
+                [0, 0, -1]])
         h5p.attrs['NT'] = nt
         h5p.attrs['DT'] = dt
         h5p.attrs['HH'] = hh
@@ -118,19 +113,7 @@ for si, seis_file in enumerate(rank_file_list):
     # read at once, all component data below header as float array
     # major speedup compared to manual processing
     seek(SIZE_INT + num_stat * SIZE_SEISHEAD)
-    # below method would be faster if could disregard the rest
-    #dt = np.dtype([ 
-    #        ('c1', FLT_S),
-    #        ('c2', FLT_S),
-    #        ('c3', FLT_S),
-    #        ('rest', np.void(SIZE_FLT * 6))])
     comp_data = np.fromfile(fp, dtype = FLT_S)
-    # rotation matrix for converting to 000, 090
-    # ver is inverted (* -1)
-    theta = radians(rot)
-    rot_matrix = np.array([[cos(theta), -sin(theta), 0], \
-            [-sin(theta), -cos(theta), 0], \
-            [0, 0, -1]])
 
     for stat_i in xrange(num_stat):
         seek(SIZE_INT + (stat_i + 1) * SIZE_SEISHEAD - STAT_CHAR)
@@ -145,11 +128,10 @@ for si, seis_file in enumerate(rank_file_list):
             g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
             try:
                 s_group = h5p.create_group(g_name)
-                break
-            except ValueError:
+            except ValueError, e:
                 # if group created previously
-                # also happens if opened in 'a' mode with MPI multiple open
-                print('failed to create %s' % g_name)
+                print 'duplicate station:', g_name
+                #continue
                 s_group = h5p[g_name]
 
             s_group.attrs['X'] = x
