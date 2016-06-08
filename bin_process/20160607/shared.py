@@ -128,9 +128,13 @@ def set_permission(dir_path,mode=0o750):
     os.chmod(dir_path,mode)
     for root, dirs, files in os.walk(dir_path):
         for d in dirs:
+            if os.path.islink(d):
+                continue
             print "Permission %s : %o" %(os.path.join(root,d),mode)
             os.chmod(os.path.join(root,d),mode) 
         for f in files:
+            if os.path.islink(f):
+                continue
             print "Permission %s : %o" %(os.path.join(root,f),mode)
             os.chmod(os.path.join(root,f),mode)
 
