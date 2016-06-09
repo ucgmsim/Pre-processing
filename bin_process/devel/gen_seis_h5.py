@@ -12,7 +12,7 @@ ISSUES: All options of EMOD3D are not considered. eg: scale.
 
 from glob import glob
 from math import sin, cos, radians
-from os import stat
+from os import stat, remove, path
 from struct import unpack
 from sys import byteorder
 
@@ -53,6 +53,8 @@ def get_swap(fp):
     return True
 
 h5_file = 'virtual.hdf5'
+if path.isfile(h5_file):
+    remove(h5_file)
 # HDF5 throws errors when opened in 'w' mode
 # happens when creating some groups (not duplicates)
 h5p = h5.File(h5_file, 'a')
@@ -109,6 +111,10 @@ for si, seis_file in enumerate(seis_file_list):
         h5p.attrs['DT'] = dt
         h5p.attrs['HH'] = hh
         h5p.attrs['ROT'] = rot
+        h5p.attrs['NCOMPS'] = N_MY_COMPS
+        for n, key in enumerate(MY_COMPS):
+            h5p.attrs['COMP_%d' % (n)] = MY_COMPS[key]
+
 
     # read at once, all component data below header as float array
     # major speedup compared to manual processing
@@ -117,7 +123,8 @@ for si, seis_file in enumerate(seis_file_list):
 
     for stat_i in xrange(num_stat):
         seek(SIZE_INT + (stat_i + 1) * SIZE_SEISHEAD - STAT_CHAR)
-        if len(str(read(STAT_CHAR)).rstrip('\0')) == VSTAT_LEN:
+        stat = str(read(STAT_CHAR)).rstrip('\0')
+        if len(stat) == VSTAT_LEN:
             # station is a virtual entry
 
             seek( - STAT_CHAR - 5 * SIZE_FLT - 4 * SIZE_INT, 1)
@@ -134,6 +141,7 @@ for si, seis_file in enumerate(seis_file_list):
                 #continue
                 s_group = h5p[g_name]
 
+            s_group.attrs['NAME'] = stat
             s_group.attrs['X'] = x
             s_group.attrs['Y'] = y
             seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
