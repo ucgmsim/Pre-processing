@@ -68,6 +68,12 @@ dt = h5p.attrs['DT']
 
 # load dataset as numpy array
 data = h5p['%s/VEL' % (g_name)]
+# dump to big endian binary file too
+with open('%s.bin' % (name), 'wb') as bp:
+    if sys.byteorder == 'little':
+        data[...].byteswap().tofile(bp)
+    else:
+        data[...].tofile(bp)
 
 ###
 ### OUTPUT write to file
