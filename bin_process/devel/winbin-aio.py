@@ -70,9 +70,8 @@ for s_index, stat in enumerate(STATS):
         print ' '.join(cmd)
         call(cmd)
 
-    # rotate files to 000, 090
-    # wcc_rotate only knows the input/output rotation by file extention
-    # rot=0.0 is a further rotation and should not be changed, change output extention instead
+    # XXX: THIS IS WRONG. ROT IS RELATED TO MODEL_ROT. FORWARDS OR BACKWARDS?
+    # ONLY CALL THIS IF MODEL_ROT != 0?
     cmd = [os.path.join(wcc_prog_dir,'wcc_rotate'), \
         'filein1=' + statfile + '.' + COMPS[0],'inbin1=0', \
         'filein2=' +  statfile + '.' + COMPS[1],'inbin2=0', \

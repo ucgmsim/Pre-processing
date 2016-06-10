@@ -163,11 +163,6 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     f.write("v_mod_1d_dir='%s'\n"%v_mod_1d_dir)
 
     f.close()
-    try: 
-        os.symlink(os.path.join(bin_process_dir,install_bb_name),os.path.join(sim_dir,install_bb_name))
-    except OSError:
-        print "%s already exists." %install_bb_name
-
     set_permission(dir_list[0]) #if user_root is first time created, recursively set permission from there. otherwise, set permission from sim_dir
 
 
@@ -179,8 +174,8 @@ def show_instruction(sim_dir):
     print "    2.   Edit params.py"
     print "    3.   llsubmit run_emod3d.ll"
     print "    4.   llsubmit post_emod3d.ll"
-    print "    5.   (Linux) bash plot_ts.sh"
-    print "    6.   python install_bb.py"
+    print "    5.   (Linux) plot_ts.sh"
+    print "    6.   install_bb.sh"
     print "    7.   llsubmit run_bb.ll"
 
 
@@ -206,6 +201,15 @@ def main():
 
     sim_dir = os.path.join(user_root,run_name)
     action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, user_root, run_dir, vel_mod_dir_full, srf_dir,srf_file,stoch_file)
+
+    #add bin_process to PATH if it is not already there
+    if not bin_process_dir in os.environ['PATH']:
+        f=open("/home/%s/.bashrc" %user,'a')
+        f.write("export PATH=$PATH:%s\n" %os.path.join(bin_process_path,"stable")) #stable instead of actual version to avoid PATH pollution
+
+        f.close()
+        print "PATH was updated"
+    
 
     print "Installation completed"
     show_instruction(sim_dir)
