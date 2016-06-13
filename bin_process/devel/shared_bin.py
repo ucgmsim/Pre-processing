@@ -25,7 +25,7 @@ SIZE_INT = 4
 SIZE_FLT = 4
 # number of bytes of station info in seis file
 SIZE_SEISHEAD = SIZE_INT * 5 + SIZE_FLT * 5 + STAT_CHAR
-# binary format properties
+# seis format properties
 N_COMPS = 9
 # values of interest in components, index in N_COMPS, description
 # changing these requires changing logic
@@ -33,6 +33,8 @@ MY_COMPS = {0:'090', 1:'000', 2:'ver'}
 N_MY_COMPS = len(MY_COMPS)
 # ASCII properties - values per line
 VPL = 6
+
+NATIVE_ENDIAN = byteorder
 
 # return order to read bytes in, either '>' or '<'
 # assumes you want to read in the non-native order
@@ -49,7 +51,6 @@ def get_byteswap_char():
 def get_seis_swap(file_path):
     fp = open(file_path, 'rb')
     # number of stations in seis file
-    fp.seek(0)
     ns = unpack('i', fp.read(SIZE_INT))[0]
     # first station NT value (should all be same)
     fp.seek(SIZE_INT + 4 * SIZE_INT)
