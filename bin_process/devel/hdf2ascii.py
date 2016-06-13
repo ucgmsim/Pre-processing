@@ -53,6 +53,7 @@ t_sec = -1.0
 # epicentre distance, unset cmdline parameter by original winbin-aio
 edist = 0.0
 # following are never modified in C code past initialisation to 0
+# possibly things like AZ and BAZ are the 8th and 9th components in seis?
 az = 0.0
 baz = 0.0
 
