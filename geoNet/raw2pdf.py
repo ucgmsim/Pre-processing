@@ -38,7 +38,7 @@ def nsew2deg(fstring):
 
 file_pattern = 'Vol1/data/*.V1A'
 inputs = glob(file_pattern)
-# testing - only work on first file for now
+# testing - only work on first file
 #inputs = inputs[:1]
 pdf = PdfPages('plots.pdf')
 
@@ -85,14 +85,19 @@ for vfile in inputs:
         dstart = SIZE_HEAD * i + sum(vls[:i]) + 26
         y = np.array(map(float, ' '.join(data[dstart:dstart + vls[i]]).split()))
         ax.plot(x, np.array(map(float, ' '.join( \
-                data[dstart:dstart + vls[i]]).split())))
+                data[dstart:dstart + vls[i]]).split())), linewidth=0.2)
+        plt.xlim(0, 100)
+        # using subplots will cause too many ticks
+        plt.locator_params(axis = 'y', nbins = 4)
+    # prevest titles and axis lables from overlapping
     fig.tight_layout()
     # leave room for title
-    fig.subplots_adjust(top=0.85)
+    plt.subplots_adjust(top = 0.85)
     pdf.savefig()
     plt.close()
-        
+    
     # only used if correcting
+
     #if (c1 + 90) % 360 == c2:
     #    # to be 000 component is first
     #    theta = radians(c1)
