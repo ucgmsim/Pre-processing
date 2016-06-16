@@ -2,6 +2,7 @@
 
 from math import sin, cos, radians, sqrt
 import numpy as np
+from subprocess import call, Popen, PIPE
 
 def CreateSimplifiedFiniteFaultFromFocalMechanism( \
         Lat = -43.5029, Lon = 172.8284, Depth = 4.0, Mw = 5.8, \
@@ -151,4 +152,32 @@ def MwScalingRelation(Mw, MwScalingRel):
 
 
 if __name__ == "__main__":
-    CreateSimplifiedFiniteFaultFromFocalMechanism()
+    a,b,c,d,e,f, MAG, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO = CreateSimplifiedFiniteFaultFromFocalMechanism()
+
+    GSFDIR = 'Gsf'
+    SRFDIR = 'Srf'
+
+
+
+    FPATH = '/hpc/home/rwg43/Bin/fault_seg2gsf'
+    GPATH = '/hpc/home/rwg43/Bin/genslip-v3.3'
+    VELFILE = 'lp_generic1d-gp01.vmod'
+
+    DT = 0.025
+    SEED = 1129571
+
+    NX = '%.0f' % (FLEN / DLEN)
+    NY = '%.0f' % (FWID / DWID)
+
+    GSFTEMP = 'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
+    OUTROOT = 'm%.2f-%.1fx%.1f_s%d' % (MAG, FLEN, FWID, SEED)
+
+    SRFFILE = '%s.srf' % (OUTROOT)
+
+    gexec = Popen([FPATH, 'read_slip_vals=0'], stdin = PIPE)
+    gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY))
+
+    call([SRFDIR, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', 'infile=%s/%s' % (GSFDIR, GSFTEMP), \
+            'mag=%f' % (MAG), 'nx=%s' % (NX), 'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (SEED), \
+            'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), 'dt=%f' % DT, 'plane_header=1'])
+
