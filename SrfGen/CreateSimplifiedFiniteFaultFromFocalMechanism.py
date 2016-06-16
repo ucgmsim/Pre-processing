@@ -7,7 +7,7 @@ from subprocess import call, Popen, PIPE
 
 def CreateSimplifiedFiniteFaultFromFocalMechanism( \
         Lat = -43.5029, Lon = 172.8284, Depth = 4.0, Mw = 5.8, \
-        strike = 54.0, rake = 137.0, dip = 75.0, MwScalingRel = 'BerrymanEtAl2002'):
+        strike = 54, rake = 137, dip = 75, MwScalingRel = 'BerrymanEtAl2002'):
     """
     Purpose: To create a finite fault geometry based on centroid moment tensor
     solution information and magnitude scaling relationships.
@@ -49,13 +49,13 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
     """
 
     # get the fault geometry (square edge length)
-    faultGeometry, fault_width = MwScalingRelation(Mw, MwScalingRel)
+    fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel)
 
     # determine the number of fault patches needed
     Lx = 1.0
     Ly = 1.0
-    Nx = int(round(faultGeometry / Lx))
-    Ny = int(round(faultGeometry / Ly))
+    Nx = int(round(fault_length / Lx))
+    Ny = int(round(fault_width / Ly))
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
@@ -102,22 +102,19 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
     # convert to NE system
     yPosSurfProj_tcl = yPos_tcl * cos(radians(dip))
     A = np.dot(RotMatrix, [[xPos_tcl], [yPosSurfProj_tcl]])
-    eastLocRelative_tcl = np.array(A).tolist()[0][0]
-    northLocRelative_tcl = np.array(A).tolist()[1][0]
+    eastLocRelative_tcl = A[0][0]
+    northLocRelative_tcl = A[1][0]
     depthLocRelative_tcl = -yPos_tcl * sin(radians(dip))
     # convert to Lat, Lon, depth
     lat_tcl = Lat + northLocRelative_tcl / LengthOneDegreeLatitude
     lon_tcl = Lon + (eastLocRelative_tcl / LengthOneDegreeLatitude) * 1 / (cos(radians(Lat)))
     depth_tcl = max([Depth + depthLocRelative_tcl, 0])
 
-    # output format will depend on how it is used in python
-    # copy of lat, lon, depth as 1ist most likely redundant?
-    # lat, lon, depth, latAsList, lonAsList, depthAsList,
+    # lat, lon, depth,
     # MW, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO
-    return lat, lon, depth, np.array(lat).reshape(-1,).tolist(), \
-            np.array(lon).reshape(-1,).tolist(), np.array(depth).reshape(-1,).tolist(), \
-            Mw, faultGeometry, 0.1, faultGeometry, 0.1, depth_tcl, strike, dip, rake, \
-            lat_tcl, lon_tcl, 0.00, faultGeometry / 2.0
+    return lat, lon, depth, \
+            Mw, fault_length, 0.1, fault_width, 0.1, depth_tcl, strike, dip, rake, \
+            lat_tcl, lon_tcl, 0.00, fault_width / 2.0
 
 ###########################################################################
 def MwScalingRelation(Mw, MwScalingRel):
@@ -153,7 +150,8 @@ def MwScalingRelation(Mw, MwScalingRel):
 
 
 if __name__ == "__main__":
-    a,b,c,d,e,f, MAG, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO = CreateSimplifiedFiniteFaultFromFocalMechanism()
+    lats, lons, depths, MAG, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO = \
+            CreateSimplifiedFiniteFaultFromFocalMechanism()
 
     GSF_DIR = 'Gsf'
     SRF_DIR = 'Srf'
@@ -199,13 +197,4 @@ if __name__ == "__main__":
     with open('%s/%s' % (STOCH_DIR, STOCH_FILE), 'w') as stochp:
         with open('%s/%s' % (SRF_DIR, SRF_FILE), 'r') as srfp:
             call([STOCH_BIN, 'dx=%f' % (DX), 'dy=%f' % (DY)], stdin = srfp, stdout = stochp)
-
-
-
-
-
-
-
-
-
 
