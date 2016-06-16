@@ -1,11 +1,11 @@
 #!/usr/bin/env python2
 
-from math import sin, cos, radians
-from numpy import matrix, zeros, array
+from math import sin, cos, radians, sqrt
+import numpy as np
 
 def CreateSimplifiedFiniteFaultFromFocalMechanism( \
-        Lat = -43.5029, Lon = 172.8284, Depth = 4.0, Mw = 5.0, \
-        strike = 54.0, rake = 137.0, dip = 75.0, MwScalingRel = 'HanksBakun2002'):
+        Lat = -43.5029, Lon = 172.8284, Depth = 4.0, Mw = 5.8, \
+        strike = 54.0, rake = 137.0, dip = 75.0, MwScalingRel = 'BerrymanEtAl2002'):
     """
     Purpose: To create a finite fault geometry based on centroid moment tensor
     solution information and magnitude scaling relationships.
@@ -47,7 +47,7 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
     """
 
     # get the fault geometry (square edge length)
-    faultGeometry = MwScalingRelation(Mw, MwScalingRel)
+    faultGeometry, fault_width = MwScalingRelation(Mw, MwScalingRel)
 
     # determine the number of fault patches needed
     Lx = 1.0
@@ -57,38 +57,38 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
-    xPos = [(x + 0.5) * Lx - Nx * Lx / 2.0 for x in xrange(0, Nx, 1)]
-    yPos = [Ny * Ly / 2.0 - (x + 0.5) * Ly for x in xrange(0, Ny, 1)]
+    xPos = np.array([(x + 0.5) * Lx - Nx * Lx / 2.0 for x in xrange(0, Nx, 1)])
+    yPos = np.array([Ny * Ly / 2.0 - (x + 0.5) * Ly for x in xrange(0, Ny, 1)])
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
     yPosSurfProj = yPos * cos(radians(dip))
     rotAngleAzimuth = radians((strike - 90))
-    RotMatrix = matrix([[cos(rotAngleAzimuth), sin(rotAngleAzimuth)], \
+    RotMatrix = np.array([[cos(rotAngleAzimuth), sin(rotAngleAzimuth)], \
             [-sin(rotAngleAzimuth), cos(rotAngleAzimuth)]])
-    eastLocRelative = zeros(shape = [Ny, Nx])
-    northLocRelative = zeros(shape = [Ny, Nx])
-    depthLocRelative = zeros(shape = [Ny, Nx])
+    eastLocRelative = np.zeros(shape = [Ny, Nx])
+    northLocRelative = np.zeros(shape = [Ny, Nx])
+    depthLocRelative = np.zeros(shape = [Ny, Nx])
     for i in xrange(Nx):
         for j in xrange(Ny):
-            A = RotMatrix * matrix([[xPos(i)], [yPosSurfProj(j)]])
-            eastLocRelative[j, i] = array(A).tolist()[0][0]
-            northLocRelative[j, i] = array(A).tolist()[1][0]
+            A = np.dot(RotMatrix, [[xPos[i]], [yPosSurfProj[j]]])
+            eastLocRelative[j, i] = np.array(A).tolist()[0][0]
+            northLocRelative[j, i] = np.array(A).tolist()[1][0]
             depthLocRelative[j, i] = -yPos[j] * sin(radians(dip))
 
     # now use a coordinate transformation to go from the North East cartesian
     # plane to the spherical earth WGS84 coordinate system
     EarthRadius = 6371.0072
     LengthOneDegreeLatitude = radians(EarthRadius)
-    lat = zeros(shape = [Nx, Ny])
-    lon = zeros(shape = [Nx, Ny])
-    depth = zeros(shape = [Nx, Ny])
+    lat = np.zeros(shape = [Nx, Ny])
+    lon = np.zeros(shape = [Nx, Ny])
+    depth = np.zeros(shape = [Nx, Ny])
     for i in xrange(Nx):
         for j in xrange(Ny):
-            lat[i, j] = latDatum + northLocRelative[i, j] / LengthOneDegreeLatitude
-            lon[i, j] = lonDatum + (eastLocRelative[i, j] / LengthOneDegreeLatitude) \
-                    * 1 / (cos(radians(latDatum)))
-            depth[i, j] = max([depthDatum + depthLocRelative[i, j], 0])
+            lat[i, j] = Lat + northLocRelative[i, j] / LengthOneDegreeLatitude
+            lon[i, j] = Lon + (eastLocRelative[i, j] / LengthOneDegreeLatitude) \
+                    * 1 / (cos(radians(Lat)))
+            depth[i, j] = max([Depth + depthLocRelative[i, j], 0])
 
     # outputs for emod3d format _________
     # now determine the location of the topcenter of the fault plane (top edge,
@@ -99,21 +99,21 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
     yPos_tcl = Ny * Ly / 2.0
     # convert to NE system
     yPosSurfProj_tcl = yPos_tcl * cos(radians(dip))
-    A = RotMatrix * matrix([[xPos_tcl], [yPosSurfProj_tcl]])
-    eastLocRelative_tcl = array(A).tolist()[0][0]
-    northLocRelative_tcl = array(A).tolist()[1][0]
+    A = np.dot(RotMatrix, [[xPos_tcl], [yPosSurfProj_tcl]])
+    eastLocRelative_tcl = np.array(A).tolist()[0][0]
+    northLocRelative_tcl = np.array(A).tolist()[1][0]
     depthLocRelative_tcl = -yPos_tcl * sin(radians(dip))
     # convert to Lat, Lon, depth
-    lat_tcl = latDatum + northLocRelative_tcl / LengthOneDegreeLatitude
-    lon_tcl = lonDatum + (eastLocRelative_tcl / LengthOneDegreeLatitude) * 1 / (cos(radians(latDatum)))
-    depth_tcl = max([depthDatum + depthLocRelative_tcl, 0])
+    lat_tcl = Lat + northLocRelative_tcl / LengthOneDegreeLatitude
+    lon_tcl = Lon + (eastLocRelative_tcl / LengthOneDegreeLatitude) * 1 / (cos(radians(Lat)))
+    depth_tcl = max([Depth + depthLocRelative_tcl, 0])
 
     # output format will depend on how it is used in python
     # copy of lat, lon, depth as 1ist most likely redundant?
     # lat, lon, depth, latAsList, lonAsList, depthAsList,
     # MW, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO
-    return lat, lon, depth, array(lat).reshape(-1,).tolist(), \
-            array(lon).reshape(-1,).tolist(), array(depth).reshape(-1,).tolist(), \
+    return lat, lon, depth, np.array(lat).reshape(-1,).tolist(), \
+            np.array(lon).reshape(-1,).tolist(), np.array(depth).reshape(-1,).tolist(), \
             Mw, faultGeometry, 0.1, faultGeometry, 0.1, depth_tcl, strike, dip, rake, \
             lat_tcl, lon_tcl, 0.00, faultGeometry / 2.0
 
@@ -145,6 +145,10 @@ def MwScalingRelation(Mw, MwScalingRel):
         print('Invalid MwScalingRel. Exiting.')
         exit()
 
-    # only Length and Width of equiv. square (both sqrt(A)) were ever used
-    return sqrt(A)
+    # length, width
+    return sqrt(A), sqrt(A)
 
+
+
+if __name__ == "__main__":
+    CreateSimplifiedFiniteFaultFromFocalMechanism()
