@@ -155,38 +155,57 @@ def MwScalingRelation(Mw, MwScalingRel):
 if __name__ == "__main__":
     a,b,c,d,e,f, MAG, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO = CreateSimplifiedFiniteFaultFromFocalMechanism()
 
-    GSFDIR = 'Gsf'
-    SRFDIR = 'Srf'
-    if not path.exists(GSFDIR):
-        makedirs(GSFDIR)
-    if not path.exists(SRFDIR):
-        makedirs(SRFDIR)
+    GSF_DIR = 'Gsf'
+    SRF_DIR = 'Srf'
+    STOCH_DIR = 'Stoch'
+    for folder in [GSF_DIR, SRF_DIR, STOCH_DIR]:
+        if not path.exists(folder):
+            makedirs(folder)
 
-    FPATH = '/hpc/home/rwg43/Bin/fault_seg2gsf'
-    GPATH = '/hpc/home/rwg43/Bin/genslip-v3.3'
+    GSF_BIN = '/hpc/home/rwg43/Bin/fault_seg2gsf'
+    SRF_BIN = '/hpc/home/rwg43/Bin/genslip-v3.3'
+    STOCH_BIN = '/hpc/home/rwg43/Bin/srf2stoch'
     VELFILE = 'lp_generic1d-gp01.vmod'
-
-    DT = 0.025
-    SEED = 1129571
 
     NX = '%.0f' % (FLEN / DLEN)
     NY = '%.0f' % (FWID / DWID)
 
-    GSFTEMP = 'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
-    OUTROOT = 'm%.2f-%.1fx%.1f_s%d' % (MAG, FLEN, FWID, SEED)
+    # GSF 2 SRF
+    DT = 0.025
+    SEED = 1129571
 
-    SRFFILE = '%s.srf' % (OUTROOT)
+    FILE_ROOT = 'm%.2f-%.1fx%.1f_s%d' % (MAG, FLEN, FWID, SEED)
+    GSF_FILE = 'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
+    SRF_FILE = '%s.srf' % (FILE_ROOT)
+    STOCH_FILE = '%s.stoch' % (FILE_ROOT)
 
-    print 'ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY'
-    print '1\n%f %f %f %d %d %d %f %f %s %s' % (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY)
-    with open('%s/%s' % (GSFDIR, GSFTEMP), 'w') as gsfp:
-        gexec = Popen([FPATH, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
-        gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY))
+    # SRF 2 STOCH
+    DX = 2.0
+    DY = 2.0
 
-    with open('%s/%s' % (SRFDIR, SRFFILE), 'w') as srfp:
-        print srfp.name
-        call([GPATH, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', 'infile=%s/%s' % (GSFDIR, GSFTEMP), \
-                'mag=%f' % (MAG), 'nx=%s' % (NX), 'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (SEED), \
-                'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), 'dt=%f' % DT, 'plane_header=1'], \
+    with open('%s/%s' % (GSF_DIR, GSF_FILE), 'w') as gsfp:
+        gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
+        gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % \
+                (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY))
+
+    with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
+        call([SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
+                'infile=%s/%s' % (GSF_DIR, GSF_FILE), 'mag=%f' % (MAG), 'nx=%s' % (NX), \
+                'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (SEED), \
+                'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), \
+                'dt=%f' % DT, 'plane_header=1'], \
                 stdout = srfp)
+
+    with open('%s/%s' % (STOCH_DIR, STOCH_FILE), 'w') as stochp:
+        with open('%s/%s' % (SRF_DIR, SRF_FILE), 'r') as srfp:
+            call([STOCH_BIN, 'dx=%f' % (DX), 'dy=%f' % (DY)], stdin = srfp, stdout = stochp)
+
+
+
+
+
+
+
+
+
 
