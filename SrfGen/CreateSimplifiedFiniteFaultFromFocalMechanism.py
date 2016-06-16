@@ -5,6 +5,8 @@ import numpy as np
 from os import makedirs, path
 from subprocess import call, Popen, PIPE
 
+from setPointSourceParams import LAT, LON, DEPTH, MAG, STK, DIP, RAK, MWSR
+
 def CreateSimplifiedFiniteFaultFromFocalMechanism( \
         Lat = -43.5029, Lon = 172.8284, Depth = 4.0, Mw = 5.8, \
         strike = 54, rake = 137, dip = 75, MwScalingRel = 'BerrymanEtAl2002'):
@@ -111,9 +113,9 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
     depth_tcl = max([Depth + depthLocRelative_tcl, 0])
 
     # lat, lon, depth,
-    # MW, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO
+    # MW, FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO
     return lat, lon, depth, \
-            Mw, fault_length, 0.1, fault_width, 0.1, depth_tcl, strike, dip, rake, \
+            Mw, fault_length, 0.1, fault_width, 0.1, depth_tcl, \
             lat_tcl, lon_tcl, 0.00, fault_width / 2.0
 
 ###########################################################################
@@ -150,8 +152,9 @@ def MwScalingRelation(Mw, MwScalingRel):
 
 
 if __name__ == "__main__":
-    lats, lons, depths, MAG, FLEN, DLEN, FWID, DWID, DTOP, STK, DIP, RAK, ELAT, ELON, SHYPO, DHYPO = \
-            CreateSimplifiedFiniteFaultFromFocalMechanism()
+    lats, lons, depths, MAG, FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO = \
+            CreateSimplifiedFiniteFaultFromFocalMechanism(Lat = LAT, Lon = LON, \
+            Depth = DEPTH, Mw = MAG, strike = STK, dip = DIP, rake = RAK, MwScalingRel = MWSR)
 
     GSF_DIR = 'Gsf'
     SRF_DIR = 'Srf'
