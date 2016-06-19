@@ -188,6 +188,9 @@ if __name__ == "__main__":
         gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % \
                 (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY))
+        print('1\n%f %f %f %d %d %d %f %f %s %s' % \
+                (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY))
+
 
     with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
         call([SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
@@ -196,8 +199,14 @@ if __name__ == "__main__":
                 'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), \
                 'dt=%f' % DT, 'plane_header=1'], \
                 stdout = srfp)
+        print ' '.join([SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
+                'infile=%s/%s' % (GSF_DIR, GSF_FILE), 'mag=%f' % (MAG), 'nx=%s' % (NX), \
+                'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (SEED), \
+                'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), \
+                'dt=%f' % DT, 'plane_header=1'])
 
     with open('%s/%s' % (STOCH_DIR, STOCH_FILE), 'w') as stochp:
         with open('%s/%s' % (SRF_DIR, SRF_FILE), 'r') as srfp:
             call([STOCH_BIN, 'dx=%f' % (DX), 'dy=%f' % (DY)], stdin = srfp, stdout = stochp)
+            print ' '.join([STOCH_BIN, 'dx=%f' % (DX), 'dy=%f' % (DY)])
 
