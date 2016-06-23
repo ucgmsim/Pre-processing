@@ -42,14 +42,14 @@ def cb2008_ampf(ampf, dt, n, vref, vsite, vpga, pga, fmin, fmidbot, fmid, fhigh,
     it = (exp(fs_auto(vsite)(T, vsite, a1100) - fs_auto(vref)(T, vref, a1100)) \
             for T in xrange(n_per))
     ampf0 = n.fromiter(it, np.float, count = n_per)
-    for T in xrange(n_per):
-        if freq[T] <= flowcap:
-            try:
-                ampf0[T + 1:] = ampf0[T]
-            except IndexError:
-                # this was the last value anyway
-                pass
-        break 
+    try:
+        # T is the first occurance of a value <= flowcap
+        # throws IndexError if no results (the second [0])
+        T = n.nonzero((freq[:-1] <= flowcap))[0][0]
+        # T cannot be the last value because of the following logic
+        ampf0[T + 1:] = ampf0[T]
+    except IndexError:
+        pass
 
 
 nt = 20000
