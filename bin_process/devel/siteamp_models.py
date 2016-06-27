@@ -57,7 +57,6 @@ fs_auto = lambda T, vs30 : fs_low if vs30 < k1[T] else fs_mid if vs30 < 1100.0 e
 fs1100 = fs_high(0)
 def cb08_amp(dt, n, vref, vsite, vpga, pga, fmin, fmidbot, fmid, fhigh, fhightop, fmax, flowcap):
     ampf = np.ones(n / 2, np.float)
-    ampf[0] = -0.0
     fs_vpga = fs_auto(0, vpga)(0, vpga, pga)
     a1100 = pga * exp(fs1100 - fs_vpga)
     it = (exp(fs_auto(T, vsite)(T, vsite, a1100) - fs_auto(T, vref)(T, vref, a1100)) \

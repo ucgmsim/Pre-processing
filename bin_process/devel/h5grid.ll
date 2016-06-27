@@ -8,6 +8,7 @@
 # @job_type = parallel
 # @node = 1
 # @tasks_per_node = 64
+# nt=20000, 1400x1200 takes ~30 minutes
 # @wall_clock_limit = 0:45:00
 # @account_no = nesi00213
 # @output = output

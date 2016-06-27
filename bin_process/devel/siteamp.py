@@ -21,20 +21,34 @@ for i, s in enumerate(map(float, \
             ' '.join(map(str.rstrip, f.readlines())).split())):
     v[i] = s
 pga = np.max(np.abs(v))/981.0
-print pga
 
 ntap = nt * 0.05
 v *= dt
 v[nt - ntap:] *= np.hanning(ntap * 2 + 1)[ntap + 1:]
 
 l = getnt_p2(nt)
+
 v.resize(l)
 ft = np.fft.rfft(v)
-ft2 = np.dstack((ft.real, ft.imag)).flatten()
-ft2[1] = ft2[-2]
-ft2 = ft2[:l]
-print ft2
-ampf = cb08_amp(0.005, l, 865.0, 250.0, 850.0, pga, 0.5, 0.5, 1.0, 3.333, 10.0, 15.0, 0.0)
-print ampf[:100]
-print ampf[-101:]
+#print v[4800:4810]
+#print np.fft.irfft(ft)[4800:4810]
+#ft2 = np.dstack((ft.real, ft.imag)).flatten()
+#ft2[1] = ft2[-2]
+#ft2 = ft2[:l]
 
+ampf = cb08_amp(0.005, l, 865.0, 250.0, 850.0, pga, 0.5, 0.5, 1.0, 3.333, 10.0, 15.0, 0.0)
+
+rft = ft.real
+rft[:-1] *= ampf
+ift = ft.imag
+ift[:-1] *= ampf
+#ift[0] = ft.real[-1]
+#ift *= ampf
+
+# ^^ working
+fta = (rft + 1j * ift)
+#fta = np.hstack((fta,ft[-1] * ampf[-2]))
+real = fta[0].real
+imag = fta[0].imag
+#fta[0] = real + imag + 1j * (real - imag)
+s = np.fft.irfft(fta) * 200
