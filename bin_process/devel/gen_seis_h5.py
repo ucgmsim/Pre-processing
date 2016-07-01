@@ -12,67 +12,30 @@ ISSUES: All options of EMOD3D are not considered. eg: scale.
 
 from glob import glob
 from math import sin, cos, radians
-from os import stat
+from os import remove, path
 from struct import unpack
-from sys import byteorder
 
 from mpi4py import MPI
 import numpy as np
 import h5py as h5
 
-# 8 byte c-string has up to 7 characters
-STAT_CHAR = 8
-# a station with a name of this length is virtual
-VSTAT_LEN = 4
-# number of bytes per value, int/float = 4 Byte on 64 bit machines
-SIZE_INT = 4
-SIZE_FLT = 4
-SIZE_SEISHEAD = SIZE_INT * 5 + SIZE_FLT * 5 + STAT_CHAR
-# binary format properties
-N_COMPS = 9
-# values of interest in components, index in N_COMPS, description
-# changing these requires changing logic
-MY_COMPS = {0:'090', 1:'000', 2:'VUP'}
-N_MY_COMPS = len(MY_COMPS)
-
-# automatic endianness detection
-# first assume that endianness is native, check if filesize matches
-def get_swap(fp):
-    # number of stations in seis file
-    fp.seek(0)
-    ns = unpack('i', fp.read(SIZE_INT))[0]
-    # first station NT value (should all be same)
-    fp.seek(SIZE_INT + 4 * SIZE_INT)
-    nt = unpack('i', fp.read(SIZE_INT))[0]
-
-    # assuming correct values read, this is the filesize
-    fs = SIZE_INT + ns * (SIZE_SEISHEAD + SIZE_FLT * N_COMPS * nt)
-    
-    if fs == stat(fp.name).st_size:
-        return False
-    return True
+from shared_bin import *
 
 h5_file = 'virtual.hdf5'
+if path.isfile(h5_file):
+    remove(h5_file)
 # HDF5 throws errors when opened in 'w' mode
 # happens when creating some groups (not duplicates)
 h5p = h5.File(h5_file, 'a')
 seis_file_list = glob('OutBin/*_seis-?????.e3d')
 
-fp = open(seis_file_list[0], 'rb')
-if get_swap(fp):
-    if byteorder == 'little':
-        # big endian src, little endian local
-        INT_S = '>i'
-        FLT_S = '>f'
-    else:
-        # little endian src, big endian local
-        INT_S = '<i'
-        FLT_S = '<f'
-else:
-    # no byte swapping
-    INT_S = 'i'
-    FLT_S = 'f'
-fp.close()
+# python data-type format string
+INT_S = 'i'
+FLT_S = 'f'
+if get_seis_swap(seis_file_list[0]):
+    swapping_char = get_byteswap_char()
+    INT_S = swapping_char + INT_S
+    FLT_S = swapping_char + FLT_S
 
 for si, seis_file in enumerate(seis_file_list):
     print('processing %d of %d...' \
@@ -109,6 +72,10 @@ for si, seis_file in enumerate(seis_file_list):
         h5p.attrs['DT'] = dt
         h5p.attrs['HH'] = hh
         h5p.attrs['ROT'] = rot
+        h5p.attrs['NCOMPS'] = N_MY_COMPS
+        for n, key in enumerate(MY_COMPS):
+            h5p.attrs['COMP_%d' % (n)] = MY_COMPS[key]
+
 
     # read at once, all component data below header as float array
     # major speedup compared to manual processing
@@ -117,7 +84,8 @@ for si, seis_file in enumerate(seis_file_list):
 
     for stat_i in xrange(num_stat):
         seek(SIZE_INT + (stat_i + 1) * SIZE_SEISHEAD - STAT_CHAR)
-        if len(str(read(STAT_CHAR)).rstrip('\0')) == VSTAT_LEN:
+        stat = str(read(STAT_CHAR)).rstrip('\0')
+        if len(stat) == VSTAT_LEN:
             # station is a virtual entry
 
             seek( - STAT_CHAR - 5 * SIZE_FLT - 4 * SIZE_INT, 1)
@@ -134,6 +102,7 @@ for si, seis_file in enumerate(seis_file_list):
                 #continue
                 s_group = h5p[g_name]
 
+            s_group.attrs['NAME'] = stat
             s_group.attrs['X'] = x
             s_group.attrs['Y'] = y
             seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)

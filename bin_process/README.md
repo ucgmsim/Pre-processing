@@ -6,14 +6,15 @@ Version. 20160607
 
 
 1. Go to /nesi/projects/nesi00213/RunFolder
-2. python install.py and answer questions
+2. ./install.sh and answer questions
 3. New directory will be created under your subdirectory
 4. Edit params.py
 5. llsubmit run_emod3d.ll
 5. llsubmit post_emod3d.ll
-6. For HF/BB: python install_bb.py
+6. For HF/BB: install_bb.sh
 7. For HF/BB: llsubmit run_bb.ll
 6. For plotting: (Linux) bash plot_and_ani.sh
+7. For postProcessStation: edit parametersStation.py, llsubmit runPostProcessStation.ll
 
 
 ## Step-by-step Instruction ##
@@ -30,7 +31,7 @@ cd /nesi/projects/nesi00213/RunFolder
 
 Run install.py
 ```
-baes@nesi2/nesi/projects/nesi00213/RunFolder >python install.py
+baes@nesi2/nesi/projects/nesi00213/RunFolder >./install.sh
 ****************************************************************************************************
                                      EMOD3D Job Preparationi Ver.20160607
 ****************************************************************************************************
@@ -332,7 +333,7 @@ ADCS.090  CBGS.000  CHHC.ver  CSHS.090  D09C.000  D15C.ver  DSLC.090  GODS.000  
 
 Run install_bb.py to prepare for HF/BB runs
 ```
-baes@nesi2/nesi/projects/nesi00213/RunFolder/baes/2010Sept4_bev01_VMv1p64-h0p400_EMODv3p0p4_160606 >python install_bb.py
+baes@nesi2/nesi/projects/nesi00213/RunFolder/baes/2010Sept4_bev01_VMv1p64-h0p400_EMODv3p0p4_160606 >install_bb.sh
 
 ****************************************************************************************************
                                      EMOD3D HF/BB Preparationi Ver.20160607
@@ -372,7 +373,7 @@ llsubmit run_bb.ll
 
 Go to Linux node. Edit plot_ts.ll (Can be used untouched in most cases).
 ```
-bash plot_and_ani.sh
+plot_and_ani.sh
 ```
 This will produce Png and Ps files under TSlice directory per each time slice.
 This also makes a movie file in the current directory.

@@ -16,13 +16,6 @@ params_override = '2010Sep4'
 
 ######## Global CONSTANTS ########
 
-# LPSIM directory name under RunFolder
-
-# HFSIM directory name under RunFolder
-#hf_run_name = 'HFSim-2010Sept4b_Cant1D_v2-v5.4.4-rvf0.8_dt'
-#bb_run_name = 'BBSim-2010Sept4b_Cantv1_64-h0.100_dt_Vs30_500'
-
-
 # things that everyone doesn't have, eg. binaries are within here
 
 
