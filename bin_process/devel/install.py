@@ -27,6 +27,7 @@ srf_dir = os.path.join(global_root, 'RupModel')
 vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel')
 recipe_dir = os.path.join(bin_process_dir,"recipes")
 v_mod_1d_dir = os.path.join(global_root,'VelocityModel','Mod-1D')
+gmsa_dir = os.path.join(global_root,'groundMotionStationAnalysis')
 
    
 def q1(srf_dir):
@@ -143,6 +144,10 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
         shutil.copy(filename, sim_dir)
 
+    shutil.copy(os.path.join(gmsa_dir,"parametersStation.py"),sim_dir)
+    shutil.copy(os.path.join(gmsa_dir,"runPostProcessStation.ll"),sim_dir)
+
+
     f=open(os.path.join(sim_dir,"params_base.py"),"w");
     f.write("run_name='%s'\n" %run_name)
     f.write("version='%s'\n" %version)
@@ -174,9 +179,12 @@ def show_instruction(sim_dir):
     print "    2.   Edit params.py"
     print "    3.   llsubmit run_emod3d.ll"
     print "    4.   llsubmit post_emod3d.ll"
-    print "    5.   (Linux) plot_ts.sh"
+    print "    5.   (Linux) plot_and_ani.sh"
     print "    6.   install_bb.sh"
     print "    7.   llsubmit run_bb.ll"
+    print "    8.   Edit parametersStation.py"
+    print "    9.   llsubmit runPostProcessStation.ll"
+
 
 
 
