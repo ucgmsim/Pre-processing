@@ -14,6 +14,7 @@ Version. 20160607
 6. For HF/BB: install_bb.sh
 7. For HF/BB: llsubmit run_bb.ll
 6. For plotting: (Linux) bash plot_and_ani.sh
+7. For postProcessStation: edit parametersStation.py, llsubmit runPostProcessStation.ll
 
 
 ## Step-by-step Instruction ##
