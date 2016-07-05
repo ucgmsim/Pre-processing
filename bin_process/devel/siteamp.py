@@ -1,54 +1,106 @@
 #!/usr/bin/env python2
 
+from glob import glob
 # math functions faster than numpy for simple data
-from math import ceil, exp, log
+from math import ceil, log, pi, tan, sqrt
 
+import h5py as h5
 import numpy as np
+rfft = np.fft.rfft
+irfft = np.fft.irfft
+# sosfilt new in scipy 0.16
+from scipy.signal import butter, sosfilt
+import matplotlib.pyplot as plt
 
 from siteamp_models import cb08_amp
 
 nt = 20000
 dt = 0.005
+ft_len = int(2 ** ceil(log(nt)/log(2)))
+nyq = 1.0 / (2.0 * dt)
+h5p = h5.File('virtual.hdf5', 'a')
+# frequencies in the fourier domain
+#freqs = 200.0 * (np.arange(0, 32768/2) / 32768.0)
 
-getnt_p2 = lambda nt : int(2 ** ceil(log(nt)/log(2)))
+# butterworth filter
+# bandpass not necessary as sampling frequency too low
+def bwfilter(data, freq, band):
+    """
+    data: np.array to filter
+    freq: cutoff frequency
+    band: 'highpass' or 'lowpass'
+    """
+    return sosfilt(butter(4, freq / nyq, btype = band, output = 'sos'), data)
 
-f = open('test.ver', 'r')
-f.readline()
-f.readline()
+file_list = glob('RunFolder/acc/*.*')
+#file_list = ['/home/vap30/Repo/EMOD3D/build/tests/test.ver', '/home/vap30/Repo/EMOD3D/build/midpoint.ver']
+num_files = len(file_list)
+for ii, hff in enumerate(file_list):
+    print '%d of %d' % (ii + 1, num_files)
+    ###
+    # PROCESS HF
 
-v = np.zeros(nt)
-for i, s in enumerate(map(float, \
-            ' '.join(map(str.rstrip, f.readlines())).split())):
-    v[i] = s
-pga = np.max(np.abs(v))/981.0
+    # read binary values
+    v = np.fromfile(hff, '>f')
 
-ntap = nt * 0.05
-v *= dt
-v[nt - ntap:] *= np.hanning(ntap * 2 + 1)[ntap + 1:]
+    # if using ascii input
+    #v = np.empty(nt)
+    #with open(hff, 'rb') as f:
+    #    l1 = f.readline()
+    #    l2 = f.readline()
+    #    for i, s in enumerate(map(float, \
+    #                ' '.join(map(str.rstrip, f.readlines())).split())):
+    #        v[i] = s
 
-l = getnt_p2(nt)
+    # peak ground acceleration
+    pga = np.max(np.abs(v)) / 981.0
+    # taper ntap values on the right using the hanning method
+    ntap = nt * 0.05
+    v *= dt
+    v[nt - ntap:] *= np.hanning(ntap * 2 + 1)[ntap + 1:]
 
-v.resize(l)
-ft = np.fft.rfft(v)
-#print v[4800:4810]
-#print np.fft.irfft(ft)[4800:4810]
-#ft2 = np.dstack((ft.real, ft.imag)).flatten()
-#ft2[1] = ft2[-2]
-#ft2 = ft2[:l]
+    # extend with blanks for fft
+    v.resize(ft_len)
+    ft = rfft(v)
+    # amplification factors are applied on fft values
+    ampf = cb08_amp(0.005, ft_len, 865.0, 250.0, 850.0, pga)
+    ft[:-1] *= ampf
+    s = irfft(ft)[:nt] * (nt * dt * 2)
 
-ampf = cb08_amp(0.005, l, 865.0, 250.0, 850.0, pga, 0.5, 0.5, 1.0, 3.333, 10.0, 15.0, 0.0)
+    # filter unwanted frequencies
+    hf_acc = bwfilter(s, 1.0, 'highpass')
 
-rft = ft.real
-rft[:-1] *= ampf
-ift = ft.imag
-ift[:-1] *= ampf
-#ift[0] = ft.real[-1]
-#ift *= ampf
+    ###
+    # PROCESS LF
 
-# ^^ working
-fta = (rft + 1j * ift)
-#fta = np.hstack((fta,ft[-1] * ampf[-2]))
-real = fta[0].real
-imag = fta[0].imag
-#fta[0] = real + imag + 1j * (real - imag)
-s = np.fft.irfft(fta) * 200
+    # read from HDF5
+    x = '0005'
+    y = '0005'
+    try:
+        lf_vel = h5p['%s%s/VEL' % (x, y)][...]
+    except KeyError:
+        # this station doesn't exist in LF sim
+        continue
+    lf_acc = np.diff(np.hstack(([0], lf_vel))) * (1.0 / dt)
+    # fft
+    lf_acc.resize(ft_len)
+    lf_ft = rfft(lf_acc)
+    # amp
+    lf_ft[:-1] *= ampf
+    # rfft
+    lf_acc = irfft(lf_ft)[nt]
+    # filter
+    lf_acc = bwfilter(s, 1.0, 'lowpass')
+
+    ###
+    # PROCESS BB
+
+    # add values together and integrate ACC to VEL
+    bb_vel = np.cumsum((hf_acc + lf_acc) * dt)
+
+    # write back to HDF5 file
+    h5p['%s%s/VEL' % (x, y)][...] = bb_vel
+
+# close HDF5
+h5p.close()
+
