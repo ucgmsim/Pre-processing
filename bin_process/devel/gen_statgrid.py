@@ -35,8 +35,9 @@ for line in coords:
     if int(info[3]) % dy_ts == 0 and int(info[2]) % dx_ts == 0 \
             and X_BND_PAD <= int(info[2]) < nx - X_BND_PAD \
             and Y_BND_PAD <= int(info[3]) < ny - Y_BND_PAD:
-        op.write('%10.4f %10.4f %.4d%.4d\n' \
-                % (float(info[0]), float(info[1]), int(info[2]), int(info[3])))
+        op.write('%10.4f %10.4f %s\n' \
+                % (float(info[0]), float(info[1]), \
+                hex(int('%s%s' % (info[2], info[3])))[2:].zfill(7).upper()))
 
 op.close()
 mcp.close()

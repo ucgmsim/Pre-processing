@@ -77,9 +77,10 @@ for ii, hff in enumerate(file_list):
 
     # read from HDF5
     f_details = basename(hff).split('.')
-    x = f_details[0][:4]
-    y = f_details[0][4:]
     comp = COMP_EXTS[f_details[1]]
+    xy = f_details[0].split('_')[-1]
+    x = xy[:4]
+    y = xy[4:]
     try:
         lf_vel = h5p['%s%s/VEL' % (x, y)][..., comp]
     except KeyError:
