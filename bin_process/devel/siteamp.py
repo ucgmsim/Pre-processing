@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 from glob import glob
+from os.path import basename
 # math functions faster than numpy for simple data
 from math import ceil, log, pi, tan, sqrt
 
@@ -19,6 +20,7 @@ dt = 0.005
 ft_len = int(2 ** ceil(log(nt)/log(2)))
 nyq = 1.0 / (2.0 * dt)
 h5p = h5.File('virtual.hdf5', 'a')
+COMP_EXTS = {'090':0, '000':1, 'ver':2}
 # frequencies in the fourier domain
 #freqs = 200.0 * (np.arange(0, 32768/2) / 32768.0)
 
@@ -74,12 +76,15 @@ for ii, hff in enumerate(file_list):
     # PROCESS LF
 
     # read from HDF5
-    x = '0005'
-    y = '0005'
+    f_details = basename(hff).split('.')
+    x = f_details[0][:4]
+    y = f_details[0][4:]
+    comp = COMP_EXTS[f_details[1]]
     try:
-        lf_vel = h5p['%s%s/VEL' % (x, y)][...]
+        lf_vel = h5p['%s%s/VEL' % (x, y)][..., comp]
     except KeyError:
         # this station doesn't exist in LF sim
+        print('WARNING: station at (%d, %d) not found for LF sim.' % (x, y))
         continue
     lf_acc = np.diff(np.hstack(([0], lf_vel))) * (1.0 / dt)
     # fft
@@ -99,7 +104,7 @@ for ii, hff in enumerate(file_list):
     bb_vel = np.cumsum((hf_acc + lf_acc) * dt)
 
     # write back to HDF5 file
-    h5p['%s%s/VEL' % (x, y)][...] = bb_vel
+    h5p['%s%s/VEL' % (x, y)][..., comp] = bb_vel
 
 # close HDF5
 h5p.close()
