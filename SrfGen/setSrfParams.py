@@ -1,25 +1,36 @@
 ## Sets Variables for SRF/Stoch Generation
 
+# TYPE:
+# 1: point source to point source srf
+# 2: point source to finite fault srf
+# 3: finite fault to finite fault srf (TODO)
+TYPE = 1
+
+###
+### COMMON PARAMETERS (apply to all types)
+###
+
 # latitude (float)
 LAT = -43.5029
-
 # longitude (float)
 LON = 172.8284
-
 # depth (float)
 DEPTH = 4.0
-
 # magnitude (float)
 MAG = 5.8
-
 # strike (int)
 STK = 54
-
 # dip (int)
 DIP = 75
-
 # rake (int)
 RAK = 137
+
+###
+### RELATING TO TYPE 1 (point to point)
+###
+
+# specify seismic moment directly (-1 to use magnitude)
+MOM = -1
 
 # Mw Scaling Relation (string), one of:
 # HanksBakun2002
