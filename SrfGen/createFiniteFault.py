@@ -198,8 +198,8 @@ def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom 
     d_xy, slip = ('%.5e %.3f' % (dd, ss)).split()
 
     NAME = ('m%f' % (mw)).replace('.', 'pt').rstrip('0')
-    GSF_FILE = '%s.gsf' % (NAME)
-    SRF_FILE = '%s.srf' % (NAME)
+    GSF_FILE = '%s/%s.gsf' % (GSF_DIR, NAME)
+    SRF_FILE = '%s/%s.srf' % (SRF_DIR, NAME)
 
     FLEN = NSTK * float(d_xy) # dx
     FWID = NDIP * float(d_xy) # dy
@@ -209,7 +209,7 @@ def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom 
     with open(GSF_FILE, 'w') as gsfp:
         gsfp.write('# nstk= %d ndip= %d\n' % (NSTK, NDIP))
         gsfp.write('# flen= %10.4f fwid= %10.4f\n' % (FLEN, FWID))
-        gsfp.write('# LON LAT DEP(km) SUB_DX SUB_DY LOC_STK LOC_DIP LOC_RAKE SLIP(cm) INIT_TIME SEG_NO\n')
+        gsfp.write('# LON  LAT  DEP(km)  SUB_DX  SUB_DY  LOC_STK  LOC_DIP  LOC_RAKE  SLIP(cm)  INIT_TIME  SEG_NO\n')
         gsfp.write('%d\n' % (NSTK * NDIP))
         for j in xrange(0, NDIP):
             for i in xrange(1, NSTK + 1):
