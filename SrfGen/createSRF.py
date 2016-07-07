@@ -247,7 +247,7 @@ def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
     NY = get_ny(FWID, DWID)
 
     FILE_ROOT = get_fileroot(MAG, FLEN, FWID, seed)
-    GSF_FILE = get_gsffile(MAG, DLEN, DWID)
+    GSF_FILE = get_gsfname(MAG, DLEN, DWID)
     SRF_FILE = '%s.srf' % (FILE_ROOT)
     STOCH_FILE = '%s.stoch' % (FILE_ROOT)
 
@@ -279,24 +279,24 @@ def CreateSRF_ffd2ff(lat = -43.5452, lon = 172.6971, mw = 6.2, \
         shypo = -2.0, dhypo = 6.0, dt = 0.025, seed = 1129571, \
         strike = 59, rake = 128, dip = 69, stoch = True):
 
-    NX = get_nx(FLEN, DLEN)
-    NY = get_ny(FWID, DWID)
-    FILE_ROOT = get_fileroot(MAG, FLEN, FWID, seed)
-    GSF_FILE = get_gsffile(MAG, DLEN, DWID)
+    NX = get_nx(flen, dlen)
+    NY = get_ny(fwid, dwid)
+    FILE_ROOT = get_fileroot(mw, flen, fwid, seed)
+    GSF_FILE = get_gsfname(mw, dlen, dwid)
     SRF_FILE = '%s.srf' % (FILE_ROOT)
     STOCH_FILE = '%s.stoch' % (FILE_ROOT)
 
     with open('%s/%s' % (GSF_DIR, GSF_FILE), 'w') as gsfp:
         gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % \
-                (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY))
+                (lon, lat, dtop, strike, dip, rake, flen, fwid, NX, NY))
 
 
     with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
         call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
-                'infile=%s/%s' % (GSF_DIR, GSF_FILE), 'mag=%f' % (MAG), 'nx=%s' % (NX), \
+                'infile=%s/%s' % (GSF_DIR, GSF_FILE), 'mag=%f' % (mw), 'nx=%s' % (NX), \
                 'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (seed), \
-                'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), \
+                'velfile=%s' % (VELFILE), 'shypo=%f' % (shypo), 'dhypo=%f' % (dhypo), \
                 'dt=%f' % dt, 'plane_header=1'], \
                 stdout = srfp)
 
