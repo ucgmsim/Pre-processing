@@ -167,30 +167,30 @@ def MwScalingRelation(Mw, MwScalingRel):
     return sqrt(A), sqrt(A)
 
 
-def gen_gsf(path, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
+def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
     if not path.exists(GSF_DIR):
         makedirs(GSF_DIR)
-    with open('%s' % (path), 'w') as gsfp:
+    with open('%s/%s' % (GSF_DIR, gsf_file), 'w') as gsfp:
         gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % \
                 (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny))
 
-def gen_srf(path, gsf_path, mw, dt, nx, ny, seed, shypo, dhypo):
+def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo):
     if not path.exists(SRF_DIR):
         makedirs(SRF_DIR)
-    with open('%s' % (path), 'w') as srfp:
+    with open('%s/%s' % (SRF_DIR, srf_file), 'w') as srfp:
         call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
-                'infile=%s' % (gsf_path), 'mag=%f' % (mw), 'nx=%s' % (nx), \
+                'infile=%s/%s' % (GSF_DIR, gsf_file), 'mag=%f' % (mw), 'nx=%s' % (nx), \
                 'ny=%s' % (ny), 'ns=1', 'nh=1', 'seed=%d' % (seed), \
                 'velfile=%s' % (VELFILE), 'shypo=%f' % (shypo), 'dhypo=%f' % (dhypo), \
                 'dt=%f' % dt, 'plane_header=1'], \
                 stdout = srfp)
 
-def gen_stoch(path, srf_path, dx = 2.0, dy = 2.0):
+def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
     if not path.exists(STOCH_DIR):
         makedirs(STOCH_DIR)
-    with open('%s' % (path), 'w') as stochp:
-        with open('%s' % (srf_path), 'r') as srfp:
+    with open('%s/%s' % (STOCH_DIR, stoch_file), 'w') as stochp:
+        with open('%s/%s' % (SRF_DIR, srf_file), 'r') as srfp:
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], stdin = srfp, stdout = stochp)
 
 def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom = -1, \
@@ -270,14 +270,14 @@ def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
     NY = get_ny(FWID, DWID)
 
     FILE_ROOT = get_fileroot(MAG, FLEN, FWID, seed)
-    GSF_FILE = '%s/%s' % (GSF_DIR, get_gsfname(MAG, DLEN, DWID))
-    SRF_FILE = '%s/%s.srf' % (SRF_DIR, FILE_ROOT)
-    STOCH_FILE = '%s/%s.stoch' % (STOCH_DIR, FILE_ROOT)
+    GSF_FILE = '%s' % (get_gsfname(MAG, DLEN, DWID))
+    SRF_FILE = '%s.srf' % (FILE_ROOT)
+    STOCH_FILE = '%s.stoch' % (FILE_ROOT)
 
     gen_gsf(GSF_FILE, ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY)
     gen_srf(SRF_FILE, GSF_FILE, MAG, dt, NX, NY, seed, SHYPO, DHYPO)
     if stoch:
-        gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0):
+        gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
 
 def CreateSRF_ffd2ff(lat = -43.5452, lon = 172.6971, mw = 6.2, \
         flen = 16.0, dlen = 0.10, fwid = 9.0, dwid = 0.10, dtop = 0.63, \
@@ -287,14 +287,14 @@ def CreateSRF_ffd2ff(lat = -43.5452, lon = 172.6971, mw = 6.2, \
     NX = get_nx(flen, dlen)
     NY = get_ny(fwid, dwid)
     FILE_ROOT = get_fileroot(mw, flen, fwid, seed)
-    GSF_FILE = '%s/%s' % (GSF_DIR, get_gsfname(mw, dlen, dwid))
-    SRF_FILE = '%s/%s.srf' % (SRF_DIR, FILE_ROOT)
-    STOCH_FILE = '%s/%s.stoch' % (STOCH_DIR, FILE_ROOT)
+    GSF_FILE = '%s' % (get_gsfname(mw, dlen, dwid))
+    SRF_FILE = '%s.srf' % (FILE_ROOT)
+    STOCH_FILE = '%s.stoch' % (FILE_ROOT)
 
     gen_gsf(GSF_FILE, lon, lat, dtop, strike, dip, rake, flen, fwid, NX, NY)
     gen_srf(SRF_FILE, GSF_FILE, mw, dt, NX, NY, seed, shypo, dhypo)
     if stoch:
-        gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0):
+        gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
 
 if __name__ == "__main__":
     from setSrfParams import *
