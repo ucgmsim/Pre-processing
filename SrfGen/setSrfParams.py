@@ -41,4 +41,15 @@ MOM = -1
 # BerrymanEtAl2002
 # VillamorEtAl2001
 MWSR = 'BerrymanEtAl2002'
+DT = 0.025
+
+###
+### RELATING TO TYPE 3 (ffd to finite fault)
+###
+
+FLEN = 
+DLEN = 
+FWID = 
+DWID = 
+DTOP = 
 
