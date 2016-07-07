@@ -8,12 +8,24 @@ from subprocess import call, Popen, PIPE
 GSF_DIR = 'Gsf'
 SRF_DIR = 'Srf'
 STOCH_DIR = 'Stoch'
+for folder in [GSF_DIR, SRF_DIR, STOCH_DIR]:
+    if not path.exists(folder):
+        makedirs(folder)
 
 GSF_BIN = '/hpc/home/rwg43/Bin/fault_seg2gsf'
-SRF_BIN = '/hpc/home/rwg43/Bin/genslip-v3.3'
+FF_SRF_BIN = '/hpc/home/rwg43/Bin/genslip-v3.3'
 PS_SRF_BIN = '/hpc/home/rwg43/Bin/generic_slip2srf'
 STOCH_BIN = '/hpc/home/rwg43/Bin/srf2stoch'
 VELFILE = 'lp_generic1d-gp01.vmod'
+
+mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
+get_nx = lambda FLEN, DLEN : '%.0f' % (FLEN / DLEN)
+get_ny = lambda FWID, DWID : '%.0f' % (FWID / DWID)
+get_fileroot = lambda MAG, FLEN, FWID, seed : \
+        'm%.2f-%.1fx%.1f_s%d' % (MAG, FLEN, FWID, seed)
+get_gsfname = lambda MAG, DLEN, DWID : \
+        'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
+
 
 def CreateSimplifiedFiniteFaultFromFocalMechanism( \
         Lat = -43.5029, Lon = 172.8284, Depth = 4.0, Mw = 5.8, \
@@ -182,8 +194,8 @@ def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom 
     RUPT = 0.0
 
     if mom <= 0:
-        # magnitude assemed to be set, calculate moment
-        mom = exp(1.5 * (mw + 10.7) * log(10.0))
+        # magnitude assumed to be set, calculate moment
+        mom = mag2mom(mw)
 
     if TARGET_AREA_KM > 0:
         dd = sqrt(TARGET_AREA_KM)
@@ -224,25 +236,18 @@ def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom 
             'risetimefac=1.0', 'risetimedep=0.0'])
 
 def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
-        strike = 54, rake = 137, dip = 75, mw_scaling_rel = 'BerrymanEtAl2002', stoch = True):
+        strike = 54, rake = 137, dip = 75, mw_scaling_rel = 'BerrymanEtAl2002', \
+        dt = 0.025, seed = 1129571, stoch = True):
 
     lats, lons, depths, MAG, FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO = \
             CreateSimplifiedFiniteFaultFromFocalMechanism(Lat = LAT, Lon = LON, \
             Depth = DEPTH, Mw = MAG, strike = STK, rake = RAK, dip = DIP, dipMwScalingRel = MWSR)
 
-    for folder in [GSF_DIR, SRF_DIR, STOCH_DIR]:
-        if not path.exists(folder):
-            makedirs(folder)
+    NX = get_nx(FLEN, DLEN)
+    NY = get_ny(FWID, DWID)
 
-    NX = '%.0f' % (FLEN / DLEN)
-    NY = '%.0f' % (FWID / DWID)
-
-    # GSF 2 SRF
-    DT = 0.025
-    SEED = 1129571
-
-    FILE_ROOT = 'm%.2f-%.1fx%.1f_s%d' % (MAG, FLEN, FWID, SEED)
-    GSF_FILE = 'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
+    FILE_ROOT = get_fileroot(MAG, FLEN, FWID, seed)
+    GSF_FILE = get_gsffile(MAG, DLEN, DWID)
     SRF_FILE = '%s.srf' % (FILE_ROOT)
     STOCH_FILE = '%s.stoch' % (FILE_ROOT)
 
@@ -257,11 +262,11 @@ def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
 
 
     with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
-        call([SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
+        call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
                 'infile=%s/%s' % (GSF_DIR, GSF_FILE), 'mag=%f' % (MAG), 'nx=%s' % (NX), \
-                'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (SEED), \
+                'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (seed), \
                 'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), \
-                'dt=%f' % DT, 'plane_header=1'], \
+                'dt=%f' % dt, 'plane_header=1'], \
                 stdout = srfp)
 
     if stoch:
@@ -269,8 +274,31 @@ def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
             with open('%s/%s' % (SRF_DIR, SRF_FILE), 'r') as srfp:
                 call([STOCH_BIN, 'dx=%f' % (DX), 'dy=%f' % (DY)], stdin = srfp, stdout = stochp)
 
-def CreateSRF_ffd2ff():
-    pass
+def CreateSRF_ffd2ff(lat = -43.5452, lon = 172.6971, mw = 6.2, \
+        flen = 16.0, dlen = 0.10, fwid = 9.0, dwid = 0.10, dtop = 0.63, \
+        shypo = -2.0, dhypo = 6.0, dt = 0.025, seed = 1129571, \
+        strike = 59, rake = 128, dip = 69, stoch = True):
+
+    NX = get_nx(FLEN, DLEN)
+    NY = get_ny(FWID, DWID)
+    FILE_ROOT = get_fileroot(MAG, FLEN, FWID, seed)
+    GSF_FILE = get_gsffile(MAG, DLEN, DWID)
+    SRF_FILE = '%s.srf' % (FILE_ROOT)
+    STOCH_FILE = '%s.stoch' % (FILE_ROOT)
+
+    with open('%s/%s' % (GSF_DIR, GSF_FILE), 'w') as gsfp:
+        gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
+        gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % \
+                (ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY))
+
+
+    with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
+        call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
+                'infile=%s/%s' % (GSF_DIR, GSF_FILE), 'mag=%f' % (MAG), 'nx=%s' % (NX), \
+                'ny=%s' % (NY), 'ns=1', 'nh=1', 'seed=%d' % (seed), \
+                'velfile=%s' % (VELFILE), 'shypo=%f' % (SHYPO), 'dhypo=%f' % (DHYPO), \
+                'dt=%f' % dt, 'plane_header=1'], \
+                stdout = srfp)
 
 if __name__ == "__main__":
     from setSrfParams import *
@@ -280,10 +308,11 @@ if __name__ == "__main__":
         #        strike = STK, rake = RAK, dip = DIP, stoch = True)
         CreateSRF_ps2ps()
     elif TYPE == 2:
-        # point source to finite fault
-        pass
-
-
-
-
+        # point source to finite fault srf
+        CreateSRF_cmt2ff()
+    elif TYPE == 3:
+        # finite fault descriptor to finite fault srf
+        CreateSRF_ffd2ff()
+    else:
+        print('Bad type of SRF generation specified. Check parameter file.')
 

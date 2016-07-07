@@ -78,7 +78,7 @@ for ii, hff in enumerate(file_list):
     # read from HDF5
     f_details = basename(hff).split('.')
     comp = COMP_EXTS[f_details[1]]
-    xy = f_details[0].split('_')[-1]
+    xy = str(int(f_details[0].split('_')[-1], 16)).zfill(8)
     x = xy[:4]
     y = xy[4:]
     try:

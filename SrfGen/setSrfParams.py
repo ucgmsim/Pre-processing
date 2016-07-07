@@ -3,8 +3,8 @@
 # TYPE:
 # 1: point source to point source srf
 # 2: point source to finite fault srf
-# 3: finite fault to finite fault srf (TODO)
-TYPE = 1
+# 3: finite fault to finite fault srf
+TYPE = 3
 
 ###
 ### COMMON PARAMETERS (apply to all types)
@@ -31,6 +31,10 @@ RAK = 137
 
 # specify seismic moment directly (-1 to use magnitude)
 MOM = -1
+
+###
+### RELATING TO TYPE 2 (centroid moment tensor to finite fault)
+###
 
 # Mw Scaling Relation (string), one of:
 # HanksBakun2002
