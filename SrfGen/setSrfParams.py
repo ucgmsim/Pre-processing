@@ -47,9 +47,9 @@ DT = 0.025
 ### RELATING TO TYPE 3 (ffd to finite fault)
 ###
 
-FLEN = 
-DLEN = 
-FWID = 
-DWID = 
-DTOP = 
+FLEN = 16.0
+DLEN = 0.10
+FWID = 9.0
+DWID = 0.10
+DTOP = 0.63
 

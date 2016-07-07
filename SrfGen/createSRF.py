@@ -8,9 +8,6 @@ from subprocess import call, Popen, PIPE
 GSF_DIR = 'Gsf'
 SRF_DIR = 'Srf'
 STOCH_DIR = 'Stoch'
-for folder in [GSF_DIR, SRF_DIR, STOCH_DIR]:
-    if not path.exists(folder):
-        makedirs(folder)
 
 GSF_BIN = '/hpc/home/rwg43/Bin/fault_seg2gsf'
 FF_SRF_BIN = '/hpc/home/rwg43/Bin/genslip-v3.3'
@@ -171,12 +168,16 @@ def MwScalingRelation(Mw, MwScalingRel):
 
 
 def gen_gsf(path, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
+    if not path.exists(GSF_DIR):
+        makedirs(GSF_DIR)
     with open('%s' % (path), 'w') as gsfp:
         gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % \
                 (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny))
 
 def gen_srf(path, gsf_path, mw, dt, nx, ny, seed, shypo, dhypo):
+    if not path.exists(SRF_DIR):
+        makedirs(SRF_DIR)
     with open('%s' % (path), 'w') as srfp:
         call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
                 'infile=%s' % (gsf_path), 'mag=%f' % (mw), 'nx=%s' % (nx), \
@@ -186,9 +187,11 @@ def gen_srf(path, gsf_path, mw, dt, nx, ny, seed, shypo, dhypo):
                 stdout = srfp)
 
 def gen_stoch(path, srf_path, dx = 2.0, dy = 2.0):
-        with open('%s' % (path), 'w') as stochp:
-            with open('%s' % (srf_path), 'r') as srfp:
-                call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], stdin = srfp, stdout = stochp)
+    if not path.exists(STOCH_DIR):
+        makedirs(STOCH_DIR)
+    with open('%s' % (path), 'w') as stochp:
+        with open('%s' % (srf_path), 'r') as srfp:
+            call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], stdin = srfp, stdout = stochp)
 
 def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom = -1, \
         strike = 246, rake = 159, dip = 84, stoch = True):
