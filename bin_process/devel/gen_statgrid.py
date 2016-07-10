@@ -16,6 +16,7 @@ Converted to Python. CSH ~ 5.15 seconds vs Python ~ 5.40 seconds.
 from shared import *
 from params import *
 
+MODEL_COORDS = 'model_coords_nz01-h0.100'
 verify_files([MODEL_COORDS])
 verify_logfiles([STATGRID_GEN])
 verify_strings([nx, ny, dx_ts, dy_ts, X_BND_PAD, Y_BND_PAD])
