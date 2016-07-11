@@ -27,10 +27,10 @@ nyq = 1.0 / (2.0 * dt)
 COMP_EXTS = {'090':0, '000':1, 'ver':2}
 # frequencies in the fourier domain
 #freqs = 200.0 * (np.arange(0, 32768/2) / 32768.0)
-file_list = glob('RunFolder/acc/*.*')
+file_list = glob('RunFolder/acc/*.???')
 proc_lists = []
-for g in procs:
-    proc_lists.append([file_list[g::procs]])
+for g in xrange(procs):
+    proc_lists.append((file_list[g::procs]))
 
 # butterworth filter
 # bandpass not necessary as sampling frequency too low
@@ -42,16 +42,16 @@ def bwfilter(data, freq, band):
     """
     return sosfilt(butter(4, freq / nyq, btype = band, output = 'sos'), data)
 
-def run_match(proc_list):
-    num_files = len(proc_list)
+def run_match((proc_list, proc)):
     h5p = h5.File('virtual.hdf5', 'r')
+    num_files = len(proc_list)
     for ii, hff in enumerate(proc_list):
-        print '%d of %d' % (ii + 1, num_files)
+        print '[%.2d] %d of %d' % (proc, ii + 1, num_files)
         ###
         # PROCESS HF
 
         # read binary values
-        v = np.fromfile(hff, '>f')
+        v = np.fromfile(hff, '>f4')
 
         # if using ascii input
         #v = np.empty(nt)
@@ -94,7 +94,7 @@ def run_match(proc_list):
         except KeyError:
             # this station doesn't exist in LF sim
             remove(hff)
-            print('WARNING: station at (%d, %d) not found for LF sim.' % (x, y))
+            print('WARNING: station at (%s, %s) not found for LF sim.' % (x, y))
             continue
         lf_acc = np.diff(np.hstack(([0], lf_vel))) * (1.0 / dt)
         # fft
@@ -112,9 +112,8 @@ def run_match(proc_list):
 
         # add values together and integrate ACC to VEL
         bb_vel = np.cumsum((hf_acc + lf_acc) * dt)
-
-        # write back to file
-        bb_vel.tofile(hff)
+        # write back to file make sure to convert input to float32 from float64
+        bb_vel.astype(np.float32).tofile('%s.bb' % (hff), format = '>f4')
 
     # close HDF5
     h5p.close()
@@ -122,5 +121,5 @@ def run_match(proc_list):
 
 # run each process with a different set of files to work on
 p = Pool(procs)
-p.map(run_match, proc_lists)
+p.map(run_match, zip(proc_lists, xrange(1, procs + 1)))
 

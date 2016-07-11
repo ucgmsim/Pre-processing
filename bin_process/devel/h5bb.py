@@ -9,13 +9,13 @@ import numpy as np
 COMP_EXTS = {'090':0, '000':1, 'ver':2}
 h5p = h5.File('virtual.hdf5', 'a')
 
-file_list = glob('RunFolder/acc/*.*')
+file_list = glob('RunFolder/acc/*.???.bb')
 num_files = len(file_list)
 
 for ii, bbf in enumerate(file_list):
     print '%d of %d' % (ii + 1, num_files)
     # read binary values
-    bb_vel = np.fromfile(hff, '>f')
+    bb_vel = np.fromfile(bbf, '>f')
 
     # read from HDF5
     f_details = basename(bbf).split('.')
