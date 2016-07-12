@@ -12,14 +12,14 @@ import numpy as np
 rfft = np.fft.rfft
 irfft = np.fft.irfft
 # sosfilt new in scipy 0.16
-# sosfiltfilt new in scipy 0.19
-from scipy.signal import butter, sosfilt
-import matplotlib.pyplot as plt
+# sosfiltfilt new in scipy 0.18
+from scipy.signal import butter
 
+from sosfiltfilt import sosfiltfilt
 from siteamp_models import cb08_amp
 
 # TODO: read params from params file
-procs = 4
+procs = 64
 nt = 20000
 dt = 0.005
 ft_len = int(2 ** ceil(log(nt)/log(2)))
@@ -40,7 +40,9 @@ def bwfilter(data, freq, band):
     freq: cutoff frequency
     band: 'highpass' or 'lowpass'
     """
-    return sosfilt(butter(4, freq / nyq, btype = band, output = 'sos'), data)
+    return sosfiltfilt( \
+            butter(4, freq / nyq, btype = band, output = 'sos'), \
+            data, padtype = None)
 
 def run_match((proc_list, proc)):
     h5p = h5.File('virtual.hdf5', 'r')
