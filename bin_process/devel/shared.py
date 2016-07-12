@@ -11,7 +11,7 @@ import shutil
 
 # reads a parameter from the parameters file (e3d.par)
 # should not be necessary as you can just 'from params import *' (params.py)
-def par_value (variable):
+def par_value(variable):
     result = ''
     par_handle = open('e3d.par', 'r')
     for line in par_handle:
@@ -120,23 +120,27 @@ def verify_binaries(bin_list):
 
 
 
- 
-#recursively sets permission. mode should be given in 0o777 format. eg. 0o750
-def set_permission(dir_path,mode=0o750):
+# recursively sets permission. mode should be given in 0o777 format. eg. 0o750
+def set_permission(dir_path, mode = 0o750, noexec = 0o640):
 
-    print "Permission %s : %o" %(dir_path,mode)
-    os.chmod(dir_path,mode)
+    print("Permission %s : %o" % (dir_path, mode))
+    os.chmod(dir_path, mode)
     for root, dirs, files in os.walk(dir_path):
         for d in dirs:
             if os.path.islink(d):
                 continue
-            print "Permission %s : %o" %(os.path.join(root,d),mode)
-            os.chmod(os.path.join(root,d),mode) 
+            print("Permission %s : %o" % (os.path.join(root, d), mode))
+            os.chmod(os.path.join(root, d), mode)
         for f in files:
             if os.path.islink(f):
                 continue
-            print "Permission %s : %o" %(os.path.join(root,f),mode)
-            os.chmod(os.path.join(root,f),mode)
+            # please do not make every file executable (very bad)
+            if f.split('.')[-1] in ['py', 'csh', 'sh']:
+                file_mode = mode
+            else:
+                file_mode = noexec
+            print("Permission %s : %o" % (os.path.join(root, f), file_mode))
+            os.chmod(os.path.join(root, f), file_mode)
 
 
 def user_select(options):
@@ -158,41 +162,51 @@ def user_select(options):
                 print "Input should be a number in (1-%d)" %len(options)
                 selected_number = user_select(options)
             return selected_number
-         
+
 
 
 def show_multiple_choice(options):
     for i,option in enumerate(options):
-        print "%2d. %s" %(i+1 , option)
+        print "%2d. %s" %(i + 1 , option)
     selected_number = user_select(options)
-    return options[selected_number-1]
+    return options[selected_number - 1]
 
 def show_yes_no_question():
-    options = ["Yes","No"]
+    options = ["Yes", "No"]
     for i, option in enumerate(options):
-        print "%2d. %s" %(i+1 , option)
+        print "%2d. %s" % (i + 1, option)
     selected_number = user_select(options)
     return (selected_number == 1 ) #True if selected Yes
 
 
-def show_horizontal_line(c='=',length=100):
+
+def print_title(text, hr_char = '=', hr_len = 80):
+    """
+    Prints text between 2 horizontal rules.
+    """
+    print(hr_char * length)
+    print('  %s' % (text))
+    print(hc_char * length
+
+
+def show_horizontal_line(c = '=', length = 100):
     print c*length
 
 def confirm_name(name):
     show_horizontal_line()
     print "Automated Name: ",
-    print name
+    print(name)
     show_horizontal_line()
-    print "Do you wish to proceed?"
+    print("Do you wish to proceed?")
     return show_yes_no_question()
 
-def add_name_suffix(name,yes):
+def add_name_suffix(name, yes):
     new_name = name
-    print "Yes? ",yes
+    print "Yes? ", yes
     while not yes:
         userString = raw_input("Add more text (will be appended to the name above) ")
-        userString=userString.replace(" ","_")
-        new_name= name+"_"+userString
+        userString = userString.replace(" ","_")
+        new_name = name + "_" + userString
         yes = confirm_name(new_name)
     return new_name
 
