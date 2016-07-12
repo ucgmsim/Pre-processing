@@ -194,7 +194,7 @@ def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], stdin = srfp, stdout = stochp)
 
 def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom = -1, \
-        strike = 246, rake = 159, dip = 84, stoch = True):
+        strike = 246, rake = 159, dip = 84, prefix = '', stoch = True):
     """
     Must specify either magnitude or moment (mw, mom).
     """
@@ -233,15 +233,18 @@ def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom 
     d_xy, slip = ('%.5e %.3f' % (dd, ss)).split()
 
     NAME = ('m%f' % (mw)).replace('.', 'pt').rstrip('0')
-    GSF_FILE = '%s/%s.gsf' % (GSF_DIR, NAME)
-    SRF_FILE = '%s/%s.srf' % (SRF_DIR, NAME)
+    GSF_FILE = '%s%s.gsf' % (prefix, NAME)
+    SRF_FILE = '%s%s.srf' % (prefix, NAME)
+    STOCH_FILE = '%s%s.stoch' % (prefix, NAME)
 
     FLEN = NSTK * float(d_xy) # dx
     FWID = NDIP * float(d_xy) # dy
 
     ###
     # GENERATE GSF
-    with open(GSF_FILE, 'w') as gsfp:
+    if not path.exists(GSF_DIR):
+        makedirs(GSF_DIR)
+    with open('%s/%s' % (GSF_DIR, GSF_FILE), 'w') as gsfp:
         gsfp.write('# nstk= %d ndip= %d\n' % (NSTK, NDIP))
         gsfp.write('# flen= %10.4f fwid= %10.4f\n' % (FLEN, FWID))
         gsfp.write('# LON  LAT  DEP(km)  SUB_DX  SUB_DY  LOC_STK  LOC_DIP  LOC_RAKE  SLIP(cm)  INIT_TIME  SEG_NO\n')
@@ -253,14 +256,23 @@ def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom 
 
     ###
     # GENERATE SRF
-    call([PS_SRF_BIN, 'infile=%s' % (GSF_FILE), 'outfile=%s' % (SRF_FILE), \
+    if not path.exists(SRF_DIR):
+        makedirs(SRF_DIR)
+    call([PS_SRF_BIN, 'infile=%s/%s' % (GSF_DIR, GSF_FILE), 'outfile=%s/%s' % (SRF_DIR, SRF_FILE), \
             'outbin=0', 'stype=%s' % (STYPE), 'dt=%f' % (DT), 'plane_header=1', \
             'risetime=%f' % (RISE_TIME), \
             'risetimefac=1.0', 'risetimedep=0.0'])
 
+    ###
+    # CONVERT TO STOCH
+    if stoch:
+        if not path.exists(STOCH_DIR):
+            makedirs(STOCH_DIR)
+        gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
+
 def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
         strike = 54, rake = 137, dip = 75, mw_scaling_rel = 'BerrymanEtAl2002', \
-        dt = 0.025, seed = 1129571, stoch = True):
+        dt = 0.025, seed = 1129571, prefix = '', stoch = True):
 
     lats, lons, depths, MAG, FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO = \
             CreateSimplifiedFiniteFaultFromFocalMechanism(Lat = LAT, Lon = LON, \
@@ -270,9 +282,9 @@ def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
     NY = get_ny(FWID, DWID)
 
     FILE_ROOT = get_fileroot(MAG, FLEN, FWID, seed)
-    GSF_FILE = '%s' % (get_gsfname(MAG, DLEN, DWID))
-    SRF_FILE = '%s.srf' % (FILE_ROOT)
-    STOCH_FILE = '%s.stoch' % (FILE_ROOT)
+    GSF_FILE = '%s%s' % (prefix, get_gsfname(MAG, DLEN, DWID))
+    SRF_FILE = '%s%s.srf' % (prefix, FILE_ROOT)
+    STOCH_FILE = '%s%s.stoch' % (prefix, FILE_ROOT)
 
     gen_gsf(GSF_FILE, ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY)
     gen_srf(SRF_FILE, GSF_FILE, MAG, dt, NX, NY, seed, SHYPO, DHYPO)
@@ -282,14 +294,14 @@ def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
 def CreateSRF_ffd2ff(lat = -43.5452, lon = 172.6971, mw = 6.2, \
         flen = 16.0, dlen = 0.10, fwid = 9.0, dwid = 0.10, dtop = 0.63, \
         shypo = -2.0, dhypo = 6.0, dt = 0.025, seed = 1129571, \
-        strike = 59, rake = 128, dip = 69, stoch = True):
+        strike = 59, rake = 128, dip = 69, prefix = '', stoch = True):
 
     NX = get_nx(flen, dlen)
     NY = get_ny(fwid, dwid)
     FILE_ROOT = get_fileroot(mw, flen, fwid, seed)
-    GSF_FILE = '%s' % (get_gsfname(mw, dlen, dwid))
-    SRF_FILE = '%s.srf' % (FILE_ROOT)
-    STOCH_FILE = '%s.stoch' % (FILE_ROOT)
+    GSF_FILE = '%s%s' % (prefix, get_gsfname(mw, dlen, dwid))
+    SRF_FILE = '%s%s.srf' % (prefix, FILE_ROOT)
+    STOCH_FILE = '%s%s.stoch' % (prefix, FILE_ROOT)
 
     gen_gsf(GSF_FILE, lon, lat, dtop, strike, dip, rake, flen, fwid, NX, NY)
     gen_srf(SRF_FILE, GSF_FILE, mw, dt, NX, NY, seed, shypo, dhypo)
@@ -301,15 +313,16 @@ if __name__ == "__main__":
     if TYPE == 1:
         # point source to point source srf
         CreateSRF_ps2ps(lat = LAT, lon = LON, depth = DEPTH, mw = MAG, mom = MOM, \
-                strike = STK, rake = RAK, dip = DIP, stoch = True)
+                strike = STK, rake = RAK, dip = DIP, prefix = PREFIX, stoch = True)
     elif TYPE == 2:
         # point source to finite fault srf
         CreateSRF_cmt2ff(lat = LAT, lon = LON, depth = DEPTH, mw = MAG, \
-        dt = DT, stoch = True)
+        dt = DT, prefix = PREFIX, stoch = True)
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
         CreateSRF_ffd2ff(lat = LAT, lon = LON, mw = MAG, flen = FLEN, dlen = DLEN, \
-        fwid = FWID, dwid = DWID, dtop = DTOP, strike = STK, rake = RAK, dip = DIP, stoch = True)
+        fwid = FWID, dwid = DWID, dtop = DTOP, strike = STK, rake = RAK, dip = DIP, \
+        prefix = PREFIX, stoch = True)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 

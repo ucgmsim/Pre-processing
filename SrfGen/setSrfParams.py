@@ -6,6 +6,9 @@
 # 3: finite fault to finite fault srf
 TYPE = 3
 
+# PREFIX for gsf/srf/stoch files
+PREFIX = 'standard_'
+
 ###
 ### COMMON PARAMETERS (apply to all types)
 ###
