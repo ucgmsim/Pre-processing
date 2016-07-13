@@ -17,6 +17,9 @@ import os
 sys.path.append(os.path.abspath(os.path.curdir))
 from subprocess import call, Popen, PIPE
 
+from shared import *
+from params import *
+
 #hf_sim_dir = '.'
 #hf_sim_bin = './hb_high_mod'
 #stat_file = 'cantstations_0.5_h0.100.ll'
@@ -54,7 +57,7 @@ verify_user_dirs([hf_sim_dir])
 verify_logfiles([local_statfile])
 verify_user_dirs([hf_accdir],reset=True)
 
-procs = 4
+procs = 64
 statfile_base = os.path.join(hf_sim_dir, 'local.tmp.sf_')
 statfiles = []
 for p in xrange(procs):

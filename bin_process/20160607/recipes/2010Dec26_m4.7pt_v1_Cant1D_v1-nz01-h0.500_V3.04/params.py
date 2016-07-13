@@ -1,19 +1,6 @@
-"""Parameter file for running Emod3D AND the post-processing of .e3d binary files.
-
-params.py
-
-13/5/2016
-
-Authors: Viktor Polak, Sung Bae, Richard Clare
-
-TODO: output_prefix, extended_run_name are redundant and should be removed
-      various other file/dir names should be automated as indicated by TODO in the code
-
-"""
-
 import os.path
 from platform import node
-import datetime
+from params_base import *
 
 if __name__ == '__main__':
     # in case someone has passed this file as a parameter to python
@@ -23,28 +10,34 @@ if __name__ == '__main__':
 
 # to enable templates, add specific parameters to params_override_<name>.py
 # works with binaries/scripts using e3d.par (processed by set_runparams.py)
-params_override = '2010Sep4'
+#params_override = '2010Sep4'
 
 # parameters are written to files, need to be strings
 
 ######## Global CONSTANTS ########
-version = '3.0.4'
+
+# things that everyone doesn't have, eg. binaries are within here
+
+
+# works on Windows and POSIX paths
+user_scratch = os.path.join(user_root, 'scratch')
+
 
 # keep as int, processed before writing to file
 # only product is stored
-n_proc_x = 8
-n_proc_y = 8
-n_proc_z = 8
+n_proc_x = 4
+n_proc_y = 4
+n_proc_z = 2
 
 ### folowing values are dependent on the velocity model used
 # low pass frequency, filter for output seimograms
 flo = '1.0' # hertz
 # spatial grid spacing
-hh = '0.100' # km
+hh = '0.500' # km
 # x, y, z grid size (multiples of grid spacing)
-nx = '1400'
-ny = '1200'
-nz = '460'
+nx = '280'
+ny = '240'
+nz = '92'
 # model reference location
 MODEL_LAT = '-43.6000'
 MODEL_LON = '172.3000'
@@ -53,7 +46,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '10000'
+nt = '10000' #'20000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -69,10 +62,20 @@ dx_ts = '5'
 dy_ts = '5'
 dz_ts = '1'
 
+ts_xy='1'
+iz_ts='1'
+
+ts_xz='0'
+iy_ts='2'
+
+ts_yz='0'
+ix_ts='99'
+
+
 # which time slices to iterate over
 ts_start = '0'     # first one is 0
 ts_inc = '1'       # increment, larger than 1 to skip
-ts_total = '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
+ts_total = '40' # '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
@@ -83,7 +86,6 @@ lonlat_out = '1'
 scale = '1.0'
 
 # EMOD3D parameters template and complete parameter files
-default_parfile = 'e3d_default.par'
 parfile = 'e3d.par' # update load leveler file
 
 #FD_VMODFILE = 'Cant1D_v1.fd_modfile'     #This line was for a 1D Vp,Vs,rho model
@@ -92,61 +94,37 @@ PMOD = 'vp3dfile.p'
 SMOD = 'vs3dfile.s'
 DMOD = 'rho3dfile.d'
 
-v_mod_ver = 'v1.64'
 
 ENABLE_RESTART = '0'
 READ_RESTART = '0'
 RESTART_ITINC = '20000'
 
+
 n_proc = str(n_proc_x * n_proc_y * n_proc_z)
 
-# things that everyone doesn't have, eg. binaries are within here
-global_root = '/nesi/projects/nesi00213'
-
-
-# things that people have their own copies of, eg. RunFolder
-# changes to enable testing on beatrice
-if node() == 'p2n14-c':
-    # running on beatrice
-    print("running on beatrice")
-    global_root = '/hpc/scratch/nesi00213'
-    user_root = os.path.expanduser('~')
-else:
-    user_root = global_root
-
-# works on Windows and POSIX paths
-user_scratch = os.path.join(user_root, 'scratch', os.getenv('USER'))
-
 # directories - main. change global_root with user_root as required
-run_dir = os.path.join(user_root, 'RunFolder')
-srf_dir = os.path.join(user_root, 'RupModel')
-stat_dir = os.path.join(user_root, 'StationInfo')
-vel_mod_params_dir = os.path.join(user_root, 'VelocityModel/ModelParams')
-vel_mod_dir = os.path.join(global_root, 'CanterburyVelocityModel', v_mod_ver)
+
+stat_dir = os.path.join(global_root, 'StationInfo')
+vel_mod_params_dir = os.path.join(global_root, 'VelocityModel/ModelParams')
+
+
 wcc_prog_dir = os.path.join(global_root, 'EMOD3D/WccFormat/bin/powerpc-AIX-nesi2-xlc')
 
-# files
-srf_file = os.path.join(srf_dir, '2010Sept4_m7pt1/Srf/bev01.srf')
-stat_file = os.path.join(stat_dir, 'cantstations.ll')
-stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')    #TODO automate
-
-#automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
-userString=datetime.date.today().strftime("%d%B%Y")   #additional string to customize (today's date for starters)
-hString='-h'+str(hh)
-srfString=srf_file.split('RupModel/')[-1].split('_')[0]+'_'+srf_file.split('/')[-1].split('.')[0] 
-vModelString='VM'+str(v_mod_ver)
-vString='_EMODv'+version
-run_name=('LPSim-'+srfString+'_'+vModelString+hString+vString+'_'+userString).replace('.','p')     #replace the decimal points with p
-
-# prefix used for naming OutBin/prefix{_xyts.e3d,_seis.e3d}
-output_prefix = run_name        #redundnat
-extended_run_name=run_name      #redundant
+seis_tmp_dir = os.path.join(user_scratch, run_name, 'SeismoBin')
 
 # directories - derived
-seis_tmp_dir = os.path.join(user_scratch, extended_run_name, 'SeismoBin')
-sim_dir = os.path.join(run_dir, extended_run_name)
-restart_dir = os.path.join(sim_dir, 'Restart')
-bin_output = os.path.join(sim_dir, 'OutBin')
+#sim_dir = os.path.join(run_dir, run_name)
+#hf_sim_dir = os.path.join(run_dir, hf_run_name)
+#bb_sim_dir = os.path.join(run_dir, bb_run_name)
+
+restart_dir = os.path.join(lf_sim_dir, 'Restart')
+bin_output = os.path.join(lf_sim_dir, 'OutBin')
+log_dir = os.path.join(lf_sim_dir, 'Rlog')
+slipout_dir = os.path.join(lf_sim_dir,'SlipOut')
+
+# files
+stat_file = os.path.join(stat_dir, 'cantstations.ll')
+stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 
 
 ############# winbin-aio ##############
@@ -157,7 +135,7 @@ bin_output = os.path.join(sim_dir, 'OutBin')
 SEISDIR = bin_output
 
 # Define folder to write velocity seismograms to
-vel_dir = os.path.join(sim_dir,'Vel')
+vel_dir = os.path.join(lf_sim_dir,'Vel')
 
 FILELIST = 'fdb.filelist'
 
@@ -165,11 +143,11 @@ FILELIST = 'fdb.filelist'
 TSTRT = '-1.0'
 
 # Define the directory with the station information, and components
-FD_STATLIST = stat_dir + '/fd_nz01-h0.100.ll'   #TODO automate
+FD_STATLIST = os.path.join(stat_dir,'fd_nz01-h0.100.ll')
 
 ############### gen_ts ###################
 
-ts_file = os.path.join(bin_output, output_prefix+ '_xyts.e3d') #the file created by merge_ts
+ts_file = os.path.join(bin_output, run_name+ '_xyts.e3d') #the file created by merge_ts
 
 # TODO: not used anywhere???
 # ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0
@@ -178,9 +156,10 @@ ABSMAX = '1'
 
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
 
-GRIDFILE = vel_mod_params_dir + '/gridout_nz01-h' + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
+GRIDFILE = os.path.join(vel_mod_params_dir, 'gridout_nz01-h') + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
 
-t_slice_dir = os.path.join(sim_dir, 'TSlice')
+
+t_slice_dir = os.path.join(lf_sim_dir, 'TSlice')
 ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
 ts_out_prefix = os.path.join(ts_out_dir, run_name)
 
@@ -188,8 +167,8 @@ ts_out_prefix = os.path.join(ts_out_dir, run_name)
 
 
 # main title and subtitles that appears at the top of the picture
-plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'        #TODO automate
-plot_sub_title = 'Beavan 1Fault, Stoch Slip, v1.64'     #TODO automate
+plot_main_title = 'Mw4.7 26 Dec 2010 Earthquake'
+plot_sub_title = 'Beavan 1Fault, Stoch Slip, v1.02'
 
 # input can be provided either via the "._xyts.e3d" file (option=1)
 # or via all of the individual TSFiles, which are obtained from gen_ts.csh 
@@ -275,18 +254,15 @@ plot_dy = '0.002'
 # check source code in bin dir for more help #
 ##############################################
 
-# output files in format of: hf_prefix + '_STAT.COMP'
-hf_prefix=srfString
 # binary that simulates the HF data
-hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
+hf_sim_bin = os.path.join(global_root,'EMOD3D/StochSim/Src/V5.4/hb_high_v5.4.5')
+hf_prefix = 'hf'
 # duration of HF sim
 hf_t_len = '100' # seconds
 # HF simulation step. should be small
 hf_dt = '0.005' # seconds
 # slip model
-hf_slip = '/hpc/home/hnr12/RupModel/2011Feb22_m6pt2/Stoch/m6.20-16.0x9.0_s560.stoch'
 # 1D velocity model
-hf_v_model = '/hpc/home/hnr12/VelocityModel/Mod-1D/Cant1D_v2-midQ.1d'
 # for western US, check applicability to NZ
 hf_sdrop = '50' # average stress-drop, bars
 hf_kappa = '0.045'
@@ -320,42 +296,29 @@ hf_rupv = '-1.0'
 # seed '0': not random, '1': random
 hf_seed = '5481190'
 
-#automatic generation of the HF and BB run_names
-#derive the relevant strings first
-hfVString='hf'+hf_sim_bin.split('_')[-1]     #take the version no as everything after the last underscore
-rvfString='rvf'+hf_rvfac
-velModelString=hf_v_model.split('/')[-1]
-
-hf_run_name = ('HFSim-'+hf_prefix+'_'+velModelString+'_'+hfVString+'_'+rvfString+'_'+userString).replace('.','p')   #replace the decimal points with p
-bb_run_name=('BBSim-'+hf_prefix+'_'+vModelString+hString+vString+'_'+hfVString+'_'+rvfString+'_'+userString).replace('.','p') #replace the decimal points with p
-
-#directories derived
-hf_sim_dir = os.path.join(run_dir, hf_run_name)
-bb_sim_dir = os.path.join(run_dir, bb_run_name)
-# HF run acceleration file directory
-hf_accdir = os.path.join(hf_sim_dir, 'Acc')
-# HF run velocity file directory
-hf_veldir = os.path.join(hf_sim_dir, 'Vel')
 
 ############ acc2vel and match_seismo #############
 
 # binary that integrates / differentiates (Acc <> Vel)
-int_bin = '/hpc/home/rwg43/Bin/integ_diff'
+int_bin = os.path.join(wcc_prog_dir,'integ_diff')
+
 # binary that applies site amplification
-siteamp_bin = '/hpc/home/rwg43/Bin/wcc_siteamp'
+siteamp_bin = os.path.join(wcc_prog_dir,'wcc_siteamp')
+
 # binary that applies ??? filter
-tfilter_bin = '/hpc/home/rwg43/Bin/wcc_tfilter'
+tfilter_bin = os.path.join(wcc_prog_dir,'wcc_tfilter')
 # binary that adds LF and HF using matched filters
-match_bin = '/hpc/home/rwg43/Bin/wcc_add'
+match_bin = os.path.join(wcc_prog_dir,'wcc_add')
+
 # binary which returns PGA
-getpeak_bin = '/hpc/home/rwg43/Bin/wcc_getpeak'
+getpeak_bin = os.path.join(wcc_prog_dir,'wcc_getpeak')
 # components which will be converted (acc2vel)
 int_comps = ['000', '090', 'ver']
 match_log = 'seismo.log'
 # station file with vs30 reference values
-stat_vs_ref = '/hpc/home/hnr12/StationInfo/cantstations_cant1D_v1.vs30ref'
+stat_vs_ref = os.path.join(stat_dir,'cantstations_cant1D_v1.vs30ref')
 # station file with vs30 estimates
-stat_vs_est = '/hpc/home/hnr12/StationInfo/cantstations.vs30'
+stat_vs_est = os.path.join(stat_dir,'cantstations.vs30')
 # filter properties for HF (short period) ground motion
 match_hf_fhi = '1.0'        # high pass frequency, Hz
 match_hf_flo = '1.0e+15'    # low pass frequency, Hz
@@ -370,9 +333,6 @@ match_lf_tstart = '0.0'     # for alignment
 # list of matching HF and LF components
 match_hf_comps = ['000', '090', 'ver']
 match_lf_comps = ['000', '090', 'ver']
-# acceleration seismo folder for BB
-bb_accdir = os.path.join(bb_sim_dir, 'Acc')
-bb_veldir = os.path.join(bb_sim_dir, 'Vel')
 # vs30 amplification model [cb2008 | bssa2014 | cb2014]
 site_amp_model = 'cb2014'
 # relating to site amplification
@@ -381,39 +341,19 @@ site_fmin = '0.2'       # 0.2 Hz = 5 sec. point where tapering to unity begins
 site_fmidbot = '0.5'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
 site_flowcap = '0.0'
 # set to vs30 used in 1D model for high frequency runs (VREF for HF)
-GEN_ROCK_VS = 865
+GEN_ROCK_VS = 500
 
 
-########### statgrid ##########
+########### gen_statgrid ##########
 
-# any values to omit near boundaries
-# used when generating the statgrid
+# any values to omit near the boundaries
 X_BND_PAD = 0
 Y_BND_PAD = 0
-# stations to omit near boundaries
-# used when processing stations > grid coords
-X_BND = 0 # original was 30
-Y_BND = 0 # original was 30
-# wcc options
-CENTER_ORIGIN = '1'
-# distance calculation
-GEOPROJ = '1'
-# binaries
-XYZ2LL_BIN = '/hpc/home/rwg43/Bin/xyz2lonlat'
-LL2GRID_BIN = '/hpc/home/rwg43/Bin/latlon2statgrid'
-# station file list for generating station grid
-STAT_FILES = [stat_file]
-
-# input for statgrid gen
-MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h%s' % (hh))
+# input to process
+MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h0.100')
 # output statgrid file
-STATGRID_GEN = 'statgrid-%sx%s-nz01_h%s.ll' % \
-        (float(hh) * float(dx_ts), float(hh) * float(dy_ts), hh)
+STATGRID_GEN = 'statgrid-0.5x0.5-nz01_h0.100.ll'
 
 
-########### stat_max.py #########
-
-# where maximum values are stored
-MAX_STATFILE = 'stations_max.bin'
 
 

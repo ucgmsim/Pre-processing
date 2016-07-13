@@ -22,6 +22,7 @@ import numpy as np
 # divide by zero = inf
 np.seterr(divide='ignore')
 
+
 # Campbell Bozorgnia 2008
 # define constant values outside function to prevent re-calculation
 # TODO: prefix variable names with 'cb08_' with multiple implementations
@@ -48,6 +49,13 @@ k2 = np.array([-1.186, -1.186, -1.219, -1.273, -1.346, -1.471, -1.624, -1.931, \
 k3 = np.array([1.839, 1.839, 1.840, 1.841, 1.843, 1.845, 1.847, 1.852, \
         1.856, 1.861, 1.865, 1.874, 1.883, 1.906, 1.929, 1.974, \
         2.019, 2.110, 2.200, 2.291, 2.517, 2.744])
+flowcap = 0.0
+fmin = 0.05
+fmidbot = 0.1
+fmid = fmidbot
+fhigh = fmid
+fhightop = 20.0
+fmax = 50.0
 # f_site function domains
 fs_low = lambda T, vs30, a1100 : c10[T] * log(vs30 / k1[T]) + \
         k2[T] * log((a1100 + scon_c * exp(scon_n * log(vs30 / k1[T]))) / (a1100 + scon_c))
@@ -55,13 +63,19 @@ fs_mid = lambda T, vs30, a1100 = None : (c10[T] + k2[T] * scon_n) * log(vs30 / k
 fs_high = lambda T, vs30 = None, a1100 = None : (c10[T] + k2[T] * scon_n) * log(1100.0 / k1[T])
 fs_auto = lambda T, vs30 : fs_low if vs30 < k1[T] else fs_mid if vs30 < 1100.0 else fs_high
 fs1100 = fs_high(0)
-def cb08_amp(dt, n, vref, vsite, vpga, pga, fmin, fmidbot, fmid, fhigh, fhightop, fmax, flowcap):
+
+def cb08_amp(dt, n, vref, vsite, vpga, pga):
+    # default amplification is 1.0 (keeping values the same)
     ampf = np.ones(n / 2, np.float)
+
     fs_vpga = fs_auto(0, vpga)(0, vpga, pga)
     a1100 = pga * exp(fs1100 - fs_vpga)
+
+    # calculate factor for each period
     it = (exp(fs_auto(T, vsite)(T, vsite, a1100) - fs_auto(T, vref)(T, vref, a1100)) \
             for T in xrange(n_per))
     ampf0 = np.fromiter(it, np.float, count = n_per)
+
     try:
         # T is the first occurance of a value <= flowcap
         # throws IndexError if no results (the second [0])
@@ -72,6 +86,7 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga, fmin, fmidbot, fmid, fhigh, fhightop
         pass
     # frequencies of fourier transform
     ftfreq = np.arange(1, n / 2) * (1.0 / (n * dt))
+    # TODO: vectorise to improve speed
     #a0 = np.repeat(ampf0[-1], len(ftfreq))
     #f0 = np.repeat(f1_src[-1], len(ftfreq))
     j = n_per - 1
@@ -104,12 +119,4 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga, fmin, fmidbot, fmid, fhigh, fhightop
             ampf[i + 1] = ampv + log(ftf / fhightop) * (1.0 - ampv) / log(fmax / fhightop)
 
     return ampf
-
-
-
-
-
-
-
-
 
