@@ -75,7 +75,7 @@ def q3():
     show_horizontal_line()
     print "Select HH "
     show_horizontal_line()
-    hh_options = ['0.100','0.200','0.400']
+    hh_options = ['0.100','0.200','0.400','0.500']
     hh = show_multiple_choice(hh_options)
     print hh
     return hh
