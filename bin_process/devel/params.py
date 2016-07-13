@@ -407,7 +407,7 @@ STAT_FILES = [stat_file]
 # input for statgrid gen
 MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h%s' % (hh))
 # output statgrid file
-STATGRID_GEN = 'statgrid-%sx%s-nz01_h%s.ll' % \
+STATGRID_GEN = 'statgrid-%sx%s-nz01_h%s' % \
         (float(hh) * float(dx_ts), float(hh) * float(dy_ts), hh)
 
 
