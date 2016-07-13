@@ -186,7 +186,7 @@ def print_title(text, hr_char = '=', hr_len = 80):
     """
     print(hr_char * length)
     print('  %s' % (text))
-    print(hc_char * length
+    print(hc_char * length)
 
 
 def show_horizontal_line(c = '=', length = 100):
