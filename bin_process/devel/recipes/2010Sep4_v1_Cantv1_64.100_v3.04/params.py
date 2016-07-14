@@ -46,7 +46,7 @@ MODEL_ROT = '-10.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '2000' #'20000'
+nt = '20000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -258,9 +258,9 @@ plot_dy = '0.002'
 hf_sim_bin = os.path.join(global_root,'EMOD3D/StochSim/Src/V5.4/hb_high_v5.4.5')
 hf_prefix = 'hf'
 # duration of HF sim
-hf_t_len = '100' # seconds
+hf_t_len = str(int(nt * dt)) # seconds
 # HF simulation step. should be small
-hf_dt = '0.005' # seconds
+hf_dt = dt # seconds
 # slip model
 # 1D velocity model
 # for western US, check applicability to NZ
