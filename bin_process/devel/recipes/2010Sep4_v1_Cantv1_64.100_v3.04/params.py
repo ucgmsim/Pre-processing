@@ -258,7 +258,7 @@ plot_dy = '0.002'
 hf_sim_bin = os.path.join(global_root,'EMOD3D/StochSim/Src/V5.4/hb_high_v5.4.5')
 hf_prefix = 'hf'
 # duration of HF sim
-hf_t_len = str(int(nt * dt)) # seconds
+hf_t_len = str(int(int(nt) * float(dt))) # seconds
 # HF simulation step. should be small
 hf_dt = dt # seconds
 # slip model

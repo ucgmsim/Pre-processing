@@ -280,7 +280,7 @@ hf_prefix=srfString
 # binary that simulates the HF data
 hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
 # duration of HF sim
-hf_t_len = str(int(nt * dt)) # seconds
+hf_t_len = str(int(int(nt) * float(dt))) # seconds
 # HF simulation step. should be small
 hf_dt = dt # seconds
 # slip model
