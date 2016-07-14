@@ -19,33 +19,14 @@ from subprocess import call, Popen, PIPE
 
 from shared import *
 from params import *
+from params_base_bb import *
 
-#hf_sim_dir = '.'
-#hf_sim_bin = './hb_high_mod'
-#stat_file = 'cantstations_0.5_h0.100.ll'
-#hf_slip = 'm6.20-16.0x9.0_s560.stoch'
-#hf_v_model = 'Cant1D_v2-midQ.1d'
-#hf_prefix = 'test'
-#hf_t_len = '100' # seconds
-#hf_dt = '0.005'
-#hf_vs_moho = '999.9'
-#hf_fa_sig_1 = '0.0'
-#hf_rv_sig_1 = '0.1'
-#hf_sdrop = '50'
-#hf_kappa = '0.045'
-#hf_qfexp = '0.6'
-#hf_rayset = '2 1 2'
-#hf_rvfac = '0.8'
-#hf_shal_rvfac = '0.70'
-#hf_deep_rvfac = '0.70'
-#hf_czero = '2.1'
-#hf_site_amp = '1'
-#hf_mom = '-1'
-#hf_rupv = '-1.0'
-#hf_seed = '5481190'
-#hf_fmax = '10'
-#hf_calpha = '-99'
-#hf_accdir = 'acc'
+local_statfile = os.path.join(hf_sim_dir, 'local.statfile')
+procs = 64
+if sys.argv > 1:
+    procs = int(sys.argv[1])
+if sys.argv > 2:
+    hf_sim_bin = os.path.join(global_root, sys.argv[2])
 
 # verify input incl. params.py
 verify_binaries([hf_sim_bin])
@@ -57,7 +38,6 @@ verify_user_dirs([hf_sim_dir])
 verify_logfiles([local_statfile])
 verify_user_dirs([hf_accdir],reset=True)
 
-procs = 64
 statfile_base = os.path.join(hf_sim_dir, 'local.tmp.sf_')
 statfiles = []
 for p in xrange(procs):

@@ -15,19 +15,20 @@ from math import sin, cos, radians
 from os import remove, path
 from struct import unpack
 
-from mpi4py import MPI
 import numpy as np
 import h5py as h5
 
+from params import *
 from shared_bin import *
 
 h5_file = 'virtual.hdf5'
-if path.isfile(h5_file):
-    remove(h5_file)
+#if path.isfile(h5_file):
+#    remove(h5_file)
 # HDF5 throws errors when opened in 'w' mode
 # happens when creating some groups (not duplicates)
-h5p = h5.File(h5_file, 'a')
-seis_file_list = glob('OutBin/*_seis-?????.e3d')
+h5p = h5.File(h5_file, 'w')
+seis_file_list = glob(path.join(bin_output, '*_seis-?????.e3d'))
+print(seis_file_list)
 
 # python data-type format string
 INT_S = 'i'
@@ -53,8 +54,10 @@ for si, seis_file in enumerate(seis_file_list):
 
     # write common data to HDF5
     try:
+        print('adding %d stations...' % (num_stat))
         h5p.attrs['NSTAT'] += num_stat
-    except KeyError:
+    # Fitzroy version throws TypeError (incorrectly)
+    except (KeyError, TypeError):
         h5p.attrs['NSTAT'] = num_stat
         # read what is assumed to be common amongst stations from first station
         seek(SIZE_INT * 5)
@@ -95,6 +98,7 @@ for si, seis_file in enumerate(seis_file_list):
             # station group in HDF5 (XXXXYYYY)
             g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
             try:
+                print('g_name: %s' % (g_name))
                 s_group = h5p.create_group(g_name)
             except ValueError, e:
                 # if group created previously
@@ -113,11 +117,13 @@ for si, seis_file in enumerate(seis_file_list):
                     comp_data[0 + stat_i * N_COMPS : : num_stat * N_COMPS], \
                     comp_data[1 + stat_i * N_COMPS : : num_stat * N_COMPS], \
                     comp_data[2 + stat_i * N_COMPS : : num_stat * N_COMPS])), rot_matrix)
-
+            print(comps.shape)
+            print(comps[:5])
             try:
                 h5p.create_dataset(g_name + '/VEL', (nt, N_MY_COMPS), \
                         dtype='f', data = comps)
             except RuntimeError:
+                print('failed to add station %s' % (g_name))
                 # this station had beed added before
                 h5p[g_name + '/VEL'][...] = comps
 
