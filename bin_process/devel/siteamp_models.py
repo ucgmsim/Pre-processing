@@ -86,9 +86,8 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga):
         pass
     # frequencies of fourier transform
     ftfreq = np.arange(1, n / 2) * (1.0 / (n * dt))
-    # TODO: vectorise to improve speed
-    #a0 = np.repeat(ampf0[-1], len(ftfreq))
-    #f0 = np.repeat(f1_src[-1], len(ftfreq))
+
+    # calculate ampv based on period group
     j = n_per - 1
     f0 = f1_src[j]
     a0 = ampf0[j]
@@ -106,9 +105,9 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga):
                 dadf = (a1 - a0) / log(f1 / f0)
             else:
                 dadf = 0.0
-    #dadf = (a1 - a0) / np.log(f1 / f0) * (f1 == f0)
         ampv = a0 + dadf * log(ftf / f0)
 
+        # scale amplification factor by frequency
         if ftf < fmin:
             continue
         if ftf < fmidbot:
@@ -119,4 +118,3 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga):
             ampf[i + 1] = ampv + log(ftf / fhightop) * (1.0 - ampv) / log(fmax / fhightop)
 
     return ampf
-
