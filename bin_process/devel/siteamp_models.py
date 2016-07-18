@@ -50,12 +50,12 @@ k3 = np.array([1.839, 1.839, 1.840, 1.841, 1.843, 1.845, 1.847, 1.852, \
         1.856, 1.861, 1.865, 1.874, 1.883, 1.906, 1.929, 1.974, \
         2.019, 2.110, 2.200, 2.291, 2.517, 2.744])
 flowcap = 0.0
-fmin = 0.05
-fmidbot = 0.1
-fmid = fmidbot
-fhigh = fmid
-fhightop = 20.0
-fmax = 50.0
+fmin = 0.01
+fmidbot = 0.2
+fmid = 1.0
+fhigh = 3.33
+fhightop = 10.0
+fmax = 15.0
 # f_site function domains
 fs_low = lambda T, vs30, a1100 : c10[T] * log(vs30 / k1[T]) + \
         k2[T] * log((a1100 + scon_c * exp(scon_n * log(vs30 / k1[T]))) / (a1100 + scon_c))

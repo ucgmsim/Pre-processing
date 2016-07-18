@@ -337,8 +337,8 @@ match_lf_comps = ['000', '090', 'ver']
 site_amp_model = 'cb2014'
 # relating to site amplification
 site_vref_max = '1100'  # reference vs30 for cb08/14 amp model
-site_fmin = '0.2'       # 0.2 Hz = 5 sec. point where tapering to unity begins
-site_fmidbot = '0.5'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
+site_fmin = '0.1'       # 0.2 Hz = 5 sec. point where tapering to unity begins
+site_fmidbot = '0.2'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
 site_flowcap = '0.0'
 # set to vs30 used in 1D model for high frequency runs (VREF for HF)
 GEN_ROCK_VS = 500
