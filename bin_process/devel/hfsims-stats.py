@@ -38,10 +38,16 @@ verify_user_dirs([hf_sim_dir])
 verify_logfiles([local_statfile])
 verify_user_dirs([hf_accdir],reset=True)
 
+# don't give a single process too many stations to work on
+with open(stat_file, 'r') as fp:
+    stat_estimate = len(fp.readlines())
+if stat_estimate > procs * 500:
+    jobs = stat_estimate / 500
+else:
+    jobs = procs
+
 statfile_base = os.path.join(hf_sim_dir, 'local.tmp.sf_')
-statfiles = []
-for p in xrange(procs):
-    statfiles.append('%s%d' % (statfile_base, p))
+statfiles = ['%s%d' % (statfile_base, p) for p in xrange(jobs)]
 
 out_prefix = os.path.join(hf_accdir, hf_prefix)
 
@@ -49,15 +55,15 @@ out_prefix = os.path.join(hf_accdir, hf_prefix)
 # file pointers for each processes' stat_file portion
 fps = []
 # number of stations for each process
-nss = [0] * procs
+nss = [0] * jobs
 for f in statfiles:
     fps.append(open(f, 'w'))
 with open(stat_file, 'r') as fp:
     # in fp.readline() instead of in fp for AIX/old python? compatibility
     for line in fp.readlines():
         if line[0] != '#':
-            fps[sum(nss) % procs].write(line)
-            nss[sum(nss) % procs] += 1
+            fps[sum(nss) % jobs].write(line)
+            nss[sum(nss) % jobs] += 1
 for fp in fps:
     # file must end with new line
     fp.write('\n')
@@ -80,5 +86,8 @@ def run_hf((local_statfile, n_stat)):
 
 p = Pool(procs)
 p.map(run_hf, zip(statfiles, nss))
+
+for temp_statfile in statfiles:
+    os.remove(temp_statfile)
 
 set_permission(hf_sim_dir)
