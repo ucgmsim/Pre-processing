@@ -23,9 +23,9 @@ from params_base_bb import *
 
 local_statfile = os.path.join(hf_sim_dir, 'local.statfile')
 procs = 64
-if sys.argv > 1:
+if len(sys.argv) > 1:
     procs = int(sys.argv[1])
-if sys.argv > 2:
+if len(sys.argv) > 2:
     hf_sim_bin = os.path.join(global_root, sys.argv[2])
 
 # verify input incl. params.py
