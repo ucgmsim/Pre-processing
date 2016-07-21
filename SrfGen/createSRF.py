@@ -9,10 +9,10 @@ GSF_DIR = 'Gsf'
 SRF_DIR = 'Srf'
 STOCH_DIR = 'Stoch'
 
-GSF_BIN = '/hpc/home/rwg43/Bin/fault_seg2gsf'
-FF_SRF_BIN = '/hpc/home/rwg43/Bin/genslip-v3.3'
-PS_SRF_BIN = '/hpc/home/rwg43/Bin/generic_slip2srf'
-STOCH_BIN = '/hpc/home/rwg43/Bin/srf2stoch'
+GSF_BIN = '/nesi/projects/nesi00213/tools/fault_seg2gsf'
+FF_SRF_BIN = '/nesi/projects/nesi00213/tools/genslip-v3.3'
+PS_SRF_BIN = '/nesi/projects/nesi00213/tools/generic_slip2srf'
+STOCH_BIN = '/nesi/projects/nesi00213/tools/srf2stoch'
 VELFILE = 'lp_generic1d-gp01.vmod'
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
