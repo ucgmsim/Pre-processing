@@ -251,13 +251,11 @@ def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
         with open('%s/%s' % (SRF_DIR, srf_file), 'r') as srfp:
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], stdin = srfp, stdout = stochp)
 
-def CreateSRF_ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom = -1, \
-        strike = 246, rake = 159, dip = 84, prefix = '', stoch = True):
+def CreateSRF_ps(lat, lon, depth, mw, mom, \
+        strike, rake, dip, prefix = '', stoch = True):
     """
     Must specify either magnitude or moment (mw, mom).
     """
-    mw = 4.8
-
     # Vs, density at hypocenter
     VS = 3.20
     RHO = 2.44
@@ -339,9 +337,9 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, \
 
     # only given point source parameters? calculate rest
     if flen == None:
-        lats, lons, depths, flen, dlen, fwid, dwid, dtop, elat, elon, shypo, dhypo = \
+        flen, dlen, fwid, dwid, dtop, elat, elon, shypo, dhypo = \
                 focal_mechanism_2_finite_fault(lat, lon, depth, \
-                        mw, strike, rake, dip, MWSR)[:]
+                        mw, strike, rake, dip, MWSR)[3:]
 
     # write corners file
     corners = get_corners(lat, lon, flen, fwid, dip, strike)
