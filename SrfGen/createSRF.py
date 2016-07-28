@@ -23,10 +23,81 @@ get_fileroot = lambda MAG, FLEN, FWID, seed : \
 get_gsfname = lambda MAG, DLEN, DWID : \
         'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
 
+# by earth radius
+one_deg_lat = radians(6371.0072)
 
-def CreateSimplifiedFiniteFaultFromFocalMechanism( \
-        Lat = -43.5029, Lon = 172.8284, Depth = 4.0, Mw = 5.8, \
-        strike = 54, rake = 137, dip = 75, MwScalingRel = 'BerrymanEtAl2002'):
+# comment placed in corners file (above/below hypocenter)
+# make sure lines end with '\n', especially the last one.
+corners_header = ('> header line here for specifics \n\
+> This is the standard input file format where the \
+hypocenter is first then for each \n\
+>Hypocenter (reference??) \n', \
+'> Below are the corners \
+(first point repeated as fifth to close box \n')
+
+def write_corners(filename, hypocentre, corners):
+    """
+    Write a corners text file (used to plot faults).
+    """
+    with open(filename, 'w') as cf:
+        # lines beginning with '>' are ignored
+        cf.write(corners_header[0])
+        cf.write('%f %f\n' % (hypocentre))
+        cf.write(corners_header[1])
+        # 0 1 - draw in order to close box
+        # 2 3
+        for i in [0, 1, 3, 2, 0]:
+            cf.write('%f %f\n' % tuple(corners[i]))
+
+def get_corners(lat, lon, flen, fwid, dip, strike):
+    """
+    Return Corners of a fault. Indexes are as below.
+    0 1
+    2 3
+    """
+    # use cartesian coordinate system to define the along strike and downdip
+    # locations taking the center of the fault plane as (x,y)=(0,0)
+    xPos = np.array([-flen / 2.0, flen / 2.0])
+    yPos = np.array([-fwid, 0.0])
+    Nx = len(xPos)
+    Ny = len(yPos)
+
+    # now use a coordinate transformation to go from fault plane to North and
+    # East cartesian plane (again with (0,0) ==(0,0)  )
+    yPosSurfProj = yPos * cos(radians(dip))
+    azimuth = radians(strike - 90)
+    RotMatrix = np.array([[cos(azimuth), sin(azimuth)], \
+            [-sin(azimuth), cos(azimuth)]])
+    eastLocRelative, northLocRelative = \
+            np.dot(RotMatrix, [np.tile(xPos, Ny), \
+                    yPosSurfProj.repeat(Ny)]).reshape(2, Nx, Ny)
+
+    # now use a coordinate transformation to go from the North East cartesian
+    # plane to the spherical earth WGS84 coordinate system
+    lats = lat + northLocRelative / one_deg_lat
+    lons = lon + (eastLocRelative / one_deg_lat) * 1 / cos(radians(lat))
+
+    # joined (lon, lat) pairs
+    return np.dstack((lons.flat, lats.flat))[0]
+
+def get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip):
+    """
+    Same logic as corners, for a single point.
+    """
+    y_pos_surf_proj_hyp = -dhypo * cos(radians(dip))
+
+    azimuth = radians(strike - 90)
+    rot_matrix = np.array([[cos(azimuth), sin(azimuth)], \
+            [-sin(azimuth), cos(azimuth)]])
+    A = np.dot(rot_matrix, [[shypo], [y_pos_surf_proj_hyp]])
+
+    lat_hyp = lat + A[1][0] / one_deg_lat
+    lon_hyp = lon + (A[0][0] / one_deg_lat) * 1.0 / (cos(radians(lat)))
+
+    return lon_hyp, lat_hyp
+
+def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
+        strike, rake, dip, MwScalingRel):
     """
     Purpose: To create a finite fault geometry based on centroid moment tensor
     solution information and magnitude scaling relationships.
@@ -78,44 +149,28 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
-    xPos = np.array([(x + 0.5) * Lx - Nx * Lx / 2.0 for x in xrange(0, Nx, 1)])
-    yPos = np.array([Ny * Ly / 2.0 - (x + 0.5) * Ly for x in xrange(0, Ny, 1)])
+    xPos = np.array([(x + Lx / 2.0) * Lx - Nx * Lx / 2.0 for x in xrange(Nx)])
+    yPos = np.array([Ny * Ly / 2.0 - (x + Ly / 2.0) * Ly for x in xrange(Ny)])
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
     yPosSurfProj = yPos * cos(radians(dip))
-    rotAngleAzimuth = radians((strike - 90))
+    rotAngleAzimuth = radians(strike - 90)
     RotMatrix = np.array([[cos(rotAngleAzimuth), sin(rotAngleAzimuth)], \
             [-sin(rotAngleAzimuth), cos(rotAngleAzimuth)]])
-    eastLocRelative = np.zeros(shape = [Ny, Nx])
-    northLocRelative = np.zeros(shape = [Ny, Nx])
-    depthLocRelative = np.zeros(shape = [Ny, Nx])
-    for i in xrange(Nx):
-        for j in xrange(Ny):
-            A = np.dot(RotMatrix, [[xPos[i]], [yPosSurfProj[j]]])
-            eastLocRelative[j, i] = np.array(A).tolist()[0][0]
-            northLocRelative[j, i] = np.array(A).tolist()[1][0]
-            depthLocRelative[j, i] = -yPos[j] * sin(radians(dip))
+    eastLocRelative, northLocRelative = \
+            np.dot(RotMatrix, [np.tile(xPos, Ny), \
+                    yPosSurfProj.repeat(Ny)]).reshape(2, Nx, Ny)
+    depthLocRelative = (-yPos * sin(radians(dip))).repeat(Ny).reshape((Nx, Ny))
 
     # now use a coordinate transformation to go from the North East cartesian
     # plane to the spherical earth WGS84 coordinate system
-    EarthRadius = 6371.0072
-    LengthOneDegreeLatitude = radians(EarthRadius)
-    lat = np.zeros(shape = [Nx, Ny])
-    lon = np.zeros(shape = [Nx, Ny])
-    depth = np.zeros(shape = [Nx, Ny])
-    for i in xrange(Nx):
-        for j in xrange(Ny):
-            lat[i, j] = Lat + northLocRelative[i, j] / LengthOneDegreeLatitude
-            lon[i, j] = Lon + (eastLocRelative[i, j] / LengthOneDegreeLatitude) \
-                    * 1 / (cos(radians(Lat)))
-            depth[i, j] = max([Depth + depthLocRelative[i, j], 0])
+    lats = Lat + northLocRelative / one_deg_lat
+    lons = Lon + (eastLocRelative / one_deg_lat) * 1 / cos(radians(Lat))
+    depths = np.maximum(Depth + depthLocRelative, 0)
 
-    # outputs for emod3d format _________
-    # now determine the location of the topcenter of the fault plane (top edge,
-    # center point along strike) - see note at top for V3 changes.  "tcl" below
-    # means "topcenter location"
-    # -position in local coord system
+    # determine topcenter of the fault plane (top edge, center point along strike)
+    # see note at top for V3 changes.  "tcl" means "topcenter location"
     xPos_tcl = 0
     yPos_tcl = Ny * Ly / 2.0
     # convert to NE system
@@ -125,15 +180,18 @@ def CreateSimplifiedFiniteFaultFromFocalMechanism( \
     northLocRelative_tcl = A[1][0]
     depthLocRelative_tcl = -yPos_tcl * sin(radians(dip))
     # convert to Lat, Lon, depth
-    lat_tcl = Lat + northLocRelative_tcl / LengthOneDegreeLatitude
-    lon_tcl = Lon + (eastLocRelative_tcl / LengthOneDegreeLatitude) * 1 / (cos(radians(Lat)))
+    lat_tcl = Lat + northLocRelative_tcl / one_deg_lat
+    lon_tcl = Lon + (eastLocRelative_tcl / one_deg_lat) * 1 / cos(radians(Lat))
     depth_tcl = max([Depth + depthLocRelative_tcl, 0])
 
-    # lat, lon, depth,
-    # MW, FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO
-    return lat, lon, depth, \
-            Mw, fault_length, 0.1, fault_width, 0.1, depth_tcl, \
-            lat_tcl, lon_tcl, 0.00, fault_width / 2.0
+    # FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO
+    DLEN = 0.1
+    DWID = 0.1
+    SHYPO = 0.00
+    DHYPO = fault_width / 2.0
+    return lats, lons, depths, \
+            fault_length, DLEN, fault_width, DWID, depth_tcl, \
+            lat_tcl, lon_tcl, SHYPO, DHYPO
 
 ###########################################################################
 def MwScalingRelation(Mw, MwScalingRel):
@@ -193,7 +251,7 @@ def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
         with open('%s/%s' % (SRF_DIR, srf_file), 'r') as srfp:
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], stdin = srfp, stdout = stochp)
 
-def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom = -1, \
+def CreateSRF_ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom = -1, \
         strike = 246, rake = 159, dip = 84, prefix = '', stoch = True):
     """
     Must specify either magnitude or moment (mw, mom).
@@ -270,31 +328,25 @@ def CreateSRF_ps2ps(lat = -43.5871, lon = 172.5761, depth = 5.461, mw = -1, mom 
             makedirs(STOCH_DIR)
         gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
 
-def CreateSRF_cmt2ff(lat = -43.5029, lon = 172.8284, depth = 4.0, mw = 5.8, \
-        strike = 54, rake = 137, dip = 75, mw_scaling_rel = 'BerrymanEtAl2002', \
-        dt = 0.025, seed = 1129571, prefix = '', stoch = True):
+def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, \
+        flen = None, dlen = None, fwid = None, dwid = None, dtop = None, \
+        shypo = None, dhypo = None, stoch = True, depth = None, mwsr = None,
+        corners = True, corners_file = 'cnrs.txt'):
+    """
+    Create a Finite Fault SRF.
+    Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
+    """
 
-    lats, lons, depths, MAG, FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO = \
-            CreateSimplifiedFiniteFaultFromFocalMechanism(Lat = LAT, Lon = LON, \
-            Depth = DEPTH, Mw = MAG, strike = STK, rake = RAK, dip = DIP, dipMwScalingRel = MWSR)
+    # only given point source parameters? calculate rest
+    if flen == None:
+        lats, lons, depths, flen, dlen, fwid, dwid, dtop, elat, elon, shypo, dhypo = \
+                focal_mechanism_2_finite_fault(lat, lon, depth, \
+                        mw, strike, rake, dip, MWSR)[:]
 
-    NX = get_nx(FLEN, DLEN)
-    NY = get_ny(FWID, DWID)
-
-    FILE_ROOT = get_fileroot(MAG, FLEN, FWID, seed)
-    GSF_FILE = '%s%s' % (prefix, get_gsfname(MAG, DLEN, DWID))
-    SRF_FILE = '%s%s.srf' % (prefix, FILE_ROOT)
-    STOCH_FILE = '%s%s.stoch' % (prefix, FILE_ROOT)
-
-    gen_gsf(GSF_FILE, ELON, ELAT, DTOP, STK, DIP, RAK, FLEN, FWID, NX, NY)
-    gen_srf(SRF_FILE, GSF_FILE, MAG, dt, NX, NY, seed, SHYPO, DHYPO)
-    if stoch:
-        gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
-
-def CreateSRF_ffd2ff(lat = -43.5452, lon = 172.6971, mw = 6.2, \
-        flen = 16.0, dlen = 0.10, fwid = 9.0, dwid = 0.10, dtop = 0.63, \
-        shypo = -2.0, dhypo = 6.0, dt = 0.025, seed = 1129571, \
-        strike = 59, rake = 128, dip = 69, prefix = '', stoch = True):
+    # write corners file
+    corners = get_corners(lat, lon, flen, fwid, dip, strike)
+    hypocentre = get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip)
+    write_corners(corners_file, hypocentre, corners)
 
     NX = get_nx(flen, dlen)
     NY = get_ny(fwid, dwid)
@@ -312,17 +364,17 @@ if __name__ == "__main__":
     from setSrfParams import *
     if TYPE == 1:
         # point source to point source srf
-        CreateSRF_ps2ps(lat = LAT, lon = LON, depth = DEPTH, mw = MAG, mom = MOM, \
-                strike = STK, rake = RAK, dip = DIP, prefix = PREFIX, stoch = True)
+        CreateSRF_ps(LAT, LON, DEPTH, MAG, MOM, STK, RAK, DIP, PREFIX, stoch = True)
     elif TYPE == 2:
         # point source to finite fault srf
-        CreateSRF_cmt2ff(lat = LAT, lon = LON, depth = DEPTH, mw = MAG, \
-        dt = DT, prefix = PREFIX, stoch = True)
+        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, \
+                depth = DEPTH, mwsr = MWSR, stoch = True, \
+                corners = True, corners_file = CORNERS)
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
-        CreateSRF_ffd2ff(lat = LAT, lon = LON, mw = MAG, flen = FLEN, dlen = DLEN, \
-        fwid = FWID, dwid = DWID, dtop = DTOP, strike = STK, rake = RAK, dip = DIP, \
-        prefix = PREFIX, stoch = True)
+        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, \
+                FLEN, DLEN, FWID, DWID, DTOP, SHYPO, DHYPO, stoch = True, \
+                corners = True, corners_file = CORNERS)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 
