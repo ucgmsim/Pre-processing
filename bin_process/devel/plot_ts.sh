@@ -85,9 +85,9 @@ for corner in c1 c2 c3 c4; do
 done
 
 # create masks for later plotting of different layers
-gmt grdlandmask -R$plot_ts_region -Dh -I$plot_dx/$plot_dy -Glandmask.grd
-gmt grdmask tmp.modelpath -R$plot_ts_region -I$plot_dx/$plot_dy -Gmodelmask.grd
-gmt grdmath landmask.grd modelmask.grd MUL = allmask.grd
+grdlandmask -R$plot_ts_region -Dh -I$plot_dx/$plot_dy -Glandmask.grd
+grdmask tmp.modelpath -R$plot_ts_region -I$plot_dx/$plot_dy -Gmodelmask.grd
+grdmath landmask.grd modelmask.grd MUL = allmask.grd
 \rm tmp.modelpath
 
 # create color palette for plotting the topography
@@ -103,22 +103,22 @@ add_site() {
     # $2 is the plot file
 
     # plot location as a point
-    gmt psxy $att -S$plot_s_sym -G$plot_s_fil -W$plot_s_lin -O -K << END >> "$2"
+    psxy $att -S$plot_s_sym -G$plot_s_fil -W$plot_s_lin -O -K << END >> "$2"
 ${plot_s_lon[$1]} ${plot_s_lat[$1]}
 END
 
     # add location name
-    gmt pstext $att -N -O -K -Dj0.05/0.05 -F+j+f12,Helvetica,black+a0 << END >>  "$2"
+    pstext $att -N -O -K -Dj0.05/0.05 -F+j+f12,Helvetica,black+a0 << END >>  "$2"
 ${plot_s_lon[$1]} ${plot_s_lat[$1]} ${plot_s_pos[$1]} ${plot_sites[$1]}
 END
 }
 
 finalise_png() {
     # finalize postscript (i.e. no -K)
-    gmt psxy -V $att -L -W5,255/255/0 -O << END >>  "$1" 2>/dev/null
+    psxy -V $att -L -W5,255/255/0 -O << END >>  "$1" 2>/dev/null
 END
     # ps -> png
-    gmt ps2raster "$1" -A -TG -E$plot_res -D$plot_png_dir
+    ps2raster "$1" -A -TG -E$plot_res -D$plot_png_dir
 }
 
 clean_temp_files() {
@@ -151,44 +151,44 @@ sig_int_received() {
 trap "sig_int_received" INT
 
 # color palette for velocity
-gmt makecpt -Chot -I -T0/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
+makecpt -Chot -I -T0/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
 
 # set all plotting defaults to use
-gmt gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
+gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
 
 ###################### BEGIN TEMPLATE ##########################
 echo Creating PS Template...
 plot_file_template=$gmt_temp/plot_template.ps
 # specify plot and panel size (defaults 8.5 x 11)
 edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
-gmt psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
+psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
 0.3 1.0
 0.3 7.8
 6.5 7.8
 6.5 1.0
 END
 # set the color scale
-gmt psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground velocity (cm/s)": >> "$plot_file_template"
+psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground velocity (cm/s)": >> "$plot_file_template"
 # specify the X and Y offsets` for plotting (I dont really understand this yet)
-gmt psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
+psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
 END
 # try a different version of plotting
 # clippath for land
-gmt pscoast $att -Df -Gc -K -O >> "$plot_file_template"
+pscoast $att -Df -Gc -K -O >> "$plot_file_template"
 # land
-gmt grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file_template"
+grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file_template"
 # clear clippath
-gmt pscoast -R -J -O -K -Q >> "$plot_file_template"
+pscoast -R -J -O -K -Q >> "$plot_file_template"
 # add urban areas
 URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
-gmt psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
+psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
 # main title
-gmt pstext $att -N -O -K -D0.0/0.35 \
+pstext $att -N -O -K -D0.0/0.35 \
         -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file_template"
 $plot_x_min $plot_y_max $plot_main_title
 END
 # subtitle part 1 (static)
-gmt pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file_template"
+pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file_template"
 $plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
 END
 echo Template Complete.
@@ -225,31 +225,31 @@ render_slice() {
         if [ "$plot_option" -eq 2 ]; then
             if [ "$swap_bytes" -eq 1 ]; then
                 # get file in correct format - BB added
-                gmt xyz2grd ${outf}.${comp} -Soutf_${3}.${comp} -V -Zf
+                xyz2grd ${outf}.${comp} -Soutf_${3}.${comp} -V -Zf
             elif [ "$swap_bytes" -eq 0 ]; then
                 \cp ${outf}.${comp} outf_${3}.${comp}
             fi
         fi
 
         # create ground motion intensity surface from the TSlice output
-        gmt surface outf_${3}.${comp} -Gtmp0_${3}.grd -I$plot_dx/$plot_dy \
+        surface outf_${3}.${comp} -Gtmp0_${3}.grd -I$plot_dx/$plot_dy \
                 -R$plot_ts_region -T0.0 -bi3f 2>/dev/null
         # clip minimum
-        gmt grdclip tmp0_${3}.grd -Gtmp1_${3}.grd \
+        grdclip tmp0_${3}.grd -Gtmp1_${3}.grd \
                 -Sb${plot_topo_a_min}/$plot_topo_a_below 2>/dev/null
         # clip to TS region
-        gmt grdmath modelmask.grd tmp1_${3}.grd MUL = outf_$3_${comp}.grd 2>/dev/null
+        grdmath modelmask.grd tmp1_${3}.grd MUL = outf_$3_${comp}.grd 2>/dev/null
         # clip minimum
-        gmt grdclip tmp1_${3}.grd -Goutf_$3_${comp}.grd \
+        grdclip tmp1_${3}.grd -Goutf_$3_${comp}.grd \
                 -Sb${plot_topo_a_min}/$plot_topo_a_below 2>/dev/null
 
         \cp outf_$3_${comp}.grd tmp1_${3}.grd
-        gmt grdmath modelmask.grd 1 SUB tmp1_${3}.grd ADD = outf_$3_${comp}.grd 2>/dev/null
+        grdmath modelmask.grd 1 SUB tmp1_${3}.grd ADD = outf_$3_${comp}.grd 2>/dev/null
         # add grid image to ps plot
-        gmt grdimage outf_$3_${comp}.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
+        grdimage outf_$3_${comp}.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
         # add coastline
-        gmt pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file"
-        gmt pscoast -A0/2/2 $att -Df -W1,black -K -O >> "$plot_file"
+        pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file"
+        pscoast -A0/2/2 $att -Df -W1,black -K -O >> "$plot_file"
 
         # local specific temporary files are no longer used
         rm tmp0_${3}.grd tmp1_${3}.grd
@@ -267,12 +267,12 @@ render_slice() {
                 $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
 
         # subtitle part 2 (dynamic)
-        gmt pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
+        pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
 $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec
 END
 
         # scale to show distance
-        gmt psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
+        psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
 
         # add sites
         for i in "${!plot_s_lon[@]}"; do
@@ -280,9 +280,9 @@ END
         done
 
         # plot strong motion station locations
-        gmt psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
+        psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
         # shift plotting origin (for 3 component plotting)
-        gmt psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
+        psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
 END
     done
 
