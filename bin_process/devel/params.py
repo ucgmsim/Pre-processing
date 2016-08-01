@@ -365,8 +365,11 @@ match_hf_tstart = '0.0'     # for alignment
 match_lf_fhi = '0.0'        # high pass frequency, Hz
 match_lf_flo = '1.0'        # low pass frequency, Hz
 # '4': standard?, '0': already low pass filtered
-match_lf_ord = '0'          # filter order
+match_lf_ord = '4'          # filter order
+# TODO: should the following be -1 (as per ascii header) ??
 match_lf_tstart = '0.0'     # for alignment
+# use power spectrum based filtering (new 08/2016)
+match_powersb = True
 # list of matching HF and LF components
 match_hf_comps = ['000', '090', 'ver']
 match_lf_comps = ['000', '090', 'ver']
