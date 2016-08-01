@@ -53,7 +53,7 @@ if match_powersb:
     # doesn't make sense if the orders, freqs don't match
     assert(match_hf_ord == match_lf_ord)
     assert(match_hf_fhi == match_lf_flo)
-    if order == 4:
+    if match_hf_ord == '4':
         match_hf_fhi = '%.16f' % (float(match_hf_fhi) * 0.8956803352330285)
         match_lf_flo = '%.16f' % (float(match_lf_flo) * 1.1164697500474103)
     else:
@@ -61,9 +61,9 @@ if match_powersb:
         # full formula:
         # orig fhi, flo *= exp((+-1.0 / (2.0 * order)) * log(sqrt(2.0) - 1.0))
         match_hf_fhi = '%.16f' % (float(match_hf_fhi) * \
-                exp(1.0 / (2.0 * match_hf_ord) * -0.8813735870195428))
+                exp(1.0 / (2.0 * int(match_hf_ord)) * -0.8813735870195428))
         match_lf_flo = '%.16f' % (float(match_lf_flo) * \
-                exp(-1.0 / (2.0 * match_lf_ord) * -0.8813735870195428))
+                exp(-1.0 / (2.0 * int(match_lf_ord)) * -0.8813735870195428))
 
 # file list is passed to binaries but will only ever contain one item
 def set_filelist(filename):
