@@ -6,7 +6,7 @@ from os import remove
 from os.path import basename
 import sys
 # math functions faster than numpy for simple data
-from math import ceil, log, pi, tan, sqrt
+from math import ceil, log, exp, pi, tan, sqrt
 
 import h5py as h5
 import numpy as np
@@ -45,6 +45,17 @@ def bwfilter(data, freq, band):
     freq: cutoff frequency
     band: 'highpass' or 'lowpass'
     """
+    # power spectrum based LF/HF filter (shift cutoff)
+    # readable code commented, fast code uncommented
+    #order = 4
+    #x = 1.0 / (2.0 * order)
+    #if band == 'lowpass':
+    #    x += -1
+    #freq *= exp(x * log(sqrt(2.0) - 1.0))
+    if band == 'highpass':
+        freq *= 0.8956803352330285
+    else:
+        freq *= 1.1164697500474103
     return sosfiltfilt( \
             butter(4, freq / nyq, btype = band, output = 'sos'), \
             data, padtype = None)
