@@ -44,7 +44,7 @@ threads=$1
 if [ $threads -gt 0 ] 2>/dev/null; then
     echo Using $threads threads from passed in value.
 else # invalid or no input
-    virtual_cores=$(lscpu | grep 'CPU(s):')
+    virtual_cores=$(lscpu | grep '^CPU(s):')
     virtual_cores=${virtual_cores##* }
     if [ $virtual_cores -gt 8 ]; then
         # performance issues with more threads (disk IO?)
@@ -85,7 +85,8 @@ for corner in c1 c2 c3 c4; do
 done
 
 # create masks for later plotting of different layers
-grdlandmask -R$plot_ts_region -Dh -I$plot_dx/$plot_dy -Glandmask.grd
+# -Df for full resolution, -Dh for high resolution (must be installed)
+grdlandmask -R$plot_ts_region -Df -I$plot_dx/$plot_dy -Glandmask.grd
 grdmask tmp.modelpath -R$plot_ts_region -I$plot_dx/$plot_dy -Gmodelmask.grd
 grdmath landmask.grd modelmask.grd MUL = allmask.grd
 \rm tmp.modelpath
@@ -118,7 +119,8 @@ finalise_png() {
     psxy -V $att -L -W5,255/255/0 -O << END >>  "$1" 2>/dev/null
 END
     # ps -> png
-    ps2raster "$1" -A -TG -E$plot_res -D$plot_png_dir
+    # ps2raster deprecated, replaced by psconvert
+    psconvert "$1" -A -TG -E$plot_res -D$plot_png_dir
 }
 
 clean_temp_files() {
@@ -146,12 +148,12 @@ sig_int_received() {
     echo Process exiting.
     exit
 }
-
 # enable killing of all subprocesses/cleaning temp files on CTRL-C (interrupt)
 trap "sig_int_received" INT
 
 # color palette for velocity
-makecpt -Chot -I -T0/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
+#makecpt -Chot -I -T0/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
+makecpt -Chot -I -T0/$plot_topo_a_max/0.01 -A50 > $base_cpt
 
 # set all plotting defaults to use
 gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
@@ -262,9 +264,9 @@ render_slice() {
         cp "$sim_dir/gmt.conf" ./
 
         # call fault plane routine
-        bash ${plot_fault_add_plane} "$plot_file" \
-                -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
-                $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
+        #bash ${plot_fault_add_plane} "$plot_file" \
+        #        -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+        #        $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
 
         # subtitle part 2 (dynamic)
         pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
@@ -273,6 +275,29 @@ END
 
         # scale to show distance
         psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
+
+
+        # PORTERS PASS FAULT
+        # TODO: automate
+        gmt psxy -P -JM15.0c -R$plot_ts_region -W1.5p -O -K << EOF >> "$plot_file"
+172.57667 -43.13167
+171.97000 -43.25167
+171.71500 -43.29833
+171.60667 -43.34167
+171.52000 -43.36333
+EOF
+
+        # BEACH BALLS
+        # TODO: automate
+        gmt psmeca -P -J -R -Sc0.15u -Gorange -O -K << EOF >> "$plot_file"
+171.9773 -43.252 8 154 83 16 62 74 173 7.98 22 171.9773 -43.252 4.6
+EOF
+        gmt psmeca -P -J -R -Sc0.15u -Ggreen -O -K << EOF >> "$plot_file"
+172.06 -43.2118 6 72 87 157 163 67 3 8.36 22 172.06 -43.2118 4.6
+EOF
+        gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$plot_file"
+171.9868 -43.1842 7 69 90 151 159 61 0 2.15 23 171.9868 -43.1842 4.9
+EOF
 
         # add sites
         for i in "${!plot_s_lon[@]}"; do
