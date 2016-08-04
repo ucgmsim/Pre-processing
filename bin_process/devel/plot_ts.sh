@@ -76,20 +76,17 @@ rm "$plot_ps_dir"/* "$plot_png_dir"/* 2>/dev/null
 gmt_temp="$sim_dir/gmt_wd"
 mkdir -p "$gmt_temp"
 
-# make temp file with the model coord boundaries
-if [ -e "tmp.modelpath" ]; then
-    \rm tmp.modelpath
+# make temp file with simulation boundaries
+if [ -e "sim.modelpath" ]; then
+    \rm sim.modelpath
 fi
-for corner in c1 c2 c3 c4; do
-    grep "$corner= " $model_params | gawk ' { print $2, $3 } ' >> tmp.modelpath
+# have to close box (copy first corner to end)
+for corner in c1 c2 c3 c4 c1; do
+    grep "$corner= " $model_params | gawk ' { print $2, $3 } ' >> sim.modelpath
 done
-
-# create masks for later plotting of different layers
-# -Df for full resolution, -Dh for high resolution (must be installed)
-grdlandmask -R$plot_ts_region -Df -I$plot_dx/$plot_dy -Glandmask.grd
-grdmask tmp.modelpath -R$plot_ts_region -I$plot_dx/$plot_dy -Gmodelmask.grd
-grdmath landmask.grd modelmask.grd MUL = allmask.grd
-\rm tmp.modelpath
+# create mask for simulation domain
+grdmask sim.modelpath -R$plot_ts_region -I$plot_dx/$plot_dy -Gmodelmask.grd
+# sim.modelpath still used to plot simulation domain
 
 # create color palette for plotting the topography
 base_cpt=y2r_brown.cpt
@@ -119,13 +116,17 @@ finalise_png() {
     psxy -V $att -L -W5,255/255/0 -O << END >>  "$1" 2>/dev/null
 END
     # ps -> png
-    # ps2raster deprecated, replaced by psconvert
-    psconvert "$1" -A -TG -E$plot_res -D$plot_png_dir
+    # ps2raster deprecated in 5.2, replaced by psconvert
+    if [ -x "$(which psconvert 2>/dev/null)" ]; then
+        psconvert "$1" -A -TG -E$plot_res -D$plot_png_dir
+    else
+        ps2raster "$1" -A -TG -E$plot_res -D$plot_png_dir
+    fi
 }
 
 clean_temp_files() {
     # temporary files (global)
-    \rm modelmask.grd landmask.grd allmask.grd
+    \rm modelmask.grd
     \rm $base_cpt
     \rm gmt.conf gmt.history
 
@@ -184,6 +185,13 @@ pscoast -R -J -O -K -Q >> "$plot_file_template"
 # add urban areas
 URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
 psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
+# add oceans/coastline
+pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
+# add lakes/coastline
+pscoast -A0/2/2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
+# simulation domain
+gmt psxy sim.modelpath $att -W1.5p,black,- -L -O -K >> "$plot_file_template"
+rm sim.modelpath
 # main title
 pstext $att -N -O -K -D0.0/0.35 \
         -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file_template"
@@ -234,70 +242,49 @@ render_slice() {
         fi
 
         # create ground motion intensity surface from the TSlice output
-        surface outf_${3}.${comp} -Gtmp0_${3}.grd -I$plot_dx/$plot_dy \
+        # -bi for binary input of 3 columns of floats
+        surface outf_${3}.${comp} -Gtmp_${3}.grd -I$plot_dx/$plot_dy \
                 -R$plot_ts_region -T0.0 -bi3f 2>/dev/null
-        # clip minimum
-        grdclip tmp0_${3}.grd -Gtmp1_${3}.grd \
-                -Sb${plot_topo_a_min}/$plot_topo_a_below 2>/dev/null
-        # clip to TS region
-        grdmath modelmask.grd tmp1_${3}.grd MUL = outf_$3_${comp}.grd 2>/dev/null
-        # clip minimum
-        grdclip tmp1_${3}.grd -Goutf_$3_${comp}.grd \
-                -Sb${plot_topo_a_min}/$plot_topo_a_below 2>/dev/null
+        # crop to simulation domain (multiply by mask of 0 or 1, outside = 0)
+        grdmath tmp_${3}.grd modelmask.grd MUL = tmp_${3}.grd 2>/dev/null
+        # clip minimum (values below cutoff = NaN, not displayed, clear)
+        grdclip tmp_${3}.grd -Gtmp_${3}.grd \
+                -Sb${plot_topo_a_min}/NaN 2>/dev/null
+        # add resulting overlay image to plot
+        grdimage tmp_${3}.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
+        # remove temporary input (potentially byte swapped) and grid file
+        rm outf_${3}.${comp} tmp_${3}.grd
 
-        \cp outf_$3_${comp}.grd tmp1_${3}.grd
-        grdmath modelmask.grd 1 SUB tmp1_${3}.grd ADD = outf_$3_${comp}.grd 2>/dev/null
-        # add grid image to ps plot
-        grdimage outf_$3_${comp}.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
-        # add coastline
-        pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file"
-        pscoast -A0/2/2 $att -Df -W1,black -K -O >> "$plot_file"
-
-        # local specific temporary files are no longer used
-        rm tmp0_${3}.grd tmp1_${3}.grd
-        rm outf_$3_${comp}.grd outf_${3}.${comp}
-
-        # GMT MAKES TEMP FILES WHICH MAY INTERFERE PAST THIS POINT
+        # ADDFAULTPLANE.SH MAKES TEMP FILES WHICH INTERFERE (SAME NAME)
         # CD INTO TEMP DIR (REQUIRES ABS PATHS)
+        # TODO: fix addfaultplane or implement it here
         gmt_proc_wd=$(mktemp -d -p "$gmt_temp" GMT.XXXXXXXX)
         cd "$gmt_proc_wd"
         cp "$sim_dir/gmt.conf" ./
-
-        # call fault plane routine
-        #bash ${plot_fault_add_plane} "$plot_file" \
-        #        -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
-        #        $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
+        # for testing, could use relative path instead
+        #cp ../../gmt.conf ./
 
         # subtitle part 2 (dynamic)
+        # must precede psmeca as font configuration history required?
         pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
 $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec
 END
 
+        # add the fault plane or beachball
+        if [ "plot_type" == "finitefault" ]; then
+            # plot fault plane
+            bash ${plot_fault_add_plane} "$plot_file" \
+                -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+                $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
+        else
+            # plot beach ball (variable must be surrounded by quotes in sourced file)
+            gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$plot_file"
+$plot_beachball
+EOF
+        fi
+
         # scale to show distance
         psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
-
-
-        # PORTERS PASS FAULT
-        # TODO: automate
-        gmt psxy -P -JM15.0c -R$plot_ts_region -W1.5p -O -K << EOF >> "$plot_file"
-172.57667 -43.13167
-171.97000 -43.25167
-171.71500 -43.29833
-171.60667 -43.34167
-171.52000 -43.36333
-EOF
-
-        # BEACH BALLS
-        # TODO: automate
-        gmt psmeca -P -J -R -Sc0.15u -Gorange -O -K << EOF >> "$plot_file"
-171.9773 -43.252 8 154 83 16 62 74 173 7.98 22 171.9773 -43.252 4.6
-EOF
-        gmt psmeca -P -J -R -Sc0.15u -Ggreen -O -K << EOF >> "$plot_file"
-172.06 -43.2118 6 72 87 157 163 67 3 8.36 22 172.06 -43.2118 4.6
-EOF
-        gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$plot_file"
-171.9868 -43.1842 7 69 90 151 159 61 0 2.15 23 171.9868 -43.1842 4.9
-EOF
 
         # add sites
         for i in "${!plot_s_lon[@]}"; do
@@ -311,6 +298,7 @@ EOF
 END
     done
 
+    # finalises PostScript and converts to PNG
     finalise_png "$plot_file"
 
     # remove own working directory
