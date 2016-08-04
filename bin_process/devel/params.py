@@ -221,6 +221,11 @@ plot_topo_a_inc = '10'
 plot_topo_a_max = '80'
 plot_topo_a_below = 'NaN'
 
+# FINITE FAULT (fault plane) vs POINT SOURCE (beachball)
+# "finitefault" or "pointsource"
+plot_type='pointsource'
+# beach ball description for GMT psmeca
+plot_beachball='171.9773 -43.252 8 154 83 16 62 74 173 7.98 22 171.9773 -43.252 4.6'
 # fault plane resources
 fault_plane_dir = os.path.join(global_root, 'PlottingData', 'sourcesAndStrongMotionStations')
 fault_file = os.path.join(fault_plane_dir, 'bev01_DarfieldFaultPlane.xy')
