@@ -4,10 +4,12 @@
 # 1: point source to point source srf
 # 2: point source to finite fault srf
 # 3: finite fault to finite fault srf
-TYPE = 3
+TYPE = 2
 
 # PREFIX for gsf/srf/stoch files
 PREFIX = 'standard_'
+# FILENAME for corners file
+CORNERS = 'cnrs.txt'
 
 ###
 ### COMMON PARAMETERS (apply to all types)
@@ -36,6 +38,12 @@ RAK = 137
 MOM = -1
 
 ###
+### RELATING TO TYPE 2,3 (finite fault output)
+###
+DT = 0.025
+SEED = 1129571
+
+###
 ### RELATING TO TYPE 2 (centroid moment tensor to finite fault)
 ###
 
@@ -44,7 +52,6 @@ MOM = -1
 # BerrymanEtAl2002
 # VillamorEtAl2001
 MWSR = 'BerrymanEtAl2002'
-DT = 0.025
 
 ###
 ### RELATING TO TYPE 3 (ffd to finite fault)
@@ -55,4 +62,8 @@ DLEN = 0.10
 FWID = 9.0
 DWID = 0.10
 DTOP = 0.63
+# km east
+SHYPO = -2.0
+# km down
+DHYPO = 6.0
 

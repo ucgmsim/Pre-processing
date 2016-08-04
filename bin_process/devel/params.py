@@ -280,9 +280,9 @@ hf_prefix=srfString
 # binary that simulates the HF data
 hf_sim_bin = '/hpc/home/rwg43/StochSim/Src/V5.4/hb_high_v5.4.4'
 # duration of HF sim
-hf_t_len = '100' # seconds
+hf_t_len = str(int(int(nt) * float(dt))) # seconds
 # HF simulation step. should be small
-hf_dt = '0.005' # seconds
+hf_dt = dt # seconds
 # slip model
 hf_slip = '/hpc/home/hnr12/RupModel/2011Feb22_m6pt2/Stoch/m6.20-16.0x9.0_s560.stoch'
 # 1D velocity model
@@ -365,8 +365,11 @@ match_hf_tstart = '0.0'     # for alignment
 match_lf_fhi = '0.0'        # high pass frequency, Hz
 match_lf_flo = '1.0'        # low pass frequency, Hz
 # '4': standard?, '0': already low pass filtered
-match_lf_ord = '0'          # filter order
+match_lf_ord = '4'          # filter order
+# TODO: should the following be -1 (as per ascii header) ??
 match_lf_tstart = '0.0'     # for alignment
+# use power spectrum based filtering (new 08/2016)
+match_powersb = True
 # list of matching HF and LF components
 match_hf_comps = ['000', '090', 'ver']
 match_lf_comps = ['000', '090', 'ver']
@@ -377,8 +380,8 @@ bb_veldir = os.path.join(bb_sim_dir, 'Vel')
 site_amp_model = 'cb2014'
 # relating to site amplification
 site_vref_max = '1100'  # reference vs30 for cb08/14 amp model
-site_fmin = '0.2'       # 0.2 Hz = 5 sec. point where tapering to unity begins
-site_fmidbot = '0.5'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
+site_fmin = '0.1'       # 0.2 Hz = 5 sec. point where tapering to unity begins
+site_fmidbot = '0.2'    # freq. for which cap is applied f = 1 Hz => T = 1 sec in GP10
 site_flowcap = '0.0'
 # set to vs30 used in 1D model for high frequency runs (VREF for HF)
 GEN_ROCK_VS = 865

@@ -169,7 +169,7 @@ def show_instruction(sim_dir):
     print "    3.   llsubmit run_emod3d.ll"
     print "    4.   llsubmit post_emod3d.ll"
     print "    5.   (Linux) plot_and_ani.sh"
-    print "    6.   install_bb.sh"
+    print "    6.   install_bb.py"
     print "    7.   llsubmit run_bb.ll"
     print "    8.   Edit parametersStation.py"
     print "    9.   llsubmit runPostProcessStation.ll"

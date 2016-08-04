@@ -50,12 +50,12 @@ k3 = np.array([1.839, 1.839, 1.840, 1.841, 1.843, 1.845, 1.847, 1.852, \
         1.856, 1.861, 1.865, 1.874, 1.883, 1.906, 1.929, 1.974, \
         2.019, 2.110, 2.200, 2.291, 2.517, 2.744])
 flowcap = 0.0
-fmin = 0.05
-fmidbot = 0.1
-fmid = fmidbot
-fhigh = fmid
-fhightop = 20.0
-fmax = 50.0
+fmin = 0.01
+fmidbot = 0.2
+fmid = 1.0
+fhigh = 3.33
+fhightop = 10.0
+fmax = 15.0
 # f_site function domains
 fs_low = lambda T, vs30, a1100 : c10[T] * log(vs30 / k1[T]) + \
         k2[T] * log((a1100 + scon_c * exp(scon_n * log(vs30 / k1[T]))) / (a1100 + scon_c))
@@ -86,9 +86,8 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga):
         pass
     # frequencies of fourier transform
     ftfreq = np.arange(1, n / 2) * (1.0 / (n * dt))
-    # TODO: vectorise to improve speed
-    #a0 = np.repeat(ampf0[-1], len(ftfreq))
-    #f0 = np.repeat(f1_src[-1], len(ftfreq))
+
+    # calculate ampv based on period group
     j = n_per - 1
     f0 = f1_src[j]
     a0 = ampf0[j]
@@ -106,9 +105,9 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga):
                 dadf = (a1 - a0) / log(f1 / f0)
             else:
                 dadf = 0.0
-    #dadf = (a1 - a0) / np.log(f1 / f0) * (f1 == f0)
         ampv = a0 + dadf * log(ftf / f0)
 
+        # scale amplification factor by frequency
         if ftf < fmin:
             continue
         if ftf < fmidbot:
@@ -119,4 +118,3 @@ def cb08_amp(dt, n, vref, vsite, vpga, pga):
             ampf[i + 1] = ampv + log(ftf / fhightop) * (1.0 - ampv) / log(fmax / fhightop)
 
     return ampf
-

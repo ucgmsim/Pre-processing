@@ -4,6 +4,7 @@ from glob import glob
 from multiprocessing import Pool
 from os import remove
 from os.path import basename
+import sys
 # math functions faster than numpy for simple data
 from math import ceil, log, pi, tan, sqrt
 
@@ -18,16 +19,20 @@ from scipy.signal import butter
 from sosfiltfilt import sosfiltfilt
 from siteamp_models import cb08_amp
 
-# TODO: read params from params file
+from params import *
+from params_base_bb import *
+
+nt = int(nt)
+dt = float(dt)
 procs = 64
-nt = 20000
-dt = 0.005
+if len(sys.argv) > 1:
+    procs = int(sys.argv[1])
 ft_len = int(2 ** ceil(log(nt)/log(2)))
 nyq = 1.0 / (2.0 * dt)
 COMP_EXTS = {'090':0, '000':1, 'ver':2}
 # frequencies in the fourier domain
 #freqs = 200.0 * (np.arange(0, 32768/2) / 32768.0)
-file_list = glob('RunFolder/acc/*.???')
+file_list = glob('%s/*_???????.???' % (hf_accdir))
 proc_lists = []
 for g in xrange(procs):
     proc_lists.append((file_list[g::procs]))
@@ -40,13 +45,27 @@ def bwfilter(data, freq, band):
     freq: cutoff frequency
     band: 'highpass' or 'lowpass'
     """
+    # power spectrum based LF/HF filter (shift cutoff)
+    # readable code commented, fast code uncommented
+    #order = 4
+    #x = 1.0 / (2.0 * order)
+    #if band == 'lowpass':
+    #    x += -1
+    #freq *= exp(x * log(sqrt(2.0) - 1.0))
+    if match_powersb:
+        if band == 'highpass':
+            freq *= 0.8956803352330285
+        else:
+            freq *= 1.1164697500474103
     return sosfiltfilt( \
             butter(4, freq / nyq, btype = band, output = 'sos'), \
             data, padtype = None)
 
 def run_match((proc_list, proc)):
-    h5p = h5.File('virtual.hdf5', 'r')
     num_files = len(proc_list)
+    if num_files == 0:
+        return
+    h5p = h5.File('virtual.hdf5', 'r')
     for ii, hff in enumerate(proc_list):
         print '[%.2d] %d of %d' % (proc, ii + 1, num_files)
         ###
@@ -67,7 +86,7 @@ def run_match((proc_list, proc)):
         # peak ground acceleration
         pga = np.max(np.abs(v)) / 981.0
         # taper ntap values on the right using the hanning method
-        ntap = nt * 0.05
+        ntap = int(nt * 0.05)
         v *= dt
         v[nt - ntap:] *= np.hanning(ntap * 2 + 1)[ntap + 1:]
 
