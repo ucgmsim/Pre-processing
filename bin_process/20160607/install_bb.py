@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 import os.path
 import sys
 sys.path.append(os.path.abspath(os.path.curdir))
