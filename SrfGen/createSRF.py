@@ -416,18 +416,19 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
             # not sure why only the first subsegments are used
             SHYP_TOT = SHYPO[0] + 0.5 * FLEN[0] - 0.5 * FLEN_TOT
 
-            XSEG = []
+            XSEG = "-1"
             # should this be if NSEG > 1?
             if int(SEG_DELAY):
+                XSEG = []
                 sbound = 0.0
                 # NSEG - 1 because no delay/gap between last value and next one?
                 for g in xrange(NSEG - 1):
                     sbound += FLEN[g]
                     XSEG.append(sbound - 0.5 * FLEN_TOT)
-            # warning: gawk handles precision automatically, may not always match
-            # never more than 6 decimal places with gawk (not consistent)
-            # gawk sometimes produces sci notation (unpredictable)
-            XSEG = ','.join(map(str, XSEG))
+                # warning: gawk handles precision automatically, may not always match
+                # never more than 6 decimal places with gawk (not consistent)
+                # gawk sometimes produces sci notation (unpredictable)
+                XSEG = ','.join(map(str, XSEG))
 
             OUTROOT = '%s-%s_s%d' % (m_name, case, seed)
             GSF_FILE = '%s.gsf' % (OUTROOT)
@@ -436,25 +437,25 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
             with open('fault_seg.in', 'w') as fs:
                 fs.write('%d\n' % (NSEG))
                 for f in xrange(NSEG):
-                    fs.write('%f %f %f %f %f %f %f %f %f %f\n' % ( \
+                    fs.write('%f %f %f %.0f %.0f %.0f %.0f %.0f %.0f %.0f\n' % ( \
                             ELON[f], ELAT[f], DTOP[f], STK[f], DIP[f], \
                             RAK[f], FLEN[f], FWID[f], NX[f], NY[f]))
 
-            with open('%s/%s' % (GSF_DIR, GSF_FILE), 'w') as gsfp:
-                gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
-                with open('fault_seg.in', 'r') as fs:
-                    gexec.communicate(''.join(fs.readlines()))
+            # create GSF file
+            call([GSF_BIN, 'read_slip_vals=0', 'infile=%s' % ('fault_seg.in'), 'outfile=%s/%s' % (GSF_DIR, GSF_FILE)])
 
+            # calling with outfile parameter will append 's0000-h0000' to filename
+            # could fix binary not do this undesirable behaviour
             with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
                 call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'seg_delay=%s' % (SEG_DELAY), \
-                        'read_gsf=1', 'write_gsf=1', 'infile=%s/%s' % (GSF_DIR, GSF_FILE), \
-                        'nseg_bounds=%s' % (str(NSEG - 1)), 'xseg="%s"' % (XSEG), \
-                        'rvfac_seg="%s"' % (RVFAC_SEG), 'gwid="%s"' % (GWID), \
+                        'read_gsf=1', 'infile=%s/%s' % (GSF_DIR, GSF_FILE), \
+                        'nseg_bounds=%d' % (NSEG - 1), 'xseg=%s' % (XSEG), \
+                        'rvfac_seg=%s' % (RVFAC_SEG), 'gwid=%s' % (GWID), \
                         'mag=%f' % (MAG), 'nx=%f' % (NX_TOT), 'ny=%f' % (NY[0]), \
                         'ns=%d' % (ns + 1), 'nh=1', 'seed=%d' % (seed), 'velfile=%s' % (VELFILE), \
                         'shypo=%f' % (SHYP_TOT), 'dhypo=%f' % (DHYPO[0]), 'dt=%f' % (DT), \
                         'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
-                        'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
+                        'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)]), stdout = srfp)
 
         # joined case files stored in separate file
         copyfile('%s/%s-%s_s%d.srf' % (SRF_DIR, m_name, CASES[0], seed), \
@@ -488,10 +489,10 @@ if __name__ == "__main__":
     elif TYPE == 4:
         # multi segment finite fault srf
         CreateSRF_multi(M_NSEG, M_SEG_DELAY, M_MAG, M_MOM, \
-        M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
-        M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
-        M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-        M_DHYPO, SEED, SEED_INC, M_NAME, CASES, N_SCENARIOS)
+                M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
+                M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
+                M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
+                M_DHYPO, SEED, SEED_INC, M_NAME, CASES, N_SCENARIOS)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 
