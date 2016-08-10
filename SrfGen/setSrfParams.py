@@ -79,10 +79,12 @@ DHYPO = 6.0
 # this doesn't do anything, possibly should affect
 # ns parameter in FF_SRF_BIN but hardcoded to 1
 # does change ns parameter, TODO: test
-NSCENARIOS = 1
+N_SCENARIOS = 1
 # description of main segments
 CASES = ['rv', 'ss']
 
+# prefix for all files
+M_NAME = 'bev01'
 # master segments can be made up of multiple sub-segments
 M_MAG = [6.50, 7.06]
 # as above, if MOM invalid ( <= 0), calculated from MAG

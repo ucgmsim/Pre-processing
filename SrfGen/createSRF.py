@@ -366,24 +366,29 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, \
     if stoch:
         gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
 
-def CreateSRF_multi(m_nseg, m_nseg_delay, m_mag, m_mom, \
+def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         m_rvfac_seg, m_gwid, m_rup_delay, m_flen, \
         m_dlen, m_fwid, m_dwid, m_dtop, m_stk, \
         m_rak, m_dip, m_elon, m_elat, m_shypo, \
-        m_dhypo, m_name = 'bev01', n_scenario = 1):
+        m_dhypo, seed, seed_inc, m_name, cases, n_scenarios):
+    if not path.exists(GSF_DIR):
+        makedirs(GSF_DIR)
+    if not path.exists(SRF_DIR):
+        makedirs(SRF_DIR)
+
     # ns wasn't previously used, ns parameter was hardcoded to 1
     # check if setting ns binary param to ns variable is wanted
-    for ns in xrange(NSCENARIOS):
-        for c, case in enumerate(CASES):
+    for ns in xrange(n_scenarios):
+        for c, case in enumerate(cases):
 
             # 1 D arrays
-            MAG = M_MAG[c]
-            MOM = M_MOM[c]
-            NSEG = M_NSEG[c]
-            SEG_DELAY = M_SEG_DELAY[c]
-            RVFAC_SEG = M_RVFAC_SEG[c]
-            GWID = M_GWID[c]
-            RUP_DELAY = M_RUP_DELAY[c]
+            MAG = m_mag[c]
+            MOM = m_mom[c]
+            NSEG = m_nseg[c]
+            SEG_DELAY = m_seg_delay[c]
+            RVFAC_SEG = m_rvfac_seg[c]
+            GWID = m_gwid[c]
+            RUP_DELAY = m_rup_delay[c]
 
             # 2 D arrays
             FLEN = M_FLEN[c]
@@ -404,8 +409,8 @@ def CreateSRF_multi(m_nseg, m_nseg_delay, m_mag, m_mom, \
             else:
                 MAG = mom2mag(MOM)
 
-            NX = [get_nx(FLEN[f], DLEN[f]) for f in xrange(NSEG)]
-            NY = [gen_ny(FWID[f], DWID[f]) for f in xrange(NSEG)]
+            NX = map(float, [get_nx(FLEN[f], DLEN[f]) for f in xrange(NSEG)])
+            NY = map(float, [get_ny(FWID[f], DWID[f]) for f in xrange(NSEG)])
             NX_TOT = sum(NX)
             FLEN_TOT = sum(FLEN)
             # not sure why only the first subsegments are used
@@ -424,7 +429,7 @@ def CreateSRF_multi(m_nseg, m_nseg_delay, m_mag, m_mom, \
             # gawk sometimes produces sci notation (unpredictable)
             XSEG = ','.join(map(str, XSEG))
 
-            OUTROOT = '%s-%s_s%d' % (MASTER_NAME, case, SEED)
+            OUTROOT = '%s-%s_s%d' % (m_name, case, seed)
             GSF_FILE = '%s.gsf' % (OUTROOT)
             SRF_FILE = '%s.srf' % (OUTROOT)
 
@@ -438,7 +443,7 @@ def CreateSRF_multi(m_nseg, m_nseg_delay, m_mag, m_mom, \
             with open('%s/%s' % (GSF_DIR, GSF_FILE), 'w') as gsfp:
                 gexec = Popen([GSF_BIN, 'read_slip_vals=0'], stdin = PIPE, stdout = gsfp)
                 with open('fault_seg.in', 'r') as fs:
-                    gexec.communicate(fs)
+                    gexec.communicate(''.join(fs.readlines()))
 
             with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
                 call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'seg_delay=%s' % (SEG_DELAY), \
@@ -446,22 +451,22 @@ def CreateSRF_multi(m_nseg, m_nseg_delay, m_mag, m_mom, \
                         'nseg_bounds=%s' % (str(NSEG - 1)), 'xseg="%s"' % (XSEG), \
                         'rvfac_seg="%s"' % (RVFAC_SEG), 'gwid="%s"' % (GWID), \
                         'mag=%f' % (MAG), 'nx=%f' % (NX_TOT), 'ny=%f' % (NY[0]), \
-                        'ns=%d' % (ns + 1), 'nh=1', 'seed=%d' % (SEED), 'velfile=%s' % (VELFILE), \
+                        'ns=%d' % (ns + 1), 'nh=1', 'seed=%d' % (seed), 'velfile=%s' % (VELFILE), \
                         'shypo=%f' % (SHYP_TOT), 'dhypo=%f' % (DHYPO[0]), 'dt=%f' % (DT), \
                         'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
-                        'top_taper=0.0', 'rup_delay=%f' % RUP_DELAY]), stdout = srfp)
+                        'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
 
         # joined case files stored in separate file
-        copyfile('%s-%s_%d.srf' % (SRF_DIR, MASTER_NAME, CASES[0], SEED), \
-                '%s/%s_%d.srf' % (SRF_DIR, MASTER_NAME, SEED))
+        copyfile('%s/%s-%s_s%d.srf' % (SRF_DIR, m_name, CASES[0], seed), \
+                '%s/%s_s%d.srf' % (SRF_DIR, m_name, SEED))
         # join rest of cases into the first
         for i in xrange(len(CASES) - 1):
             call([SRF_JOIN_BIN, \
-                    'infile1=%s/%s_%d.srf' % (SRF_DIR, MASTER_NAME, SEED), \
-                    'infile2=%s/%s-%s_%d.srf' % (SRF_DIR, MASTER_NAME, CASES[i + 1], SEED), \
-                    'outfile=%s/%s_%d.srf' % (SRF_DIR, MASTER_NAME, SEED)])
+                    'infile1=%s/%s_s%d.srf' % (SRF_DIR, m_name, seed), \
+                    'infile2=%s/%s-%s_s%d.srf' % (SRF_DIR, m_name, CASES[i + 1], seed), \
+                    'outfile=%s/%s_s%d.srf' % (SRF_DIR, m_name, seed)])
 
-        SEED += SEED_INC
+        seed += seed_inc
 
 
 
@@ -482,11 +487,11 @@ if __name__ == "__main__":
                 corners = True, corners_file = CORNERS)
     elif TYPE == 4:
         # multi segment finite fault srf
-        CreateSRF_multi(M_NSEG, M_NSEG_DELAY, M_MAG, M_MOM, \
+        CreateSRF_multi(M_NSEG, M_SEG_DELAY, M_MAG, M_MOM, \
         M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
         M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
-        m_rak, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-        m_dhypo, m_name = 'bev01', n_scenario = 1)
+        M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
+        M_DHYPO, SEED, SEED_INC, M_NAME, CASES, N_SCENARIOS)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 
