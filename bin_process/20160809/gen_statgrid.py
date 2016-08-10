@@ -12,23 +12,17 @@ Converted to Python. CSH ~ 5.15 seconds vs Python ~ 5.40 seconds.
 @author Viktor Polak
 @contact viktor.polak@canterbury.ac.nz
 """
-import sys
-import os.path
-from shared import *
 
-sys.path.append(os.path.abspath(os.path.curdir))
+from shared import *
 from params import *
 
-# for testing
-#MODEL_COORDS = 'model_coords_nz01-h0.100'
 verify_files([MODEL_COORDS])
-verify_logfiles(['%s.ll' % (STATGRID_GEN), '%s.statcords' % (STATGRID_GEN)])
+verify_logfiles([STATGRID_GEN])
 verify_strings([nx, ny, dx_ts, dy_ts, X_BND_PAD, Y_BND_PAD])
 
 nx, ny, dx_ts, dy_ts = map(int,[nx, ny, dx_ts, dy_ts])
 
-llp = open('%s.ll' % (STATGRID_GEN), 'w')
-scp = open('%s.statcords' % (STATGRID_GEN), 'w')
+op = open(STATGRID_GEN, 'w')
 mcp = open(MODEL_COORDS, 'r')
 coords = mcp.readlines()
 for line in coords:
@@ -41,13 +35,9 @@ for line in coords:
     if int(info[3]) % dy_ts == 0 and int(info[2]) % dx_ts == 0 \
             and X_BND_PAD <= int(info[2]) < nx - X_BND_PAD \
             and Y_BND_PAD <= int(info[3]) < ny - Y_BND_PAD:
-        name = hex(int('%s%s' % (info[2], info[3].zfill(4))))[2:].zfill(7).upper()
-        llp.write('%10.4f %10.4f %s\n' \
-                % (float(info[0]), float(info[1]), name))
-        scp.write('%5d %5d %5d %s\n' \
-                % (int(info[2]), int(info[3]), 1, name))
+        op.write('%10.4f %10.4f %.4d%.4d\n' \
+                % (float(info[0]), float(info[1]), int(info[2]), int(info[3])))
 
-llp.close()
-scp.close()
+op.close()
 mcp.close()
 
