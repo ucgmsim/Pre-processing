@@ -230,21 +230,6 @@ plot_y_org = '2.5'
 plot_x_inch = '5.0'
 plot_x_shift = '%0.6f' % (float(plot_x_inch) + 0.2)
 
-# specify the maximum plotting window for the basemap
-plot_x_min = '171.75'
-plot_x_max = '173.00'
-plot_y_min = '-44.00'
-plot_y_max = '-43.20'
-# region in GMT format
-plot_region = '/'.join([plot_x_min, plot_x_max, plot_y_min, plot_y_max])
-
-# specify the plotting region for the time slice
-plot_ts_x_min = '171.75'
-plot_ts_x_max = '173.00'
-plot_ts_y_min = '-44.00'
-plot_ts_y_max = '-43.20'
-# region in GMT format
-plot_ts_region = '/'.join([plot_ts_x_min, plot_ts_x_max, plot_ts_y_min, plot_ts_y_max])
 # specify the increments of X/Y (cartesian coords) for masks etc.
 plot_dx = '0.002'
 plot_dy = '0.002'

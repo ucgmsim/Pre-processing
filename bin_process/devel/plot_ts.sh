@@ -26,8 +26,7 @@
 #   stat_file, vel_mod_params_dir, h, dt_ts, dx_ts, dy_ts, dz_ts, ts_start, ts_inc,
 #   swap_bytes, lonlat_out, scale, plot_sites, plot_s_pos, plot_s_lon, plot_s_lat,
 #   plot_s_sym, plot_s_fil, plot_s_lin, plot_x_org, plot_y_org, plot_x_inch, plot_x_shift,
-#   plot_x_min, plot_x_max, plot_y_min, plot_y_max, plot_region, plot_ts_x_min, plot_ts_x_max,
-#   plot_ts_y_min, plot_ts_y_max, plot_region, plot_ts_region, plot_dx, plot_dy, plot_palette,
+#   plot_region, plot_dx, plot_dy, plot_palette,
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
 #   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
 #   plot_topo_a_max, plot_topo_a_below, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
@@ -63,6 +62,39 @@ else # invalid or no input
     fi
 fi
 
+# definition of different regions to plot for
+case $plot_region in
+    CANTERBURY)
+        plot_x_min=171.75
+        plot_x_max=173.00
+        plot_y_min=-44.00
+        plot_y_max=-43.20
+        plot_sites=(Rolleston Darfield Lyttelton Akaroa Kaiapoi Rakaia Oxford)
+        plot_s_pos=(RB CB LM RB LB RT LB)
+        plot_s_lon=(172.3791667 172.1116667 172.7194444 172.9683333 172.6569444 172.0230556 172.1938889)
+        plot_s_lat=(-43.59083333 -43.48972222 -43.60305556 -43.80361111 -43.38277778 -43.75611111 -43.29555556)
+        ;;
+    SOUTHISLAND)
+        plot_x_min=166.0
+        plot_x_max=174.5
+        plot_y_min=-47.50
+        plot_y_max=-40.00
+        plot_sites=(Queenstown Dunedin Tekapo Timaru Christchurch Haast Greymouth Westport Kaikoura Nelson Blenheim)
+        plot_s_pos=(LT LM LM LM LM RM RM RM LM CB LM)
+        plot_s_lon=(168.6680556 170.3794444 170.4794444 171.2430556 172.6347222 169.0405556 171.2063889 171.5997222 173.6802778 173.2838889 173.9569444)
+        plot_s_lat=(-45.0300000 -45.8644444 -44.0069444 -44.3958333 -43.5313888 -43.8808333 -41.5138888)
+        ;;
+    *)
+        echo Plotting Region Not Understood
+        exit
+        ;;
+esac
+# common region related properties
+plot_ll_region=$plot_x_min/$plot_x_max/$plot_y_min/$plot_y_max
+plot_s_sym="c0.10"
+plot_s_fil="220/220/220"
+plot_s_lin="1,000/000/000"
+
 
 # used by 'ts2xyz' bin, not used with plot_option=2
 grid_file="${vel_mod_params_dir}/gridout_nz01-h${h}"
@@ -85,7 +117,7 @@ for corner in c1 c2 c3 c4 c1; do
     grep "$corner= " $model_params | gawk ' { print $2, $3 } ' >> sim.modelpath
 done
 # create mask for simulation domain
-grdmask sim.modelpath -R$plot_ts_region -I$plot_dx/$plot_dy -Gmodelmask.grd
+grdmask sim.modelpath -R$plot_ll_region -I$plot_dx/$plot_dy -Gmodelmask.grd
 # sim.modelpath still used to plot simulation domain
 
 # create color palette for plotting the topography
@@ -94,7 +126,7 @@ base_cpt=y2r_brown.cpt
 # avg Lon/Lat (midpoint of the TSlice image for the geo projection)
 avg_ll=(`echo $plot_x_min $plot_x_max $plot_y_min $plot_y_max | gawk '{print 0.5*($1+$2),0.5*($3+$4);}'`)
 # plot projection and region in GMT format for ease of use later
-att="-JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} -R${plot_region}"
+att="-JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} -R${plot_ll_region}"
 
 add_site() {
     # $1 is the site index
@@ -244,7 +276,7 @@ render_slice() {
         # create ground motion intensity surface from the TSlice output
         # -bi for binary input of 3 columns of floats
         surface outf_${3}.${comp} -Gtmp_${3}.grd -I$plot_dx/$plot_dy \
-                -R$plot_ts_region -T0.0 -bi3f 2>/dev/null
+                -R$plot_ll_region -T0.0 -bi3f 2>/dev/null
         # crop to simulation domain (multiply by mask of 0 or 1, outside = 0)
         grdmath tmp_${3}.grd modelmask.grd MUL = tmp_${3}.grd 2>/dev/null
         # clip minimum (values below cutoff = NaN, not displayed, clear)
@@ -255,14 +287,18 @@ render_slice() {
         # remove temporary input (potentially byte swapped) and grid file
         rm outf_${3}.${comp} tmp_${3}.grd
 
+        psxy  Roads.gmt >> "$plot_file"
+        # add resulting overlay image to plot
+        #grdimage roads.grd $att -Q -K -O >> "$plot_file"
+
         # ADDFAULTPLANE.SH MAKES TEMP FILES WHICH INTERFERE (SAME NAME)
         # CD INTO TEMP DIR (REQUIRES ABS PATHS)
         # TODO: fix addfaultplane or implement it here
         gmt_proc_wd=$(mktemp -d -p "$gmt_temp" GMT.XXXXXXXX)
         cd "$gmt_proc_wd"
-        cp "$sim_dir/gmt.conf" ./
+        #cp "$sim_dir/gmt.conf" ./
         # for testing, could use relative path instead
-        #cp ../../gmt.conf ./
+        cp ../../gmt.conf ./
 
         # subtitle part 2 (dynamic)
         # must precede psmeca as font configuration history required?
@@ -274,7 +310,7 @@ END
         if [ "plot_type" == "finitefault" ]; then
             # plot fault plane
             bash ${plot_fault_add_plane} "$plot_file" \
-                -R$plot_ts_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+                -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
                 $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
         else
             # plot beach ball (variable must be surrounded by quotes in sourced file)
@@ -287,12 +323,12 @@ EOF
         psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
 
         # add sites
-        for i in "${!plot_s_lon[@]}"; do
-            add_site "$i" "$plot_file"
-        done
+        #for i in "${!plot_s_lon[@]}"; do
+        #    add_site "$i" "$plot_file"
+        #done
 
         # plot strong motion station locations
-        psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
+        #psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
         # shift plotting origin (for 3 component plotting)
         psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
 END
