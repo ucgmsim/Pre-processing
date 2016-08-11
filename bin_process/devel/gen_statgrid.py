@@ -49,7 +49,7 @@ for line in coords:
                 % (int(info[2]), int(info[3]), 1, name))
 
 with open('%s.statcords' % (STATGRID_GEN), 'w') as scp:
-    scp.write('%d\n' % (len(sc))
+    scp.write('%d\n' % (len(sc)))
     scp.write(''.join(sc))
 llp.close()
 
