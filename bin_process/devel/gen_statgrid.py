@@ -28,9 +28,10 @@ verify_strings([nx, ny, dx_ts, dy_ts, X_BND_PAD, Y_BND_PAD])
 nx, ny, dx_ts, dy_ts = map(int,[nx, ny, dx_ts, dy_ts])
 
 llp = open('%s.ll' % (STATGRID_GEN), 'w')
-scp = open('%s.statcords' % (STATGRID_GEN), 'w')
-mcp = open(MODEL_COORDS, 'r')
-coords = mcp.readlines()
+sc = []
+with open(MODEL_COORDS, 'r') as mcp:
+    coords = mcp.readlines()
+
 for line in coords:
     info = line.split()
     # it is faster to calculate each time than creating separate variables
@@ -44,10 +45,11 @@ for line in coords:
         name = hex(int('%s%s' % (info[2], info[3].zfill(4))))[2:].zfill(7).upper()
         llp.write('%10.4f %10.4f %s\n' \
                 % (float(info[0]), float(info[1]), name))
-        scp.write('%5d %5d %5d %s\n' \
+        sc.append('%5d %5d %5d %s\n' \
                 % (int(info[2]), int(info[3]), 1, name))
 
+with open('%s.statcords' % (STATGRID_GEN), 'w') as scp:
+    scp.write('%d\n' % (len(sc))
+    scp.write(''.join(sc))
 llp.close()
-scp.close()
-mcp.close()
 
