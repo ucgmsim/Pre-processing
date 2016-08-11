@@ -30,7 +30,7 @@
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
 #   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
 #   plot_topo_a_max, plot_topo_a_below, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
-#   
+#   modellat
 source e3d.par
 # script is run with second parameter to indicate testing/override parameters
 if [ "$2" != '' ]; then
@@ -64,6 +64,9 @@ fi
 
 # definition of different regions to plot for
 case $plot_region in
+    # region to plot
+    # sites to display
+    # scale to show distance
     CANTERBURY)
         plot_x_min=171.75
         plot_x_max=173.00
@@ -73,6 +76,7 @@ case $plot_region in
         plot_s_pos=(RB CB LM RB LB RT LB)
         plot_s_lon=(172.3791667 172.1116667 172.7194444 172.9683333 172.6569444 172.0230556 172.1938889)
         plot_s_lat=(-43.59083333 -43.48972222 -43.60305556 -43.80361111 -43.38277778 -43.75611111 -43.29555556)
+        plot_scale="-L172.50/-43.90/$modellat/25.0 -Ba30mf30mWSen"
         ;;
     SOUTHISLAND)
         plot_x_min=166.0
@@ -82,7 +86,8 @@ case $plot_region in
         plot_sites=(Queenstown Dunedin Tekapo Timaru Christchurch Haast Greymouth Westport Kaikoura Nelson Blenheim)
         plot_s_pos=(LT LM LM LM LM RM RM RM LM CB LM)
         plot_s_lon=(168.6680556 170.3794444 170.4794444 171.2430556 172.6347222 169.0405556 171.2063889 171.5997222 173.6802778 173.2838889 173.9569444)
-        plot_s_lat=(-45.0300000 -45.8644444 -44.0069444 -44.3958333 -43.5313888 -43.8808333 -41.5138888)
+        plot_s_lat=(-45.0300000 -45.8644444 -44.0069444 -44.3958333 -43.5313888 -43.8808333 -42.4502777 -41.7575000 -42.4038888 -41.2761111 -41.5138888)
+        plot_scale="-L173/-47/$modellat/50.0 -Ba60mf60mWSen"
         ;;
     *)
         echo Plotting Region Not Understood
@@ -320,7 +325,7 @@ EOF
         fi
 
         # scale to show distance
-        psbasemap $att -L172.50/-43.90/${avg_ll[1]}/25.0 -Ba30mf30mWSen -K -O >> "$plot_file"
+        psbasemap $att $plot_scale -K -O >> "$plot_file"
 
         # add sites
         #for i in "${!plot_s_lon[@]}"; do

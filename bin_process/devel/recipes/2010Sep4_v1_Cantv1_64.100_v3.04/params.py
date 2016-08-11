@@ -165,6 +165,9 @@ ts_out_prefix = os.path.join(ts_out_dir, run_name)
 
 ################## plot_ts ####################
 
+# area to be shown/plotted
+# CANTERBURY, SOUTHISLAND
+plot_region = 'CANTERBURY'
 
 # main title and subtitles that appears at the top of the picture
 plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'
@@ -210,19 +213,6 @@ plot_fault_hyp_open = '-W1p,black'
 
 # set PALETTE = '-Crelief.cpt'
 plot_palette = '-Cgray'
-
-# specific locations to display on figure (not currently used)
-plot_sites = '(Rolleston Darfield Lyttelton Akaroa Kaiapoi Rakaia Oxford)'
-# alignment; 2letter, L,C,R (left, center, right); T,M,B (top, middle, bottom)
-plot_s_pos = "(RB CB LM RB LB RT LB)"
-plot_s_lon = "(172.3791667 172.1116667 172.7194444 172.9683333 \
-         172.6569444 172.0230556 172.1938889)"
-plot_s_lat = "(-43.59083333 -43.48972222 -43.60305556 -43.80361111 \
-         -43.38277778 -43.75611111 -43.29555556)"
-# specifying plotting preferences for site locations
-plot_s_sym = 'c0.10'         # symbol
-plot_s_fil = '220/220/220'   # fill color
-plot_s_lin = '1,000/000/000' # line?
 
 # location of offset plotting (for when 3 component plotting used - not currently utilized)
 plot_x_org = '1.15'

@@ -146,6 +146,7 @@ configs = ['version=' + version + '-mpi', \
 'ix_ts=99', \
 \
 # plot_ts.sh
+'plot_region=' + plot_region, \
 'plot_main_title="' + plot_main_title + '"', \
 'plot_sub_title="' + plot_sub_title + '"', \
 'plot_option=' + plot_option, \
