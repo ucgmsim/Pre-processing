@@ -71,6 +71,12 @@ for si, seis_file in enumerate(seis_file_list):
         rot_matrix = np.array([[cos(theta), -sin(theta), 0], \
                 [-sin(theta), -cos(theta), 0], \
                 [0, 0, -1]])
+        h5p.attrs['MLAT'] = float(MODEL_LAT)
+        h5p.attrs['MLON'] = float(MODEL_LON)
+        h5p.attrs['NX'] = nx
+        h5p.attrs['NY'] = ny
+        h5p.attrs['DX'] = dx_ts
+        h5p.attrs['DY'] = dy_ts
         h5p.attrs['NT'] = nt
         h5p.attrs['DT'] = dt
         h5p.attrs['HH'] = hh
