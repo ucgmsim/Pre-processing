@@ -203,6 +203,8 @@ plot_topo_a_inc = '10'
 plot_topo_a_max = '80'
 plot_topo_a_below = 'NaN'
 
+# 'finitefault' or 'pointsource'
+plot_type = 'finitefault'
 # fault plane resources
 fault_plane_dir = os.path.join(global_root, 'PlottingData', 'sourcesAndStrongMotionStations')
 fault_file = os.path.join(fault_plane_dir, 'bev01_DarfieldFaultPlane.xy')
@@ -210,6 +212,8 @@ plot_fault_add_plane = os.path.join(fault_plane_dir, 'addStandardFaultPlane.sh')
 plot_fault_line = '-W0.5p,black,-'
 plot_fault_top_edge = '-W2p,black'
 plot_fault_hyp_open = '-W1p,black'
+# pointsource resources
+plot_beachball = '171.9773 -43.252 8 154 83 16 62 74 173 7.98 22 171.9773 -43.252 4.6'
 
 # set PALETTE = '-Crelief.cpt'
 plot_palette = '-Cgray'
