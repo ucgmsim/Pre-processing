@@ -8,6 +8,8 @@ Saves to HDF5 file for all grid points.
 @date 2 June 2016
 
 ISSUES: All options of EMOD3D are not considered. eg: scale.
+    https://github.com/h5py/h5py/issues/428
+        - strings must be fixed length for endianness interoperability
 """
 
 from glob import glob
@@ -73,17 +75,17 @@ for si, seis_file in enumerate(seis_file_list):
                 [0, 0, -1]])
         h5p.attrs['MLAT'] = float(MODEL_LAT)
         h5p.attrs['MLON'] = float(MODEL_LON)
-        h5p.attrs['NX'] = nx
-        h5p.attrs['NY'] = ny
-        h5p.attrs['DX'] = dx_ts
-        h5p.attrs['DY'] = dy_ts
+        h5p.attrs['NX'] = int(nx)
+        h5p.attrs['NY'] = int(ny)
+        h5p.attrs['DX'] = int(dx_ts)
+        h5p.attrs['DY'] = int(dy_ts)
         h5p.attrs['NT'] = nt
         h5p.attrs['DT'] = dt
         h5p.attrs['HH'] = hh
         h5p.attrs['ROT'] = rot
         h5p.attrs['NCOMPS'] = N_MY_COMPS
         for n, key in enumerate(MY_COMPS):
-            h5p.attrs['COMP_%d' % (n)] = MY_COMPS[key]
+            h5p.attrs['COMP_%d' % (n)] = np.string_(MY_COMPS[key])
 
 
     # read at once, all component data below header as float array
@@ -112,7 +114,7 @@ for si, seis_file in enumerate(seis_file_list):
                 #continue
                 s_group = h5p[g_name]
 
-            s_group.attrs['NAME'] = stat
+            s_group.attrs['NAME'] = np.string_(stat)
             s_group.attrs['X'] = x
             s_group.attrs['Y'] = y
             seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
@@ -123,8 +125,8 @@ for si, seis_file in enumerate(seis_file_list):
                     comp_data[0 + stat_i * N_COMPS : : num_stat * N_COMPS], \
                     comp_data[1 + stat_i * N_COMPS : : num_stat * N_COMPS], \
                     comp_data[2 + stat_i * N_COMPS : : num_stat * N_COMPS])), rot_matrix)
+            print('Adding the following shape to %s/VEL:' % (g_name))
             print(comps.shape)
-            print(comps[:5])
             try:
                 h5p.create_dataset(g_name + '/VEL', (nt, N_MY_COMPS), \
                         dtype='f', data = comps)
