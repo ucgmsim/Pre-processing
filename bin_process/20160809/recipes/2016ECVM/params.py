@@ -253,7 +253,7 @@ plot_ts_region = '/'.join([plot_ts_x_min, plot_ts_x_max, plot_ts_y_min, plot_ts_
 # specify the increments of X/Y (cartesian coords) for masks etc.
 plot_dx = '0.002'
 plot_dy = '0.002'
-
+MODELPARAMS = os.path.join(vel_mod_params_dir, 'model_params_nz01-h') + hh
 
 ################## hf_sim ####################
 # check source code in bin dir for more help #
