@@ -11,7 +11,9 @@ USAGE: first parameter is the X coordinate, second is Y.
 ISSUES: 
 """
 
+import os
 import sys
+from zipfile import ZipFile
 
 import h5py as h5
 import numpy as np
@@ -48,6 +50,7 @@ except KeyError:
 # leave as restricted short name (8 byte C-string) for compatibility
 # put full name as title instead
 name = group.attrs['NAME']
+
 # entry not set by winbin-aio but structure allows it (normally blank)
 title = g_name
 # other values in second line
@@ -64,11 +67,18 @@ with open('%s.bin' % (name), 'wb') as bp:
         data[...].tofile(bp)
 
 ###
-### OUTPUT write to file
+### OUTPUT write to file and ZIP
 ###
 
+zf = ZipFile('%s.zip' % (name), 'w')
+zf.write('%s/%s.bin' % ('.', name))
+os.remove('%s/%s.bin' % ('.', name))
 for comp_i in xrange(h5p.attrs['NCOMPS']):
     comp_name = h5p.attrs['COMP_%d' % (comp_i)]
     write_seis_ascii('.', data[:, comp_i], name, comp_name, nt, dt, title = title)
-
+    zf.write('%s/%s.%s' % ('.', name, comp_name))
+    os.remove('%s/%s.%s' % ('.', name, comp_name))
+zf.close()
 h5p.close()
+# tell automation programs where the file is
+print(zf.filename)
