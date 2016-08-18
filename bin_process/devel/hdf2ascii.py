@@ -12,6 +12,7 @@ ISSUES:
 """
 
 import os
+from subprocess import Popen, PIPE
 import sys
 from zipfile import ZipFile
 
@@ -20,21 +21,74 @@ import numpy as np
 
 from shared_bin import *
 
+ll2xy_bin = '/home/vap30/bin/ll2xy'
+
+h5p = h5.File('virtual.hdf5', 'r')
+
 ###
 ### INPUT verify command line arguments
 ###
 
 try:
-    x, y = map(int, sys.argv[1:3])
+    lat, lon = map(float, sys.argv[1:3])
 except ValueError:
-    print 'Invalid input parameters, integers not found.'
+    print 'Invalid input parameters, float values not found.'
     exit()
+
+###
+### INPUT conversion lat lon to grid
+###
+
+# read required inputs
+mlat = h5p.attrs['MLAT']
+mlon = h5p.attrs['MLON']
+nx = h5p.attrs['NX']
+ny = h5p.attrs['NY']
+dx = h5p.attrs['DX']
+dy = h5p.attrs['DY']
+hh = h5p.attrs['HH']
+rot = h5p.attrs['ROT']
+# where the x plane points
+xazim = (rot + 90) % 360
+# binary wants length, not points
+xlen = nx * hh
+ylen = ny * hh
+
+# run binary, get output
+# output is displacement from center in kilometres
+p_conv = Popen([ll2xy_bin, 'mlat=%.5f' % (mlat), 'mlon=%.5f' % (mlon), \
+        'geoproj=1', 'center_origin=1', 'h=%.5f' % (hh), \
+        'xazim=%.5f' % (xazim), 'xlen=%f' % (xlen), 'ylen=%f' % (ylen)], \
+        stdin = PIPE, stdout = PIPE)
+stdout = p_conv.communicate('%.15f %.15f' % (lon, lat))[0]
+x, y = map(float, stdout.split())
+
+# convert displacement to grid points
+# first make the distance relative to top corner
+max_x = (nx - 1) * hh
+max_y = (ny - 1) * hh
+x += max_x * 0.5
+y += max_y * 0.5
+# then convert back to grid spacing
+x /= hh
+y /= hh
+# gridpoints are discrete
+x = int(round(x))
+y = int(round(y))
+
+# nx values range from 0 -> nx - 1
+if not (-1 < x < nx) or not (-1 < y < ny):
+    print('Input outside simulation domain.')
+    exit()
+
+# closest gridpoint considering decimation
+x -= x % dx
+y -= y % dy
 
 ###
 ### INPUT verify file
 ###
 
-h5p = h5.File('virtual.hdf5', 'r')
 try:
     g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
     group = h5p[g_name]
