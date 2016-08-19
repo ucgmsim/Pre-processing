@@ -201,7 +201,7 @@ echo Creating PS Template...
 plot_file_template=$gmt_temp/plot_template.ps
 # specify plot and panel size (defaults 8.5 x 11)
 edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
-psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
+psxy -JX8.5/21 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
 0.3 1.0
 0.3 7.8
 6.5 7.8
@@ -292,7 +292,7 @@ render_slice() {
         # remove temporary input (potentially byte swapped) and grid file
         rm outf_${3}.${comp} tmp_${3}.grd
 
-        psxy  Roads.gmt >> "$plot_file"
+        #psxy  Roads.gmt >> "$plot_file"
         # add resulting overlay image to plot
         #grdimage roads.grd $att -Q -K -O >> "$plot_file"
 
@@ -312,7 +312,7 @@ $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec
 END
 
         # add the fault plane or beachball
-        if [ "plot_type" == "finitefault" ]; then
+        if [ "$plot_type" == "finitefault" ]; then
             # plot fault plane
             bash ${plot_fault_add_plane} "$plot_file" \
                 -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
@@ -328,12 +328,16 @@ EOF
         psbasemap $att $plot_scale -K -O >> "$plot_file"
 
         # add sites
-        #for i in "${!plot_s_lon[@]}"; do
-        #    add_site "$i" "$plot_file"
-        #done
+        for i in "${!plot_s_lon[@]}"; do
+            add_site "$i" "$plot_file"
+        done
 
         # plot strong motion station locations
-        #psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
+        psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
+
+        # add seismograms
+        psxy ../../station.xy $att -W1.5p,red -O -K >> "$plot_file"
+
         # shift plotting origin (for 3 component plotting)
         psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
 END

@@ -11,9 +11,13 @@ class InputError(Exception):
     pass
 
 def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
-        dx = 1, dy = 1):
+        dx = 1, dy = 1, decimated = False):
     """
     Converts latitude/longitude to a gridpoint position.
+    Three main modes of operation:
+    1: No dx, dy (= 1): gridpoint
+    2: dx or dy != 1: closest gridpoint considering dx/dy
+    3: decimated: gridpoint number if only decimated points existed
     """
     # derived parameters
     xlen = nx * hh
@@ -47,7 +51,10 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
     if not (-1 < x < nx) or not (-1 < y < ny):
         raise InputError('Input outside simulation domain.')
 
-    if dx - 1 or dy - 1:
+    if decimated:
+        x //= dx
+        y //= dy
+    else:
         # closest gridpoint considering decimation
         x -= x % dx
         y -= y % dy
