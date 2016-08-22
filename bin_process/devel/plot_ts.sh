@@ -336,7 +336,12 @@ EOF
         psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
 
         # add seismograms
-        psxy ../../station.xy $att -W1.5p,red -O -K >> "$plot_file"
+        # --no-group-separator only for GNU grep, if other grep, use -v '^--$'
+        if [ -e "../../gmt-seismo.xy" ]; then
+            psxy -N $att -W1.5p,red -O -K << END >> "$plot_file"
+$(cat ../../gmt-seismo.xy | grep -e '^>' -A $2 --no-group-separator)
+END
+        fi
 
         # shift plotting origin (for 3 component plotting)
         psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null

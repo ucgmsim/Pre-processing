@@ -2,8 +2,10 @@
 Various tools which may be needed in various processes.
 """
 
+from math import sin, asin, cos, atan2, degrees, radians
 from subprocess import Popen, PIPE
 
+R_EARTH = 6378.139
 # ideally implemented in python
 ll2xy_bin = '/home/vap30/bin/ll2xy'
 
@@ -60,3 +62,18 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
         y -= y % dy
 
     return x, y
+
+def ll_shift(lat, lon, distance, bearing):
+    """
+    Shift lat/long by distance at bearing.
+    """
+    # formula is for radian values
+    lat, lon, bearing = map(radians, [lat, lon, bearing])
+
+    shift = distance / R_EARTH
+    lat2 = asin(sin(lat) * cos(shift) \
+            + cos(lat) * sin(shift) * cos(bearing))
+    lon2 = lon + atan2(sin(bearing) * sin(shift) * cos(lat), \
+            cos(shift) - sin(lat) * sin(lat2))
+
+    return degrees(lat2), degrees(lon2)
