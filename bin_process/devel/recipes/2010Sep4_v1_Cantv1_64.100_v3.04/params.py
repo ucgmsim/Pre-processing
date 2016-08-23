@@ -173,6 +173,15 @@ plot_region = 'CANTERBURY'
 plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'
 plot_sub_title = 'Beavan 1Fault, Stoch Slip, v1.64'
 
+# show seismograms for following stations
+# longitude, latitude, offset, offset azimuth, time azimuth, x length, y length
+# (decimal), (decimal), (km),  (degrees),      (degrees),    (km),     (km)
+plot_seismo = [ \
+[-43.5928, 172.3811, 2, 90, 90, 35, 15], \
+[-43.8087, 172.2524, 5, 135, -90, 35, 15], \
+[-43.4897, 172.1022, 4, 225, -20, 35, 15], \
+[-43.6232, 172.4680, 6, 180, 125, 35, 15]] # ROLC, SBRC, DFHS, LINC
+
 # input can be provided either via the "._xyts.e3d" file (option=1)
 # or via all of the individual TSFiles, which are obtained from gen_ts.csh 
 # within BlueFern and then scp'd to the local machine (option=2)
