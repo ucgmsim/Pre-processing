@@ -114,8 +114,6 @@ configs = ['version=' + version + '-mpi', \
 'slipout=' + slipout_dir+'/slipout-k2', \
 \
 # extras found in default parfile
-'span=1', \
-'intmem=1', \
 'maxmem=1500', \
 'order=4', \
 'model_style=1', \
