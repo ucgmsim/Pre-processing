@@ -22,15 +22,15 @@
 # Linuxisms: 'lscpu' output, only tested with GNU AWK
 
 # following variables are used from e3d.par:
-#   plot_main_title, plot_sub_title, plot_option, wcc_prog_dir,
+#   plot_main_title, plot_sub_title, wcc_prog_dir,
 #   stat_file, vel_mod_params_dir, h, dt_ts, dx_ts, dy_ts, dz_ts, ts_start, ts_inc,
 #   swap_bytes, lonlat_out, scale, plot_sites, plot_s_pos, plot_s_lon, plot_s_lat,
 #   plot_s_sym, plot_s_fil, plot_s_lin, plot_x_org, plot_y_org, plot_x_inch, plot_x_shift,
 #   plot_region, plot_dx, plot_dy, plot_palette,
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
 #   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
-#   plot_topo_a_max, plot_topo_a_below, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
-#   modellat
+#   plot_topo_a_max, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
+#   modellat, absmax
 source e3d.par
 # script is run with second parameter to indicate testing/override parameters
 if [ "$2" != '' ]; then
@@ -100,11 +100,6 @@ plot_s_sym="c0.10"
 plot_s_fil="220/220/220"
 plot_s_lin="1,000/000/000"
 
-
-# used by 'ts2xyz' bin, not used with plot_option=2
-grid_file="${vel_mod_params_dir}/gridout_nz01-h${h}"
-model_params="${vel_mod_params_dir}/model_params_nz01-h${h}" # to get location corners
-
 # output dirs
 mkdir -p $plot_ps_dir $plot_png_dir
 rm "$plot_ps_dir"/* "$plot_png_dir"/* 2>/dev/null
@@ -113,6 +108,8 @@ rm "$plot_ps_dir"/* "$plot_png_dir"/* 2>/dev/null
 gmt_temp="$sim_dir/gmt_wd"
 mkdir -p "$gmt_temp"
 
+# corners stored here
+model_params="${vel_mod_params_dir}/model_params_nz01-h${h}"
 # make temp file with simulation boundaries
 if [ -e "sim.modelpath" ]; then
     \rm sim.modelpath
@@ -123,7 +120,6 @@ for corner in c1 c2 c3 c4 c1; do
 done
 # create mask for simulation domain
 grdmask sim.modelpath -R$plot_ll_region -I$plot_dx/$plot_dy -Gmodelmask.grd
-# sim.modelpath still used to plot simulation domain
 
 # create color palette for plotting the topography
 base_cpt=y2r_brown.cpt
@@ -190,8 +186,21 @@ sig_int_received() {
 trap "sig_int_received" INT
 
 # color palette for velocity
-#makecpt -Chot -I -T0/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
-makecpt -Chot -I -T0/$plot_topo_a_max/0.01 -A50 > $base_cpt
+# https://www.soest.hawaii.edu/gmt/gmt/html/images/GMT_RGBchart_a4.png
+if [ "$absmax" -eq 0 ]; then
+    cpt=polar
+    min=-$plot_topo_a_max
+    extra=''
+    scale='ground velocity east (cm/s)'
+    seismoline=darkgreen
+else
+    cpt=hot
+    min=0
+    extra='-I'
+    scale='ground velocity (cm/s)'
+    seismoline=blue
+fi
+makecpt -C$cpt $extra -T$min/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
 
 # set all plotting defaults to use
 gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i
@@ -201,14 +210,14 @@ echo Creating PS Template...
 plot_file_template=$gmt_temp/plot_template.ps
 # specify plot and panel size (defaults 8.5 x 11)
 edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
-psxy -JX8.5/21 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
+psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
 0.3 1.0
 0.3 7.8
 6.5 7.8
 6.5 1.0
 END
 # set the color scale
-psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground velocity (cm/s)": >> "$plot_file_template"
+psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"$scale": >> "$plot_file_template"
 # specify the X and Y offsets` for plotting (I dont really understand this yet)
 psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
 END
@@ -254,99 +263,106 @@ render_slice() {
     png_file=$plot_png_dir/ts-str${3}.png
     cp "$plot_file_template" "$plot_file"
 
-    if [ "$plot_option" -eq 1 ]; then
-        # use 'ts2xyz.exe. to get TSlice outout in xyz format
-        # XXX: WARNING: outfile has been changed from 'outf' to 'outf_${3}'
-        #   not sure what is happening with it (appending or needing to be fresh)
-        ${wcc_prog_dir}/ts2xyz infile=$ts_file outfile=outf_${3} swap_bytes=$swap_bytes \
-                gridfile=$grid_file xyts=1 scale=$scale ts=$2 trv=0 \
-                dxts=$dxts dyts=$dyts dzts=1 absmax=1 \
-                read_header=1 outbin=1 lonlat=$lonlat_out geoproj=1
-    elif [ "$plot_option" -eq 2 ]; then
-        outf=`echo $ts_out_prefix $1 | gawk '{printf "%s_ts%.4d\n",$1,$2;}'`
+    # basename for timeslice inputs
+    outf=`echo $ts_out_prefix $1 | gawk '{printf "%s_ts%.4d\n",$1,$2;}'`
+
+    if [ "$swap_bytes" -eq 1 ]; then
+        # all components are always separate by new get_ts version
+        xyz2grd ${outf}.0 -Soutf_${3}.0 -V -Zf 2>/dev/null
+        xyz2grd ${outf}.1 -Soutf_${3}.1 -V -Zf 2>/dev/null
+        xyz2grd ${outf}.2 -Soutf_${3}.2 -V -Zf 2>/dev/null
+    else
+        \cp ${outf}.0 outf_${3}.0
+        \cp ${outf}.1 outf_${3}.1
+        \cp ${outf}.2 outf_${3}.2
     fi
 
-    # currently components are not looped over, as using ABSMAX=1
-    # loop over the different components
-    for comp in "${plot_comps[@]}"; do
-        if [ "$plot_option" -eq 2 ]; then
-            if [ "$swap_bytes" -eq 1 ]; then
-                # get file in correct format - BB added
-                xyz2grd ${outf}.${comp} -Soutf_${3}.${comp} -V -Zf
-            elif [ "$swap_bytes" -eq 0 ]; then
-                \cp ${outf}.${comp} outf_${3}.${comp}
-            fi
-        fi
-
-        # create ground motion intensity surface from the TSlice output
-        # -bi for binary input of 3 columns of floats
-        surface outf_${3}.${comp} -Gtmp_${3}.grd -I$plot_dx/$plot_dy \
+    # create ground motion intensity surface from the TSlice output
+    # -bi for binary input of 3 columns of floats
+    surface outf_${3}.0 -Gtmp_${3}.grd -I$plot_dx/$plot_dy \
+            -R$plot_ll_region -T0.0 -bi3f 2>/dev/null
+    if [ "$absmax" -eq 1 ]; then
+        # velocity = SQRT(X^2 + Y^2 + Z^2)
+        surface outf_${3}.1 -Gtmp_${3}.1.grd -I$plot_dx/$plot_dy \
                 -R$plot_ll_region -T0.0 -bi3f 2>/dev/null
-        # crop to simulation domain (multiply by mask of 0 or 1, outside = 0)
-        grdmath tmp_${3}.grd modelmask.grd MUL = tmp_${3}.grd 2>/dev/null
-        # clip minimum (values below cutoff = NaN, not displayed, clear)
-        grdclip tmp_${3}.grd -Gtmp_${3}.grd \
-                -Sb${plot_topo_a_min}/NaN 2>/dev/null
-        # add resulting overlay image to plot
-        grdimage tmp_${3}.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
-        # remove temporary input (potentially byte swapped) and grid file
-        rm outf_${3}.${comp} tmp_${3}.grd
+        surface outf_${3}.2 -Gtmp_${3}.2.grd -I$plot_dx/$plot_dy \
+                -R$plot_ll_region -T0.0 -bi3f 2>/dev/null
+        grdmath tmp_${3}.grd SQR tmp_${3}.1.grd SQR ADD tmp_${3}.2.grd SQR ADD SQRT = tmp_${3}.grd 2>/dev/null
+        rm tmp_${3}.1.grd tmp_${3}.2.grd outf_${3}.1 outf_${3}.2
+    fi
+    # crop to simulation domain (multiply by mask of 0 or 1, outside = 0)
+    grdmath tmp_${3}.grd modelmask.grd MUL = tmp_${3}.grd 2>/dev/null
+    # clip minimum (values below cutoff = NaN, not displayed, clear)
+    grdclip tmp_${3}.grd -Gtmp_${3}_P.grd \
+            -Sb${plot_topo_a_min}/NaN 2>/dev/null
+    if [ "$absmax" -eq 0 ]; then
+        # also cutoff for the lower section
+        grdclip tmp_${3}.grd -Gtmp_${3}_N.grd \
+                -Sa-${plot_topo_a_min}/NaN 2>/dev/null
+        # clip max, colour scale only goes down to > -$plot_topo_a_max
+        # if the scale is inverted, have to clip min instead
+        grdmath $plot_topo_a_max 1 SUB tmp_${3}_P.grd MIN tmp_${3}_N.grd AND = tmp_${3}_P.grd 2>/dev/null
+        rm tmp_${3}_N.grd
+    fi
+    # add resulting overlay image to plot
+    grdimage tmp_${3}_P.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
+    # remove temporary input (potentially byte swapped) and grid file
+    rm outf_${3}.0 tmp_${3}.grd tmp_${3}_P.grd
 
-        #psxy  Roads.gmt >> "$plot_file"
-        # add resulting overlay image to plot
-        #grdimage roads.grd $att -Q -K -O >> "$plot_file"
+    #psxy  Roads.gmt >> "$plot_file"
+    # add resulting overlay image to plot
+    #grdimage roads.grd $att -Q -K -O >> "$plot_file"
 
-        # ADDFAULTPLANE.SH MAKES TEMP FILES WHICH INTERFERE (SAME NAME)
-        # CD INTO TEMP DIR (REQUIRES ABS PATHS)
-        # TODO: fix addfaultplane or implement it here
-        gmt_proc_wd=$(mktemp -d -p "$gmt_temp" GMT.XXXXXXXX)
-        cd "$gmt_proc_wd"
-        #cp "$sim_dir/gmt.conf" ./
-        # for testing, could use relative path instead
-        cp ../../gmt.conf ./
+    # ADDFAULTPLANE.SH MAKES TEMP FILES WHICH INTERFERE (SAME NAME)
+    # CD INTO TEMP DIR (REQUIRES ABS PATHS)
+    # TODO: fix addfaultplane or implement it here
+    gmt_proc_wd=$(mktemp -d -p "$gmt_temp" GMT.XXXXXXXX)
+    cd "$gmt_proc_wd"
+    #cp "$sim_dir/gmt.conf" ./
+    # for testing, could use relative path instead
+    cp ../../gmt.conf ./
 
-        # subtitle part 2 (dynamic)
-        # must precede psmeca as font configuration history required?
-        pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
+    # subtitle part 2 (dynamic)
+    # must precede psmeca as font configuration history required?
+    pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file"
 $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec
 END
 
-        # add the fault plane or beachball
-        if [ "$plot_type" == "finitefault" ]; then
-            # plot fault plane
-            bash ${plot_fault_add_plane} "$plot_file" \
-                -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
-                $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
-        else
-            # plot beach ball (variable must be surrounded by quotes in sourced file)
-            gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$plot_file"
+    # add the fault plane or beachball
+    if [ "$plot_type" == "finitefault" ]; then
+        # plot fault plane
+        bash ${plot_fault_add_plane} "$plot_file" \
+            -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+            $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
+    else
+        # plot beach ball (variable must be surrounded by quotes in sourced file)
+        gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$plot_file"
 $plot_beachball
 EOF
-        fi
+    fi
 
-        # scale to show distance
-        psbasemap $att $plot_scale -K -O >> "$plot_file"
+    # scale to show distance
+    psbasemap $att $plot_scale -K -O >> "$plot_file"
 
-        # add sites
-        for i in "${!plot_s_lon[@]}"; do
-            add_site "$i" "$plot_file"
-        done
-
-        # plot strong motion station locations
-        psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
-
-        # add seismograms
-        # --no-group-separator only for GNU grep, if other grep, use -v '^--$'
-        if [ -e "../../gmt-seismo.xy" ]; then
-            psxy -N $att -W1.5p,red -O -K << END >> "$plot_file"
-$(cat ../../gmt-seismo.xy | grep -e '^>' -A $2 --no-group-separator)
-END
-        fi
-
-        # shift plotting origin (for 3 component plotting)
-        psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
-END
+    # add sites
+    for i in "${!plot_s_lon[@]}"; do
+        add_site "$i" "$plot_file"
     done
+
+    # plot strong motion station locations
+    psxy "$stat_file" $att -St0.08 -G000/000/000 -W$plot_s_lin -O -K >> "$plot_file"
+
+    # add seismograms
+    # --no-group-separator only for GNU grep, if other grep, use -v '^--$'
+    if [ -e "../../gmt-seismo.xy" ]; then
+        psxy -N $att -W1.5p,$seismoline -O -K << END >> "$plot_file"
+$(cat ../../gmt-seismo.xy | grep -e '^>' -A $(($2 + 1)) --no-group-separator)
+END
+    fi
+
+    # shift plotting origin (for 3 component plotting)
+    #<archive>psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
+    #<archive>END
 
     # finalises PostScript and converts to PNG
     finalise_png "$plot_file"

@@ -149,9 +149,8 @@ FD_STATLIST = os.path.join(stat_dir,'fd_nz01-h0.100.ll')
 
 ts_file = os.path.join(bin_output, run_name+ '_xyts.e3d') #the file created by merge_ts
 
-# TODO: not used anywhere???
-# ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0
-#        =0 3 components are output respectively into <fileroot>.0, <fileroot>.1, <fileroot>.2
+# ABSMAX = 1 all components will be plotted as hypotenuse
+#        = 0 plot polar plot of component 0
 ABSMAX = '1'
 
 LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for point in the time slice
@@ -174,27 +173,17 @@ plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'
 plot_sub_title = 'Beavan 1Fault, Stoch Slip, v1.64'
 
 # show seismograms for following stations
-# longitude, latitude, offset, offset azimuth, time azimuth, x length, y length
-# (decimal), (decimal), (km),  (degrees),      (degrees),    (km),     (km)
+# longitude, latitude, offset, offset azimuth
+# (decimal), (decimal), (km),  (degrees true)
 plot_seismo = [ \
-[-43.5928, 172.3811, 2, 90, 90, 35, 15], \
-[-43.8087, 172.2524, 5, 135, -90, 35, 15], \
-[-43.4897, 172.1022, 4, 225, -20, 35, 15], \
-[-43.6232, 172.4680, 6, 180, 125, 35, 15]] # ROLC, SBRC, DFHS, LINC
-
-# input can be provided either via the "._xyts.e3d" file (option=1)
-# or via all of the individual TSFiles, which are obtained from gen_ts.csh 
-# within BlueFern and then scp'd to the local machine (option=2)
-plot_option = '2'
-
-# option 2 settings follow
-# ----------------------------------
+[-43.5928, 172.3811, 0, 0], \
+[-43.8087, 172.2524, 0, 0], \
+[-43.4897, 172.1022, 0, 0]] # ROLC, SBRC, DFHS
+# time azimuth (degrees true), x length (km), max y length (km)
+plot_seismo_params = [90, 35, 12]
 
 # details of the spatial and termporal discretization and spacing
 plot_orig_dt = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)
-
-# components to consider (0= when only looking at vector magnitude [i.e. ABSMAX=1 further down].
-plot_comps = '( 0 )'
 
 # output dirs and resolution (dpi)
 plot_ps_dir = os.path.join(t_slice_dir, 'PlotFiles')
@@ -206,11 +195,15 @@ plot_topo_dir = os.path.join(global_root, 'PlottingData/TopoData')
 plot_topo_file = os.path.join(plot_topo_dir, 'srtm_71_21.grd')
 plot_topo_illu = '-I' + os.path.join(plot_topo_dir, 'srtm_71_21_i5.grd')
 plot_topo_file_2 = os.path.join(plot_topo_dir, 'etopo2.grd')
-# altitude in killometers? for topo
-plot_topo_a_min = '2'
+# velocity for plotting (colour palette)
+# when absmax=0, max/min is taken as pos/neg
+# ie. VALUES HERE SHOULD BE POSITIVE
+# min is cutoff (below this is transparent)
+plot_topo_a_min = '1.0'
+# inc is colour change step
 plot_topo_a_inc = '10'
-plot_topo_a_max = '80'
-plot_topo_a_below = 'NaN'
+# anything at or above max shows up as max
+plot_topo_a_max = '50'
 
 # 'finitefault' or 'pointsource'
 plot_type = 'finitefault'

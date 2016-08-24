@@ -14,6 +14,8 @@ gmt_seis = 'gmt-seismo.xy'
 if os.path.exists(gmt_seis):
     os.remove(gmt_seis)
 
+# common properties from params.py
+xazim, tlen, yamp = plot_seismo_params
 # seismo data in timeslices, these have to be present for plotting anyway
 # reduces dependencies of files, can plot stations not in statfile
 ts = [ts_out_prefix + '_ts%.4d.0' % (i) \
@@ -25,7 +27,7 @@ ts = [ts_out_prefix + '_ts%.4d.0' % (i) \
 all_ds = []
 max_ds = 0
 for desc in plot_seismo:
-    lat, lon, offset, oazim, xazim, tlen, yamp = desc
+    lat, lon = desc[:2]
 
     try:
         x, y = ll2gp(lat, lon, float(MODEL_LAT), float(MODEL_LON), \
@@ -35,12 +37,14 @@ for desc in plot_seismo:
         print('Station coordinates outside simulation domain')
         raise
     # position within timeslice file which this x, y appears
-    pos = y * int(nx) / int(dy_ts) + x
+    pos = y * int(nx) / int(dx_ts) + x
 
+    # TODO: automatic endian detection
     ds = [np.memmap(filename = ts[i], dtype = '3>f', mode = 'r')[pos][-1] \
             for i in xrange(int(ts_total))]
 
     all_ds.append(ds)
+    # PGAs
     v_max = max(np.abs(ds))
     max_ds = max(max_ds, v_max)
 
@@ -51,7 +55,7 @@ yfac = float(yamp)/max_ds
 ### generate XY data based on read values and max / other params
 ###
 for i, desc in enumerate(plot_seismo):
-    lat, lon, offset, oazim, xazim, tlen, yamp = desc
+    lat, lon, offset, oazim = desc
 
     # scaling factor to produce wanted x, y lengths (km)
     xfac = float(tlen)/len(all_ds[i])

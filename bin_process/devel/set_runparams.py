@@ -144,10 +144,10 @@ configs = ['version=' + version + '-mpi', \
 'ix_ts=99', \
 \
 # plot_ts.sh
+'absmax=' + ABSMAX, \
 'plot_region=' + plot_region, \
 'plot_main_title="' + plot_main_title + '"', \
 'plot_sub_title="' + plot_sub_title + '"', \
-'plot_option=' + plot_option, \
 'plot_palette=' + plot_palette, \
 'plot_x_org=' + plot_x_org, \
 'plot_y_org=' + plot_y_org, \
