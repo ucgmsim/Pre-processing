@@ -19,7 +19,7 @@ import numpy as np
 # 8 byte c-string has up to 7 characters, followed by at least one '\0'
 STAT_CHAR = 8
 # a station with a name of this length is virtual
-VSTAT_LEN = 4
+VSTAT_LEN = 7
 # number of bytes per value, int/float = 4 Byte on 64 bit machines
 SIZE_INT = 4
 SIZE_FLT = 4

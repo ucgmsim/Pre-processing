@@ -10,6 +10,10 @@ Replaces gen_ts.csh. Converted to Python, uses globally set variables.
 USAGE: execute from current directory. Input and output basenames are set in params.py.
 
 ISSUES: 
+
+CHANGES:
+2016/08/23: ABSMAX is not used here anymore, always 0,
+        it changes behaviour elsewhere.
 """
 
 from subprocess import call
@@ -35,7 +39,7 @@ for tscnt in range(int(ts_start), int(ts_total)):
     cmd = [ts2xyz, 'infile=' + ts_file, 'outfile=' + outf, \
             'swap_bytes=' + swap_bytes, 'gridfile=' + GRIDFILE, 'xyts=1', 'scale=' + scale, \
             'ts=' + tsnum, 'trv=0', 'dxts=' + dx_ts, 'dyts=' + dy_ts, 'dzts=' + dz_ts, \
-            'absmax=' + ABSMAX, 'read_header=1', 'outbin=1', 'lonlat=' + lonlat_out, 'geoproj=1']
+            'absmax=0', 'read_header=1', 'outbin=1', 'lonlat=' + lonlat_out, 'geoproj=1']
     print ' '.join(cmd)
     call(cmd)
 

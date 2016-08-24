@@ -46,7 +46,7 @@ MODEL_ROT = '-50.0'
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-nt = '10000' #'20000'
+nt = '50000' #'20000'
 # dt should be 0.005 (or smaller), small increments required in simulation
 dt = '0.005'
 # how often to save outputs (measured in simulation timesteps)
@@ -77,7 +77,7 @@ ix_ts='99'
 ts_inc = '1'       # increment, larger than 1 to skip
 #ts_total = '2501' # '400'   # number of slices to generate. sim time = ts_total * dt * dt_ts
 ts_start = '0'
-ts_total = '500'
+ts_total = '2500'
 
 # swap_bytes 0/1 no/yes - should be 1 if
 #   ts_file created on supercomp and this file is run on laptop; zero if run within supercomputer)
@@ -125,10 +125,10 @@ log_dir = os.path.join(lf_sim_dir, 'Rlog')
 slipout_dir = os.path.join(lf_sim_dir,'SlipOut')
 
 # files
-#stat_file = os.path.join(stat_dir, 'fd_sinz01-h0.400.ll')
-#stat_coords = os.path.join(stat_dir, 'fd_sinz01-h0.400.statcords')
-stat_file = os.path.join(stat_dir, 'statgrid-2.0x2.0-nz01_h0.400.ll')
-stat_coords = os.path.join(stat_dir, 'statgrid-2.0x2.0-nz01_h0.400.statcords')
+stat_file = os.path.join(stat_dir, 'fd_sinz01-h0.400.ll')
+stat_coords = os.path.join(stat_dir, 'fd_sinz01-h0.400.statcords')
+#stat_file = os.path.join(stat_dir, 'statgrid-2.0x2.0-nz01_h0.400.ll')
+#stat_coords = os.path.join(stat_dir, 'statgrid-2.0x2.0-nz01_h0.400.statcords')
 
 
 
@@ -220,7 +220,8 @@ plot_sites = '(Queenstown Dunedin Tekapo Timaru Christchurch Haast Greymouth Wes
 # alignment; 2letter, L,C,R (left, center, right); T,M,B (top, middle, bottom)
 plot_s_pos = "(LT LM LM LM LM RM RM RM LM CB LM)"
 plot_s_lon = "( 168.6680556 170.3794444 170.4794444 171.2430556 172.6347222 169.0405556 171.2063889 171.5997222 173.6802778 173.2838889 173.9569444 )"
-plot_s_lat = "( -45.0300000 -45.8644444 -44.0069444 -44.3958333 -43.5313888 -43.8808333 -41.5138888 )"
+plot_s_lat = "( -45.0300000 -45.8644444 -44.0069444 -44.3958333 -43.5313888 -43.8808333 -42.4502777 -41.7575000 -42.4038888 -41.2761111 -41.5138888 )"
+
 
 # specifying plotting preferences for site locations
 plot_s_sym = 'c0.10'         # symbol
