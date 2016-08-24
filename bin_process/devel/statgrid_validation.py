@@ -1,7 +1,8 @@
 import os
 import os.path
+import sys
 
-eps=1e-8 #tolerance
+eps=1e-3 #tolerance
 
 def values_in_line(line):
     values = line.strip('\n').split(' ')
@@ -15,8 +16,14 @@ def fail(msg, *argv):
 
     sys.exit()
 
+def succeed(msg, *argv):
+    print("PASS: %s" %msg)
+    for arg in argv:
+        print(arg)
+    print("\n\n\n")
+
 def compare(v1,v2):
-    return abs(v1-v2)<eps
+    return abs(v1-v2)<=eps
 
 
 if __name__ == '__main__':
@@ -30,13 +37,14 @@ if __name__ == '__main__':
 
 
         f_v=open(fname_v,'r')
-        f_a=open(fname_v,'r')
+        f_a=open(fname_a,'r')
 
         lines_v=f_v.readlines()
         lines_a=f_a.readlines()
 
-        header_v = lines_v[0]
-        header_a = lines_a[0]
+        header_v = lines_v[0].strip('\n')
+        header_a = lines_a[0].strip('\n')
+
   
         print("Virtual station seismogram : %s" %os.path.abspath(fname_v)) 
         print("   Header : %s" %header_v) 
@@ -49,7 +57,7 @@ if __name__ == '__main__':
         if len(lines_v) != len(lines_a):
             fail("The length of two files are different")
 
-        for i in range(1:len(lines_v)):
+        for i in range(1,len(lines_v)):
             line_v=lines_v[i]
             line_a=lines_a[i]
             values_v = values_in_line(line_v)
@@ -60,10 +68,10 @@ if __name__ == '__main__':
             
             for j in range(len(values_v)):
                 if compare(values_v[j],values_a[j]) != True:
-                    fail("The difference between two values is greater than %f"%eps, "Line number:%d Column number:%d" %(i+1,j+1), values_v[j], values_a[j], "From:", line_v, line_a)
+                    fail("The difference between two values is greater than %s"%str(eps), "Line number:%d Column number:%d" %(i+1,j+1), values_v[j], values_a[j], "From:", line_v, line_a)
 
 
-        pass("Comparison of %s and %s - All good" %os.path.basename(fname_v), os.path.basename(fname_a))
+        succeed("Comparison of %s and %s - All good" %(os.path.basename(fname_v), os.path.basename(fname_a)))
 
 
             
