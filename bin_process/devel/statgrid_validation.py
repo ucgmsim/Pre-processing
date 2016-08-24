@@ -1,8 +1,10 @@
 import os
 import os.path
 import sys
+from numpy import testing
 
-eps=1e-3 #tolerance
+eps=1e-5 #tolerance
+sigfig=5
 
 def values_in_line(line):
     values = line.strip('\n').split(' ')
@@ -22,8 +24,16 @@ def succeed(msg, *argv):
         print(arg)
     print("\n\n\n")
 
-def compare(v1,v2):
-    return abs(v1-v2)<=eps
+def compare(v1,v2,sigfig=sigfig):
+    try:
+        testing.assert_approx_equal(v1, v2, significant=sigfig)
+    except AssertionError:
+        return abs(v1-v2)<=eps
+
+    #    return False
+    else:
+        return True
+
 
 
 if __name__ == '__main__':
@@ -68,7 +78,7 @@ if __name__ == '__main__':
             
             for j in range(len(values_v)):
                 if compare(values_v[j],values_a[j]) != True:
-                    fail("The difference between two values is greater than %s"%str(eps), "Line number:%d Column number:%d" %(i+1,j+1), values_v[j], values_a[j], "From:", line_v, line_a)
+                    fail("The difference between two values is greater than %d significant figures"%sigfig, "Line number:%d Column number:%d" %(i+1,j+1), "%s vs %s" %(str(values_v[j]), str(values_a[j])), "From:", line_v, line_a)
 
 
         succeed("Comparison of %s and %s - All good" %(os.path.basename(fname_v), os.path.basename(fname_a)))
