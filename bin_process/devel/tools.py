@@ -7,7 +7,7 @@ from subprocess import Popen, PIPE
 
 R_EARTH = 6378.139
 # ideally implemented in python
-ll2xy_bin = '/home/vap30/bin/ll2xy'
+ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
 
 class InputError(Exception):
     pass
@@ -38,10 +38,10 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
 
     # convert displacement to grid points
     # first make the distance relative to top corner
-    max_x = (nx - 1) * hh
-    max_y = (ny - 1) * hh
-    x += max_x * 0.5
-    y += max_y * 0.5
+    max_x = (nx ) * hh #nx-1 if concerned of consistent behaviour handling the maximum (eg. 1399 -> 1400 is not allowed)
+    max_y = (ny ) * hh
+    x += (max_x) * 0.5
+    y += (max_y) * 0.5
     # then convert back to grid spacing
     x /= hh
     y /= hh
@@ -49,6 +49,7 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
     x = int(round(x))
     y = int(round(y))
 
+    print "Raw XY coords: (x,y)=%d,%d" %(x,y)
     # nx values range from 0 -> nx - 1
     if not (-1 < x < nx) or not (-1 < y < ny):
         raise InputError('Input outside simulation domain.')

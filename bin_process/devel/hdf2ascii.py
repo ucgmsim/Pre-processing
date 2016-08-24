@@ -28,7 +28,7 @@ h5p = h5.File('virtual.hdf5', 'r')
 ###
 
 try:
-    lat, lon = map(float, sys.argv[1:3])
+    lon,lat = map(float, sys.argv[1:3])
 except ValueError:
     print 'Invalid input parameters, float values not found.'
     exit()
@@ -53,9 +53,13 @@ except InputError:
     print('Input outside simulation domain.')
     exit()
 
+#x= 1340
+#y=360
+
 ###
 ### INPUT verify file
 ###
+print "Snapped XY coords: (x,y)=%d %d" %(x,y)
 
 try:
     g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
