@@ -30,7 +30,7 @@
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
 #   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
 #   plot_topo_a_max, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
-#   modellat, absmax
+#   modellat, absmax, plot_seismo_style
 source e3d.par
 # script is run with second parameter to indicate testing/override parameters
 if [ "$2" != '' ]; then
@@ -77,6 +77,9 @@ case $plot_region in
         plot_s_lon=(172.3791667 172.1116667 172.7194444 172.9683333 172.6569444 172.0230556 172.1938889)
         plot_s_lat=(-43.59083333 -43.48972222 -43.60305556 -43.80361111 -43.38277778 -43.75611111 -43.29555556)
         plot_scale="-L172.50/-43.90/$modellat/25.0 -Ba30mf30mWSen"
+        ;;
+    WIDERCANT)
+        echo NOT IMPLEMENTED; exit
         ;;
     SOUTHISLAND)
         plot_x_min=166.0
@@ -185,7 +188,7 @@ sig_int_received() {
 # enable killing of all subprocesses/cleaning temp files on CTRL-C (interrupt)
 trap "sig_int_received" INT
 
-# color palette for velocity
+# color palette for velocity TODO: make into parameter
 # https://www.soest.hawaii.edu/gmt/gmt/html/images/GMT_RGBchart_a4.png
 if [ "$absmax" -eq 0 ]; then
     cpt=polar
@@ -355,14 +358,15 @@ EOF
     # add seismograms
     # --no-group-separator only for GNU grep, if other grep, use -v '^--$'
     if [ -e "../../gmt-seismo.xy" ]; then
+        if [ "$plot_seismo_style" == "SCEC" ]; then
+            pattern="^>TS$2\s"
+        else
+            pattern='^>'
+        fi
         psxy -N $att -W1.5p,$seismoline -O -K << END >> "$plot_file"
-$(cat ../../gmt-seismo.xy | grep -e '^>' -A $(($2 + 1)) --no-group-separator)
+$(cat ../../gmt-seismo.xy | grep -e "$pattern" -A $(($2 + 1)) --no-group-separator)
 END
     fi
-
-    # shift plotting origin (for 3 component plotting)
-    #<archive>psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
-    #<archive>END
 
     # finalises PostScript and converts to PNG
     finalise_png "$plot_file"
