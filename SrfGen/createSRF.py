@@ -455,7 +455,7 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
                         'ns=%d' % (ns + 1), 'nh=1', 'seed=%d' % (seed), 'velfile=%s' % (VELFILE), \
                         'shypo=%f' % (SHYP_TOT), 'dhypo=%f' % (DHYPO[0]), 'dt=%f' % (DT), \
                         'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
-                        'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)]), stdout = srfp)
+                        'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
 
         # joined case files stored in separate file
         copyfile('%s/%s-%s_s%d.srf' % (SRF_DIR, m_name, CASES[0], seed), \
