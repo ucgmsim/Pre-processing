@@ -172,6 +172,7 @@ configs = ['version=' + version + '-mpi', \
 'plot_fault_line=' + plot_fault_line, \
 'plot_fault_top_edge=' + plot_fault_top_edge, \
 'plot_fault_hyp_open=' + plot_fault_hyp_open, \
+'plot_seismo_style=' + plot_seismo_style, \
 \
 # other locations
 'wcc_prog_dir="' + wcc_prog_dir + '"', \

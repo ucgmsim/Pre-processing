@@ -30,7 +30,7 @@
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
 #   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
 #   plot_topo_a_max, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
-#   modellat, absmax
+#   modellat, absmax, plot_seismo_style
 source e3d.par
 # script is run with second parameter to indicate testing/override parameters
 if [ "$2" != '' ]; then
@@ -42,7 +42,7 @@ fi
 threads=$1
 if [ $threads -gt 0 ] 2>/dev/null; then
     echo Using $threads threads from passed in value.
-else # invalid or no input
+elif [ "$1" != "template" ]; then
     virtual_cores=$(lscpu | grep '^CPU(s):')
     virtual_cores=${virtual_cores##* }
     if [ $virtual_cores -gt 8 ]; then
@@ -62,6 +62,17 @@ else # invalid or no input
     fi
 fi
 
+# threading doesn't make sense with template option
+# only create template ps/raster for later use (web use)
+if [ "$1" == "template" ]; then
+    plot_purpose="template"
+    if [ ! -e "statgrid_max.bin" ]; then
+        echo Need to run hdf2maxgrid.py first.
+        echo Cannot find statgrid_max.bin.
+        exit
+    fi
+fi
+
 # definition of different regions to plot for
 case $plot_region in
     # region to plot
@@ -72,6 +83,17 @@ case $plot_region in
         plot_x_max=173.00
         plot_y_min=-44.00
         plot_y_max=-43.20
+        plot_sites=(Rolleston Darfield Lyttelton Akaroa Kaiapoi Rakaia Oxford)
+        plot_s_pos=(RB CB LM RB LB RT LB)
+        plot_s_lon=(172.3791667 172.1116667 172.7194444 172.9683333 172.6569444 172.0230556 172.1938889)
+        plot_s_lat=(-43.59083333 -43.48972222 -43.60305556 -43.80361111 -43.38277778 -43.75611111 -43.29555556)
+        plot_scale="-L172.50/-43.90/$modellat/25.0 -Ba30mf30mWSen"
+        ;;
+    WIDERCANT)
+        plot_x_min=170.52
+        plot_x_max=173.67
+        plot_y_min=-44.4
+        plot_y_max=-42.53
         plot_sites=(Rolleston Darfield Lyttelton Akaroa Kaiapoi Rakaia Oxford)
         plot_s_pos=(RB CB LM RB LB RT LB)
         plot_s_lon=(172.3791667 172.1116667 172.7194444 172.9683333 172.6569444 172.0230556 172.1938889)
@@ -144,6 +166,21 @@ ${plot_s_lon[$1]} ${plot_s_lat[$1]} ${plot_s_pos[$1]} ${plot_sites[$1]}
 END
 }
 
+add_source() {
+    # add the fault plane or beachball
+    if [ "$plot_type" == "finitefault" ]; then
+        # plot fault plane
+        bash ${plot_fault_add_plane} "$1" \
+            -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+            $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
+    else
+        # plot beach ball (variable must be surrounded by quotes in sourced file)
+        gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$1"
+$plot_beachball
+EOF
+    fi
+}
+
 finalise_png() {
     # finalize postscript (i.e. no -K)
     psxy -V $att -L -W5,255/255/0 -O << END >>  "$1" 2>/dev/null
@@ -185,20 +222,20 @@ sig_int_received() {
 # enable killing of all subprocesses/cleaning temp files on CTRL-C (interrupt)
 trap "sig_int_received" INT
 
-# color palette for velocity
+# color palette for velocity TODO: make into parameter
 # https://www.soest.hawaii.edu/gmt/gmt/html/images/GMT_RGBchart_a4.png
-if [ "$absmax" -eq 0 ]; then
-    cpt=polar
-    min=-$plot_topo_a_max
-    extra=''
-    scale='ground velocity east (cm/s)'
-    seismoline=darkgreen
-else
+if [ "$absmax" -eq 1 ] || [ "$plot_purpose" == "template" ]; then
     cpt=hot
     min=0
     extra='-I'
     scale='ground velocity (cm/s)'
     seismoline=blue
+else
+    cpt=polar
+    min=-$plot_topo_a_max
+    extra=''
+    scale='ground velocity east (cm/s)'
+    seismoline=darkgreen
 fi
 makecpt -C$cpt $extra -T$min/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
 
@@ -247,6 +284,38 @@ END
 pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file_template"
 $plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
 END
+if [ "$plot_purpose" == "template" ]; then
+    echo "Only creating template (by parameter)."
+    # include maxgrid on map
+    # create ground motion intensity surface from MAXGRID
+    if [ "$swap_bytes" -eq 1 ]; then
+        xyz2grd statgrid_max.bin -Sstatgrid_max.native.bin -V -Zf 2>/dev/null
+    else
+        cp statgrid_max.bin statgrid_max.native.bin
+    fi
+    surface statgrid_max.native.bin -Gmax.grd -I$plot_dx/$plot_dy \
+            -R$plot_ll_region -T0.0 -bi3f 2>/dev/null
+    rm statgrid_max.native.bin
+    # crop to simulation domain (multiply by mask of 0 or 1, outside = 0)
+    grdmath max.grd modelmask.grd MUL = max.grd 2>/dev/null
+    # clip minimum (values below cutoff = NaN, not displayed, clear)
+    grdclip max.grd -Gmax.grd \
+            -Sb${plot_topo_a_min}/NaN 2>/dev/null
+    # add resulting overlay image to plot
+    grdimage max.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file_template" 2>/dev/null
+    # finite fault or beachball
+    add_source "$plot_file_template"
+    # have template ready and raster version
+    mkdir -p WEB
+    cp "$plot_file_template" WEB/gmt-template.ps
+    cp gmt.conf WEB/
+    cp gmt.history WEB/
+    psxy -V $att -L -W5,255/255/0 -O << END >>  "$plot_file_template" 2>/dev/null
+END
+    ps2raster "$plot_file_template" -A -TG -E$plot_res -DWEB
+    clean_temp_files
+    exit
+fi
 echo Template Complete.
 ####################### END TEMPLATE ###########################
 
@@ -328,18 +397,8 @@ render_slice() {
 $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec
 END
 
-    # add the fault plane or beachball
-    if [ "$plot_type" == "finitefault" ]; then
-        # plot fault plane
-        bash ${plot_fault_add_plane} "$plot_file" \
-            -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
-            $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
-    else
-        # plot beach ball (variable must be surrounded by quotes in sourced file)
-        gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$plot_file"
-$plot_beachball
-EOF
-    fi
+    # finite fault or beachball
+    add_source "$plot_file"
 
     # scale to show distance
     psbasemap $att $plot_scale -K -O >> "$plot_file"
@@ -355,14 +414,15 @@ EOF
     # add seismograms
     # --no-group-separator only for GNU grep, if other grep, use -v '^--$'
     if [ -e "../../gmt-seismo.xy" ]; then
+        if [ "$plot_seismo_style" == "SCEC" ]; then
+            pattern="^>TS$2\s"
+        else
+            pattern='^>'
+        fi
         psxy -N $att -W1.5p,$seismoline -O -K << END >> "$plot_file"
-$(cat ../../gmt-seismo.xy | grep -e '^>' -A $(($2 + 1)) --no-group-separator)
+$(cat ../../gmt-seismo.xy | grep -e "$pattern" -A $(($2 + 1)) --no-group-separator)
 END
     fi
-
-    # shift plotting origin (for 3 component plotting)
-    #<archive>psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
-    #<archive>END
 
     # finalises PostScript and converts to PNG
     finalise_png "$plot_file"
