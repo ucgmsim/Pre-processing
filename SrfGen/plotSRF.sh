@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
-#TODO: INDEXES ARE STILL CSH... (1 more than they should be)
 
-mkdir PlotFiles
+mkdir -p PlotFiles
 
-BINDIR="/home/vap30/bin"
+srf2xyz_bin="/home/vap30/bin/srf2xyz"
 
-MAIN_TITLE="GP14.3"
+title="GP14.3"
 
-#set TYPES = ( slip )
-#set TYPES = ( slip trise )
 TYPES=( slip trise rake )
 LABS=( "Slip (cm)" "Rise Time (s)" "Rake (deg)" )
-GMT_CPTDIR="./gmt_cpt"
-BCPTS=( {$GMT_CPTDIR}/y2r2b.cpt {$GMT_CPTDIR}/c2b2m.cpt {$GMT_CPTDIR}/rain6.cpt )
+cpt_dir="./srf_cpt"
+BCPTS=( "$cpt_dir/y2r2b.cpt" "$cpt_dir/c2b2m.cpt" "$cpt_dir/rain6.cpt" )
 
 NEARV=( 100 0.5 5 )
 #the three sets of values below [MAXV, MINV, INCV, CPTA] are the max,min, increments for the color bar, and CPTA is the increment for the legend numbering
@@ -32,16 +29,15 @@ COLR_BAR=( 1 1 0 )
 # if the variable below = 1 then the rake angles are defined over [-180,180], otherwise if=0 then angles = [0,360].  This affects the min/avg/max values.  The first two values are for slip and rise time, so shouldnt be adjusted from 0, only the third.  This should generally be "1" when the average rake is near zero.
 FLIP_RAKE_ANGLES=(0 0 1)
 
-XYZCODE=( srf2xyz srf2xyz srf2xyz )
 DX=( 0.5 0.5 3.3333333 2.0 2.0 )
 DY=( 0.5 0.5 2.5000000 2.5 2.5 )
 
 # Name of the output file
-SOURCES=( m7.80-411.0x13.9_s1129571 )
+SOURCES=( bev01_s103245 )
 
 SLIPDIR=./
 #name (and dir) of the gmt ps file
-SLIPS=( Srf/m7.80-411.0x13.9_s1129571.srf )
+SLIPS=( Srf/bev01_s103245.srf )
 
 #fault geometry - length and downdip width
 FLEN=( 411.0 )
@@ -49,9 +45,6 @@ FWID=( 13.9 )
 
 DX_RAKE=2.0
 DY_RAKE=2.0
-#DX_RAKE = 0.67
-#DY_RAKE = 0.67
-#USE_AVG_RAKE = 1
 USE_AVG_RAKE=0
 
 #KMINCH = ( 4.0 )  #for Mw~5
@@ -88,9 +81,8 @@ gmtset MAP_FRAME_WIDTH 0.05 FONT_LABEL 11 FORMAT_GEO_MAP D MAP_TICK_LENGTH_PRIMA
 
 m=0
 for source in $SOURCES; do
-    m=$(($m + 1))
-
     PSFILE=`echo $source | gawk '{printf "PlotFiles/%s.ps\n",$1;}'`
+
     \rm $PSFILE
 
     XSH=0.0
@@ -102,7 +94,6 @@ for source in $SOURCES; do
     TINC=( )
     t=0
     for typ in $TYPES; do
-        t=$(($t + 1))
 
         TCPT=( $TCPT temp${t}.cpt )
 
@@ -110,36 +101,36 @@ for source in $SOURCES; do
         SMAX=-1.0e+15
         s=0
         for slip in $SLIPS; do
-            s=$(($s + 1))
-
             #the two lines below include the possibility of negative rakes (see FLIP_RAKE_ANGLES parameter)
-            SMAX=`{$BINDIR}/$XYZCODE[$s] calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPDIR/${slip} | gawk -v m=$SMAX -v p=$PREC[$t] -v fliprake=$FLIP_RAKE_ANGLES[$t] '{val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}if(val>m)m=val;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
-            SMIN=`{$BINDIR}/$XYZCODE[$s] calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPDIR/${slip} | gawk -v m=$SMIN -v p=$PREC[$t] -v fliprake=$FLIP_RAKE_ANGLES[$t] '{val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}if(val<m)m=val;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
+            SMAX=`$srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPDIR/${slip} | gawk -v m=$SMAX -v p=${PREC[$t]} -v fliprake=$FLIP_RAKE_ANGLES[$t] '{val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}if(val>m)m=val;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
+            SMIN=`$srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPDIR/${slip} | gawk -v m=$SMIN -v p=${PREC[$t]} -v fliprake=${FLIP_RAKE_ANGLES[$t]} '{val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}if(val<m)m=val;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
+            s=$(($s + 1))
         done
 
         echo $SMIN $SMAX
 
-        MAXRND=`echo $SMAX | gawk -v p=$PREC[$t] -v nv=$NEARV[$t] '{m=$1*1.1;}END{d=int($1/nv+0.0);while(nv*d<0.9*m)d++;fmt=sprintf("%%.%df %%.2f\n",p);printf fmt,nv*d,0.2*nv*d;}'`
+        MAXRND=`echo $SMAX | gawk -v p=${PREC[$t]} -v nv=${NEARV[$t]} '{m=$1*1.1;}END{d=int($1/nv+0.0);while(nv*d<0.9*m)d++;fmt=sprintf("%%.%df %%.2f\n",p);printf fmt,nv*d,0.2*nv*d;}'`
         #echo $MAXRND
 
-        if [ $MAXV[$t] != "-1" ]; then
-            MAXRND=( $MAXV[$t] $INCV[$t] )
-            SMIN=$MINV[$t]
-            AA=$CPTA[$t]
+        if [ ${MAXV[$t]} != "-1" ]; then
+            MAXRND=( ${MAXV[$t]} {$INCV[$t]} )
+            SMIN=${MINV[$t]}
+            AA=${CPTA[$t]}
         else
-            AA=${MAXRND[2]}
+            AA=${MAXRND[1]}
         fi
 
         AINC=( $AINC $AA )
-        TINC=( $TINC ${MAXRND[2]} )
+        TINC=( $TINC ${MAXRND[1]} )
 
-        makecpt -C$BCPTS[$t] -T${SMIN}/$MAXRND[1]/$MAXRND[2] $CPTZ[$t] > $TCPT[$t]
+        makecpt -C${BCPTS[$t]} -T${SMIN}/${MAXRND[0]}/{$MAXRND[1]} ${CPTZ[$t]} > $TCPT[$t]
+        t=$(($t + 1))
     done
 
     # removed from pstext "-G0/0/0"
     pstext -JX8.5/11.0 -R0/8.5/0/11 -N -K -X0.0 -Y0.0 << END > $PSFILE
 #1.2 1.0 20 0 1 1 ${source}
-#1.2 0.8 10 0 0 1 ${SLIPS[1]}
+#1.2 0.8 10 0 0 1 ${SLIPS[0]}
 END
 
     echo $cwd
@@ -150,72 +141,69 @@ END
 #END
 
     #removed from pstext "-G0/0/0"
-    gmt pstext -JX8.5/11.0 -R0/8.5/0/11 -N -O -K -X$XZ -Y$YZ[$m] << END >> $PSFILE
+    gmt pstext -JX8.5/11.0 -R0/8.5/0/11 -N -O -K -X$XZ -Y${YZ[$m]} << END >> $PSFILE
 END
 
-    set s = 0
+    s=0
     for slip in $SLIPS; do
-        s=$(($s + 1))
-
-        XINCH=`echo $FLEN[$s] ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
-        YINCH=`echo $FWID[$s] ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
+        XINCH=`echo ${FLEN[$s]} ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
+        YINCH=`echo ${FWID[$s]} ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
         XMID=`echo $XINCH | gawk '{printf "%f\n",$1+0.3;}'`
         YSLEN=`echo $YINCH | gawk '{printf "%f\n",0.8*$1;}'`
         YSMID=`echo $YSLEN | gawk '{printf "%f\n",0.5*$1;}'`
 
         SCALE="$XINCH/-$YINCH"
 
-        REGION="0/$FLEN[$s]/0/$FWID[$s]"
+        REGION="0/${FLEN[$s]}/0/${FWID[$s]}"
         ATTRIB="-JX$SCALE -R$REGION"
 
         t=0
         for typ in $TYPES; do
-            t=$((t+1))
 
             if [ $t -eq 1 ]; then
                 #removed from pstext "-G0/0/0"
-                echo $FLEN[$s] | gawk -v t="${MAIN_TITLE}" '{printf "%f 0 20 0 1 2 %s\n",0.5*$1,t;}' | \
+                echo $FLEN[$s] | gawk -v t="$title" '{printf "%f 0 20 0 1 2 %s\n",0.5*$1,t;}' | \
                 pstext -N $ATTRIB -D0.0/0.2  -K -O >> $PSFILE
             fi
 
             W="w"
-            if [ $s <= ${NCOL[$m]} ]; then
+            if [ "$s" -le ${NCOL[$m]} ]; then
                W="W"
             fi
 
             S="s"
-            if [ ($s % ${NCOL[$m]}) == 0 || (($s == $#SLIPS) && ($t == $#TYPES))]; then
+            if [ $(($s % ${NCOL[$m]})) -eq 0 ] || ( [ $s == ${#SLIPS[@]} ] && [ $t == ${#TYPES[@]} ] ); then
                 S="S"
             fi
 
             SLIPFILE=$SLIPDIR/${slip}
-
-            AVG_MAX=`{$BINDIR}/$XYZCODE[$s] calc_xy=$CALC_XY type="${typ}" nseg=-1 dump_slip=1 < $SLIPFILE | gawk -v p=$PREC[$t] -v sw=$SLIP_WGT[$t] -v fliprake=$FLIP_RAKE_ANGLES[$t] 'BEGIN{mx=-1.0e+15;mn=1.0e+15;}{w=1;if(sw==1)w=$4;val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}v=v+val*w;tw=tw+w;if(val>mx)mx=val;if(val<mn)mn=val;}END{fmt=sprintf("%%.%df %%.%df %%.%df\n",p,p,p);printf fmt,v/tw,mx,mn;}'`
-            echo $s avg= $AVG_MAX[1] max= $AVG_MAX[2] min= $AVG_MAX[3]
+exit
+            AVG_MAX=`$srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 dump_slip=1 < $SLIPFILE | gawk -v p=${PREC[$t]} -v sw=${SLIP_WGT[$t]} -v fliprake=${FLIP_RAKE_ANGLES[$t]} 'BEGIN{mx=-1.0e+15;mn=1.0e+15;}{w=1;if(sw==1)w=$4;val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}v=v+val*w;tw=tw+w;if(val>mx)mx=val;if(val<mn)mn=val;}END{fmt=sprintf("%%.%df %%.%df %%.%df\n",p,p,p);printf fmt,v/tw,mx,mn;}'`
+            echo $s avg= ${AVG_MAX[0]} max= ${AVG_MAX[1]} min= ${AVG_MAX[2]}
 
             #changed -F in 'xyz2grd to -r
-            {$BINDIR}/$XYZCODE[$s] calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPFILE | \
-            gawk -v rmean=$RMEAN[$t] -v avg=$AVG_MAX[1] -v fliprake=$FLIP_RAKE_ANGLES[$t] 'BEGIN{vv=0.0;if(rmean==1)vv=avg;}{ \
+            $srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPFILE | \
+            gawk -v rmean=${RMEAN[$t]} -v avg=${AVG_MAX[0]} -v fliprake=$FLIP_RAKE_ANGLES[$t] 'BEGIN{vv=0.0;if(rmean==1)vv=avg;}{ \
                     val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;} \
                     printf "%13.5e %13.5e %13.5e\n",$1,$2,val-vv;}' | \
-            xyz2grd -G$GRDFILE -I$DX[$s]/$DY[$s] -R$REGION -r
+            xyz2grd -G$GRDFILE -I${DX[$s]}/${DY[$s]} -R$REGION -r
             #plot the grid image
-            grdimage $GRDFILE $ATTRIB -C$TCPT[$t] -B${XTIC[$m]}:"$XLAB":/${YTIC}:"$YLAB":${W}${S}en -K -O -X$XSH -Y$YSH >> $PSFILE
+            grdimage $GRDFILE $ATTRIB -C${TCPT[$t]} -B${XTIC[$m]}:"$XLAB":/${YTIC}:"$YLAB":${W}${S}en -K -O -X$XSH -Y$YSH >> $PSFILE
 
-            if [ $TINIT[$t] -eq 1 ]; then
+            if [ ${TINIT[$t]} -eq 1 ]; then
                 #changed -F in 'xyz2grd to -r
-                {$BINDIR}/$XYZCODE[$s] calc_xy=$CALC_XY type="tinit" nseg=-1 < $SLIPFILE | \
-                xyz2grd -G$GRDFILE -I$DX[$s]/$DY[$s] -R$REGION -r
-                grdcontour $GRDFILE $ATTRIB -C$CINTV[$m] -W1.0  -K -O >> $PSFILE
+                $srf2xyz_bin calc_xy=$CALC_XY type="tinit" nseg=-1 < $SLIPFILE | \
+                xyz2grd -G$GRDFILE -I${DX[$s]}/${DY[$s]} -R$REGION -r
+                grdcontour $GRDFILE $ATTRIB -C${CINTV[$m]} -W1.0  -K -O >> $PSFILE
                 #removed '-W4/0/0/0' from the above line
             fi
 
             if [ $RAKES[$t] -eq 1 ]; then
-                SMAX = `{$BINDIR}/$XYZCODE[$s] calc_xy=$CALC_XY type=slip nseg=-1 < $SLIPFILE | gawk -v p=$PREC[$t] '{if($3>m)m=$3;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
+                SMAX = `$srf2xyz_bin calc_xy=$CALC_XY type=slip nseg=-1 < $SLIPFILE | gawk -v p=${PREC[$t]} '{if($3>m)m=$3;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
 
                 #because YDIR is reversed then 'rk[i]/nv[i]' changed to '-rk[i]/nv[i]' (near end of pipe below)
-                {$BINDIR}/$XYZCODE[$s] calc_xy=$CALC_XY type=rake nseg=-1 dump_slip=1 < $SLIPFILE | \
-                gawk -v dx=$DX_RAKE -v dy=$DY_RAKE -v len=$FLEN[$s] -v wid=$FWID[$s] -v avgr=$USE_AVG_RAKE -v mx=$SMAX 'BEGIN{ \
+                $srf2xyz_bin calc_xy=$CALC_XY type=rake nseg=-1 dump_slip=1 < $SLIPFILE | \
+                gawk -v dx=$DX_RAKE -v dy=$DY_RAKE -v len=${FLEN[$s]} -v wid=${FWID[$s]} -v avgr=$USE_AVG_RAKE -v mx=$SMAX 'BEGIN{ \
                 nx=int(len/dx+0.5);ny=int(wid/dy+0.5);for(i=1;i<=nx*ny;i++){mr[i]=1.0e+15;x0[i]=0.0;y0[i]=0.0;nv[i]=0;rk[i]=0.0;sp[i]=0.0;}}{ \
                 ix=int($1/dx);iy=int($2/dy);ip=1+ix+iy*nx; \
                 if(avgr==0){ \
@@ -234,9 +222,9 @@ END
 
             #removed from pstext "-G0/0/0"
             pstext $ATTRIB -N -O -K -D0.025/0.05 << END >> $PSFILE
-#0.0 0.0 11 0 0 1 $slip \b\b\b $AVG_MAX[1] / $AVG_MAX[2]
-0.0 0.0 12 0 1 1 $LABS[$t]
-$FLEN[$s] 0.0 11 0 0 3 $AVG_MAX[3] / $AVG_MAX[1] / $AVG_MAX[2]
+#0.0 0.0 11 0 0 1 $slip \b\b\b ${AVG_MAX[0]} / ${AVG_MAX[1]}
+0.0 0.0 12 0 1 1 ${LABS[$t]}
+${FLEN[$s]} 0.0 11 0 0 3 ${AVG_MAX[2]} / ${AVG_MAX[0]} / ${AVG_MAX[1]}
 END
 
             if [ $COLR_BAR[$t] -eq 1 ]; then
@@ -244,22 +232,24 @@ END
             fi
 
             XSH=0.0
-            if [ ($s % ${NCOL[$m]}) -eq 0 ]; then
+            if [ $(($s % ${NCOL[$m]})) -eq 0 ]; then
                 XSH=`echo $XINCH | gawk '{printf "%f\n",$1+0.2;}'`
             fi
 
             YSH=`echo $YINCH | gawk '{printf "%f\n",-($1+0.4);}'`
-            if [ ($s % ${NCOL[$m]}) -eq 0]; then
+            if [ $(($s % ${NCOL[$m]})) -eq 0]; then
                 YSH=`echo $YSH ${NCOL[$m]} | gawk '{printf "%f\n",-$1*($2-1);}'`
             fi
 
+            t=$((t+1))
         done
-
+        s=$(($s + 1))
     done
 
     psxy $ATTRIB -W5 -G0/0/0 -O << END >> $PSFILE
 END
 
+    m=$(($m + 1))
 done
 
 \rm $GRDFILE $TCPT
