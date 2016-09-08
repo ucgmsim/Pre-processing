@@ -88,6 +88,7 @@ for si, seis_file in enumerate(seis_file_list):
 
 
     # read at once, all component data below header as float array
+    # XXX: WARNING: RUNS OUT OF MEMORY ON LARGE FILES (CHECK SEIS FILE SIZE VS AVAILABLE MEMORY)
     # major speedup compared to manual processing
     # TODO: look at reshaping comp_data to (NT, n_stat, N_BIN_COMPS)
     seek(SIZE_INT + num_stat * SIZE_SEISHEAD)
