@@ -20,8 +20,7 @@ def get_ft_len(nt):
     """
     return int(2 ** ceil(log(nt) / log(2)))
 
-def ampdeamp(timeseries, dt, vref, vsite, vpga, pga, \
-            method = "cb08", amp = True):
+def ampdeamp(timeseries, ampf, amp = True):
     """
     Amplify or Deamplify timeseries.
     """
@@ -32,7 +31,6 @@ def ampdeamp(timeseries, dt, vref, vsite, vpga, pga, \
 
     # taper 5% on the right using the hanning method
     ntap = int(nt * 0.05)
-    timeseries *= dt
     timeseries[nt - ntap:] *= np.hanning(ntap * 2 + 1)[ntap + 1:]
 
     # extend array, fft
@@ -40,18 +38,13 @@ def ampdeamp(timeseries, dt, vref, vsite, vpga, pga, \
     timeseries[nt:] = 0
     fourier = rfft(timeseries)
 
-    # amplification factors are applied on fft values
-    if method == "cb08":
-        ampf = cb08_amp(dt, ft_len, vref, vsite, vpga, pga)
-    else:
-        ampf = None
     # ampf modified for de-amplification
     if not amp:
         ampf = 1 / ampf
     # last value of fft is some identity value
     fourier[:-1] *= ampf
 
-    return irfft(fourier)[:nt] * (nt * dt * 2)
+    return irfft(fourier)[:nt]
 
 def read_ascii(filepath):
     """
@@ -72,3 +65,16 @@ def read_ascii(filepath):
     assert(i == nt - 1)
 
     return vals
+
+def vel2acc(timeseries, dt):
+    """
+    Differentiate following Rob Graves' code logic.
+    """
+    return np.diff(np.hstack(([0], timeseries)) * (1.0 / dt))
+
+def acc2vel(timeseries, dt):
+    """
+    Integrates following Rob Graves' code logic (simple).
+    """
+    return np.cumsum(timeseries) * dt
+
