@@ -56,6 +56,9 @@ fmid = 1.0
 fhigh = 3.33
 fhightop = 10.0
 fmax = 15.0
+# C CODE DEFAULTS
+fmin = 0.1
+
 # f_site function domains
 fs_low = lambda T, vs30, a1100 : c10[T] * log(vs30 / k1[T]) + \
         k2[T] * log((a1100 + scon_c * exp(scon_n * log(vs30 / k1[T]))) / (a1100 + scon_c))

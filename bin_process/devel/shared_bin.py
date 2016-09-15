@@ -58,10 +58,30 @@ def get_seis_swap(file_path):
 
     # assuming correct values read, this is the filesize
     fs = SIZE_INT + ns * (SIZE_SEISHEAD + SIZE_FLT * N_COMPS * nt)
-    
+
     if fs == stat(fp.name).st_size:
         return False
     return True
+
+def get_seis_common(file_path, INT_S, FLT_S):
+    """
+    Reads seis station information which should be
+    common to every station in a simulation.
+
+    INT_S: format string of an integer
+    FLT_S: format string of a float
+    """
+    fp = open(file_path, 'rb')
+    # skip to first station contents
+    fp.seek(SIZE_INT * 5)
+    nt = unpack(INT_S, fp.read(SIZE_INT))[0]
+    # expected to not have numbers past 6 decimal places
+    # prevents float representation errors
+    dt = round(unpack(FLT_S, fp.read(SIZE_INT))[0], 6)
+    hh = round(unpack(FLT_S, fp.read(SIZE_INT))[0], 6)
+    rot = round(unpack(FLT_S, fp.read(SIZE_INT))[0], 6)
+
+    return nt, dt, hh, rot
 
 # write data to ASCII seis file
 def write_seis_ascii(out_dir, data, stat, comp, nt, dt, \
