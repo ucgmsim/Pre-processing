@@ -7,11 +7,41 @@ Shared functions to work on time-series.
 
 from math import ceil, log
 
+# sosfilt new in scipy 0.16
+# sosfiltfilt new in scipy 0.18
+from scipy.signal import butter
 import numpy as np
 rfft = np.fft.rfft
 irfft = np.fft.irfft
 
+from params import *
+from sosfiltfilt import sosfiltfilt
 from siteamp_models import cb08_amp
+
+# butterworth filter
+# bandpass not necessary as sampling frequency too low
+def bwfilter(data, dt, freq, band):
+    """
+    data: np.array to filter
+    freq: cutoff frequency
+    band: 'highpass' or 'lowpass'
+    """
+    # power spectrum based LF/HF filter (shift cutoff)
+    # readable code commented, fast code uncommented
+    #order = 4
+    #x = 1.0 / (2.0 * order)
+    #if band == 'lowpass':
+    #    x *= -1
+    #freq *= exp(x * log(sqrt(2.0) - 1.0))
+    nyq = 1.0 / (2.0 * dt)
+    if match_powersb:
+        if band == 'highpass':
+            freq *= 0.8956803352330285
+        else:
+            freq *= 1.1164697500474103
+    return sosfiltfilt( \
+            butter(4, freq / nyq, btype = band, output = 'sos'), \
+            data, padtype = None)
 
 def get_ft_len(nt):
     """
