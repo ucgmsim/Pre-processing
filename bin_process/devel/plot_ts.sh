@@ -137,15 +137,19 @@ for corner in c1 c2 c3 c4 c1; do
         case "$corner" in
             c1)
                 plot_x_min=$(grep "$corner= " $model_params | gawk ' { print $2 } ')
+                west=$plot_x_min
                 ;;
             c2)
                 plot_y_max=$(grep "$corner= " $model_params | gawk ' { print $3 } ')
+                north=$plot_y_max
                 ;;
             c3)
                 plot_x_max=$(grep "$corner= " $model_params | gawk ' { print $2 } ')
+                east=$plot_x_max
                 ;;
             c4)
                 plot_y_min=$(grep "$corner= " $model_params | gawk ' { print $3 } ')
+                south=$plot_y_min
                 ;;
         esac
     fi
@@ -334,6 +338,13 @@ END
 END
     ps2raster "$plot_file_template" -A -TG -E600 -DWEB
     clean_temp_files
+    # create kmz
+    cd WEB
+    echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "doc.kml"
+    echo "<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\" xmlns:kml=\"http://www.opengis.net/kml/2.2\" xmlns:atom=\"http://www.w3.org/2005/Atom\">" >> "doc.kml"
+    # color is alpha, r,g,b
+    echo -e "<GroundOverlay>\n\t<name>Max GM Overlay</name>\n\t<color>faffffff</color>\n\t<Icon>\n\t\t<href>plot_template.png</href>\n\t\t<viewBoundScale>0.75</viewBoundScale>\n\t</Icon>\n\t<altitude>22206</altitude>\n\t<LatLonBox>\n\t\t<north>$north</north>\n\t\t<south>$south</south>\n\t\t<east>$east</east>\n\t\t<west>$west</west>\n\t</LatLonBox>\n</GroundOverlay>\n</kml>" >> "doc.kml"
+    zip motion.kmz plot_template.png doc.kml
     exit
 fi
 echo Template Complete.
