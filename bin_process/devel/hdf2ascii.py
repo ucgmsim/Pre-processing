@@ -20,6 +20,8 @@ import h5py as h5
 import numpy as np
 
 from shared_bin import *
+from shared_ts import *
+from siteamp_models import *
 from tools import ll2gp, InputError
 
 user_dir = 'userdata'
@@ -72,6 +74,11 @@ if csv:
 else:
     ll_inputs.append((lon, lat))
 
+# TODO: read these values from somewhere
+vpga = 500
+vsite = 250
+vref = 500
+
 work_dir = os.path.join(user_dir, mkdtemp())
 for lon, lat in ll_inputs:
     try:
@@ -105,6 +112,27 @@ for lon, lat in ll_inputs:
 
     # load dataset as numpy array
     data = h5p['%s/VEL' % (g_name)]
+
+    # optional processing on data
+    if deamp or deconv:
+        bb = data.T
+        for i in xrange(N_MY_COMPS):
+            # process on acceleration values
+            bb[i] = vel2acc(bb[i], dt)
+            # peak ground acceleration should be dominant in HF region
+            pga = np.max(np.abs(bb[i]))
+            # amplification factors used for this site
+            ampf = cb08amp(dt, get_ft_len(nt), \
+                    vref, vsite, vpga, pga)
+            # reverse amplification
+            bb[i] = ampdeamp(bb[i], ampf, amp = False)
+            # deconvolve factors
+            decf = transf(300, 0.05, 0.02, 30, 500, 0.99, 0.95, \
+                bb[i], nt, dt)
+            bb[i] = ampdeamp(bb[i], decf, amp = False)
+        data = bb.T
+
+
     # dump to big endian binary file too
     with open('%s/%s.bin' % (work_dir, name), 'wb') as bp:
         if NATIVE_ENDIAN == 'little':

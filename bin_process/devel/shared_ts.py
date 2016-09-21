@@ -5,7 +5,7 @@ Shared functions to work on time-series.
 @date 13/09/2016
 """
 
-from math import ceil, log
+from math import ceil, log, pi
 
 # sosfilt new in scipy 0.16
 # sosfiltfilt new in scipy 0.18
@@ -75,6 +75,36 @@ def ampdeamp(timeseries, ampf, amp = True):
     fourier[:-1] *= ampf
 
     return irfft(fourier)[:nt]
+
+def transf(vs_soil, rho_soil, damp_soil, height_soil, \
+        vs_rock, rho_rock, damp_rock, data, nt, dt):
+    """
+    Used in deconvolution. Made by Chris de la Torre.
+    vs = shear wave velocity (upper soil or rock)
+    rho = density
+    damp = damping ratio
+    height_soil = height of soil above rock
+    nt = number of timesteps
+    dt = delta time in timestep (seconds)
+    """
+    ft_len = get_ft_len(nt)
+    # TODO: before it was ft_len / 2 + 1 but this may be an error
+    # the last value isn't an ft value
+    ft_freq = np.arange(0, ft_len / 2) * (1 / (ft_len * dt))
+
+    omega = 2.0 * pi * ft_freq
+    Gs = rho_soil * vs_soil ** 2.0
+    Gr = rho_rock * vs_rock ** 2.0
+
+    kS = omega / (vs_soil * (1.0 + 1j * damp_soil))
+    kR = omega / (vs_rock * (1.0 + 1j * damp_rock))
+
+    alpha = Gs * kS / (Gr * kR)
+
+    H = 2.0 / ((1.0 + alpha) * np.exp(1j * jS * hS) + (1.0 - alpha) \
+            * np.exp(-1j * kS * hS))
+    H[0] = 1
+    return H
 
 def read_ascii(filepath):
     """
