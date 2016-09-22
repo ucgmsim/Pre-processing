@@ -134,7 +134,8 @@ def process_seis_file(index):
             # grab station info from seis file
             seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
             v_stat_info.append({'NAME':stat, 'X':x, 'Y':y, \
-                    'LAT':read_flt(), 'LON':read_flt()})
+                    'LAT':read_flt(), 'LON':read_flt(), \
+                    'PGA_0':pga[0], 'PGA_1':pga[1], 'PGA_2':pga[2]})
 
             # read LF pairs, rotate and reorientate
             lf = np.dot(np.dstack(( \
@@ -199,11 +200,10 @@ for file_results in seis_results:
         g_name = '%s%s' % (str(stat_i['X']).zfill(4), str(stat_i['Y']).zfill(4))
         f_name = 'bb_%s' % (g_name)
         h5group = h5p.create_group(g_name)
+        # have to save strings as fixed width because of h5py bug
         h5group.attrs['NAME'] = np.string_(stat_i['NAME'])
-        h5group.attrs['X'] = stat_i['X']
-        h5group.attrs['Y'] = stat_i['Y']
-        h5group.attrs['LAT'] = stat_i['LAT']
-        h5group.attrs['LON'] = stat_i['LON']
+        for key in ['X', 'Y', 'LAT', 'LON', 'PGA_0', 'PGA_1', 'PGA_2']:
+            h5group.attrs[key] = stat_i[key]
         # store data as components for each timestep
         h5group.create_dataset('VEL', (nt, N_MY_COMPS), \
                 dtype = 'f', data = np.fromfile(f_name, dtype = 'f'))

@@ -119,8 +119,8 @@ for lon, lat in ll_inputs:
         for i in xrange(N_MY_COMPS):
             # process on acceleration values
             bb[i] = vel2acc(bb[i], dt)
-            # peak ground acceleration should be dominant in HF region
-            pga = np.max(np.abs(bb[i]))
+            # peak ground acceleration prior to amplification
+            pga = h5p[g_name].attrs['PGA_%d' % (i)]
             # amplification factors used for this site
             ampf = cb08amp(dt, get_ft_len(nt), \
                     vref, vsite, vpga, pga)

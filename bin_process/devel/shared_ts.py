@@ -52,7 +52,7 @@ def get_ft_len(nt):
 
 def ampdeamp(timeseries, ampf, amp = True):
     """
-    Amplify or Deamplify timeseries.
+    Amplify or Deamplify timeseries in the Frequency Domain.
     """
     nt = len(timeseries)
 
@@ -77,7 +77,7 @@ def ampdeamp(timeseries, ampf, amp = True):
     return irfft(fourier)[:nt]
 
 def transf(vs_soil, rho_soil, damp_soil, height_soil, \
-        vs_rock, rho_rock, damp_rock, data, nt, dt):
+        vs_rock, rho_rock, damp_rock, nt, dt):
     """
     Used in deconvolution. Made by Chris de la Torre.
     vs = shear wave velocity (upper soil or rock)
@@ -104,7 +104,6 @@ def transf(vs_soil, rho_soil, damp_soil, height_soil, \
     H = 2.0 / ((1.0 + alpha) * np.exp(1j * jS * hS) + (1.0 - alpha) \
             * np.exp(-1j * kS * hS))
     H[0] = 1
-    return H
 
 def read_ascii(filepath):
     """
