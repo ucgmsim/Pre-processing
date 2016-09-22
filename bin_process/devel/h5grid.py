@@ -85,11 +85,17 @@ def process_seis_file(index):
     # number of stations within this seis file
     num_stat = read_int()
 
-    # map of array doesn't use RAM unless used
+    # map of array doesn't use RAM unless accessed
     comp_data = np.memmap(seis_file_list[index], \
             dtype = FLT_S, mode = 'r', \
             offset = SIZE_INT + num_stat * SIZE_SEISHEAD, \
             shape = (nt, num_stat, N_COMPS))
+    rho = np.memmap('%s/rho3dfile.d' % (vel_mod_dir), \
+            dtype = '<f4', shape = (int(ny), int(nz), int(nx)))
+    vs = np.memmap('%s/vs3dfile.s' % (vel_mod_dir), \
+            dtype = '<f4', shape = (int(ny), int(nz), int(nx)))
+    vp = np.memmap('%s/vp3dfile.p' % (vel_mod_dir), \
+            dtype = '<f4', shape = (int(ny), int(nz), int(nx)))
 
     v_stat_info = []
     for stat_i in xrange(num_stat):
@@ -135,7 +141,8 @@ def process_seis_file(index):
             seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
             v_stat_info.append({'NAME':stat, 'X':x, 'Y':y, \
                     'LAT':read_flt(), 'LON':read_flt(), \
-                    'PGA_0':pga[0], 'PGA_1':pga[1], 'PGA_2':pga[2]})
+                    'PGA_0':pga[0], 'PGA_1':pga[1], 'PGA_2':pga[2], \
+                    'RHO':rho[y][0][x], 'VS':vs[y][0][x], 'VP':[y][0][x]})
 
             # read LF pairs, rotate and reorientate
             lf = np.dot(np.dstack(( \
@@ -202,7 +209,8 @@ for file_results in seis_results:
         h5group = h5p.create_group(g_name)
         # have to save strings as fixed width because of h5py bug
         h5group.attrs['NAME'] = np.string_(stat_i['NAME'])
-        for key in ['X', 'Y', 'LAT', 'LON', 'PGA_0', 'PGA_1', 'PGA_2']:
+        for key in ['X', 'Y', 'LAT', 'LON', \
+                'PGA_0', 'PGA_1', 'PGA_2', 'RHO', 'VS', 'VP']:
             h5group.attrs[key] = stat_i[key]
         # store data as components for each timestep
         h5group.create_dataset('VEL', (nt, N_MY_COMPS), \
