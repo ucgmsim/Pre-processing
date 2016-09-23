@@ -181,6 +181,8 @@ plot_seismo = [ \
 [-43.4897, 172.1022, 0, 0]] # ROLC, SBRC, DFHS
 # time azimuth (degrees true), x length (km), max y length (km)
 plot_seismo_params = [90, 35, 12]
+# "SCEC" to make seismograms draw out of origin, "NORM" to make them extend
+plot_seismo_style = "SCEC"
 
 # details of the spatial and termporal discretization and spacing
 plot_orig_dt = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)

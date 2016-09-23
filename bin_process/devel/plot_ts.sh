@@ -2,7 +2,6 @@
 
 # Created: 21 April 2016
 # Purpose: Generate visualisations of timeslices (postscript and png)
-# Replacing: plot_ts_bluefern.csh
 # Replacing Purpose: Use bash instead of csh. Source vars from e3d.par
 # Authors: Viktor Polak <viktor.polak@canterbury.ac.nz>
 
@@ -16,11 +15,6 @@
 # only remove .png/.ps/.bb/.x files which are actually generated/used as temp instead of *
 # make executable from any location (note gmt.conf and e3d.par location)
 
-# COMPATIBILITY/PORTABILITY:
-# bash compatible, should work with ksh too.
-# Bashisms: arrays, '==' in tests, read (internal command) parameters
-# Linuxisms: 'lscpu' output, only tested with GNU AWK
-
 # following variables are used from e3d.par:
 #   plot_main_title, plot_sub_title, wcc_prog_dir,
 #   stat_file, vel_mod_params_dir, h, dt_ts, dx_ts, dy_ts, dz_ts, ts_start, ts_inc,
@@ -30,7 +24,7 @@
 #   ts_file, ts_out_prefix, plot_ps_dir, plot_png_dir, plot_res, plot_orig_dt, plot_comps,
 #   global_root, sim_dir, plot_topo_file, plot_topo_illu, plot_topo_a_min, plot_topo_a_inc,
 #   plot_topo_a_max, plot_fault_{add_plane,line,top_edge,hyp_open}, fault_file,
-#   modellat, absmax
+#   modellat, absmax, plot_seismo_style
 source e3d.par
 # script is run with second parameter to indicate testing/override parameters
 if [ "$2" != '' ]; then
@@ -42,7 +36,7 @@ fi
 threads=$1
 if [ $threads -gt 0 ] 2>/dev/null; then
     echo Using $threads threads from passed in value.
-else # invalid or no input
+elif [ "$1" != "template" ]; then
     virtual_cores=$(lscpu | grep '^CPU(s):')
     virtual_cores=${virtual_cores##* }
     if [ $virtual_cores -gt 8 ]; then
@@ -62,6 +56,17 @@ else # invalid or no input
     fi
 fi
 
+# threading doesn't make sense with template option
+# only create template ps/raster for later use (web use)
+if [ "$1" == "template" ] || [ "$1" == "template2" ]; then
+    plot_purpose="$1"
+    if [ ! -e "statgrid_max.bin" ]; then
+        echo Need to run hdf2maxgrid.py first.
+        echo Cannot find statgrid_max.bin.
+        exit
+    fi
+fi
+
 # definition of different regions to plot for
 case $plot_region in
     # region to plot
@@ -72,6 +77,17 @@ case $plot_region in
         plot_x_max=173.00
         plot_y_min=-44.00
         plot_y_max=-43.20
+        plot_sites=(Rolleston Darfield Lyttelton Akaroa Kaiapoi Rakaia Oxford)
+        plot_s_pos=(RB CB LM RB LB RT LB)
+        plot_s_lon=(172.3791667 172.1116667 172.7194444 172.9683333 172.6569444 172.0230556 172.1938889)
+        plot_s_lat=(-43.59083333 -43.48972222 -43.60305556 -43.80361111 -43.38277778 -43.75611111 -43.29555556)
+        plot_scale="-L172.50/-43.90/$modellat/25.0 -Ba30mf30mWSen"
+        ;;
+    WIDERCANT)
+        plot_x_min=170.52
+        plot_x_max=173.67
+        plot_y_min=-44.4
+        plot_y_max=-42.53
         plot_sites=(Rolleston Darfield Lyttelton Akaroa Kaiapoi Rakaia Oxford)
         plot_s_pos=(RB CB LM RB LB RT LB)
         plot_s_lon=(172.3791667 172.1116667 172.7194444 172.9683333 172.6569444 172.0230556 172.1938889)
@@ -94,8 +110,7 @@ case $plot_region in
         exit
         ;;
 esac
-# common region related properties
-plot_ll_region=$plot_x_min/$plot_x_max/$plot_y_min/$plot_y_max
+# common site properties
 plot_s_sym="c0.10"
 plot_s_fil="220/220/220"
 plot_s_lin="1,000/000/000"
@@ -117,7 +132,29 @@ fi
 # have to close box (copy first corner to end)
 for corner in c1 c2 c3 c4 c1; do
     grep "$corner= " $model_params | gawk ' { print $2, $3 } ' >> sim.modelpath
+    # only plot within simulation domain for adding to google maps
+    if [ "$plot_purpose" == "template" ]; then
+        case "$corner" in
+            c1)
+                plot_x_min=$(grep "$corner= " $model_params | gawk ' { print $2 } ')
+                west=$plot_x_min
+                ;;
+            c2)
+                plot_y_max=$(grep "$corner= " $model_params | gawk ' { print $3 } ')
+                north=$plot_y_max
+                ;;
+            c3)
+                plot_x_max=$(grep "$corner= " $model_params | gawk ' { print $2 } ')
+                east=$plot_x_max
+                ;;
+            c4)
+                plot_y_min=$(grep "$corner= " $model_params | gawk ' { print $3 } ')
+                south=$plot_y_min
+                ;;
+        esac
+    fi
 done
+plot_ll_region=$plot_x_min/$plot_x_max/$plot_y_min/$plot_y_max
 # create mask for simulation domain
 grdmask sim.modelpath -R$plot_ll_region -I$plot_dx/$plot_dy -Gmodelmask.grd
 
@@ -142,6 +179,21 @@ END
     pstext $att -N -O -K -Dj0.05/0.05 -F+j+f12,Helvetica,black+a0 << END >>  "$2"
 ${plot_s_lon[$1]} ${plot_s_lat[$1]} ${plot_s_pos[$1]} ${plot_sites[$1]}
 END
+}
+
+add_source() {
+    # add the fault plane or beachball
+    if [ "$plot_type" == "finitefault" ]; then
+        # plot fault plane
+        bash ${plot_fault_add_plane} "$1" \
+            -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
+            $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
+    else
+        # plot beach ball (variable must be surrounded by quotes in sourced file)
+        gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$1"
+$plot_beachball
+EOF
+    fi
 }
 
 finalise_png() {
@@ -185,20 +237,20 @@ sig_int_received() {
 # enable killing of all subprocesses/cleaning temp files on CTRL-C (interrupt)
 trap "sig_int_received" INT
 
-# color palette for velocity
+# color palette for velocity TODO: make into parameter
 # https://www.soest.hawaii.edu/gmt/gmt/html/images/GMT_RGBchart_a4.png
-if [ "$absmax" -eq 0 ]; then
-    cpt=polar
-    min=-$plot_topo_a_max
-    extra=''
-    scale='ground velocity east (cm/s)'
-    seismoline=darkgreen
-else
+if [ "$absmax" -eq 1 ] || [ "$plot_purpose" == "template" ]; then
     cpt=hot
     min=0
     extra='-I'
     scale='ground velocity (cm/s)'
     seismoline=blue
+else
+    cpt=polar
+    min=-$plot_topo_a_max
+    extra=''
+    scale='ground velocity east (cm/s)'
+    seismoline=darkgreen
 fi
 makecpt -C$cpt $extra -T$min/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
 
@@ -208,45 +260,93 @@ gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE
 ###################### BEGIN TEMPLATE ##########################
 echo Creating PS Template...
 plot_file_template=$gmt_temp/plot_template.ps
-# specify plot and panel size (defaults 8.5 x 11)
-edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
-psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
+if [ "$plot_purpose" != "template" ]; then
+    # specify plot and panel size (defaults 8.5 x 11)
+    edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
+    psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
 0.3 1.0
 0.3 7.8
 6.5 7.8
 6.5 1.0
 END
-# set the color scale
-psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"$scale": >> "$plot_file_template"
-# specify the X and Y offsets` for plotting (I dont really understand this yet)
-psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
+    # set the color scale
+    psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"$scale": >> "$plot_file_template"
+    # specify the X and Y offsets` for plotting (I dont really understand this yet)
+    psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
 END
-# try a different version of plotting
-# clippath for land
-pscoast $att -Df -Gc -K -O >> "$plot_file_template"
-# land
-grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file_template"
-# clear clippath
-pscoast -R -J -O -K -Q >> "$plot_file_template"
-# add urban areas
-URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
-psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
-# add oceans/coastline
-pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
-# add lakes/coastline
-pscoast -A0/2/2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
-# simulation domain
-gmt psxy sim.modelpath $att -W1.5p,black,- -L -O -K >> "$plot_file_template"
-rm sim.modelpath
-# main title
-pstext $att -N -O -K -D0.0/0.35 \
-        -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file_template"
+    # try a different version of plotting
+    # clippath for land
+    pscoast $att -Df -Gc -K -O >> "$plot_file_template"
+    # land
+    grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file_template"
+    # clear clippath
+    pscoast -R -J -O -K -Q >> "$plot_file_template"
+    # add urban areas
+    URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
+    psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
+    # add oceans/coastline
+    pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
+    # add lakes/coastline
+    pscoast -A0/2/2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
+    # simulation domain
+    gmt psxy sim.modelpath $att -W1.5p,black,- -L -O -K >> "$plot_file_template"
+    rm sim.modelpath
+    # main title
+    pstext $att -N -O -K -D0.0/0.35 \
+            -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file_template"
 $plot_x_min $plot_y_max $plot_main_title
 END
-# subtitle part 1 (static)
-pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file_template"
+    # subtitle part 1 (static)
+    pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file_template"
 $plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
 END
+elif [ "$plot_purpose" == "template" ]; then
+    echo "Only creating template (by parameter)."
+    psxy -JX0.1/0.1 -R0/0.1/0/0.1 -L -G255/255/255 -X0 -Y0 -K << END > "$plot_file_template"
+END
+    # specify the X and Y offsets` for plotting (I dont really understand this yet)
+    psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null
+END
+    # simulation domain
+    gmt psxy sim.modelpath -t50 $att -W1.5p,black,- -L -O -K >> "$plot_file_template"
+    rm sim.modelpath
+    # include maxgrid on map
+    # create ground motion intensity surface from MAXGRID
+    if [ "$swap_bytes" -eq 1 ]; then
+        xyz2grd statgrid_max.bin -Sstatgrid_max.native.bin -V -Zf 2>/dev/null
+    else
+        cp statgrid_max.bin statgrid_max.native.bin
+    fi
+    surface statgrid_max.native.bin -Gmax.grd -I$plot_dx/$plot_dy \
+            -R$plot_ll_region -T0.0 -bi3f 2>/dev/null
+    rm statgrid_max.native.bin
+    # crop to simulation domain (multiply by mask of 0 or 1, outside = 0)
+    grdmath max.grd modelmask.grd MUL = max.grd 2>/dev/null
+    # clip minimum (values below cutoff = NaN, not displayed, clear)
+    grdclip max.grd -Gmax.grd \
+            -Sb${plot_topo_a_min}/NaN 2>/dev/null
+    # add resulting overlay image to plot
+    grdimage max.grd $att -C$base_cpt -Q -t70 -K -O >> "$plot_file_template" 2>/dev/null
+    # finite fault or beachball
+    add_source "$plot_file_template"
+    # have template ready and raster version
+    mkdir -p WEB
+    cp "$plot_file_template" WEB/gmt-template.ps
+    cp gmt.conf WEB/
+    cp gmt.history WEB/
+    psxy -V $att -L -W5,255/255/0 -O << END >>  "$plot_file_template" 2>/dev/null
+END
+    ps2raster "$plot_file_template" -A -TG -E600 -DWEB
+    clean_temp_files
+    # create kmz
+    cd WEB
+    echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "doc.kml"
+    echo "<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\" xmlns:kml=\"http://www.opengis.net/kml/2.2\" xmlns:atom=\"http://www.w3.org/2005/Atom\">" >> "doc.kml"
+    # color is alpha, r,g,b
+    echo -e "<GroundOverlay>\n\t<name>Max GM Overlay</name>\n\t<color>faffffff</color>\n\t<Icon>\n\t\t<href>plot_template.png</href>\n\t\t<viewBoundScale>0.75</viewBoundScale>\n\t</Icon>\n\t<altitude>22206</altitude>\n\t<LatLonBox>\n\t\t<north>$north</north>\n\t\t<south>$south</south>\n\t\t<east>$east</east>\n\t\t<west>$west</west>\n\t</LatLonBox>\n</GroundOverlay>\n</kml>" >> "doc.kml"
+    zip motion.kmz plot_template.png doc.kml
+    exit
+fi
 echo Template Complete.
 ####################### END TEMPLATE ###########################
 
@@ -328,18 +428,8 @@ render_slice() {
 $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec
 END
 
-    # add the fault plane or beachball
-    if [ "$plot_type" == "finitefault" ]; then
-        # plot fault plane
-        bash ${plot_fault_add_plane} "$plot_file" \
-            -R$plot_ll_region -JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} \
-            $fault_file $plot_fault_line $plot_fault_top_edge $plot_fault_hyp_open
-    else
-        # plot beach ball (variable must be surrounded by quotes in sourced file)
-        gmt psmeca -P -J -R -Sc0.15 -Ggreen -O -K << EOF >> "$plot_file"
-$plot_beachball
-EOF
-    fi
+    # finite fault or beachball
+    add_source "$plot_file"
 
     # scale to show distance
     psbasemap $att $plot_scale -K -O >> "$plot_file"
@@ -355,14 +445,15 @@ EOF
     # add seismograms
     # --no-group-separator only for GNU grep, if other grep, use -v '^--$'
     if [ -e "../../gmt-seismo.xy" ]; then
+        if [ "$plot_seismo_style" == "SCEC" ]; then
+            pattern="^>TS$2\s"
+        else
+            pattern='^>'
+        fi
         psxy -N $att -W1.5p,$seismoline -O -K << END >> "$plot_file"
-$(cat ../../gmt-seismo.xy | grep -e '^>' -A $(($2 + 1)) --no-group-separator)
+$(cat ../../gmt-seismo.xy | grep -e "$pattern" -A $(($2 + 1)) --no-group-separator)
 END
     fi
-
-    # shift plotting origin (for 3 component plotting)
-    #<archive>psxy -V $att -L -W5,255/255/0 -O -K -X$plot_x_shift << END >>  "$plot_file" 2>/dev/null
-    #<archive>END
 
     # finalises PostScript and converts to PNG
     finalise_png "$plot_file"

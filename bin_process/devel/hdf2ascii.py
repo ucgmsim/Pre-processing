@@ -13,13 +13,20 @@ ISSUES:
 
 import os
 import sys
+from tempfile import mkdtemp
 from zipfile import ZipFile
 
 import h5py as h5
 import numpy as np
 
 from shared_bin import *
+from shared_ts import *
+from siteamp_models import *
 from tools import ll2gp, InputError
+
+user_dir = 'userdata'
+if not os.path.exists(user_dir):
+    os.makedirs(user_dir)
 
 h5p = h5.File('virtual.hdf5', 'r')
 
@@ -27,8 +34,19 @@ h5p = h5.File('virtual.hdf5', 'r')
 ### INPUT verify command line arguments
 ###
 
+# option 1: pass only the location of the csv file from user
+#           format is lon, lat newline
+# option 2: pass only one set of lon, lat (separate parameters)
 try:
-    lon,lat = map(float, sys.argv[1:3])
+    if len(sys.argv[1]) > 4 and sys.argv[1][-4:] == '.csv':
+        csv = True
+        csv_file = sys.argv[1]
+        if not os.path.exists(csv_file):
+            print('CSV file path not found on system.')
+            exit()
+    else:
+        csv = False
+        lon, lat = map(float, sys.argv[1:3])
 except ValueError:
     print 'Invalid input parameters, float values not found.'
     exit()
@@ -47,64 +65,122 @@ dy = h5p.attrs['DY']
 hh = h5p.attrs['HH']
 rot = h5p.attrs['ROT']
 
-try:
-    x, y = ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, dx, dy)
-except InputError:
-    print('Input outside simulation domain.')
-    exit()
+ll_inputs = []
+if csv:
+    with open(csv_file, 'r') as csvp:
+        for xy in csvp:
+            lon, lat = map(float, xy.strip().replace(',', ' ').split())
+            ll_inputs.append((lon, lat))
+else:
+    ll_inputs.append((lon, lat))
 
-#x= 1340
-#y=360
+work_dir = os.path.join(user_dir, mkdtemp())
+for lon, lat in ll_inputs:
+    try:
+        x, y = ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, dx, dy)
+    except InputError:
+        continue
 
-###
-### INPUT verify file
-###
-print "Snapped XY coords: (x,y)=%d %d" %(x,y)
+    ###
+    ### INPUT verify file
+    ###
+    try:
+        g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
+        group = h5p[g_name]
+    except KeyError:
+        continue
 
-try:
-    g_name = '%s%s' % (str(x).zfill(4), str(y).zfill(4))
-    group = h5p[g_name]
-except KeyError:
-    print('Gridpoint for X: %d, Y: %d not found. Exitting.' % (x, y))
-    exit()
+    ###
+    ### INFORMATION which is in the ASCII header/rest of file
+    ###
 
-###
-### INFORMATION which is in the ASCII header/rest of file
-###
+    # first entry in header
+    # leave as restricted short name (8 byte C-string) for compatibility
+    # put full name as title instead
+    name = group.attrs['NAME']
 
-# first entry in header
-# leave as restricted short name (8 byte C-string) for compatibility
-# put full name as title instead
-name = group.attrs['NAME']
+    # entry not set by winbin-aio but structure allows it (normally blank)
+    title = g_name
+    # other values in second line
+    nt = h5p.attrs['NT']
+    dt = h5p.attrs['DT']
 
-# entry not set by winbin-aio but structure allows it (normally blank)
-title = g_name
-# other values in second line
-nt = h5p.attrs['NT']
-dt = h5p.attrs['DT']
+    # load dataset as numpy array
+    data = h5p['%s/VEL' % (g_name)]
 
-# load dataset as numpy array
-data = h5p['%s/VEL' % (g_name)]
-# dump to big endian binary file too
-with open('%s.bin' % (name), 'wb') as bp:
-    if NATIVE_ENDIAN == 'little':
-        data[...].byteswap().tofile(bp)
-    else:
-        data[...].tofile(bp)
+    # optional processing on data
+    if deamp or deconv:
+        bb = data.T
+        # work out deconvolution factors
+        vs_ref = group.attrs['VS'] * 1000.0
+        if vs_ref < 500:
+            vs_ref = 500
+        vs_pga = vs_ref
+        qsfrac = 50.0
+        Qs = qsfrac * vs_ref / 1000.0
+        dampS_soil = 1.0 / (2 * Qs)
+        vp_ref = group.attrs['VP'] * 1000.0
+        if vp_ref < 500:
+            vp_ref = 500
+        vp_pga = vp_ref
+        Qp = 2.0 * Qs
+        dampP_soil = 1.0 / (2 * Qp)
+        rho_ref = group.attrs['RHO']
+        # same as used in amplification
+        vsite = 250
+        for i in xrange(N_MY_COMPS):
+            if MY_COMPS[i] != 'ver':
+                vref = vs_ref
+                vpga = vs_pga
+                dampSoil = dampS_soil
+            else:
+                vref = vp_ref
+                vpga = vp_pga
+                dampSoil = dampP_soil
+            # process on acceleration values
+            bb[i] = vel2acc(bb[i], dt)
+            # peak ground acceleration should be dominant in HF region
+            pga = groeup.attrs['PGA_%d' % (i)]
+            # amplification factors used for this site
+            ampf = cb08amp(dt, get_ft_len(nt), \
+                    vref, vsite, vpga, pga)
+            # reverse amplification
+            bb[i] = ampdeamp(bb[i], ampf, amp = False)
+            # convolution factors
+            conv = transf(vref, rho_ref, dampSoil, heightSoil, \
+                    vbase, rho_base, dampBase, nt, dt)
+            # apply factors
+            bb[i] = ampdeamp(bb[i], conv, amp = False)
 
-###
-### OUTPUT write to file and ZIP
-###
+        # undo transpose
+        data = bb.T
 
-zf = ZipFile('%s.zip' % (name), 'w')
-zf.write('%s/%s.bin' % ('.', name))
-os.remove('%s/%s.bin' % ('.', name))
-for comp_i in xrange(h5p.attrs['NCOMPS']):
-    comp_name = h5p.attrs['COMP_%d' % (comp_i)]
-    write_seis_ascii('.', data[:, comp_i], name, comp_name, nt, dt, title = title)
-    zf.write('%s/%s.%s' % ('.', name, comp_name))
-    os.remove('%s/%s.%s' % ('.', name, comp_name))
-zf.close()
+
+    # dump to big endian binary file too
+    with open('%s/%s.bin' % (work_dir, name), 'wb') as bp:
+        if NATIVE_ENDIAN == 'little':
+            data[...].byteswap().tofile(bp)
+        else:
+            data[...].tofile(bp)
+
+    ###
+    ### OUTPUT files
+    ###
+
+    for comp_i in xrange(h5p.attrs['NCOMPS']):
+        comp_name = h5p.attrs['COMP_%d' % (comp_i)]
+        write_seis_ascii('.', data[:, comp_i], name, comp_name, nt, dt, title = title)
+
+
 h5p.close()
+###
+### OUTPUT ZIP
+###
+
+zf = ZipFile('%s.zip' % (work_dir), 'w')
+for f in glob('%s/*' % (work_dir)):
+    zf.write(f, arcname = os.path.basename(f))
+os.remove(work_dir)
+zf.close()
 # tell automation programs where the file is
 print(zf.filename)

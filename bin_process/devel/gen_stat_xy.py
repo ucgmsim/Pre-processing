@@ -9,6 +9,7 @@ import numpy as np
 from params import *
 from tools import *
 
+# output file
 gmt_seis = 'gmt-seismo.xy'
 
 if os.path.exists(gmt_seis):
@@ -44,7 +45,7 @@ for desc in plot_seismo:
             for i in xrange(int(ts_total))]
 
     all_ds.append(ds)
-    # PGAs
+    # PGVs
     v_max = max(np.abs(ds))
     max_ds = max(max_ds, v_max)
 
@@ -53,6 +54,43 @@ yfac = float(yamp)/max_ds
 
 ###
 ### generate XY data based on read values and max / other params
+### SCEC style version where seismo line grows out and "bounces"
+###
+for ts in xrange(len(all_ds[0]) * (plot_seismo_style == "SCEC")):
+    for i, desc in enumerate(plot_seismo):
+        lat, lon, offset, oazim = desc
+        # scaling factor to produce wanted x, y lengths (km)
+        xfac = float(tlen)/len(all_ds[i])
+        # offset of beginning of seismogram
+        lat0, lon0 = ll_shift(lat, lon, offset, oazim)
+
+        # rotate as wanted (do not visually flip seismo)
+        if xazim % 360 - 180 < 0:
+            yazim = xazim - 90
+        else:
+            yazim = xazim + 90
+
+        # offset for starting position to be at station
+        lat0, lon0 = ll_shift(lat0, lon0, all_ds[i][ts] * yfac, (yazim + 180) % 360)
+
+        lls = []
+        for j, value in enumerate(all_ds[i][ts::-1]):
+            dy = value * yfac
+            dx = j * xfac
+            # find next point using distance / bearing
+            lat1, lon1 = ll_shift(lat0, lon0, dx, xazim)
+            lat1, lon1 = ll_shift(lat1, lon1, dy, yazim)
+            lls.append('%f %f\n' % (lon1, lat1))
+
+        with open(gmt_seis, 'a') as sp:
+            sp.write('>TS%d STAT ORIGIN = %f %f\n' % (ts, lon, lat))
+            sp.write(''.join(lls))
+if plot_seismo_style == "SCEC":
+    exit()
+
+###
+### generate XY data based on read values and max / other params
+### simple version where seismo line is extended
 ###
 for i, desc in enumerate(plot_seismo):
     lat, lon, offset, oazim = desc
