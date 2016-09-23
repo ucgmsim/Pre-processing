@@ -65,7 +65,6 @@ def ampdeamp(timeseries, ampf, amp = True):
 
     # extend array, fft
     timeseries = np.resize(timeseries, ft_len)
-    # resize will repeat array at end, clear with 0
     timeseries[nt:] = 0
     fourier = rfft(timeseries)
 
@@ -77,8 +76,8 @@ def ampdeamp(timeseries, ampf, amp = True):
 
     return irfft(fourier)[:nt]
 
-def transf(vs_soil, rho_soil, damp_soil, height_soil, \
-        vs_rock, rho_rock, damp_rock, nt, dt):
+def transf(v_soil, rho_soil, damp_soil, height_soil, \
+        v_rock, rho_rock, damp_base, nt, dt):
     """
     Used in deconvolution. Made by Chris de la Torre.
     vs = shear wave velocity (upper soil or rock)
@@ -88,20 +87,6 @@ def transf(vs_soil, rho_soil, damp_soil, height_soil, \
     nt = number of timesteps
     dt = delta time in timestep (seconds)
     """
-    # retrieve rest of parameters - S wave
-    #vs_ref = retrieve_vs_ref_at_surface_from_vm()
-    #vs_pga = vs_ref
-    #qsfrac = 50.
-    #Qs = qsfrac * vs_ref / 1000.0
-    #dampS_soil = 1 / (2 * Qs)
-    # retrieve rest of parameters - P wave
-    #vp_ref = retrieve_vp_ref_at_surface_from_vm()
-    #vp_pga = vp_ref
-    #Qp = 2.0 * Qs
-    #dampP_soil = 1 / (2 * Qp)
-    # other
-    #rho_rof = density_at_surface_from_vm()
-
     ft_len = get_ft_len(nt)
     # TODO: before it was ft_len / 2 + 1 but this may be an error
     # the last value isn't an ft value

@@ -74,11 +74,6 @@ if csv:
 else:
     ll_inputs.append((lon, lat))
 
-# TODO: read these values from somewhere
-vpga = 500
-vsite = 250
-vref = 500
-
 work_dir = os.path.join(user_dir, mkdtemp())
 for lon, lat in ll_inputs:
     try:
@@ -116,20 +111,48 @@ for lon, lat in ll_inputs:
     # optional processing on data
     if deamp or deconv:
         bb = data.T
+        # work out deconvolution factors
+        vs_ref = group.attrs['VS'] * 1000.0
+        if vs_ref < 500:
+            vs_ref = 500
+        vs_pga = vs_ref
+        qsfrac = 50.0
+        Qs = qsfrac * vs_ref / 1000.0
+        dampS_soil = 1.0 / (2 * Qs)
+        vp_ref = group.attrs['VP'] * 1000.0
+        if vp_ref < 500:
+            vp_ref = 500
+        vp_pga = vp_ref
+        Qp = 2.0 * Qs
+        dampP_soil = 1.0 / (2 * Qp)
+        rho_ref = group.attrs['RHO']
+        # same as used in amplification
+        vsite = 250
         for i in xrange(N_MY_COMPS):
+            if MY_COMPS[i] != 'ver':
+                vref = vs_ref
+                vpga = vs_pga
+                dampSoil = dampS_soil
+            else:
+                vref = vp_ref
+                vpga = vp_pga
+                dampSoil = dampP_soil
             # process on acceleration values
             bb[i] = vel2acc(bb[i], dt)
-            # peak ground acceleration prior to amplification
-            pga = h5p[g_name].attrs['PGA_%d' % (i)]
+            # peak ground acceleration should be dominant in HF region
+            pga = groeup.attrs['PGA_%d' % (i)]
             # amplification factors used for this site
             ampf = cb08amp(dt, get_ft_len(nt), \
                     vref, vsite, vpga, pga)
             # reverse amplification
             bb[i] = ampdeamp(bb[i], ampf, amp = False)
-            # deconvolve factors
-            decf = transf(300, 0.05, 0.02, 30, 500, 0.99, 0.95, \
-                bb[i], nt, dt)
-            bb[i] = ampdeamp(bb[i], decf, amp = False)
+            # convolution factors
+            conv = transf(vref, rho_ref, dampSoil, heightSoil, \
+                    vbase, rho_base, dampBase, nt, dt)
+            # apply factors
+            bb[i] = ampdeamp(bb[i], conv, amp = False)
+
+        # undo transpose
         data = bb.T
 
 

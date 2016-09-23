@@ -16,7 +16,7 @@ ISSUES: All options of EMOD3D are not considered. eg: scale.
 from glob import glob
 from math import sin, cos, radians
 from multiprocessing import Pool
-from os import remove, path
+from os import remove, path, makedirs
 from struct import unpack
 import sys
 
@@ -33,6 +33,8 @@ if len(sys.argv) > 1:
     procs = int(sys.argv[1])
 
 seis_file_list = glob(path.join(bin_output, '*_seis-?????.e3d'))
+# output location for BB grid
+os.makedirs('BB/grid')
 
 # python data-type format string
 INT_S = 'i'
@@ -65,9 +67,7 @@ comps = []
 #    h5p.attrs['COMP_%d' % (n)] = np.string_(MY_COMPS[key])
 
 # TODO: should have values for each location
-vref = 500.0
 vsite = 250.0
-vpga = 500.0
 
 # read every station in seis files
 # keep virtual ones (name of 8 c-string bytes)
@@ -125,24 +125,26 @@ def process_seis_file(index):
 
             pga = [0, 0, 0]
             ampf = [0, 0, 0]
+            vref = [vs[y][0][x], vs[y][0][x], vp[y][0][x]]
+            vpga = vref
             # process HF
             for tsi in xrange(len(hf)):
                 # get pga
                 pga[tsi] = np.max(np.abs(hf[tsi])) / 981.0
                 # amplification factors
                 ampf[tsi] = cb08_amp(dt, get_ft_len(nt), \
-                        vref, vsite, vpga, pga[tsi])
+                        vref[tsi], vsite, vpga[tsi], pga[tsi])
                 # apply amplification factors
                 hf[tsi] = ampdeamp(hf[tsi], ampf, amp = True)
                 # filter
                 hf[tsi] = bwfilter(hf[tsi], dt, 1.0, 'highpass')
 
-            # grab station info from seis file
+            # pass on station info
             seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
             v_stat_info.append({'NAME':stat, 'X':x, 'Y':y, \
                     'LAT':read_flt(), 'LON':read_flt(), \
                     'PGA_0':pga[0], 'PGA_1':pga[1], 'PGA_2':pga[2], \
-                    'RHO':rho[y][0][x], 'VS':vs[y][0][x], 'VP':[y][0][x]})
+                    'RHO':rho[y][0][x], 'VS':vref[0], 'VP':vref[-1]})
 
             # read LF pairs, rotate and reorientate
             lf = np.dot(np.dstack(( \
@@ -152,7 +154,7 @@ def process_seis_file(index):
 
             # difference in start timestep of LF, HF
             ddt = int(1.0 / dt)
-            bb = np.empty(shape = (N_MY_COMPS, nt))
+            bb = np.empty(shape = (N_MY_COMPS, nt + ddt))
             # process LF, HF
             for tsi in xrange(len(lf)):
                 # convert to acceleration
@@ -166,16 +168,16 @@ def process_seis_file(index):
                 bb[tsi] = np.cumsum((np.hstack(([0] * ddt, hf[tsi])) + \
                         np.hstack((lf[tsi], [0] * ddt))) * dt)
             # save broadband to file
-            bb.T.astype(np.float32).tofile('bb_%s' % \
+            bb.T.astype(np.float32).tofile('BB/grid/bb_%s' % \
                     (g_name), format = '>f4')
 
     fp.close()
     return v_stat_info
 
 # debug single threaded
-seis_results = []
-for i in xrange(len(seis_file_list)):
-    seis_results.append(process_seis_file(i))
+#seis_results = []
+#for i in xrange(len(seis_file_list)):
+#    seis_results.append(process_seis_file(i))
 
 # multiprocessing
 p = Pool(procs)
@@ -205,7 +207,7 @@ for n, key in enumerate(MY_COMPS):
 for file_results in seis_results:
     for stat_i in file_results:
         g_name = '%s%s' % (str(stat_i['X']).zfill(4), str(stat_i['Y']).zfill(4))
-        f_name = 'bb_%s' % (g_name)
+        f_name = 'BB/grid/bb_%s' % (g_name)
         h5group = h5p.create_group(g_name)
         # have to save strings as fixed width because of h5py bug
         h5group.attrs['NAME'] = np.string_(stat_i['NAME'])
