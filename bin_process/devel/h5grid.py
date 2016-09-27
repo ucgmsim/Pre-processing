@@ -189,7 +189,7 @@ seis_results = p.map(process_seis_file, range(len(seis_file_list)))
 print('BroadBand Processing Complete')
 print('Storing Results in HDF5')
 
-h5p = h5.file('virtual.hdf5', 'w')
+h5p = h5.File('virtual.hdf5', 'w')
 # add common metadata
 #h5p.attrs['NSTAT'] = 
 h5p.attrs['MLAT'] = mlat
