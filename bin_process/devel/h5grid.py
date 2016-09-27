@@ -27,6 +27,7 @@ from params import *
 from params_base import *
 from shared_bin import *
 from shared_ts import *
+from siteamp_models import *
 
 procs = 64
 if len(sys.argv) > 1:
@@ -34,7 +35,8 @@ if len(sys.argv) > 1:
 
 seis_file_list = glob(path.join(bin_output, '*_seis-?????.e3d'))
 # output location for BB grid
-os.makedirs('BB/grid')
+if not os.path.exists('BB/grid'):
+    os.makedirs('BB/grid')
 
 # python data-type format string
 INT_S = 'i'
@@ -132,8 +134,9 @@ def process_seis_file(index):
                 # get pga
                 pga[tsi] = np.max(np.abs(hf[tsi])) / 981.0
                 # amplification factors
-                ampf[tsi] = cb08_amp(dt, get_ft_len(nt), \
-                        vref[tsi], vsite, vpga[tsi], pga[tsi])
+                ampf[tsi] = cb_amp(dt, get_ft_len(nt), \
+                        vref[tsi], vsite, vpga[tsi], pga[tsi], \
+                        version = "2008")
                 # apply amplification factors
                 hf[tsi] = ampdeamp(hf[tsi], ampf, amp = True)
                 # filter
@@ -181,7 +184,7 @@ def process_seis_file(index):
 
 # multiprocessing
 p = Pool(procs)
-seis_results = p.map(process_seis_file, seis_file_list)
+seis_results = p.map(process_seis_file, range(len(seis_file_list)))
 
 print('BroadBand Processing Complete')
 print('Storing Results in HDF5')
