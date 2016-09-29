@@ -76,10 +76,12 @@ DHYPO = 6.0
 ###
 
 
-# this doesn't do anything, possibly should affect
-# ns parameter in FF_SRF_BIN but hardcoded to 1
-# does change ns parameter, TODO: test
-N_SCENARIOS = 3
+# how many scenarios to run. different scenarios can have
+# randomised parameters (randomisation amount set below)
+N_SCENARIOS = 4
+# how many scenarios to run before incrementing the seed value.
+# this will randomise parameters but keep the seed the same.
+N_SEED_INC = 2
 # description of main segments
 CASES = ['rv', 'ss']
 
@@ -114,7 +116,7 @@ M_ELAT = [[-43.552], [-43.567, -43.590, -43.573, -43.5779, -43.5509, -43.5095]]
 M_SHYPO = [[2], [6, -10, -27, 9.5, -25.5, 7]]
 M_DHYPO = [[10], [6] * M_NSEG[1]]
 
-### set variablility, it will change values between scenarios
+### set variability, it will change values between scenarios
 ### length of arrays is same as CASES
 # magnitude variability (absolute range)
 V_MAG = [0.2, 0.5]

@@ -373,7 +373,7 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         m_dlen, m_fwid, m_dwid, m_dtop, m_stk, \
         m_rak, m_dip, m_elon, m_elat, m_shypo, \
         m_dhypo, seed, seed_inc, m_name, cases, \
-        n_scenarios, v_mag, v_fwid, v_flen):
+        n_scenarios, n_seed_inc, v_mag, v_fwid, v_flen):
     if not path.exists(GSF_DIR):
         makedirs(GSF_DIR)
     if not path.exists(SRF_DIR):
@@ -381,7 +381,8 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
 
     for ns in xrange(n_scenarios):
         # increment seed if wanted
-        s_seed = seed + seed_inc * ns
+        if ns % n_seed_inc == 0:
+            s_seed = seed + seed_inc * ns // n_seed_inc
 
         casefiles = []
         mags = []
@@ -521,7 +522,7 @@ if __name__ == "__main__":
                 M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
                 M_DHYPO, SEED, SEED_INC, M_NAME, CASES, \
-                N_SCENARIOS, V_MAG, V_FWID, V_FLEN)
+                N_SCENARIOS, N_SEED_INC, V_MAG, V_FWID, V_FLEN)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 
