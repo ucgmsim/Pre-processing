@@ -497,7 +497,7 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
                     'infile1=%s' % (output), \
                     'infile2=%s/%s' % (SRF_DIR, casefiles[i + 1]), \
                     'outfile=%s' % (output)])
-        gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
+        gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1]).replace('.', '_')), \
                 output, dx = 2.0, dy = 2.0)
 
 
