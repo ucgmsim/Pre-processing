@@ -485,19 +485,19 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
                         'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
 
         # joined filename
-        output = '%s/%s_s%d_M%s_FL%s_FW%s.srf' % (SRF_DIR, m_name, s_seed, \
+        output = '%s_s%d_M%s_FL%s_FW%s.srf' % (m_name, s_seed, \
                 '-'.join(map(str, mags)), \
                 '-'.join(map(str, [fl for sub in flens for fl in sub])), \
                 '-'.join(map(str, [sub[0] for sub in fwids])))
         # joined case files stored in separate file
-        copyfile('%s/%s' % (SRF_DIR, casefiles[0]), output)
+        copyfile('%s/%s' % (SRF_DIR, casefiles[0]), '%s/%s' % (SRF_DIR, output))
         # join rest of cases into the first
         for i in xrange(len(CASES) - 1):
             call([SRF_JOIN_BIN, \
-                    'infile1=%s' % (output), \
+                    'infile1=%s/%s' % (SRF_DIR, output), \
                     'infile2=%s/%s' % (SRF_DIR, casefiles[i + 1]), \
-                    'outfile=%s' % (output)])
-        gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1]).replace('.', '_')), \
+                    'outfile=%s/%s' % (SRF_DIR, output)])
+        gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
                 output, dx = 2.0, dy = 2.0)
 
 
