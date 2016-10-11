@@ -16,7 +16,6 @@ irfft = np.fft.irfft
 
 from params import *
 from sosfiltfilt import sosfiltfilt
-from siteamp_models import cb08_amp
 
 # butterworth filter
 # bandpass not necessary as sampling frequency too low
@@ -76,8 +75,8 @@ def ampdeamp(timeseries, ampf, amp = True):
 
     return irfft(fourier)[:nt]
 
-def transf(v_soil, rho_soil, damp_soil, height_soil, \
-        v_rock, rho_rock, damp_base, nt, dt):
+def transf(vs_soil, rho_soil, damp_soil, height_soil, \
+        vs_rock, rho_rock, damp_rock, nt, dt):
     """
     Used in deconvolution. Made by Chris de la Torre.
     vs = shear wave velocity (upper soil or rock)

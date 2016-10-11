@@ -142,8 +142,8 @@ for lon, lat in ll_inputs:
             # peak ground acceleration should be dominant in HF region
             pga = groeup.attrs['PGA_%d' % (i)]
             # amplification factors used for this site
-            ampf = cb08amp(dt, get_ft_len(nt), \
-                    vref, vsite, vpga, pga)
+            ampf = cb_amp(dt, get_ft_len(nt), \
+                    vref, vsite, vpga, pga, version = "2008")
             # reverse amplification
             bb[i] = ampdeamp(bb[i], ampf, amp = False)
             # convolution factors

@@ -1,10 +1,12 @@
 #!/usr/bin/env python2
 
 from math import exp, log, sin, cos, radians, sqrt
-import numpy as np
 from os import makedirs, path
+from random import uniform
 from shutil import copyfile
 from subprocess import call, Popen, PIPE
+
+import numpy as np
 
 GSF_DIR = 'Gsf'
 SRF_DIR = 'Srf'
@@ -18,9 +20,9 @@ STOCH_BIN = '/nesi/projects/nesi00213/tools/srf2stoch'
 VELFILE = 'lp_generic1d-gp01.vmod'
 
 # for testing on viktor's laptop
-GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
-FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
-SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
+#GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
+#FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
+#SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3 * log(mom) / log(10.0)) - 10.7
@@ -370,19 +372,30 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         m_rvfac_seg, m_gwid, m_rup_delay, m_flen, \
         m_dlen, m_fwid, m_dwid, m_dtop, m_stk, \
         m_rak, m_dip, m_elon, m_elat, m_shypo, \
-        m_dhypo, seed, seed_inc, m_name, cases, n_scenarios):
+        m_dhypo, seed, seed_inc, m_name, cases, \
+        n_scenarios, n_seed_inc, v_mag, v_fwid, v_flen):
     if not path.exists(GSF_DIR):
         makedirs(GSF_DIR)
     if not path.exists(SRF_DIR):
         makedirs(SRF_DIR)
 
-    # ns wasn't previously used, ns parameter was hardcoded to 1
-    # check if setting ns binary param to ns variable is wanted
     for ns in xrange(n_scenarios):
+        # increment seed if wanted
+        if ns % n_seed_inc == 0:
+            s_seed = seed + seed_inc * ns // n_seed_inc
+
+        casefiles = []
+        mags = []
+        flens = []
+        fwids = []
         for c, case in enumerate(cases):
 
             # 1 D arrays
-            MAG = m_mag[c]
+            if v_mag[c]:
+                MAG = round(m_mag[c] + uniform(-v_mag[c], v_mag[c]), 2)
+            else:
+                MAG = m_mag[c]
+            mags.append(MAG)
             MOM = m_mom[c]
             NSEG = m_nseg[c]
             SEG_DELAY = m_seg_delay[c]
@@ -391,18 +404,30 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
             RUP_DELAY = m_rup_delay[c]
 
             # 2 D arrays
-            FLEN = M_FLEN[c]
-            DLEN = M_DLEN[c]
-            FWID = M_FWID[c]
-            DWID = M_DWID[c]
-            DTOP = M_DTOP[c]
-            STK = M_STK[c]
-            RAK = M_RAK[c]
-            DIP = M_DIP[c]
-            ELON = M_ELON[c]
-            ELAT = M_ELAT[c]
-            SHYPO = M_SHYPO[c]
-            DHYPO = M_DHYPO[c]
+            if v_flen[c]:
+                FLEN = [round(x + uniform(-x * v_flen[c], x * v_flen[c]), 2) \
+                        for x in m_flen[c]]
+            else:
+                FLEN = m_flen[c]
+            flens.append(FLEN)
+            DLEN = m_dlen[c]
+            if v_fwid[c]:
+                # FWID needs to have the same values
+                FWID = [m_fwid[c][0] + round( \
+                        uniform(-m_fwid[c][0] * v_fwid[c], m_fwid[c][0] * v_fwid[c]), \
+                        2)] * len(m_fwid[c])
+            else:
+                FWID = m_fwid[c]
+            fwids.append(FWID)
+            DWID = m_dwid[c]
+            DTOP = m_dtop[c]
+            STK = m_stk[c]
+            RAK = m_rak[c]
+            DIP = m_dip[c]
+            ELON = m_elon[c]
+            ELAT = m_elat[c]
+            SHYPO = m_shypo[c]
+            DHYPO = m_dhypo[c]
 
             if MOM <= 0:
                 MOM = mag2mom(MAG)
@@ -430,9 +455,11 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
                 # gawk sometimes produces sci notation (unpredictable)
                 XSEG = ','.join(map(str, XSEG))
 
-            OUTROOT = '%s-%s_s%d' % (m_name, case, seed)
+            OUTROOT = '%s-s%d_C%s_M%.2f_FL%s_FW%s' % (m_name, s_seed, case, MAG, \
+                    '-'.join(map(str, FLEN)), str(FWID[0]))
             GSF_FILE = '%s.gsf' % (OUTROOT)
             SRF_FILE = '%s.srf' % (OUTROOT)
+            casefiles.append(SRF_FILE)
 
             with open('fault_seg.in', 'w') as fs:
                 fs.write('%d\n' % (NSEG))
@@ -452,22 +479,26 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
                         'nseg_bounds=%d' % (NSEG - 1), 'xseg=%s' % (XSEG), \
                         'rvfac_seg=%s' % (RVFAC_SEG), 'gwid=%s' % (GWID), \
                         'mag=%f' % (MAG), 'nx=%f' % (NX_TOT), 'ny=%f' % (NY[0]), \
-                        'ns=%d' % (ns + 1), 'nh=1', 'seed=%d' % (seed), 'velfile=%s' % (VELFILE), \
+                        'ns=%d' % (ns + 1), 'nh=1', 'seed=%d' % (s_seed), 'velfile=%s' % (VELFILE), \
                         'shypo=%f' % (SHYP_TOT), 'dhypo=%f' % (DHYPO[0]), 'dt=%f' % (DT), \
                         'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
                         'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
 
+        # joined filename
+        output = '%s_s%d_M%s_FL%s_FW%s.srf' % (m_name, s_seed, \
+                '-'.join(map(str, mags)), \
+                '-'.join(map(str, [fl for sub in flens for fl in sub])), \
+                '-'.join(map(str, [sub[0] for sub in fwids])))
         # joined case files stored in separate file
-        copyfile('%s/%s-%s_s%d.srf' % (SRF_DIR, m_name, CASES[0], seed), \
-                '%s/%s_s%d.srf' % (SRF_DIR, m_name, SEED))
+        copyfile('%s/%s' % (SRF_DIR, casefiles[0]), '%s/%s' % (SRF_DIR, output))
         # join rest of cases into the first
         for i in xrange(len(CASES) - 1):
             call([SRF_JOIN_BIN, \
-                    'infile1=%s/%s_s%d.srf' % (SRF_DIR, m_name, seed), \
-                    'infile2=%s/%s-%s_s%d.srf' % (SRF_DIR, m_name, CASES[i + 1], seed), \
-                    'outfile=%s/%s_s%d.srf' % (SRF_DIR, m_name, seed)])
-
-        seed += seed_inc
+                    'infile1=%s/%s' % (SRF_DIR, output), \
+                    'infile2=%s/%s' % (SRF_DIR, casefiles[i + 1]), \
+                    'outfile=%s/%s' % (SRF_DIR, output)])
+        gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
+                output, dx = 2.0, dy = 2.0)
 
 
 
@@ -492,7 +523,8 @@ if __name__ == "__main__":
                 M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
                 M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-                M_DHYPO, SEED, SEED_INC, M_NAME, CASES, N_SCENARIOS)
+                M_DHYPO, SEED, SEED_INC, M_NAME, CASES, \
+                N_SCENARIOS, N_SEED_INC, V_MAG, V_FWID, V_FLEN)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 
