@@ -7,13 +7,15 @@ Acceleration amplification models.
 
 Implemented Models
 ==============================
-cb08_amp: Based on Campbell and Bozorgnia 2008 - added 24 June 2016
-cb14_amp: Based on Campbell and Bozorgnia 2014 - added 22 September 2016
+cb_amp (version = "2008"):
+    Based on Campbell and Bozorgnia 2008 - added 24 June 2016
+cb_amp (version = "2014"):
+    Based on Campbell and Bozorgnia 2014 - added 22 September 2016
 
 Usage
 ==============================
-from siteamp_models import cb08_amp
-cb08_amp(variables, ...)
+from siteamp_models import cb_amp (or *)
+cb_amp(variables, ...)
 """
 
 # math functions faster than numpy for non-vector data
