@@ -5,7 +5,7 @@ from numpy import testing
 import numpy as np
 import subprocess
 
-vel_files_path='/nesi/projects/nesi00213/RunFolder/baes/AlpineFault400m_m7p90-411p0x17p3_s1129570_s2n_VMSI_v1p64_400m-h0p400_EMODv3p0p4_160823/LF/Vel'
+#vel_files_path='/nesi/projects/nesi00213/RunFolder/baes/AlpineFault400m_m7p90-411p0x17p3_s1129570_s2n_VMSI_v1p64_400m-h0p400_EMODv3p0p4_160823/LF/Vel'
 
 
 eps=1e-4 #tolerance
@@ -55,8 +55,9 @@ def compare(v1,v2,sigfig=sigfig):
 if __name__ == '__main__':
     exts=['ver','000','090']
 
-    if len(sys.argv)<3:
-        print("Usage:%s VIRTUAL ACTUAL" %os.path.basename(sys.argv[0]))
+    if len(sys.argv)<4:
+        print("Usage:%s VelFilesPath VIRTUAL ACTUAL" %os.path.basename(sys.argv[0]))
+        print(" eg. VelFilesPath, where VelFiles from the sim with actual stations are kept")
         print(" eg. VIRTUAL can be 123739F for 123739F.zip")
         print(" eg. ACTUAL can be DSLC for DSLC.ver DSLC.000 DSLC.090")
         sys.exit()
@@ -64,8 +65,9 @@ if __name__ == '__main__':
 
    # fprefix_v='0C10859'
    # fprefix_a= vel_files_path+'/DSLC'
-    fprefix_v = sys.argv[1]
-    fprefix_a = vel_files_path+'/'+sys.argv[2]
+    vel_files_path = sys.argv[1]
+    fprefix_v = sys.argv[2]
+    fprefix_a = vel_files_path+'/'+sys.argv[3]
     if os.path.exists(fprefix_v+'.zip'):
         execute_cmd('unzip -o %s.zip'%fprefix_v)
 
