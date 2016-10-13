@@ -20,8 +20,8 @@ import numpy as np
 
 from params import nx, ny, dx_ts, dy_ts
 
-xs = nx // dx_ts
-ys = ny // dy_ts
+xs = int(nx) // int(dx_ts)
+ys = int(ny) // int(dy_ts)
 points = xs * ys
 
 # input
@@ -40,4 +40,4 @@ tsmaxgrid = np.fromfile(tsfiles[0], dtype = '>f')
 tsmaxgrid[2::3] = tsmax
 
 # output
-tsmaxgrid.astype(np.float32).tofile('statgrid_max.bin', format = '>f4')
+tsmaxgrid.astype(np.float32).tofile('statgrid_max.bin')

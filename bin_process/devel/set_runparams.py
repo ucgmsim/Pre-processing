@@ -149,8 +149,6 @@ configs = ['version=' + version + '-mpi', \
 'plot_main_title="' + plot_main_title + '"', \
 'plot_sub_title="' + plot_sub_title + '"', \
 'plot_palette=' + plot_palette, \
-'plot_x_org=' + plot_x_org, \
-'plot_y_org=' + plot_y_org, \
 'plot_x_inch=' + plot_x_inch, \
 'plot_x_shift=' + plot_x_shift, \
 'plot_dx=' + plot_dx, \
