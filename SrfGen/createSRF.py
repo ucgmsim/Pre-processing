@@ -1,8 +1,7 @@
 #!/usr/bin/env python2
 
 from math import exp, log, sin, cos, radians, sqrt
-from os import makedirs, path
-from random import uniform
+from os import makedirs, path, remove
 from shutil import copyfile
 from subprocess import call, Popen, PIPE
 
@@ -20,9 +19,9 @@ STOCH_BIN = '/nesi/projects/nesi00213/tools/srf2stoch'
 VELFILE = 'lp_generic1d-gp01.vmod'
 
 # for testing on viktor's laptop
-#GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
-#FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
-#SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
+GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
+FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
+SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3 * log(mom) / log(10.0)) - 10.7
@@ -372,133 +371,111 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         m_rvfac_seg, m_gwid, m_rup_delay, m_flen, \
         m_dlen, m_fwid, m_dwid, m_dtop, m_stk, \
         m_rak, m_dip, m_elon, m_elat, m_shypo, \
-        m_dhypo, seed, seed_inc, m_name, cases, \
-        n_scenarios, n_seed_inc, v_mag, v_fwid, v_flen):
+        m_dhypo, dt, seed, m_name, cases, output = None):
     if not path.exists(GSF_DIR):
         makedirs(GSF_DIR)
     if not path.exists(SRF_DIR):
         makedirs(SRF_DIR)
 
-    for ns in xrange(n_scenarios):
-        # increment seed if wanted
-        if ns % n_seed_inc == 0:
-            s_seed = seed + seed_inc * ns // n_seed_inc
+    casefiles = []
+    for c, case in enumerate(cases):
 
-        casefiles = []
-        mags = []
-        flens = []
-        fwids = []
-        for c, case in enumerate(cases):
+        # 1 D arrays
+        MAG = m_mag[c]
+        MOM = m_mom[c]
+        NSEG = m_nseg[c]
+        SEG_DELAY = m_seg_delay[c]
+        RVFAC_SEG = m_rvfac_seg[c]
+        GWID = m_gwid[c]
+        RUP_DELAY = m_rup_delay[c]
 
-            # 1 D arrays
-            if v_mag[c]:
-                MAG = round(m_mag[c] + uniform(-v_mag[c], v_mag[c]), 2)
-            else:
-                MAG = m_mag[c]
-            mags.append(MAG)
-            MOM = m_mom[c]
-            NSEG = m_nseg[c]
-            SEG_DELAY = m_seg_delay[c]
-            RVFAC_SEG = m_rvfac_seg[c]
-            GWID = m_gwid[c]
-            RUP_DELAY = m_rup_delay[c]
+        # 2 D arrays
+        FLEN = m_flen[c]
+        DLEN = m_dlen[c]
+        FWID = m_fwid[c]
+        DWID = m_dwid[c]
+        DTOP = m_dtop[c]
+        STK = m_stk[c]
+        RAK = m_rak[c]
+        DIP = m_dip[c]
+        ELON = m_elon[c]
+        ELAT = m_elat[c]
+        SHYPO = m_shypo[c]
+        DHYPO = m_dhypo[c]
 
-            # 2 D arrays
-            if v_flen[c]:
-                FLEN = [round(x + uniform(-x * v_flen[c], x * v_flen[c]), 2) \
-                        for x in m_flen[c]]
-            else:
-                FLEN = m_flen[c]
-            flens.append(FLEN)
-            DLEN = m_dlen[c]
-            if v_fwid[c]:
-                # FWID needs to have the same values
-                FWID = [m_fwid[c][0] + round( \
-                        uniform(-m_fwid[c][0] * v_fwid[c], m_fwid[c][0] * v_fwid[c]), \
-                        2)] * len(m_fwid[c])
-            else:
-                FWID = m_fwid[c]
-            fwids.append(FWID)
-            DWID = m_dwid[c]
-            DTOP = m_dtop[c]
-            STK = m_stk[c]
-            RAK = m_rak[c]
-            DIP = m_dip[c]
-            ELON = m_elon[c]
-            ELAT = m_elat[c]
-            SHYPO = m_shypo[c]
-            DHYPO = m_dhypo[c]
+        if MOM <= 0:
+            MOM = mag2mom(MAG)
+        else:
+            MAG = mom2mag(MOM)
 
-            if MOM <= 0:
-                MOM = mag2mom(MAG)
-            else:
-                MAG = mom2mag(MOM)
+        NX = map(float, [get_nx(FLEN[f], DLEN[f]) for f in xrange(NSEG)])
+        NY = map(float, [get_ny(FWID[f], DWID[f]) for f in xrange(NSEG)])
+        NX_TOT = sum(NX)
+        FLEN_TOT = sum(FLEN)
+        # not sure why only the first subsegments are used
+        SHYP_TOT = SHYPO[0] + 0.5 * FLEN[0] - 0.5 * FLEN_TOT
 
-            NX = map(float, [get_nx(FLEN[f], DLEN[f]) for f in xrange(NSEG)])
-            NY = map(float, [get_ny(FWID[f], DWID[f]) for f in xrange(NSEG)])
-            NX_TOT = sum(NX)
-            FLEN_TOT = sum(FLEN)
-            # not sure why only the first subsegments are used
-            SHYP_TOT = SHYPO[0] + 0.5 * FLEN[0] - 0.5 * FLEN_TOT
+        XSEG = "-1"
+        # should this be if NSEG > 1?
+        if int(SEG_DELAY):
+            XSEG = []
+            sbound = 0.0
+            # NSEG - 1 because no delay/gap between last value and next one?
+            for g in xrange(NSEG - 1):
+                sbound += FLEN[g]
+                XSEG.append(sbound - 0.5 * FLEN_TOT)
+            # warning: gawk handles precision automatically, may not always match
+            # never more than 6 decimal places with gawk (not consistent)
+            # gawk sometimes produces sci notation (unpredictable)
+            XSEG = ','.join(map(str, XSEG))
 
-            XSEG = "-1"
-            # should this be if NSEG > 1?
-            if int(SEG_DELAY):
-                XSEG = []
-                sbound = 0.0
-                # NSEG - 1 because no delay/gap between last value and next one?
-                for g in xrange(NSEG - 1):
-                    sbound += FLEN[g]
-                    XSEG.append(sbound - 0.5 * FLEN_TOT)
-                # warning: gawk handles precision automatically, may not always match
-                # never more than 6 decimal places with gawk (not consistent)
-                # gawk sometimes produces sci notation (unpredictable)
-                XSEG = ','.join(map(str, XSEG))
+        OUTROOT = '%s_s%d' % (m_name, seed)
+        if output != None:
+            OUTROOT = '%s_%s' % (output, case)
+        GSF_FILE = '%s.gsf' % (OUTROOT)
+        SRF_FILE = '%s.srf' % (OUTROOT)
+        casefiles.append(SRF_FILE)
 
-            OUTROOT = '%s-s%d_C%s_M%.2f_FL%s_FW%s' % (m_name, s_seed, case, MAG, \
-                    '-'.join(map(str, FLEN)), str(FWID[0]))
-            GSF_FILE = '%s.gsf' % (OUTROOT)
-            SRF_FILE = '%s.srf' % (OUTROOT)
-            casefiles.append(SRF_FILE)
+        with open('fault_seg.in', 'w') as fs:
+            fs.write('%d\n' % (NSEG))
+            for f in xrange(NSEG):
+                fs.write('%f %f %f %.0f %.0f %.0f %.0f %.0f %.0f %.0f\n' % ( \
+                        ELON[f], ELAT[f], DTOP[f], STK[f], DIP[f], \
+                        RAK[f], FLEN[f], FWID[f], NX[f], NY[f]))
 
-            with open('fault_seg.in', 'w') as fs:
-                fs.write('%d\n' % (NSEG))
-                for f in xrange(NSEG):
-                    fs.write('%f %f %f %.0f %.0f %.0f %.0f %.0f %.0f %.0f\n' % ( \
-                            ELON[f], ELAT[f], DTOP[f], STK[f], DIP[f], \
-                            RAK[f], FLEN[f], FWID[f], NX[f], NY[f]))
+        # create GSF file
+        call([GSF_BIN, 'read_slip_vals=0', 'infile=%s' % ('fault_seg.in'), 'outfile=%s/%s' % (GSF_DIR, GSF_FILE)])
 
-            # create GSF file
-            call([GSF_BIN, 'read_slip_vals=0', 'infile=%s' % ('fault_seg.in'), 'outfile=%s/%s' % (GSF_DIR, GSF_FILE)])
+        # calling with outfile parameter will append 's0000-h0000' to filename
+        # could fix binary not do this undesirable behaviour
+        # ns = slip realisations, nh = hypocentre realisations
+        with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
+            call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'seg_delay=%s' % (SEG_DELAY), \
+                    'read_gsf=1', 'infile=%s/%s' % (GSF_DIR, GSF_FILE), \
+                    'nseg_bounds=%d' % (NSEG - 1), 'xseg=%s' % (XSEG), \
+                    'rvfac_seg=%s' % (RVFAC_SEG), 'gwid=%s' % (GWID), \
+                    'mag=%f' % (MAG), 'nx=%f' % (NX_TOT), 'ny=%f' % (NY[0]), \
+                    'ns=1', 'nh=1', 'seed=%d' % (seed), 'velfile=%s' % (VELFILE), \
+                    'shypo=%f' % (SHYP_TOT), 'dhypo=%f' % (DHYPO[0]), 'dt=%f' % (dt), \
+                    'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
+                    'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
 
-            # calling with outfile parameter will append 's0000-h0000' to filename
-            # could fix binary not do this undesirable behaviour
-            with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
-                call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'seg_delay=%s' % (SEG_DELAY), \
-                        'read_gsf=1', 'infile=%s/%s' % (GSF_DIR, GSF_FILE), \
-                        'nseg_bounds=%d' % (NSEG - 1), 'xseg=%s' % (XSEG), \
-                        'rvfac_seg=%s' % (RVFAC_SEG), 'gwid=%s' % (GWID), \
-                        'mag=%f' % (MAG), 'nx=%f' % (NX_TOT), 'ny=%f' % (NY[0]), \
-                        'ns=%d' % (ns + 1), 'nh=1', 'seed=%d' % (s_seed), 'velfile=%s' % (VELFILE), \
-                        'shypo=%f' % (SHYP_TOT), 'dhypo=%f' % (DHYPO[0]), 'dt=%f' % (DT), \
-                        'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
-                        'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
-
-        # joined filename
-        output = '%s_s%d_M%s_FL%s_FW%s.srf' % (m_name, s_seed, \
-                '-'.join(map(str, mags)), \
-                '-'.join(map(str, [fl for sub in flens for fl in sub])), \
-                '-'.join(map(str, [sub[0] for sub in fwids])))
-        # joined case files stored in separate file
-        copyfile('%s/%s' % (SRF_DIR, casefiles[0]), '%s/%s' % (SRF_DIR, output))
-        # join rest of cases into the first
-        for i in xrange(len(CASES) - 1):
-            call([SRF_JOIN_BIN, \
-                    'infile1=%s/%s' % (SRF_DIR, output), \
-                    'infile2=%s/%s' % (SRF_DIR, casefiles[i + 1]), \
-                    'outfile=%s/%s' % (SRF_DIR, output)])
-        gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
-                output, dx = 2.0, dy = 2.0)
+    # joined filename
+    if output == None:
+        output = '%s_s%d.srf' % (m_name, seed)
+    # joined case files stored in separate file
+    copyfile('%s/%s' % (SRF_DIR, casefiles[0]), '%s/%s' % (SRF_DIR, output))
+    # join rest of cases into the first
+    for i in xrange(len(cases) - 1):
+        call([SRF_JOIN_BIN, \
+                'infile1=%s/%s' % (SRF_DIR, output), \
+                'infile2=%s/%s' % (SRF_DIR, casefiles[i + 1]), \
+                'outfile=%s/%s' % (SRF_DIR, output)])
+    # remove casefiles
+    for casefile in casefiles:
+        remove('%s/%s' % (SRF_DIR, casefile))
+    #gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
+    #        output, dx = 2.0, dy = 2.0)
 
 
 
@@ -523,8 +500,7 @@ if __name__ == "__main__":
                 M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
                 M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-                M_DHYPO, SEED, SEED_INC, M_NAME, CASES, \
-                N_SCENARIOS, N_SEED_INC, V_MAG, V_FWID, V_FLEN)
+                M_DHYPO, DT, SEED, M_NAME, CASES)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 

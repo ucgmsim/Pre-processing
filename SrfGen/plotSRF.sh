@@ -32,15 +32,17 @@ DX=( 0.1 0.1666667 3.3333333 2.0 2.0 )
 DY=( 0.1 0.1666667 2.5000000 2.5 2.5 )
 
 # output file
-SOURCES=( m6.20-16.0x9.0_s560 )
+SOURCES=( bev01 )
 
 SLIPDIR=./
 # path of the gmt ps file
-SLIPS=( Srf/m6.20-16.0x9.0_s560.srf )
+SLIPS=( Srf/bev01_s103246_M6.66-6.91_FL9.85-12-20-14-7-11-8_FW18.45-19.67.srf )
 
-# fault geometry - length and downdip width
-FLEN=( 13.0 )
-FWID=( 9.0 )
+# fault geometry - length (FLEN) and downdip width (FWID)
+# repeated for multiple segments
+SEGS=()
+SEGLEN=( 13.0 )
+SEGWID=( 9.0 )
 
 DX_RAKE=0.67
 DY_RAKE=0.67
@@ -94,10 +96,10 @@ for source in ${SOURCES[@]}; do
 
         TCPT=( ${TCPT[@]} temp${t}.cpt )
 
+        SMIN=1.0e+15
+        SMAX=-1.0e+15
         s=0
         for slip in ${SLIPS[@]}; do
-            SMIN=1.0e+15
-            SMAX=-1.0e+15
 
             #the two lines below include the possibility of negative rakes (see FLIP_RAKE_ANGLES parameter)
             SMAX=`$srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPDIR/${slip} | gawk -v m=$SMAX -v p=${PREC[$t]} -v fliprake=${FLIP_RAKE_ANGLES[$t]} '{val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}if(val>m)m=val;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
@@ -140,15 +142,15 @@ END
 
     s=0
     for slip in ${SLIPS[@]}; do
-        XINCH=`echo ${FLEN[$s]} ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
-        YINCH=`echo ${FWID[$s]} ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
+        XINCH=`echo ${SEGLEN[$s]} ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
+        YINCH=`echo ${SEGWID[$s]} ${KMINCH[$m]} | gawk '{printf "%f\n",$1/$2;}'`
         XMID=`echo $XINCH | gawk '{printf "%f\n",$1+0.3;}'`
         YSLEN=`echo $YINCH | gawk '{printf "%f\n",0.8*$1;}'`
         YSMID=`echo $YSLEN | gawk '{printf "%f\n",0.5*$1;}'`
 
         SCALE="$XINCH/-$YINCH"
 
-        REGION="0/${FLEN[$s]}/0/${FWID[$s]}"
+        REGION="0/${SEGLEN[$s]}/0/${SEGWID[$s]}"
         ATTRIB="-JX$SCALE -R$REGION"
 
         t=0
@@ -156,7 +158,7 @@ END
 
             if [ $t -eq 0 ]; then
                 #removed from pstext "-G0/0/0"
-                echo ${FLEN[$s]} | gawk -v t="$title" '{printf "%f 0 20 0 1 2 %s\n",0.5*$1,t;}' | \
+                echo ${SEGLEN[$s]} | gawk -v t="$title" '{printf "%f 0 20 0 1 2 %s\n",0.5*$1,t;}' | \
                 pstext -N $ATTRIB -D0.0/0.2  -K -O >> $PSFILE
             fi
 
@@ -174,6 +176,7 @@ END
 
             AVG_MAX=(`$srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 dump_slip=1 < $SLIPFILE | gawk -v p=${PREC[$t]} -v sw=${SLIP_WGT[$t]} -v fliprake=${FLIP_RAKE_ANGLES[$t]} 'BEGIN{mx=-1.0e+15;mn=1.0e+15;}{w=1;if(sw==1)w=$4;val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}v=v+val*w;tw=tw+w;if(val>mx)mx=val;if(val<mn)mn=val;}END{fmt=sprintf("%%.%df %%.%df %%.%df\n",p,p,p);printf fmt,v/tw,mx,mn;}'`)
 
+            echo ${AVG_MAX[@]}
             # changed -F in 'xyz2grd to -r
             $srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPFILE | \
             gawk -v rmean=${RMEAN[$t]} -v avg=${AVG_MAX[0]} -v fliprake=$FLIP_RAKE_ANGLES[$t] 'BEGIN{vv=0.0;if(rmean==1)vv=avg;}{ \
@@ -196,7 +199,7 @@ END
 
                 #because YDIR is reversed then 'rk[i]/nv[i]' changed to '-rk[i]/nv[i]' (near end of pipe below)
                 $srf2xyz_bin calc_xy=$CALC_XY type=rake nseg=-1 dump_slip=1 < $SLIPFILE | \
-                gawk -v dx=$DX_RAKE -v dy=$DY_RAKE -v len=${FLEN[$s]} -v wid=${FWID[$s]} -v avgr=$USE_AVG_RAKE -v mx=$SMAX 'BEGIN{ \
+                gawk -v dx=$DX_RAKE -v dy=$DY_RAKE -v len=${SEGLEN[$s]} -v wid=${SEGWID[$s]} -v avgr=$USE_AVG_RAKE -v mx=$SMAX 'BEGIN{ \
                 nx=int(len/dx+0.5);ny=int(wid/dy+0.5);for(i=1;i<=nx*ny;i++){mr[i]=1.0e+15;x0[i]=0.0;y0[i]=0.0;nv[i]=0;rk[i]=0.0;sp[i]=0.0;}}{ \
                 ix=int($1/dx);iy=int($2/dy);ip=1+ix+iy*nx; \
                 if(avgr==0){ \
@@ -214,10 +217,11 @@ END
             fi
 
             #removed from pstext "-G0/0/0"
+            # multi-note: all lines were commented -D0.0/0.05 instead
             pstext $ATTRIB -N -O -K -D0.025/0.05 << END >> $PSFILE
 #0.0 0.0 11 0 0 1 $slip \b\b\b ${AVG_MAX[0]} / ${AVG_MAX[1]}
 0.0 0.0 12 0 1 1 ${LABS[$t]}
-${FLEN[$s]} 0.0 11 0 0 3 ${AVG_MAX[2]} / ${AVG_MAX[0]} / ${AVG_MAX[1]}
+${SEGLEN[$s]} 0.0 11 0 0 3 ${AVG_MAX[2]} / ${AVG_MAX[0]} / ${AVG_MAX[1]}
 END
 
             if [ ${COLR_BAR[$t]} -eq 1 ]; then
