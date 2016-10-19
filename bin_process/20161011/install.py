@@ -28,7 +28,7 @@ vel_mod_dir = os.path.join(global_root, 'VelocityModels')
 vel_mod_subdirs = ['Cant','SI']
 recipe_dir = os.path.join(bin_process_dir,"recipes")
 
-def q1_1():
+def q1_accept_custom_rupmodel():
     show_horizontal_line()
     print "Do you wish to use custom rupture files?"
     show_horizontal_line()
@@ -36,7 +36,7 @@ def q1_1():
    
 
 
-def q1_custom_rupture():
+def q1_custom_rupmodel_path():
     verified = False
     while not verified:
         rupture_path = raw_input("Enter path to custom Rupture Model (the parent of Srf/Stoch SRF directory): ")
@@ -168,8 +168,8 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     for filename in glob.glob(os.path.join(recipe_selected_dir, '*.*')):
         shutil.copy(filename, sim_dir)
 
-#    shutil.copy(os.path.join(gmsa_dir,"parametersStation.py"),sim_dir)
-#    shutil.copy(os.path.join(gmsa_dir,"runPostProcessStation.ll"),sim_dir)
+    shutil.copy(os.path.join(gmsa_dir,"parametersStation.py"),sim_dir)
+    shutil.copy(os.path.join(gmsa_dir,"runPostProcessStation.ll"),sim_dir)
 
     srf_files, stoch_files = zip(*srf_stoch_pairs)
     f=open(os.path.join(sim_dir,"params_base.py"),"w");
@@ -218,9 +218,9 @@ def main():
     print " "*37+"EMOD3D Job Preparation Ver."+bin_process_ver
     show_horizontal_line(c="*")
     
-    yes = q1_1()
+    yes = q1_accept_custom_rupmodel()
     if yes:
-        srf_dir = q1_custom_rupture()
+        srf_dir = q1_custom_rupmodel_path()
     else:
         srf_dir = srf_default_dir
     
