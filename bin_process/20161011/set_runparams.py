@@ -18,30 +18,63 @@ import sys
 import os.path
 sys.path.append(os.path.abspath(os.path.curdir))
 from shutil import copyfile
-# attempt to append template file before importing params
-try:
-    # throws NameError if var not set, AssertionError if blank
-    assert(params_override != '')
-    # copy to temp file
-    copyfile('params.py', 'params_joined.py')
-    # append to temp
-    with open('params_joined.py', 'a') as fp:
-        with open('params_override_' + params_override + '.py', 'r') as tp:
-            fp.write(tp.readlines())
-    # import temp
-    import params_joined
-    os.remove('params_joined.py')
-except (AssertionError, NameError, ImportError, OSError):
-    from params import *
+import shared
 
-try:
-    # parameter file will be written to
-    par_handle = open(parfile, 'w')
-except IOError:
-    print('parfile cannot be opened to append data in ' + __file__, file = sys.stderr)
-    raise
+params_uncertain = 'params_uncertain.py'
 
-configs = ['version=' + version + '-mpi', \
+def write_to_py(pyfile,vardict):
+    fp = open(pyfile,'w')
+
+    for key,value in vardict.iteritems():
+        fp.write('%s="%s"\n'%(key,value))
+    fp.close()
+ 
+
+if __name__ == '__main__' :
+
+    # attempt to append template file before importing params
+    try:
+        # throws NameError if var not set, AssertionError if blank
+        assert(params_override != '')
+        # copy to temp file
+        copyfile('params.py', 'params_joined.py')
+        # append to temp
+        with open('params_joined.py', 'a') as fp:
+            with open('params_override_' + params_override + '.py', 'r') as tp:
+                fp.write(tp.readlines())
+        # import temp
+        import params_joined
+        os.remove('params_joined.py')
+    except (AssertionError, NameError, ImportError, OSError):
+        from params import *
+
+
+    p={}   
+    for i, srf_file in enumerate(srf_files):
+        srf_file_basename = os.path.basename(srf_file).split('.')[0] #take the filename only
+        p['lf_sim_dir'] = os.path.join(lf_sim_root_dir,srf_file_basename)
+        shared.verify_user_dirs([p['lf_sim_dir']])
+
+        p['restart_dir'] = os.path.join(p['lf_sim_dir'], 'Restart')
+        p['bin_output'] = os.path.join(p['lf_sim_dir'], 'OutBin')
+        p['SEISDIR'] = p['bin_output']
+        p['ts_file'] = os.path.join(p['bin_output'], run_name+ '_xyts.e3d') #the file created by merge_ts
+
+        p['log_dir'] = os.path.join(p['lf_sim_dir'], 'Rlog')
+        p['slipout_dir'] = os.path.join(p['lf_sim_dir'],'SlipOut')
+        p['vel_dir'] = os.path.join(p['lf_sim_dir'],'Vel')
+        p['t_slice_dir'] = os.path.join(p['lf_sim_dir'], 'TSlice')
+         # output dirs and resolution (dpi)
+        p['plot_ps_dir'] = os.path.join(p['t_slice_dir'], 'PlotFiles') #only written to e3d.par
+        p['plot_png_dir'] = os.path.join(p['t_slice_dir'], 'Png') #only written to e3d.par
+
+    
+        p['ts_out_dir'] = os.path.join(p['t_slice_dir'], 'TSFiles')
+        p['ts_out_prefix'] = os.path.join(p['ts_out_dir'], run_name)
+
+        write_to_py(os.path.join(p['lf_sim_dir'],params_uncertain),p)
+
+        configs = ['version=' + version + '-mpi', \
 'name=' + run_name, \
 'nproc=' + n_proc, \
 'nx=' + nx, \
@@ -80,7 +113,7 @@ configs = ['version=' + version + '-mpi', \
  \
 'enable_output_dump=1', \
 'dump_itinc=' + DUMP_ITINC, \
-'main_dump_dir=' + bin_output, \
+'main_dump_dir=' + p['bin_output'], \
 'nseis=1', \
 'seiscords=' + stat_coords, \
 'seisdir=' + seis_tmp_dir, \
@@ -98,20 +131,20 @@ configs = ['version=' + version + '-mpi', \
 'ts_start=' + ts_start, \
 'ts_inc=' + ts_inc, \
 'ts_total=' + ts_total, \
-'ts_file=' + ts_file, \
-'ts_out_dir="' + ts_out_dir + '"', \
-'ts_out_prefix="' + ts_out_prefix + '"', \
+'ts_file=' + p['ts_file'], \
+'ts_out_dir="' + p['ts_out_dir'] + '"', \
+'ts_out_prefix="' + p['ts_out_prefix'] + '"', \
 'swap_bytes=' + swap_bytes, \
 'lonlat_out=' + lonlat_out, \
 'scale=' + scale, \
  \
 'enable_restart=' + ENABLE_RESTART, \
-'restartdir=' + restart_dir, \
+'restartdir=' + p['restart_dir'], \
 'restart_itinc=' + RESTART_ITINC, \
 'read_restart=' + READ_RESTART, \
 'restartname=' + run_name, \
-'logdir=' + log_dir , \
-'slipout=' + slipout_dir+'/slipout-k2', \
+'logdir=' + p['log_dir'] , \
+'slipout=' + p['slipout_dir']+'/slipout-k2', \
 \
 # extras found in default parfile
 'span=1', \
@@ -173,8 +206,8 @@ configs = ['version=' + version + '-mpi', \
 'plot_ts_region=' + plot_ts_region, \
 'plot_dx=' + plot_dx, \
 'plot_dy=' + plot_dy, \
-'plot_ps_dir="' + plot_ps_dir + '"', \
-'plot_png_dir="' + plot_png_dir + '"', \
+'plot_ps_dir="' + p['plot_ps_dir'] + '"', \
+'plot_png_dir="' + p['plot_png_dir'] + '"', \
 'plot_res=' + plot_res, \
 'plot_orig_dt=' + plot_orig_dt, \
 'plot_comps=' + plot_comps, \
@@ -198,9 +231,15 @@ configs = ['version=' + version + '-mpi', \
 'stat_file="' + stat_file + '"', \
 'grid_file="' + GRIDFILE+'"', \
 'model_params="' + MODELPARAMS +'"', \
-]
+    ]
+        try:
+            # parameter file will be written to
+            par_handle = open(os.path.join(p['lf_sim_dir'],parfile), 'w')
+        except IOError:
+            print('parfile cannot be opened to append data in ' + __file__, file = sys.stderr)
+            raise
 
-par_handle.write('\n'.join(configs) + '\n')
-par_handle.close()
+        par_handle.write('\n'.join(configs) + '\n')
+        par_handle.close()
 
 

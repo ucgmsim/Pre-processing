@@ -27,6 +27,8 @@ srf_default_dir = os.path.join(global_root, 'RupModel')
 vel_mod_dir = os.path.join(global_root, 'VelocityModels')
 vel_mod_subdirs = ['Cant','SI']
 recipe_dir = os.path.join(bin_process_dir,"recipes")
+v_mod_1d_dir = os.path.join(global_root,'VelocityModel','Mod-1D')
+gmsa_dir = os.path.join(global_root,'groundMotionStationAnalysis')
 
 def q1_accept_custom_rupmodel():
     show_horizontal_line()
@@ -157,9 +159,9 @@ def q7(run_name,recipe_selected_dir):
      
 def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_stoch_pairs):
 
-    lf_sim_dir, hf_dir, bb_dir, figures_dir  = os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")
+    lf_sim_root_dir, hf_dir, bb_dir, figures_dir  = os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")
 
-    dir_list = [sim_dir, lf_sim_dir, hf_dir, bb_dir, figures_dir]
+    dir_list = [sim_dir, lf_sim_root_dir, hf_dir, bb_dir, figures_dir]
     if not os.path.isdir(user_root):
 	dir_list.insert(0,user_root)
  
@@ -181,13 +183,13 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     f.write("user_root='%s'\n" %user_root)
     f.write("run_dir='%s'\n"%run_dir)
     f.write("sim_dir='%s'\n"%sim_dir)
-    f.write("lf_sim_dir='%s'\n"%lf_sim_dir)
+    f.write("lf_sim_root_dir='%s'\n"%lf_sim_root_dir)
     f.write("hf_dir='%s'\n"%hf_dir)
     f.write("bb_dir='%s'\n"%bb_dir)
     f.write("figures_dir='%s'\n"%figures_dir)
     f.write("srf_dir='%s'\n"%srf_dir)
-    f.write("srf_files='%s'\n"%str(list(srf_files)))
-    f.write("hf_slip='%s'\n"%str(list(stoch_files)))
+    f.write("srf_files=%s\n"%str(list(srf_files)))
+    f.write("hf_slips=%s\n"%str(list(stoch_files)))
     f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
     f.write("v_mod_1d_dir='%s'\n"%v_mod_1d_dir)
 
