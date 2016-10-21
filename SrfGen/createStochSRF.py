@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from random import uniform
+from random import uniform, randint
 from time import time
 
 from setSrfParams import *
@@ -23,6 +23,14 @@ def CreateSRF_multiStoch():
     # least significant digit 10 seconds appart
     run_id = str(time())[2:9]
 
+    # file containing variability info
+    metainfo = '%s_%s.txt' % (M_NAME, run_id)
+    # overwrite file / list variables printed
+    with open('Srf/%s' % (metainfo), 'a') as of:
+        for column in ['filename', 'seed', 'mag', 'flen', 'fwid']:
+            of.write('%s\t' % column)
+        of.write('\n')
+
     # create each scenario
     for ns in xrange(N_SCENARIOS):
         # scenario number as string
@@ -43,16 +51,20 @@ def CreateSRF_multiStoch():
                 m_mag.append(M_MAG[case])
             # randomise FaultLENgth
             if V_FLEN[case]:
-                m_flen.append([round(x + uniform(-x * V_FLEN[case], \
-                        x * V_FLEN[case]), 2) \
-                        for x in M_FLEN[case]])
+                c_flen = []
+                for i, x in enumerate(M_FLEN[case]):
+                    # maximum multiple of DLEN to shift
+                    maxd = (x * V_FLEN[case]) // M_DLEN[case][i]
+                    c_flen.append(x + randint(-maxd, maxd) * M_DLEN[case][i])
+                m_flen.append(c_flen)
             else:
                 m_flen.append(M_FLEN[case])
             # randomise FaultWIDth
             if V_FWID[case]:
-                m_fwid.append([M_FWID[case][0] + round( \
-                        uniform(-M_FWID[case][0] * V_FWID[case], \
-                                M_FWID[case][0] * V_FWID[case]), 2)] \
+                # maximum multiple of DWID to shift
+                maxd = (M_FWID[case][0] * V_FWID[case]) // M_DWID[case][0]
+                m_fwid.append([M_FWID[case][0] + \
+                        randint(-maxd, maxd) * M_DWID[case][0]] \
                                         * len(M_FWID[case]))
             else:
                 m_fwid.append(M_FWID[case])
@@ -67,19 +79,20 @@ def CreateSRF_multiStoch():
                 M_DHYPO, DT, seed, M_NAME, CASES, \
                 output)
 
-        # append stoch data to end of SRF file
-        with open('Srf/%s' % (output), 'a') as of:
-            of.write('QCSTOCH\n')
-            for param, value in {'NSEG':M_NSEG, 'SEG_DELAY':M_SEG_DELAY, \
-                    'MAG':m_mag, 'MOM':M_MOM, 'RVFAC_SEG': M_RVFAC_SEG, \
-                    'GWID':M_GWID, 'RUP_DELAY':M_RUP_DELAY, 'FLEN':m_flen, \
-                    'DLEN':M_DLEN, 'FWID':m_fwid, 'DWID':M_DWID, \
-                    'DTOP':M_DTOP, 'STK':M_STK, 'RAK':M_RAK, 'DIP':M_DIP, \
-                    'ELON':M_ELON, 'ELAT':M_ELAT, 'SHYPO':M_SHYPO, \
-                    'DHYPO':M_DHYPO, 'DT':DT, 'SEED':seed, \
-                    'CASES':CASES}.iteritems():
-                of.write(' %s\n' % (param))
-                of.write('  %s\n' % param_as_string(value))
+        # append stoch data to info file
+        with open('Srf/%s' % (metainfo), 'a') as of:
+            # filename
+            of.write('%s\t' % output)
+            # seed
+            of.write('%i\t' % seed)
+            # magnitude
+            of.write('%s\t' % param_as_string(m_mag))
+            # fault length
+            of.write('%s\t' % param_as_string(m_flen))
+            # fault width
+            of.write('%s\t' % param_as_string(m_fwid))
+            # end of line / end of this srf file
+            of.write('\n')
 
 if __name__ == '__main__':
     if TYPE == 4:
