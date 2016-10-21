@@ -8,6 +8,7 @@ Module which contains shared functions/values.
 
 import os
 import shutil
+import subprocess
 
 # reads a parameter from the parameters file (e3d.par)
 # should not be necessary as you can just 'from params import *' (params.py)
@@ -229,4 +230,9 @@ def add_name_suffix(name,yes):
         yes = confirm_name(new_name)
     return new_name
 
+def execute_cmd(cmd):
+    p=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    outputList = p.stdout.readlines()
+    output = ''.join(outputList)
+    return output
 

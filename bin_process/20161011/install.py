@@ -172,6 +172,7 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
 
     shutil.copy(os.path.join(gmsa_dir,"parametersStation.py"),sim_dir)
     shutil.copy(os.path.join(gmsa_dir,"runPostProcessStation.ll"),sim_dir)
+    execute_cmd('ln -s %s/submit_emod3d.py %s'%(bin_process_dir,sim_dir))
 
     srf_files, stoch_files = zip(*srf_stoch_pairs)
     f=open(os.path.join(sim_dir,"params_base.py"),"w");
@@ -202,8 +203,8 @@ def show_instruction(sim_dir):
     print "Instructions"
     show_horizontal_line()
     print "    1.   cd %s" %sim_dir
-    print "    2.   Edit params.py"
-    print "    3.   llsubmit run_emod3d.ll"
+    print "    2.   Edit params.py and run_emod3d.ll.template"
+    print "    3.   python submit_emod3d.py"
     print "    4.   llsubmit post_emod3d.ll"
     print "    5.   (Linux) plot_and_ani.sh"
     print "    6.   install_bb.sh"

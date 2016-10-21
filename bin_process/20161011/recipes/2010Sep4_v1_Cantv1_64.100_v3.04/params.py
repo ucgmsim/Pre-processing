@@ -117,10 +117,10 @@ seis_tmp_dir = os.path.join(user_scratch, run_name, 'SeismoBin')
 #hf_sim_dir = os.path.join(run_dir, hf_run_name)
 #bb_sim_dir = os.path.join(run_dir, bb_run_name)
 
-restart_dir = os.path.join(lf_sim_dir, 'Restart')
-bin_output = os.path.join(lf_sim_dir, 'OutBin')
-log_dir = os.path.join(lf_sim_dir, 'Rlog')
-slipout_dir = os.path.join(lf_sim_dir,'SlipOut')
+#restart_dir = os.path.join(lf_sim_dir, 'Restart') #see params_uncertain.py
+#bin_output = os.path.join(lf_sim_dir, 'OutBin') #see params_uncertain.py
+#log_dir = os.path.join(lf_sim_dir, 'Rlog') #see params_uncertain.py
+#slipout_dir = os.path.join(lf_sim_dir,'SlipOut') #see params_uncertain.py
 
 # files
 stat_file = os.path.join(stat_dir, 'cantstations.ll')
@@ -130,12 +130,11 @@ stat_coords = os.path.join(stat_dir, 'fd_nz01-h0.100.statcords')
 ############# winbin-aio ##############
 # -------- START OF USER DEFINED INPUT -------------
 
-
 # Define location of FD output files to use
-SEISDIR = bin_output
+#SEISDIR = bin_output #see params_uncertain.py
 
 # Define folder to write velocity seismograms to
-vel_dir = os.path.join(lf_sim_dir,'Vel')
+# vel_dir = os.path.join(lf_sim_dir,'Vel') #see params_uncertain.py
 
 FILELIST = 'fdb.filelist'
 
@@ -147,7 +146,7 @@ FD_STATLIST = os.path.join(stat_dir,'fd_nz01-h0.100.ll')
 
 ############### gen_ts ###################
 
-ts_file = os.path.join(bin_output, run_name+ '_xyts.e3d') #the file created by merge_ts
+#ts_file = os.path.join(bin_output, run_name+ '_xyts.e3d') #the file created by merge_ts
 
 # TODO: not used anywhere???
 # ABSMAX =1 vector magnitude of all 3 components is output into <fileroot>.0
@@ -159,9 +158,9 @@ LONLAT_OUT = '1' # LONLAT_OUT =1 means output triplet is (lon,lat,amplitude) for
 GRIDFILE = os.path.join(vel_mod_params_dir, 'gridout_nz01-h') + hh # GRIDFILE is the file containing the local (x,y,z) coordinates for this 3D run
 
 
-t_slice_dir = os.path.join(lf_sim_dir, 'TSlice')
-ts_out_dir = os.path.join(t_slice_dir, 'TSFiles')
-ts_out_prefix = os.path.join(ts_out_dir, run_name)
+#t_slice_dir = os.path.join(lf_sim_dir, 'TSlice') #see params_uncertain.py
+#ts_out_dir = os.path.join(t_slice_dir, 'TSFiles') #see params_uncertain.py
+#ts_out_prefix = os.path.join(ts_out_dir, run_name) #see params_uncertain.py
 
 ################## plot_ts ####################
 
@@ -185,8 +184,8 @@ plot_orig_dt = '0.1'  # time step of the time slice output (this is DT*DT_TS fro
 plot_comps = '( 0 )'
 
 # output dirs and resolution (dpi)
-plot_ps_dir = os.path.join(t_slice_dir, 'PlotFiles')
-plot_png_dir = os.path.join(t_slice_dir, 'Png')
+#plot_ps_dir = os.path.join(t_slice_dir, 'PlotFiles') #see params_uncertain.py
+#plot_png_dir = os.path.join(t_slice_dir, 'Png') #see params_uncertain.py
 plot_res = '140'   # 720 for PDF quality
 
 # topography
