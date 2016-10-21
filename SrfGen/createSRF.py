@@ -408,8 +408,8 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         else:
             MAG = mom2mag(MOM)
 
-        NX = map(float, [get_nx(FLEN[f], DLEN[f]) for f in xrange(NSEG)])
-        NY = map(float, [get_ny(FWID[f], DWID[f]) for f in xrange(NSEG)])
+        NX = map(int, [get_nx(FLEN[f], DLEN[f]) for f in xrange(NSEG)])
+        NY = map(int, [get_ny(FWID[f], DWID[f]) for f in xrange(NSEG)])
         NX_TOT = sum(NX)
         FLEN_TOT = sum(FLEN)
         # not sure why only the first subsegments are used
@@ -439,7 +439,7 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         with open('fault_seg.in', 'w') as fs:
             fs.write('%d\n' % (NSEG))
             for f in xrange(NSEG):
-                fs.write('%f %f %f %.0f %.0f %.0f %.0f %.0f %.0f %.0f\n' % ( \
+                fs.write('%f %f %f %.4f %.4f %.4f %.4f %.4f %i %i\n' % ( \
                         ELON[f], ELAT[f], DTOP[f], STK[f], DIP[f], \
                         RAK[f], FLEN[f], FWID[f], NX[f], NY[f]))
 
@@ -474,8 +474,8 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
     # remove casefiles
     for casefile in casefiles:
         remove('%s/%s' % (SRF_DIR, casefile))
-    #gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
-    #        output, dx = 2.0, dy = 2.0)
+    gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
+            output, dx = 2.0, dy = 2.0)
 
 
 
