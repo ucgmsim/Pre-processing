@@ -172,7 +172,10 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
 
     shutil.copy(os.path.join(gmsa_dir,"parametersStation.py"),sim_dir)
     shutil.copy(os.path.join(gmsa_dir,"runPostProcessStation.ll"),sim_dir)
-    execute_cmd('ln -s %s/submit_emod3d.py %s'%(bin_process_dir,sim_dir))
+#    execute_cmd('ln -s %s/submit_emod3d.py %s'%(bin_process_dir,sim_dir))
+    shutil.copy(os.path.join(bin_process_dir,"version"),sim_dir)
+    shutil.copy(os.path.join(bin_process_dir,"submit_emod3d.sh"),sim_dir)
+
 
     srf_files, stoch_files = zip(*srf_stoch_pairs)
     f=open(os.path.join(sim_dir,"params_base.py"),"w");
@@ -195,6 +198,7 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     f.write("v_mod_1d_dir='%s'\n"%v_mod_1d_dir)
 
     f.close()
+    print dir_list[0]
     set_permission(dir_list[0]) #if user_root is first time created, recursively set permission from there. otherwise, set permission from sim_dir
 
 
@@ -204,7 +208,7 @@ def show_instruction(sim_dir):
     show_horizontal_line()
     print "    1.   cd %s" %sim_dir
     print "    2.   Edit params.py and run_emod3d.ll.template"
-    print "    3.   python submit_emod3d.py"
+    print "    3.   ./submit_emod3d.sh"
     print "    4.   llsubmit post_emod3d.ll"
     print "    5.   (Linux) plot_and_ani.sh"
     print "    6.   install_bb.sh"
