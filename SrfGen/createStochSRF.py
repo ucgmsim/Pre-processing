@@ -27,7 +27,7 @@ def CreateSRF_multiStoch():
     metainfo = '%s_%s.txt' % (M_NAME, run_id)
     # overwrite file / list variables printed
     with open('Srf/%s' % (metainfo), 'w') as of:
-        for column in ['filename', 'seed', 'mag', 'flen', 'fwid']:
+        for column in ['filename', 'seed', 'nseg', 'mag', 'flen', 'fwid']:
             of.write('%s\t' % column)
         of.write('\n')
 
@@ -85,6 +85,8 @@ def CreateSRF_multiStoch():
             of.write('%s\t' % output)
             # seed
             of.write('%i\t' % seed)
+            # segment distribution
+            of.write('%s\t' % param_as_string(M_NSEG))
             # magnitude
             of.write('%s\t' % param_as_string(m_mag))
             # fault length
