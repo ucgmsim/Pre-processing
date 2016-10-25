@@ -26,7 +26,7 @@ def CreateSRF_multiStoch():
     # file containing variability info
     metainfo = '%s_%s.txt' % (M_NAME, run_id)
     # overwrite file / list variables printed
-    with open('Srf/%s' % (metainfo), 'a') as of:
+    with open('Srf/%s' % (metainfo), 'w') as of:
         for column in ['filename', 'seed', 'mag', 'flen', 'fwid']:
             of.write('%s\t' % column)
         of.write('\n')

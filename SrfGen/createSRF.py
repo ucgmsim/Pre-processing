@@ -429,7 +429,7 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
             # gawk sometimes produces sci notation (unpredictable)
             XSEG = ','.join(map(str, XSEG))
 
-        OUTROOT = '%s_s%d' % (m_name, seed)
+        OUTROOT = '%s-%s_s%d' % (m_name, case, seed)
         if output != None:
             OUTROOT = '%s_%s' % (output, case)
         GSF_FILE = '%s.gsf' % (OUTROOT)
