@@ -14,6 +14,7 @@ BCPTS=( "$cpt_dir/y2r2b.cpt" "$cpt_dir/c2b2m.cpt" "$cpt_dir/rain6.cpt" )
 NEARV=( 100 0.5 5 )
 # MAXV, MINV, INCV, CPTA are the max,min, increments for the color bar, and CPTA is the increment for the legend numbering
 MAXV=( 200 3.0  600 )
+MAXV=( 200 3.0  600 )
 MINV=( 0 0 -600 )
 INCV=( 20 0.3  10. )
 CPTA=( 40 0.6 20 )
@@ -36,12 +37,12 @@ SOURCES=( bev01 )
 
 SLIPDIR=./
 # path of the gmt ps file
-SLIPS=( Srf/bev01_s103246_M6.66-6.91_FL9.85-12-20-14-7-11-8_FW18.45-19.67.srf )
+SLIPS=( m6.20-16.0x9.0_s1129571.srf )
 
 # fault geometry - length (FLEN) and downdip width (FWID)
 # repeated for multiple segments
 SEGS=()
-SEGLEN=( 13.0 )
+SEGLEN=( 16.0 )
 SEGWID=( 9.0 )
 
 DX_RAKE=0.67
@@ -176,7 +177,6 @@ END
 
             AVG_MAX=(`$srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 dump_slip=1 < $SLIPFILE | gawk -v p=${PREC[$t]} -v sw=${SLIP_WGT[$t]} -v fliprake=${FLIP_RAKE_ANGLES[$t]} 'BEGIN{mx=-1.0e+15;mn=1.0e+15;}{w=1;if(sw==1)w=$4;val=$3;if(fliprake==1){if(val>180.0)val=val-360.0;}v=v+val*w;tw=tw+w;if(val>mx)mx=val;if(val<mn)mn=val;}END{fmt=sprintf("%%.%df %%.%df %%.%df\n",p,p,p);printf fmt,v/tw,mx,mn;}'`)
 
-            echo ${AVG_MAX[@]}
             # changed -F in 'xyz2grd to -r
             $srf2xyz_bin calc_xy=$CALC_XY type="${typ}" nseg=-1 < $SLIPFILE | \
             gawk -v rmean=${RMEAN[$t]} -v avg=${AVG_MAX[0]} -v fliprake=$FLIP_RAKE_ANGLES[$t] 'BEGIN{vv=0.0;if(rmean==1)vv=avg;}{ \
@@ -196,21 +196,54 @@ END
 
             if [ ${RAKES[$t]} -eq 1 ]; then
                 SMAX=`$srf2xyz_bin calc_xy=$CALC_XY type=slip nseg=-1 < $SLIPFILE | gawk -v p=${PREC[$t]} '{if($3>m)m=$3;}END{fmt=sprintf("%%.%df\n",p);printf fmt,m;}'`
+                echo $SMAX
 
                 #because YDIR is reversed then 'rk[i]/nv[i]' changed to '-rk[i]/nv[i]' (near end of pipe below)
                 $srf2xyz_bin calc_xy=$CALC_XY type=rake nseg=-1 dump_slip=1 < $SLIPFILE | \
                 gawk -v dx=$DX_RAKE -v dy=$DY_RAKE -v len=${SEGLEN[$s]} -v wid=${SEGWID[$s]} -v avgr=$USE_AVG_RAKE -v mx=$SMAX 'BEGIN{ \
-                nx=int(len/dx+0.5);ny=int(wid/dy+0.5);for(i=1;i<=nx*ny;i++){mr[i]=1.0e+15;x0[i]=0.0;y0[i]=0.0;nv[i]=0;rk[i]=0.0;sp[i]=0.0;}}{ \
-                ix=int($1/dx);iy=int($2/dy);ip=1+ix+iy*nx; \
+                nx=int(len/dx+0.5);
+                ny=int(wid/dy+0.5);
+                for(i=1;i<=nx*ny;i++) {
+                    mr[i]=1.0e+15;
+                    x0[i]=0.0;
+                    y0[i]=0.0;
+                    nv[i]=0;
+                    rk[i]=0.0;
+                    sp[i]=0.0;
+                }
+                }
+
+
+                { \
+                ix=int($1/dx);
+                iy=int($2/dy);
+                ip=1+ix+iy*nx; \
                 if(avgr==0){ \
-                xx=(ix+0.5)*dx - $1; yy=(iy+0.5)*dy - $2;if((xx*xx+yy*yy)<mr[ip]) { \
-                x0[ip]=(ix+0.5)*dx; y0[ip]=(iy+0.5)*dy;nv[ip]=1;rk[ip]=$3;mr[ip]=(xx*xx+yy*yy);sp[ip]=$4;}} \
-                else{ \
-                x0[ip]=(ix+0.5)*dx; y0[ip]=(iy+0.5)*dy;nv[ip]++;rk[ip]=rk[ip]+$3;sp[ip]=sp[ip]+$4;} \
+                    xx=(ix+0.5)*dx - $1;
+                    yy=(iy+0.5)*dy - $2;
+                    if((xx*xx+yy*yy)<mr[ip]) { \
+                        x0[ip]=(ix+0.5)*dx;
+                        y0[ip]=(iy+0.5)*dy;
+                        nv[ip]=1;
+                        rk[ip]=$3;
+                        mr[ip]=(xx*xx+yy*yy);
+                        sp[ip]=$4;
+                    }
+                } else { \
+                    x0[ip]=(ix+0.5)*dx;
+                    y0[ip]=(iy+0.5)*dy;
+                    nv[ip]++;
+                    rk[ip]=rk[ip]+$3;
+                    sp[ip]=sp[ip]+$4;
                 } \
+                } \
+
                 END{ \
-                for(i=1;i<=nx*ny;i++){ \
-                if(nv[i]>0)printf "%13.5e %13.5e %13.5e %f\n",x0[i],y0[i],-rk[i]/nv[i],0.4*sp[i]/(nv[i]*mx);}}' | \
+                for(i=1;i<=nx*ny;i++) { \
+                    if(nv[i]>0)
+                        printf "%13.5e %13.5e %13.5e %f\n",x0[i],y0[i],-rk[i]/nv[i],0.4*sp[i]/(nv[i]*mx);
+                }
+                }' | \
                 psxy $ATTRIB -Sv0.005i/0.04i/0.02i -W2 -G0/0/0 -K -O >> $PSFILE
                 # changed the line above from that below:
                 # gmt psxy $ATTRIB -Sv0.005i/0.04i/0.02i -W1/0/0/0 -G0/0/0 -K -O >> $PSFILE
