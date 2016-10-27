@@ -19,10 +19,24 @@ if not path.exists(out_dir):
     os.makedirs(out_dir)
 
 # which plots to make (slip, trise, rake)
+# TODO: fix flawed logic: skipping plots before will break indexing.
 plots = ['slip', 'trise', 'rake']
 labels = ['Slip (cm)', 'Rise Time (s)', 'Rake (deg)']
 x_label = 'along strike (km)'
 y_label = 'W (km)'
+
+# spacing of rake arrows (km)
+dx_rake = 0.67
+dy_rake = 0.67
+# use average in block rather than centre value
+use_avg_rake = False
+
+# plot tick increments
+x_tick = 2.0
+y_tick = 2.0
+
+# contour interval for slip
+contour_int = 1.0
 
 # rounds plot maximums to nearest value
 # also used for tick increments (1/5th rounded value)
@@ -48,20 +62,8 @@ continuous = [True, True, False]
 rmean = [False, False, True]
 # precision (decimal places)
 prec = [0, 1, 0]
-slip_wgt = [False, True, False]
 # whether rake is -180-180 (True), otherwise 0-360 (False)
 flip_rake_angles = [False, False, True]
-
-dx_rake = 0.67
-dy_rake = 0.67
-use_avg_rake = False
-
-# image tick increments
-x_tick = 2.0
-y_tick = 2.0
-
-# contour interval
-contour_int = 1.0
 
 # properties of segments to put on page
 if TYPE != 4:
@@ -72,6 +74,9 @@ if TYPE != 4:
     # plotting grid resolution
     dy = [DWID]
     dx = [DLEN]
+    # for labeling
+    strike = [STK]
+    avg_label = 'top'
 else:
     # multi segment
     segments = range(sum(M_NSEG))
@@ -85,6 +90,10 @@ else:
             for s in xrange(len(M_DWID[m]))]
     dx = [M_DLEN[m][s] for m in xrange(len(M_DLEN)) \
             for s in xrange(len(M_DLEN[m]))]
+    # for labeling
+    strike = [M_STK[m][s] for m in xrange(len(M_STK)) \
+            for s in xrange(len(M_STK[m]))]
+    avg_label = 'side'
 
 ncol = len(segments)
 nrow = len(plots)
@@ -100,15 +109,15 @@ call(['gmtset', 'MAP_FRAME_WIDTH', '0.025', \
 # width x height of PS_MEDIA defined above
 media = [11.7, 8.3]
 # top space for title
-top_margin = 1.0
+top_margin = 0.8
 # bottom space for tick labels
-bottom_margin = 0.75
+bottom_margin = 0.8
 # left space for scale, margin
 left_margin = 0.8
 # right margin for colour scales
 right_margin = 1.0
 # vertical space between plots (leave room for headings)
-row_spacing = 0.4
+row_spacing = 0.3
 # horizontal space between plots
 col_spacing = 0.2
 
@@ -129,6 +138,8 @@ if plot_x_total > media[0]:
     km_inch = sum(seg_len) / plot_x
 # space to bottom of first plot (placed at top)
 yz = media[1] - top_margin - plot_y
+# max P axis plot size in inches to shift equal amounts
+max_y_inch = max(seg_wid) / float(km_inch)
 
 # store srf2xyz output at once instead of re-running
 # does not use much RAM
@@ -230,12 +241,14 @@ for s, seg in enumerate(segments):
         val = xyz[seg][p, :, 2]
         if flip_rake_angles[p]:
             val = np.where(val > 180, val - 360, val)
-        if slip_wgt[p]:
+        if plots[p] == 'rise':
             w = xyz[seg][p, :, 3]
         else:
             w = np.ones(len(val))
         avg = round(np.sum(val * w) / np.sum(w), prec[p])
-        mn, mx = min_max[p]
+        # recalculate min, max for individual segments
+        mn = round(np.min(val), prec[p])
+        mx = round(np.max(val), prec[p])
 
         stuff = np.copy(xyz[seg][p, :, :3])
         if rmean[p]:
@@ -256,12 +269,32 @@ for s, seg in enumerate(segments):
                 '-K', '-O', '-X%f' % (xsh), '-Y%s' % (ysh)], stdout = psf)
 
 
-        # add label
-        lbl_p = Popen(['pstext', scale, region, '-N', '-O', '-K', \
-                '-D0.025/0.05'], stdin = PIPE, stdout = psf)
-        lbl_p.communicate('0.0 0.0 12 0 1 1 %s\n%s 0.0 11 0 0 3 %s / %s / %s\n' \
-                % (labels[p], seg_len[seg], min_max[p][0], avg, min_max[p][1]))
-        code = lbl_p.wait()
+        # add label - plot type on first segment only
+        if s == 0:
+            lbl_p = Popen(['pstext', scale, region, '-N', '-O', '-K', \
+                    '-D0.025/0.05'], stdin = PIPE, stdout = psf)
+            lbl_p.communicate('0.0 0.0 12 0 1 1 %s\n' % (labels[p]))
+            lbl_p.wait()
+        # add label - strike on last row only
+        if p == len(plots) - 1:
+            lbl_p = Popen(['pstext', scale, region, '-N', '-O', '-K', \
+                    '-D0/-0.62'], stdin = PIPE, stdout = psf)
+            lbl_p.communicate('%s %s 11 0 0 2 strike %s\260\n' % \
+                    (seg_len[seg] / 2, seg_wid[seg], strike[s]))
+            lbl_p.wait()
+        # min / avg / max
+        if avg_label == 'top':
+            lbl_p = Popen(['pstext', scale, region, '-N', '-O', '-K', \
+                    '-D0.025/0.05'], stdin = PIPE, stdout = psf)
+            lbl_p.communicate('%s 0.0 11 0 0 3 %s / %s / %s\n' \
+                    % (seg_len[seg], mn, avg, mx))
+            lbl_p.wait()
+        else:
+            lbl_p = Popen(['pstext', scale, region, '-N', '-O', '-K', \
+                    '-D0.05/-0.05', '-A90'], stdin = PIPE, stdout = psf)
+            lbl_p.communicate('%s 0.0 11 0 0 1 %s / %s / %s\n' \
+                    % (seg_len[seg], mn, avg, mx))
+            lbl_p.wait()
 
 
         # add scale
@@ -281,7 +314,7 @@ for s, seg in enumerate(segments):
                     % (dx[s], dy[s]), region, '-r'], stdin = PIPE)
             grd_p.communicate(data)
             code = grd_p.wait()
-            call(['grdcontour', '-A%s+gwhite@50' % contour_int, \
+            call(['grdcontour', '-A%s+gwhite' % contour_int, \
                     'grd.grd', scale, region, '-W1.0', '-K', '-O'], \
                     stdout = psf)
 
@@ -335,11 +368,11 @@ for s, seg in enumerate(segments):
 
         # draw plots on top of eachother
         xsh = 0
-        ysh = -(y_inch + row_spacing)
+        ysh = -(max_y_inch + row_spacing)
     # move over for next segment
     xsh = x_inch + col_spacing
     # move to top for next segment
-    ysh = (y_inch + row_spacing) * (nrow - 1)
+    ysh = (max_y_inch + row_spacing) * (nrow - 1)
 psf.close()
 
 for cpt in tailored_cpt:
