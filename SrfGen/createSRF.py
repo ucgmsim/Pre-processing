@@ -338,7 +338,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
 def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, \
         flen = None, dlen = None, fwid = None, dwid = None, dtop = None, \
         shypo = None, dhypo = None, stoch = True, depth = None, mwsr = None,
-        corners = True, corners_file = 'cnrs.txt'):
+        corners = True, corners_file = 'cnrs.txt', outroot = None):
     """
     Create a Finite Fault SRF.
     Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
@@ -361,6 +361,10 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, \
     GSF_FILE = '%s%s' % (prefix, get_gsfname(mw, dlen, dwid))
     SRF_FILE = '%s%s.srf' % (prefix, FILE_ROOT)
     STOCH_FILE = '%s%s.stoch' % (prefix, FILE_ROOT)
+    if outroot != None:
+        GSF_FILE = outroot
+        SRF_FILE = '%s.gsf' % (outroot)
+        STOCHF_FILE = '%s.stoch' % (outroot)
 
     gen_gsf(GSF_FILE, lon, lat, dtop, strike, dip, rake, flen, fwid, NX, NY)
     gen_srf(SRF_FILE, GSF_FILE, mw, dt, NX, NY, seed, shypo, dhypo)

@@ -5,7 +5,7 @@
 # 2: point source to finite fault srf
 # 3: finite fault to finite fault srf
 # 4: multi-segment finite fault srf
-TYPE = 4
+TYPE = 3
 
 # PREFIX for gsf/srf/stoch files
 PREFIX = 'standard_'
@@ -118,6 +118,7 @@ M_DHYPO = [[10], [6] * M_NSEG[1]]
 
 ### set variability, it will change values between scenarios
 ### length of arrays is same as CASES
+### if not TYPE == 4, only first value is used
 # magnitude variability (absolute range)
 V_MAG = [0.2, 0.5]
 # fault width/length variability (proportion, eg. 0.1 = 10%)

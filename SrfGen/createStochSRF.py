@@ -4,7 +4,7 @@ from random import uniform, randint
 from time import time
 
 from setSrfParams import *
-from createSRF import CreateSRF_multi
+from createSRF import CreateSRF_ff, CreateSRF_multi
 
 def param_as_string(param):
     # 1st case: single value
@@ -16,6 +16,71 @@ def param_as_string(param):
     # 3rd case: 2D array
     return ' '.join([' '.join(map(str, param[x])) \
             for x in xrange(len(param))])
+
+def CreateSRF_ffdStoch():
+    # used for differentiating multiple runs
+    # most significant digits 3+ years appart
+    # least significant digit 10 seconds appart
+    run_id = str(time())[2:9]
+
+    # file containing variability info
+    metainfo = '%s_%s.txt' % (M_NAME, run_id)
+    # overwrite file / list variables printed
+    with open('Srf/%s' % (metainfo), 'w') as of:
+        for column in ['filename', 'seed', 'mag', 'flen', 'fwid']:
+            of.write('%s\t' % column)
+        of.write('\n')
+
+    # create each scenario
+    for ns in xrange(N_SCENARIOS):
+        # scenario number as string
+        nss = str(ns).zfill(4)
+        # increment seed if wanted
+        seed = SEED + SEED_INC * ns // N_SEED_INC
+
+        # randomise MAGnitude
+        if V_MAG[0]:
+            m_mag = round(MAG + \
+                    uniform(-V_MAG[0], V_MAG[0]), 2)
+        else:
+            m_mag = MAG
+        # randomise FaultLENgth
+        if V_FLEN[0]:
+            # maximum multiple of DLEN to shift
+            maxd = (FLEN * V_FLEN[0]) // DLEN
+            m_flen = FLEN + randint(-maxd, maxd) * DLEN
+        else:
+            m_flen = FLEN
+        # randomise FaultWIDth
+        if V_FWID[0]:
+            # maximum multiple of DWID to shift
+            maxd = (FWID * V_FWID[0]) // DWID
+            m_fwid = FWID + randint(-maxd, maxd) * DWID
+        else:
+            m_fwid = M_FWID[case]
+
+        output = '%s_%s_%.4d.srf' % (M_NAME, run_id, ns)
+
+        # run createSRF with randomised parameters
+        CreateSRF_ff(LAT, LON, m_mag, STK, \
+                RAK, DIP, DT, PREFIX, seed, m_flen, \
+                DLEN, m_fwid, DWID, DTOP, \
+                SHYPO, DHYPO, outroot = output)
+
+        # append stoch data to info file
+        with open('Srf/%s' % (metainfo), 'a') as of:
+            # filename
+            of.write('%s\t' % output)
+            # seed
+            of.write('%i\t' % seed)
+            # magnitude
+            of.write('%s\t' % param_as_string(m_mag))
+            # fault length
+            of.write('%s\t' % param_as_string(m_flen))
+            # fault width
+            of.write('%s\t' % param_as_string(m_fwid))
+            # end of line / end of this srf file
+            of.write('\n')
 
 def CreateSRF_multiStoch():
     # used for differentiating multiple runs
@@ -97,5 +162,7 @@ def CreateSRF_multiStoch():
             of.write('\n')
 
 if __name__ == '__main__':
-    if TYPE == 4:
+    if TYPE == 3:
+        CreateSRF_ffdStoch()
+    elif TYPE == 4:
         CreateSRF_multiStoch()
