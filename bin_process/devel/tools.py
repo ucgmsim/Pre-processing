@@ -8,6 +8,7 @@ from subprocess import Popen, PIPE
 R_EARTH = 6378.139
 # ideally implemented in python
 ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
+ll2xy_bin = '/home/vap30/bin/ll2xy'
 
 class InputError(Exception):
     pass
@@ -29,17 +30,19 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
 
     # run binary, get output
     # output is displacement (x, y) from center, in kilometres
-    p_conv = Popen([ll2xy_bin, 'mlat=%.5f' % (mlat), 'mlon=%.5f' % (mlon), \
-            'geoproj=1', 'center_origin=1', 'h=%.5f' % (hh), \
-            'xazim=%.5f' % (xazim), 'xlen=%f' % (xlen), 'ylen=%f' % (ylen)], \
+    p_conv = Popen([ll2xy_bin, 'mlat=%s' % (mlat), 'mlon=%s' % (mlon), \
+            'geoproj=1', 'center_origin=1', 'h=%s' % (hh), \
+            'xazim=%s' % (xazim), 'xlen=%s' % (xlen), 'ylen=%s' % (ylen)], \
             stdin = PIPE, stdout = PIPE)
-    stdout = p_conv.communicate('%.15f %.15f' % (lon, lat))[0]
+    stdout = p_conv.communicate('%s %s' % (lon, lat))[0]
     x, y = map(float, stdout.split())
 
     # convert displacement to grid points
     # first make the distance relative to top corner
-    max_x = (nx ) * hh #nx-1 if concerned of consistent behaviour handling the maximum (eg. 1399 -> 1400 is not allowed)
-    max_y = (ny ) * hh
+    # has to be 'nx - 1', it's just how ll2xy works.
+    # nx = 1400 means the largest value is 1399.
+    max_x = (nx - 1) * hh
+    max_y = (ny - 1) * hh
     x += (max_x) * 0.5
     y += (max_y) * 0.5
     # then convert back to grid spacing
@@ -49,7 +52,6 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
     x = int(round(x))
     y = int(round(y))
 
-    print "Raw XY coords: (x,y)=%d,%d" %(x,y)
     # nx values range from 0 -> nx - 1
     if not (-1 < x < nx) or not (-1 < y < ny):
         raise InputError('Input outside simulation domain.')
