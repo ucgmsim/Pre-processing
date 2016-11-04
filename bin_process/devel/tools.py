@@ -9,6 +9,7 @@ R_EARTH = 6378.139
 # ideally implemented in python
 ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
 ll2xy_bin = '/home/vap30/bin/ll2xy'
+xy2ll_bin = '/home/vap30/bin/xy2ll'
 
 class InputError(Exception):
     pass
@@ -65,6 +66,35 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
         y -= y % dy
 
     return x, y
+
+def gp2ll(x, y, mlat, mlon, rot, nx, ny, hh):
+    """
+    Converts a gridpoint position to latitude/longitude.
+    """
+    # derived parameters
+    xlen = nx * hh
+    ylen = ny * hh
+    # where the x plane points
+    xazim = (rot + 90) % 360
+
+    # convert gridpoint to offset km
+    max_x = (nx - 1) * hh
+    max_y = (ny - 1) * hh
+    # length from corner
+    x *= hh
+    y *= hh
+    # length from centre origin
+    x -= max_x * 0.5
+    y -= max_y * 0.5
+
+    # run binary, get output
+    p_conv = Popen([xy2ll_bin, 'mlat=%s' % (mlat), 'mlon=%s' % (mlon), \
+            'geoproj=1', 'center_origin=1', 'h=%s' % (hh), \
+            'xazim=%s' % (xazim), 'xlen=%s' % (xlen), 'ylen=%s' % (ylen)], \
+            stdin = PIPE, stdout = PIPE)
+    stdout = p_conv.communicate('%s %s' % (x, y))[0]
+    # lon, lat
+    return map(float, stdout.split())
 
 def ll_shift(lat, lon, distance, bearing):
     """
