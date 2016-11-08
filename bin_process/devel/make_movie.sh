@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 source e3d.par
-ffbuild=/nesi/home/vap30/bin/$(uname -s)/ffmpeg
+# location if running on fitzroy (very slow)
+#ffbuild=/nesi/home/vap30/bin/$(uname -s)/ffmpeg
+# location if in $PATH
+ffbuild=$(which ffmpeg)
 
 # https://trac.ffmpeg.org/wiki/Create%20a%20video%20slideshow%20from%20images
 

@@ -145,7 +145,7 @@ def process_seis_file(index):
             # pass on station info
             seek(2 * SIZE_INT + 3 * SIZE_FLT, 1)
             v_stat_info.append({'NAME':stat, 'X':x, 'Y':y, \
-                    'LAT':read_flt(), 'LON':read_flt(), \
+                    'LAT':read_flt(), 'LON':read_flt(), 'VSITE':vsite, \
                     'PGA_0':pga[0], 'PGA_1':pga[1], 'PGA_2':pga[2], \
                     'RHO':rho[y][0][x], 'VS':vref[0], 'VP':vref[-1]})
 
@@ -177,12 +177,16 @@ def process_seis_file(index):
     fp.close()
     return v_stat_info
 
-# debug single threaded
+###
+### debug single threaded
+###
 #seis_results = []
 #for i in xrange(len(seis_file_list)):
 #    seis_results.append(process_seis_file(i))
 
-# multiprocessing
+###
+### multiprocessing
+###
 p = Pool(procs)
 seis_results = p.map(process_seis_file, range(len(seis_file_list)))
 
@@ -214,7 +218,7 @@ for file_results in seis_results:
         h5group = h5p.create_group(g_name)
         # have to save strings as fixed width because of h5py bug
         h5group.attrs['NAME'] = np.string_(stat_i['NAME'])
-        for key in ['X', 'Y', 'LAT', 'LON', \
+        for key in ['X', 'Y', 'LAT', 'LON', 'VSITE', \
                 'PGA_0', 'PGA_1', 'PGA_2', 'RHO', 'VS', 'VP']:
             h5group.attrs[key] = stat_i[key]
         # store data as components for each timestep
