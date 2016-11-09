@@ -125,9 +125,9 @@ for lon, lat in ll_inputs:
         vp_pga = vp_ref
         Qp = 2.0 * Qs
         dampP_soil = 1.0 / (2 * Qp)
-        rho_ref = group.attrs['RHO']
+        rho_soil = group.attrs['RHO']
         # same as used in amplification
-        vsite = 250
+        vsite = group.attrs['VSITE']
         for i in xrange(N_MY_COMPS):
             if MY_COMPS[i] != 'ver':
                 vref = vs_ref
@@ -147,7 +147,12 @@ for lon, lat in ll_inputs:
             # reverse amplification
             bb[i] = ampdeamp(bb[i], ampf, amp = False)
             # convolution factors
-            conv = transf(vref, rho_ref, dampSoil, heightSoil, \
+            # user defined are:
+            # heightSoil: how far down to go in metres
+            # vbase: velocity of rock (m s^-1)
+            # rho_base: density of rock (kg m^-3)
+            # dampBase: decimpal damping of rock
+            conv = transf(vref, rho_soil, dampSoil, heightSoil, \
                     vbase, rho_base, dampBase, nt, dt)
             # apply factors
             bb[i] = ampdeamp(bb[i], conv, amp = False)
