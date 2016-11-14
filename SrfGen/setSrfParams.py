@@ -5,7 +5,7 @@
 # 2: point source to finite fault srf
 # 3: finite fault to finite fault srf
 # 4: multi-segment finite fault srf
-TYPE = 3
+TYPE = 2 
 
 # PREFIX for gsf/srf/stoch files
 PREFIX = 'standard_'
@@ -17,19 +17,19 @@ CORNERS = 'cnrs.txt'
 ###
 
 # latitude (float)
-LAT = -43.5029
+LAT = -42.69
 # longitude (float)
-LON = 172.8284
+LON = 173.02
 # depth (float)
-DEPTH = 4.0
+DEPTH = 15.0
 # magnitude (float)
-MAG = 5.8
+MAG = 7.5
 # strike (int)
-STK = 54
+STK =5  
 # dip (int)
-DIP = 75
+DIP = 62 
 # rake (int)
-RAK = 137
+RAK = 77
 
 ###
 ### RELATING TO TYPE 1 (point to point)
@@ -60,15 +60,15 @@ MWSR = 'BerrymanEtAl2002'
 ### RELATING TO TYPE 3 (ffd to finite fault)
 ###
 
-FLEN = 16.0
+FLEN = 45.7
 DLEN = 0.10
-FWID = 9.0
+FWID = 45.7
 DWID = 0.10
-DTOP = 0.63
+DTOP = 0.0
 # km east
-SHYPO = -2.0
+SHYPO = 0.0
 # km down
-DHYPO = 6.0
+DHYPO = 22.8544094807
 
 
 ###
@@ -78,10 +78,10 @@ DHYPO = 6.0
 
 # how many scenarios to run. different scenarios can have
 # randomised parameters (randomisation amount set below)
-N_SCENARIOS = 4
+N_SCENARIOS = 5 
 # how many scenarios to run before incrementing the seed value.
 # this will randomise parameters but keep the seed the same.
-N_SEED_INC = 2
+N_SEED_INC = 20
 # description of main segments
 CASES = ['rv', 'ss']
 
@@ -89,11 +89,12 @@ CASES = ['rv', 'ss']
 M_NAME = 'bev01'
 # master segments can be made up of multiple sub-segments
 # set 
-M_MAG = [6.50, 7.06]
+#M_MAG = [6.50, 7.06]
+M_MAG = [6.63, 7.00]
 # as above, if MOM invalid ( <= 0), calculated from MAG
 M_MOM = [-1, -1]
 # how many segments each master is made of
-M_NSEG = [1, 6]
+M_NSEG = [1, 3]
 
 M_SEG_DELAY = ["0", "1"]
 M_RVFAC_SEG = ["-1", "0.5,0.5"]
@@ -103,26 +104,25 @@ M_RUP_DELAY = ["0", "4.0"]
 # 2 dimentional arrays for each set of segments
 # demensions should match MASTER_NSEG
 # if values are same, shortcut is [value] * repetitions
-M_FLEN = [[10], [12, 20, 14, 7, 11, 8]]
+M_FLEN = [[10], [12, 20, 14]]
 M_DLEN = [[0.2], [0.2] * M_NSEG[1]]
-M_FWID = [[18], [18] * M_NSEG[1]]
+M_FWID = [[18], [20] * M_NSEG[1]]
 M_DWID = [[0.2], [0.2] * M_NSEG[1]]
 M_DTOP = [[1.0], [0.0] * M_NSEG[1]]
-M_STK = [[40], [121, 87, 87, 216, 40, 150]]
-M_RAK = [[90], [-180, 180, 180, 78, 171, 6]]
-M_DIP = [[75], [105, 85, 85, 50, 80, 54]]
-M_ELON = [[172.135], [172.005, 172.195, 172.380, 171.9434, 172.3115, 172.1811]]
-M_ELAT = [[-43.552], [-43.567, -43.590, -43.573, -43.5779, -43.5509, -43.5095]]
-M_SHYPO = [[2], [6, -10, -27, 9.5, -25.5, 7]]
+M_STK = [[40], [121, 87, 87]]
+M_RAK = [[90], [-180, 180, 180]]
+M_DIP = [[75], [105, 85, 85]]
+M_ELON = [[172.135], [172.005, 172.195, 172.380]]
+M_ELAT = [[-43.552], [-43.567, -43.590, -43.573]]
+M_SHYPO = [[2], [6, -10, -27]]
 M_DHYPO = [[10], [6] * M_NSEG[1]]
 
 ### set variability, it will change values between scenarios
 ### length of arrays is same as CASES
-### if not TYPE == 4, only first value is used
 # magnitude variability (absolute range)
-V_MAG = [0.2, 0.5]
+V_MAG = [0.0, 0.0]
 # fault width/length variability (proportion, eg. 0.1 = 10%)
-V_FWID = [0.03, 0.15]
-V_FLEN = [0.10, 0.00]
+V_FWID = [0.80, 0.80]
+V_FLEN = [0.00, 0.00]
 
 # TODO: magnitude as a function result if wanted
