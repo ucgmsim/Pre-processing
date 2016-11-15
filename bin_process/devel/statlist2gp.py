@@ -4,6 +4,8 @@ from os import path
 
 from tools import *
 from shared import *
+import sys
+sys.path.append(os.path.abspath(os.path.curdir))
 from params import *
 
 verify_strings([MODEL_LAT, MODEL_LON, MODEL_ROT, hh, nx, ny])
@@ -20,8 +22,8 @@ hh = float(hh)
 # arbitrary longlat station input
 ll_in = stat_file
 # where to save gridpoint and longlat station files
-gp_out = path.join(stat_dir, 'fd_nz01-h%s.statcords' % (hh))
-ll_out = path.join(stat_dir, 'fd_nz01-h%s.ll' % (hh))
+gp_out = path.join(stat_dir, 'fd_amb01-h%s.statcords' % (hh))
+ll_out = path.join(stat_dir, 'fd_amb01-h%s.ll' % (hh))
 
 # shortcut functions for conversion
 def get_gp(lon, lat):
@@ -39,6 +41,8 @@ sxy = []
 suname = []
 for i in xrange(len(sname)):
     xy = get_gp(slon[i], slat[i])
+    if xy[0] is None or xy[1] is None:
+        continue
     if xy not in sxy:
         sxy.append(xy)
         suname.append(sname[i])

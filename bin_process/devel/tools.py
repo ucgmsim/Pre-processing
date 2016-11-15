@@ -8,8 +8,8 @@ from subprocess import Popen, PIPE
 R_EARTH = 6378.139
 # ideally implemented in python
 ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
-ll2xy_bin = '/home/vap30/bin/ll2xy'
-xy2ll_bin = '/home/vap30/bin/xy2ll'
+#ll2xy_bin = '/home/vap30/bin/ll2xy'
+xy2ll_bin = '/nesi/projects/nesi00213/tools/xy2ll'
 
 class InputError(Exception):
     pass
@@ -31,9 +31,11 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
 
     # run binary, get output
     # output is displacement (x, y) from center, in kilometres
-    p_conv = Popen([ll2xy_bin, 'mlat=%s' % (mlat), 'mlon=%s' % (mlon), \
-            'geoproj=1', 'center_origin=1', 'h=%s' % (hh), \
-            'xazim=%s' % (xazim), 'xlen=%s' % (xlen), 'ylen=%s' % (ylen)], \
+    cmd = [ll2xy_bin, 'mlat=%s' % (mlat), 'mlon=%s' % (mlon), \
+              'geoproj=1', 'center_origin=1', 'h=%s' % (hh), \
+              'xazim=%s' % (xazim), 'xlen=%s' % (xlen), 'ylen=%s' % (ylen)]
+    print ' '.join(cmd)
+    p_conv = Popen(cmd,
             stdin = PIPE, stdout = PIPE)
     stdout = p_conv.communicate('%s %s' % (lon, lat))[0]
     x, y = map(float, stdout.split())
@@ -55,7 +57,9 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
 
     # nx values range from 0 -> nx - 1
     if not (-1 < x < nx) or not (-1 < y < ny):
-        raise InputError('Input outside simulation domain.')
+        #raise InputError('Input outside simulation domain.')
+        print ('Warning: Input outside simulation domain')
+        return None,None
 
     if decimated:
         x //= dx
