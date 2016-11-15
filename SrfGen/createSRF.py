@@ -19,9 +19,9 @@ STOCH_BIN = '/nesi/projects/nesi00213/tools/srf2stoch'
 VELFILE = 'lp_generic1d-gp01.vmod'
 
 # for testing on viktor's laptop
-#GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
-#FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
-#SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
+GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
+FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
+SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3 * log(mom) / log(10.0)) - 10.7
@@ -304,6 +304,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
 
     FLEN = NSTK * float(d_xy) # dx
     FWID = NDIP * float(d_xy) # dy
+    print('FLEN: %s FWID: %s' % (FLEN, FWID))
 
     ###
     # GENERATE GSF

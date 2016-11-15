@@ -39,6 +39,9 @@ h5p = h5.File('virtual.hdf5', 'r')
 # option 2: pass only one set of lon, lat (separate parameters)
 try:
     if len(sys.argv[1]) > 4 and sys.argv[1][-4:] == '.csv':
+        # csv file should contain points and all related parameters
+        # e.g. lon, lat, vs30mod_True, vs30_replacement
+        # TODO: make csv format documentation
         csv = True
         csv_file = sys.argv[1]
         if not os.path.exists(csv_file):
@@ -47,6 +50,9 @@ try:
     else:
         csv = False
         lon, lat = map(float, sys.argv[1:3])
+        if len(sys.argv) > 3:
+            #extract rest of parameters
+            print(sys.argv[3])
 except ValueError:
     print 'Invalid input parameters, float values not found.'
     exit()
@@ -125,9 +131,9 @@ for lon, lat in ll_inputs:
         vp_pga = vp_ref
         Qp = 2.0 * Qs
         dampP_soil = 1.0 / (2 * Qp)
-        rho_ref = group.attrs['RHO']
+        rho_soil = group.attrs['RHO']
         # same as used in amplification
-        vsite = 250
+        vsite = group.attrs['VSITE']
         for i in xrange(N_MY_COMPS):
             if MY_COMPS[i] != 'ver':
                 vref = vs_ref
@@ -147,7 +153,12 @@ for lon, lat in ll_inputs:
             # reverse amplification
             bb[i] = ampdeamp(bb[i], ampf, amp = False)
             # convolution factors
-            conv = transf(vref, rho_ref, dampSoil, heightSoil, \
+            # user defined are:
+            # heightSoil: how far down to go in metres
+            # vbase: velocity of rock (m s^-1)
+            # rho_base: density of rock (kg m^-3)
+            # dampBase: decimpal damping of rock
+            conv = transf(vref, rho_soil, dampSoil, heightSoil, \
                     vbase, rho_base, dampBase, nt, dt)
             # apply factors
             bb[i] = ampdeamp(bb[i], conv, amp = False)

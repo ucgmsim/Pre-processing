@@ -6,11 +6,12 @@ from subprocess import call, Popen, PIPE
 
 import numpy as np
 
+from createSRF import *
 from setSrfParams import *
 
-title = 'Multi Segment Testing'
+title = 'November 2016 Mw7.5'
 out_dir = 'PlotFiles'
-infile = 'Srf/bev01_s103245.srf'
+infile = 'Srf/standard_m7.50-45.7x45.7_s103245.srf'
 # placed in outdir with '.ps' suffix
 output = 'bev01'
 cpt_dir = './srf_cpt'
@@ -26,8 +27,8 @@ x_label = 'along strike (km)'
 y_label = 'W (km)'
 
 # spacing of rake arrows (km)
-dx_rake = 0.67
-dy_rake = 0.67
+dx_rake = 1.67
+dy_rake = 1.67
 # use average in block rather than centre value
 use_avg_rake = False
 
@@ -36,7 +37,7 @@ x_tick = 2.0
 y_tick = 2.0
 
 # contour interval for slip
-contour_int = 1.0
+contour_int = 2.0
 
 # rounds plot maximums to nearest value
 # also used for tick increments (1/5th rounded value)
@@ -66,7 +67,19 @@ prec = [0, 1, 0]
 flip_rake_angles = [False, False, True]
 
 # properties of segments to put on page
-if TYPE != 4:
+if TYPE == 2:
+    segments = [-1]
+    slen, dlen, swid, dwid = focal_mechanism_2_finite_fault(LAT, LON, \
+            DEPTH, MAG, STK, RAK, DIP, MWSR)[3:7]
+    seg_len = [dlen * (slen // dlen)]
+    seg_wid = [dwid * (swid // dwid)]
+    # plotting grid resolution
+    dy = [dwid]
+    dx = [dlen]
+    # for labeling
+    strike = [STK]
+    avg_label = 'top'
+elif TYPE == 3:
     # not a multi segment SRF
     segments = [-1]
     seg_len = [FLEN]
@@ -77,7 +90,7 @@ if TYPE != 4:
     # for labeling
     strike = [STK]
     avg_label = 'top'
-else:
+elif TYPE == 4:
     # multi segment
     segments = range(sum(M_NSEG))
     # TODO: retrieved by calling a single function
@@ -105,9 +118,9 @@ call(['gmtset', 'MAP_FRAME_WIDTH', '0.025', \
         'FORMAT_FLOAT_OUT', '%lg', \
         'PROJ_LENGTH_UNIT', 'inch', \
         'PS_MEDIA', '=', 'A4', \
-        'PS_PAGE_ORIENTATION', 'LANDSCAPE'])
+        'PS_PAGE_ORIENTATION', 'PORTRAIT'])
 # width x height of PS_MEDIA defined above
-media = [11.7, 8.3]
+media = [8.3, 11.7]
 # top space for title
 top_margin = 0.8
 # bottom space for tick labels
@@ -173,7 +186,7 @@ title_p = Popen(['pstext', '-N', '-K', \
         '-X%f' % (left_margin), '-Y%f' % (yz)], \
         stdin = PIPE, stdout = psf)
 title_p.communicate( \
-        '%f 0 20 0 1 2 %s' % (0.5 * seg_len[0], title))
+        '%f 0 20 0 1 2 %s' % (seg_len[0] / km_inch, title))
 title_p.wait()
 
 xsh = 0.0

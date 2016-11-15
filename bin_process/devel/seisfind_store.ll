@@ -13,7 +13,7 @@
 # D: store processed data to H5 (serial job)
 
 # @shell = /bin/bash
-# @job_name = h5grid
+# @job_name = seisfind_store
 # @output = $(job_name).out
 # @error = $(job_name).err
 # @account_no = nesi00213
@@ -55,7 +55,7 @@ case $LOADL_STEP_NAME in
     lf2bb)
         date
         echo "lf2bb starting..."
-        /opt/niwa/Python/AIX/2.7.5/bin/python ./h5grid.py 64
+        /opt/niwa/Python/AIX/2.7.5/bin/python ./seisfind_store.py 64
         date
         echo "lf2bb finished."
         ;;

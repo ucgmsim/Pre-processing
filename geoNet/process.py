@@ -183,7 +183,14 @@ class Process(object):
         row2:
             # data points delta(t) HR MN SEC  3 unused floats
         e.g	    22000      0.005   0. 0. -1.  0. 0. 0.  
+
+        acceleration is in cm/^2 but when saved it is converted to g units
         """
+        if seismo in ["accLF", "accHF", "accBB"]:
+            g=981. #acceleration due to gravity in cm/s^2
+        else:
+            g=1.
+
         print("\nSaving Rotated %s  data for %s at:\n %s: "
               % (seismo, stat_code, loc))
         
@@ -206,11 +213,11 @@ class Process(object):
                                          ))
         
         ncol = 6
-        writeGP(loc, stat_code+".000", self.comp_000.__getattribute__(seismo),
+        writeGP(loc, stat_code+".000", self.comp_000.__getattribute__(seismo)/g,
                 header_000, ncol)
-        writeGP(loc, stat_code+".090", self.comp_090.__getattribute__(seismo),
+        writeGP(loc, stat_code+".090", self.comp_090.__getattribute__(seismo)/g,
                 header_090, ncol)
-        writeGP(loc, stat_code+".ver", self.comp_ver.__getattribute__(seismo),
+        writeGP(loc, stat_code+".ver", self.comp_ver.__getattribute__(seismo)/g,
                 header_ver, ncol)
 
         return
