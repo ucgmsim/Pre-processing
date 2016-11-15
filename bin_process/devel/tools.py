@@ -2,7 +2,7 @@
 Various tools which may be needed in various processes.
 """
 
-from math import sin, asin, cos, atan2, degrees, radians
+from math import sin, asin, cos, atan2, degrees, radians, sqrt
 from subprocess import Popen, PIPE
 
 R_EARTH = 6378.139
@@ -110,3 +110,29 @@ def ll_shift(lat, lon, distance, bearing):
             cos(shift) - sin(lat) * sin(lat2))
 
     return degrees(lat2), degrees(lon2)
+
+def ll_mid(lon1, lat1, lon2, lat2):
+    """
+    Return midpoint between a pair of lat, long points.
+    """
+    # functions based on radians
+    lon1, lat1, lat2, dlon = map(radians, [lon1, lat1, lat2, (lon2 - lon1)])
+
+    Bx = cos(lat2) * cos(dlon)
+    By = cos(lat2) * sin(dlon)
+
+    lat3 = atan2(sin(lat1) + sin(lat2), sqrt((cos(lat1) + Bx) ** 2 + By ** 2))
+    lon3 = lon1 + atan2(By, cos(lat1) + Bx)
+
+    return degrees(lon3), degrees(lat3)
+
+def ll_dist(lon1, lat1, lon2, lat2):
+    """
+    Return distance between a pair of lat, long points.
+    """
+    # functions based on radions
+    lat1, lat2, dlon, dlat = map(radians, \
+            [lat1, lat2, (lon2 - lon1), (lat2 - lat1)])
+
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    return R_EARTH * 2 * atan2(sqrt(a), sqrt(1 - a))

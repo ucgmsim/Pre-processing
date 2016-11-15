@@ -39,6 +39,9 @@ h5p = h5.File('virtual.hdf5', 'r')
 # option 2: pass only one set of lon, lat (separate parameters)
 try:
     if len(sys.argv[1]) > 4 and sys.argv[1][-4:] == '.csv':
+        # csv file should contain points and all related parameters
+        # e.g. lon, lat, vs30mod_True, vs30_replacement
+        # TODO: make csv format documentation
         csv = True
         csv_file = sys.argv[1]
         if not os.path.exists(csv_file):
@@ -47,6 +50,9 @@ try:
     else:
         csv = False
         lon, lat = map(float, sys.argv[1:3])
+        if len(sys.argv) > 3:
+            #extract rest of parameters
+            print(sys.argv[3])
 except ValueError:
     print 'Invalid input parameters, float values not found.'
     exit()

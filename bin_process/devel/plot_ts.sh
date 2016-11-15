@@ -62,6 +62,7 @@ fi
 case $plot_region in
     # region to plot
     # sites to display
+    # place dot at [Left Centre Right, Top Middle Bottom] of text
     # scale to show distance
     CANTERBURY)
         plot_x_min=171.75
@@ -96,6 +97,17 @@ case $plot_region in
         plot_s_lat=(-45.0300000 -45.8644444 -44.0069444 -44.3958333 -43.5313888 -43.8808333 -42.4502777 -41.7575000 -42.4038888 -41.2761111 -41.5138888)
         plot_scale="-L173/-47/$modellat/50.0 -Ba60mf60mWSen"
         ;;
+    MIDNZ)
+        plot_x_min=168.2
+        plot_x_max=177.9
+        plot_y_min=-45.7
+        plot_y_max=-37.85
+        plot_sites=(Queenstown Tekapo Timaru Christchurch Haast Greymouth Westport Kaikoura Nelson Blenheim Wellington Palmerston\ North Masterton Napier New\ Plymouth Taupo Rotorua)
+        plot_s_pos=(LM LM LM LM RM RM RM LM CB LM RM RM LM LM RM LM LM)
+        plot_s_lon=(168.6680556 170.4794444 171.2430556 172.6347222 169.0405556 171.2063889 171.5997222 173.6802778 173.2838889 173.9569444 174.777222 175.611667 175.658333 176.916667 174.083333 176.069400 176.251389)
+        plot_s_lat=(-45.0300000 -44.0069444 -44.3958333 -43.5313888 -43.8808333 -42.4502777 -41.7575000 -42.4038888 -41.2761111 -41.5138888 -41.288889 -40.355000 -40.952778 -39.483333 -39.066667 -38.6875 -38.137778)
+        plot_scale="-L176/-45/$modellat/100.0 -Ba60mf60mWSen"
+        ;;
     *)
         echo Plotting Region Not Understood
         exit
@@ -123,29 +135,27 @@ rm "$plot_ps_dir"/* "$plot_png_dir"/* 2>/dev/null
 gmt_temp="$sim_dir/gmt_wd"
 mkdir -p "$gmt_temp"
 
-# corners stored here
-model_params="${vel_mod_params_dir}/model_params_sinz01-h${h}"
 # make temp file with simulation boundaries
 if [ -e "sim.modelpath" ]; then
     \rm sim.modelpath
 fi
 # have to close box (copy first corner to end)
 for corner in c1 c2 c3 c4 c1; do
-    grep "$corner= " $model_params | gawk ' { print $2, $3 } ' >> sim.modelpath
+    grep "$corner= " $vel_mod_params | gawk ' { print $2, $3 } ' >> sim.modelpath
     # only plot within simulation domain for adding to google maps
     if [ "$plot_purpose" == "template" ]; then
         case "$corner" in
             c1)
-                west=$(grep "$corner= " $model_params | gawk ' { print $2 } ')
+                west=$(grep "$corner= " $vel_mod_params | gawk ' { print $2 } ')
                 ;;
             c2)
-                north=$(grep "$corner= " $model_params | gawk ' { print $3 } ')
+                north=$(grep "$corner= " $vel_mod_params | gawk ' { print $3 } ')
                 ;;
             c3)
-                east=$(grep "$corner= " $model_params | gawk ' { print $2 } ')
+                east=$(grep "$corner= " $vel_mod_params | gawk ' { print $2 } ')
                 ;;
             c4)
-                south=$(grep "$corner= " $model_params | gawk ' { print $3 } ')
+                south=$(grep "$corner= " $vel_mod_params | gawk ' { print $3 } ')
                 ;;
         esac
     fi
@@ -153,10 +163,6 @@ done
 
 # create color palette for plotting the topography
 base_cpt=y2r_brown.cpt
-
-# plot projection and region in GMT format for ease of use later
-# TODO: not used anymore
-att="-JT${avg_ll[0]}/${avg_ll[1]}/${plot_x_inch} -R${plot_ll_region}"
 
 add_sites() {
     psfile=$1
@@ -168,7 +174,7 @@ add_sites() {
 
         # location name
         echo ${plot_s_lon[$i]} ${plot_s_lat[$i]} ${plot_s_pos[$i]} ${plot_sites[$i]} | \
-                pstext -R -J -N -O -K -Dj0.08/0.08 -F+j+f12,Helvetica,black+a0 >>  "$1"
+                pstext -R -J -N -O -K -Dj0.08/0.08 -F+j+f10,Helvetica,black+a0 >>  "$1"
     done
 }
 
@@ -205,7 +211,7 @@ finalise_png() {
 clean_temp_files() {
     # temporary files (global)
     \rm modelmask.grd
-    #\rm $base_cpt
+    \rm $base_cpt
     \rm gmt.conf gmt.history
 
     # gmt process working directories
@@ -232,115 +238,81 @@ trap "sig_int_received" INT
 
 # color palette for velocity TODO: make into parameter
 # https://www.soest.hawaii.edu/gmt/gmt/html/images/GMT_RGBchart_a4.png
-if [ "$absmax" -eq 1 ] || [ "$plot_purpose" == "template" ]; then
+#if [ "$absmax" -eq 1 ] || [ "$plot_purpose" == "template" ]; then
     cpt=hot
     min=0
     extra='-I'
     scale='ground velocity (cm/s)'
     seismoline=blue
-else
-    cpt=polar
-    min=-$plot_topo_a_max
-    extra=''
-    scale='ground velocity east (cm/s)'
-    seismoline=darkgreen
-fi
+#else
+#    cpt=polar
+#    min=-$plot_topo_a_max
+#    extra=''
+#    scale='ground velocity east (cm/s)'
+#    seismoline=darkgreen
+#fi
 makecpt -C$cpt $extra -T$min/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
 
 # set all plotting defaults to use
 gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i PS_MEDIA = A2
 
 # create mask for simulation domain
-grdmask sim.modelpath -NNaN/0/1 -R$plot_ll_region -I$plot_dx/$plot_dy -Gmodelmask.grd
+grdmask sim.modelpath_hr -NNaN/0/1 -R$plot_ll_region -I$plot_dx/$plot_dy -Gmodelmask.grd
 
 ###################### BEGIN TEMPLATE ##########################
 echo Creating PS Template...
 plot_file_template=$gmt_temp/plot_template.ps
-if [ "$plot_purpose" != "template" ]; then
-    # specify plot and panel size (defaults 8.5 x 11)
-    edge_colour=255/255/255 #180/180/180 = grey ; 255/255/255=white
-    psxy -JX8.5/11 -R0/8.5/0/11 -L -G${edge_colour} -X0 -Y0 -K << END > "$plot_file_template" #-W0/180/180/180
-0.3 1.0
-0.3 7.8
-6.5 7.8
-6.5 1.0
-END
-    # set the color scale
-    psscale -C$base_cpt -Ef -D3.0/2.0/2.5/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"$scale": >> "$plot_file_template"
-    # specify the X and Y offsets for plotting (I dont really understand this yet)
-    psxy -V $att -L  -K -O -X$plot_x_org -Y$plot_y_org << END >> "$plot_file_template" 2>/dev/null #-W5/255/255/0
-END
-    # try a different version of plotting
-    # clippath for land
-    pscoast $att -Df -Gc -K -O >> "$plot_file_template"
-    # land
-    grdimage $plot_topo_file $plot_topo_illu $plot_palette $att -K -O >> "$plot_file_template"
-    # clear clippath
-    pscoast -R -J -O -K -Q >> "$plot_file_template"
-    # add urban areas
-    URBANDIR=${global_root}/PlottingData/sourcesAndStrongMotionStations
-    psxy ${URBANDIR}/ChchUrbanBoundary.xy $att -G160/160/160 -W0.5p -O -K >> "$plot_file_template"
-    # add oceans/coastline
-    pscoast -A0/0/1 -N1 -N2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
-    # add lakes/coastline
-    pscoast -A0/2/2 $att -Df -S135/205/250 -W1,black -K -O >> "$plot_file_template"
-    # simulation domain
-    gmt psxy sim.modelpath $att -W1.5p,black,- -L -O -K >> "$plot_file_template"
-    rm sim.modelpath
-    # main title
-    pstext $att -N -O -K -D0.0/0.35 \
-            -F+f20p,Helvetica-Bold,black+jLB+a0 << END >>  "$plot_file_template"
-$plot_x_min $plot_y_max $plot_main_title
-END
-    # subtitle part 1 (static)
-    pstext $att -N -O -K -D0.0/0.1 -F+f+j+a0, << END >>  "$plot_file_template"
-$plot_x_min $plot_y_max 14,Helvetica,black LB $plot_sub_title
-END
-elif [ "$plot_purpose" == "template" ]; then
-    echo "Only creating template (by parameter)."
-    # draw background given main image offsets (inches)
-    # left and bottom are exact when using uniform longitude projection
-    # top is fiddly as height of image depends on projection distortion
-    # NOTE: additional white background is cropped, so is anything below/left of it
-    left=1.5
-    bottom=1.4
-    right=0.8
-    top=0.8
-    # counter shift ($1) needs to be multiplied by 2 in -JX parameter
-    # the distance is wrong after *2 but doesn't matter with -JX crop
-    length=$(echo $left $right ${x_size[2]} | gawk '{print $1 * 2 + $2 + $3}')
-    height=$(echo $bottom $top ${y_size[2]} | gawk '{print $1 * 2 + $2 + $3 * 1.384}')
-    # draw background after shifting plotting origin
-    echo -e "$length 0\n$length $height\n0 $height\n0 0" | \
-            psxy -G254/254/254 -JX$length/$height -R0/$length/0/$height \
-                    -K -Xa-$left -Ya-$bottom > "$plot_file_template"
-    # switch origin back and set projection/region
-    psxy -T -Jm${avg_ll[0]}/$ipd -R$plot_ll_region -X$left -Y$bottom -O -K >> "$plot_file_template"
+# draw background given main image offsets (inches)
+# left and bottom are exact when using uniform longitude projection
+# top is fiddly as height of image depends on projection distortion
+# additional white background is cropped (PNG), so is anything below/left of it
+left=1.5
+bottom=1.4
+right=0.8
+top=0.8
+# counter shift ($1) needs to be multiplied by 2 in -JX parameter
+# the distance is wrong after *2 but doesn't matter with -JX crop
+length=$(echo $left $right ${x_size[2]} | gawk '{print $1 * 2 + $2 + $3}')
+height=$(echo $bottom $top ${y_size[2]} | gawk '{print $1 * 2 + $2 + $3 * 1.384}')
+# draw background after shifting plotting origin
+echo -e "$length 0\n$length $height\n0 $height\n0 0" | \
+        psxy -G255/255/255 -JX$length/$height -R0/$length/0/$height \
+                -K -Xa-$left -Ya-$bottom > "$plot_file_template"
+# switch origin back and set projection/region
+psxy -T -Jm${avg_ll[0]}/$ipd -R$plot_ll_region -X$left -Y$bottom -O -K >> "$plot_file_template"
 
 
-    # add land (usually fully covered by topography layer)
-    pscoast -R$plot_ll_region -J -Ba60mf30mWSen -Df -G200/200/200 -K -O >> "$plot_file_template"
-    # topography palette re-scaling
-    #makecpt -Cgray -T-2000/1000/1 > land.cpt
-    makecpt -Cgray -T-2000/4000/1 > land.cpt
-    # make topography given topo and illumination file
-    grdimage $plot_topo_file $plot_topo_illu -Cland.cpt -Q -R -J -K -O >> "$plot_file_template"
-    rm land.cpt
-    # add oceans/coastline
-    pscoast -A0/0/2 -Na/1.0p,black -R -J -Df -S95/165/250 -K -O >> "$plot_file_template"
-    # add lakes/coastline
-    pscoast -A0/2/2 -R -J -Df -S95/165/250 -K -O >> "$plot_file_template"
-    # set the color scale
-    # -Efb (forground/background triangles) -Dcentre/ydisplacement/length/height -Ba<major tick>f<minor tick>
-    psscale -C$base_cpt -Ef -D${x_size[1]}/-0.5/3.0/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground motion (cm/s)": >> "$plot_file_template"
-    # main title
-    echo ${avg_ll[0]} $plot_y_max $plot_title | \
-            pstext -R -J -N -O -K -D0/0.4 \
-                    -F+f20p,Helvetica,black+jCB >>  "$plot_file_template"
+# add land (usually fully covered by topography layer)
+pscoast -R$plot_ll_region -J -Ba60mf30mWSen -Df -G200/200/200 -K -O >> "$plot_file_template"
+# topography palette re-scaling
+makecpt -Cgray -T-5000/3000/1 > land.cpt
+# make topography given topo and illumination file
+grdimage $plot_topo_file $plot_topo_illu -Cland.cpt -Q -R -J -K -O >> "$plot_file_template"
+rm land.cpt
+# add coastline outline on top of topography for full line
+#pscoast -R -J -Df -W1p,black -K -O >> "$plot_file_template"
+# add oceans/coastline
+pscoast -A0/0/2 -Na/1.0p,black -R -J -Df -S95/165/250 -K -O >> "$plot_file_template"
+# add lakes/coastline
+pscoast -A0/2/2 -R -J -Df -S95/165/250 -K -O >> "$plot_file_template"
+# simulation domain
+gmt psxy sim.modelpath -R -J -W0.4p,black,- -L -O -K >> "$plot_file_template"
+
+# set the color scale
+# -Efb (forground/background triangles) -Dcentre/ydisplacement/length/height -Ba<major tick>f<minor tick>
+psscale -C$base_cpt -Ef -D${x_size[1]}/-0.5/3.0/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground motion (cm/s)": >> "$plot_file_template"
+# main title
+echo ${avg_ll[0]} $plot_y_max $plot_title | \
+        pstext -R -J -N -O -K -D0/0.4 \
+                -F+f20p,Helvetica,black+jCB >>  "$plot_file_template"
+# subtitle
+echo $plot_x_min $plot_y_max 16,Helvetica,black LB "$plot_sub_title" | \
+        pstext -R -J -N -O -K -D0.0/0.1 -F+f+j+a0, >>  "$plot_file_template"
+
+if [ "$plot_purpose" == "template" ]; then
     # subtitle
     echo $plot_x_max $plot_y_max 16,Helvetica,black RB t=180.0 sec | \
             pstext -R -J -N -O -K -D0.0/0.1 -F+f+j+a0, >>  "$plot_file_template"
-
 
     # include maxgrid on map
     # create ground motion intensity surface from MAXGRID
@@ -352,8 +324,6 @@ elif [ "$plot_purpose" == "template" ]; then
     surface $tsbin.native.bin -Gmax.grd -I$plot_dx/$plot_dy \
             -R$plot_ll_region -T0.0 -bi3f # 2>/dev/null
     rm $tsbin.native.bin
-    # create mask for simulation domain
-    grdmask sim.modelpathMOD -N0/0/1 -R -I$plot_dx/$plot_dy -Gmodelmask.grd
     # crop to simulation domain (multiply by mask of 0 or 1, outside = 0)
     grdmath max.grd modelmask.grd MUL = max.grd 2>/dev/null
     # clip minimum (values below cutoff = NaN, not displayed, clear)
@@ -364,24 +334,22 @@ elif [ "$plot_purpose" == "template" ]; then
     pscoast -R -J -Df -Gc -K -O >> "$plot_file_template"
     # add resulting overlay image to plot
     grdimage max.grd -t40 -R -J -C$base_cpt -Q -K -O >> "$plot_file_template" 2>/dev/null
-    # clear clippath
+    # clear clippath (crop ocean area)
     pscoast -R -J -O -K -Q >> "$plot_file_template"
-    # have template ready and raster version
-    # simulation domain
-    gmt psxy sim.modelpath -R -J -W0.4p,black,- -L -O -K >> "$plot_file_template"
+
     # add sites
     add_sites "$plot_file_template"
     # finite fault or beachball
     add_source "$plot_file_template"
     rm sim.modelpath
     # add check points (used when aligning on overlay)
-#    psxy -R -J -Sc0.005 -G000/255/255 -W1.0 -O -K << merda >> "$plot_file_template"
-#171.4688139 -41.7448556
-#169.876852777777778 -42.424077777777778
-#168.488294444444444445 -46.515325
-#172.6899 -43.78415555555555555556
-#171.7632361111111 -43.25080555555555
-#merda
+    #    psxy -R -J -Sc0.005 -G000/255/255 -W1.0 -O -K << merda >> "$plot_file_template"
+    #171.4688139 -41.7448556
+    #169.876852777777778 -42.424077777777778
+    #168.488294444444444445 -46.515325
+    #172.6899 -43.78415555555555555556
+    #171.7632361111111 -43.25080555555555
+    #merda
     mkdir -p WEB
     cp "$plot_file_template" WEB/gmt-template.ps
     cp gmt.conf WEB/
@@ -413,24 +381,32 @@ render_slice() {
     png_file=$plot_png_dir/ts-str${3}.png
     cp "$plot_file_template" "$plot_file"
 
+    ### TEMP moved before ground motion
+    # plot strong motion station locations
+    psxy "$stat_file" -R -J -St0.08 -W0.5p,black -O -K >> "$plot_file"
+    # add coastline outline on top of topography for full line
+    pscoast -R -J -Df -W0.3,black -K -O >> "$plot_file"
+
     # basename for timeslice inputs
     outf=`echo $ts_out_prefix $1 | gawk '{printf "%s_ts%.4d\n",$1,$2;}'`
 
     if [ "$swap_bytes" -eq 1 ]; then
         # all components are always separate by new get_ts version
+        # if for some reason using old data:
+        #    set absmax=0, comment last 2 lines in both blocks, +more
         xyz2grd ${outf}.0 -Soutf_${3}.0 -V -Zf 2>/dev/null
-        xyz2grd ${outf}.1 -Soutf_${3}.1 -V -Zf 2>/dev/null
-        xyz2grd ${outf}.2 -Soutf_${3}.2 -V -Zf 2>/dev/null
+        #xyz2grd ${outf}.1 -Soutf_${3}.1 -V -Zf 2>/dev/null
+        #xyz2grd ${outf}.2 -Soutf_${3}.2 -V -Zf 2>/dev/null
     else
         \cp ${outf}.0 outf_${3}.0
-        \cp ${outf}.1 outf_${3}.1
-        \cp ${outf}.2 outf_${3}.2
+        #\cp ${outf}.1 outf_${3}.1
+        #\cp ${outf}.2 outf_${3}.2
     fi
 
     # create ground motion intensity surface from the TSlice output
     # -bi for binary input of 3 columns of floats
     surface outf_${3}.0 -Gtmp_${3}.grd -I$plot_dx/$plot_dy \
-            -R$plot_ll_region -T0.0 -bi3f 2>/dev/null
+            -R -T0.0 -bi3f 2>/dev/null
     if [ "$absmax" -eq 1 ]; then
         # velocity = SQRT(X^2 + Y^2 + Z^2)
         surface outf_${3}.1 -Gtmp_${3}.1.grd -I$plot_dx/$plot_dy \
@@ -445,23 +421,25 @@ render_slice() {
     # clip minimum (values below cutoff = NaN, not displayed, clear)
     grdclip tmp_${3}.grd -Gtmp_${3}_P.grd \
             -Sb${plot_topo_a_min}/NaN 2>/dev/null
-    if [ "$absmax" -eq 0 ]; then
-        # also cutoff for the lower section
-        grdclip tmp_${3}.grd -Gtmp_${3}_N.grd \
-                -Sa-${plot_topo_a_min}/NaN 2>/dev/null
-        # clip max, colour scale only goes down to > -$plot_topo_a_max
-        # if the scale is inverted, have to clip min instead
-        grdmath $plot_topo_a_max 1 SUB tmp_${3}_P.grd MIN tmp_${3}_N.grd AND = tmp_${3}_P.grd 2>/dev/null
-        rm tmp_${3}_N.grd
-    fi
+    #if [ "$absmax" -eq 0 ]; then
+    #    # also cutoff for the lower section
+    #    grdclip tmp_${3}.grd -Gtmp_${3}_N.grd \
+    #            -Sa-${plot_topo_a_min}/NaN 2>/dev/null
+    #    # clip max, colour scale only goes down to > -$plot_topo_a_max
+    #    # if the scale is inverted, have to clip min instead
+    #    grdmath $plot_topo_a_max 1 SUB tmp_${3}_P.grd MIN tmp_${3}_N.grd AND = tmp_${3}_P.grd 2>/dev/null
+    #    rm tmp_${3}_N.grd
+    #fi
+
+    # clippath for land
+    #pscoast -R -J -Df -Gc -K -O >> "$plot_file"
     # add resulting overlay image to plot
-    grdimage tmp_${3}_P.grd $att -C$base_cpt -Q -t50 -K -O >> "$plot_file" 2>/dev/null
+    grdimage tmp_${3}_P.grd -R -J -C$base_cpt -Q -t40 -K -O >> "$plot_file" 2>/dev/null
+    # clear clippath (crop ocean area)
+    #pscoast -R -J -O -K -Q >> "$plot_file"
+
     # remove temporary input (potentially byte swapped) and grid file
     rm outf_${3}.0 tmp_${3}.grd tmp_${3}_P.grd
-
-    #psxy  Roads.gmt >> "$plot_file"
-    # add resulting overlay image to plot
-    #grdimage roads.grd $att -Q -K -O >> "$plot_file"
 
     # ADDFAULTPLANE.SH MAKES TEMP FILES WHICH INTERFERE (SAME NAME)
     # CD INTO TEMP DIR (REQUIRES ABS PATHS)
@@ -469,8 +447,12 @@ render_slice() {
     gmt_proc_wd=$(mktemp -d -p "$gmt_temp" GMT.XXXXXXXX)
     cd "$gmt_proc_wd"
     #cp "$sim_dir/gmt.conf" ./
-    # for testing, could use relative path instead
+    #cp "$sim_dir/gmt.history" ./
+    # for testing, could use relative paths instead
     cp ../../gmt.conf ./
+    cp ../../gmt.history ./
+    plot_file=../../$plot_file
+    plot_png_dir=../../Png
 
     # subtitle part 2 (dynamic)
     # must precede psmeca as font configuration history required
@@ -478,16 +460,13 @@ render_slice() {
             pstext -R -J -N -O -K -D0.0/0.1 -F+f+j+a0, >>  "$plot_file"
 
     # finite fault or beachball
-    add_source "$plot_file"
+    #add_source "$plot_file"
 
     # scale to show distance
     psbasemap -R -J $plot_scale -K -O >> "$plot_file"
 
     # add sites
     add_sites "$plot_file"
-
-    # plot strong motion station locations
-    psxy "$stat_file" -R -J -St0.08 -Gblack -W$plot_s_lin -O -K >> "$plot_file"
 
     # add seismograms
     # --no-group-separator only for GNU grep, if other grep, use -v '^--$'
@@ -497,7 +476,7 @@ render_slice() {
         else
             pattern='^>'
         fi
-        psxy -N $att -W1.5p,$seismoline -O -K << END >> "$plot_file"
+        psxy -N -R -J -W1.5p,$seismoline -O -K << END >> "$plot_file"
 $(cat ../../gmt-seismo.xy | grep -e "$pattern" -A $(($2 + 1)) --no-group-separator)
 END
     fi
