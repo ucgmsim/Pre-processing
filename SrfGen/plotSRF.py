@@ -11,7 +11,7 @@ from setSrfParams import *
 
 title = 'November 2016 Mw7.5'
 out_dir = 'PlotFiles'
-infile = 'Srf/standard_m7.50-45.7x45.7_s103245.srf'
+infile = 'm7.80-240.0x77.0_s103246_v4.srf'
 # placed in outdir with '.ps' suffix
 output = 'bev01'
 cpt_dir = './srf_cpt'
@@ -27,8 +27,8 @@ x_label = 'along strike (km)'
 y_label = 'W (km)'
 
 # spacing of rake arrows (km)
-dx_rake = 1.67
-dy_rake = 1.67
+dx_rake = 0.67
+dy_rake = 0.67
 # use average in block rather than centre value
 use_avg_rake = False
 
@@ -355,7 +355,11 @@ for s, seg in enumerate(segments):
                 mr = ((ix + 0.5) * dx_rake - data[:, 0]) ** 2 \
                         + ((iy + 0.5) * dy_rake - data[:, 1]) ** 2
                 for x in xrange(gridpoints):
-                    mid = np.where(ip == x)[0][np.argmin(mr[ip == x])]
+                    try:
+                        mid = np.where(ip == x)[0][np.argmin(mr[ip == x])]
+                    except ValueError:
+                        print('DX / DY rake too small.')
+                        exit()
                     x0[x] = (ix[mid] + 0.5) * dx_rake
                     y0[x] = (iy[mid] + 0.5) * dy_rake
                     rk[x] = data[mid, 2]
