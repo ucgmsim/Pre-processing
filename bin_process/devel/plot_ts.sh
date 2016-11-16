@@ -51,9 +51,9 @@ fi
 # only create template ps/raster for later use (web use)
 if [ "$1" == "template" ] || [ "$1" == "template2" ]; then
     plot_purpose="$1"
-    if [ ! -e "n2s.bin" ]; then
+    if [ ! -e "$tsbin.bin" ]; then
         echo Need to run hdf2maxgrid.py first.
-        echo Cannot find n2s.bin.
+        echo Cannot find $tsbin.bin.
         exit
     fi
 fi
@@ -300,7 +300,7 @@ gmt psxy sim.modelpath -R -J -W0.4p,black,- -L -O -K >> "$plot_file_template"
 
 # set the color scale
 # -Efb (forground/background triangles) -Dcentre/ydisplacement/length/height -Ba<major tick>f<minor tick>
-psscale -C$base_cpt -Ef -D${x_size[1]}/-0.5/3.0/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground motion (cm/s)": >> "$plot_file_template"
+psscale -C$base_cpt -Ef -D${x_size[1]}/-0.5/4.0/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground motion (cm/s)": >> "$plot_file_template"
 # main title
 echo ${avg_ll[0]} $plot_y_max $plot_title | \
         pstext -R -J -N -O -K -D0/0.4 \
@@ -331,11 +331,11 @@ if [ "$plot_purpose" == "template" ]; then
             -Sb${plot_topo_a_min}/NaN #2>/dev/null
 
     # clippath for land
-    pscoast -R -J -Df -Gc -K -O >> "$plot_file_template"
+    #pscoast -R -J -Df -Gc -K -O >> "$plot_file_template"
     # add resulting overlay image to plot
     grdimage max.grd -t40 -R -J -C$base_cpt -Q -K -O >> "$plot_file_template" 2>/dev/null
     # clear clippath (crop ocean area)
-    pscoast -R -J -O -K -Q >> "$plot_file_template"
+    #pscoast -R -J -O -K -Q >> "$plot_file_template"
 
     # add sites
     add_sites "$plot_file_template"
