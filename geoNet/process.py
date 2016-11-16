@@ -28,7 +28,9 @@ class SMD(object):
         self.ft =ft
         self.order=order
         self.output=output
-        
+
+        self.g = 9810. #mm/s^2
+
         if fs < 2.*highcut:
             self.highcut = fs/2.
     @property
@@ -42,7 +44,7 @@ class SMD(object):
     @property
     def velBB(self):
         if self._vel['BB'] is None:
-            self._vel['BB'] = cumtrapz(y=self.accBB, dx=self.dt, initial=0.)
+            self._vel['BB'] = cumtrapz(y=self.accBB, dx=self.dt, initial=0.)*self.g/10.
 
         return self._vel['BB']
         
@@ -74,14 +76,14 @@ class SMD(object):
     @property
     def velHF(self):
         if self._vel['HF'] is None:
-            self._vel['HF'] = cumtrapz(y=self.accHF, dx=self.dt, initial=0.)
+            self._vel['HF'] = cumtrapz(y=self.accHF, dx=self.dt, initial=0.)*self.g/10.
 
         return self._vel['HF']
 
     @property
     def velLF(self):
         if self._vel['LF'] is None:
-            self._vel['LF'] = cumtrapz(y=self.accLF, dx=self.dt, initial=0.)
+            self._vel['LF'] = cumtrapz(y=self.accLF, dx=self.dt, initial=0.)*self.g/10.
 
         return self._vel['LF']
 
@@ -184,12 +186,8 @@ class Process(object):
             # data points delta(t) HR MN SEC  3 unused floats
         e.g	    22000      0.005   0. 0. -1.  0. 0. 0.  
 
-        acceleration is in cm/^2 but when saved it is converted to g units
+        acceleration is in units of g, vel in cm/s and disp in cm 
         """
-        if seismo in ["accLF", "accHF", "accBB"]:
-            g=981. #acceleration due to gravity in cm/s^2
-        else:
-            g=1.
 
         print("\nSaving Rotated %s  data for %s at:\n %s: "
               % (seismo, stat_code, loc))
@@ -213,11 +211,11 @@ class Process(object):
                                          ))
         
         ncol = 6
-        writeGP(loc, stat_code+".000", self.comp_000.__getattribute__(seismo)/g,
+        writeGP(loc, stat_code+".000", self.comp_000.__getattribute__(seismo),
                 header_000, ncol)
-        writeGP(loc, stat_code+".090", self.comp_090.__getattribute__(seismo)/g,
+        writeGP(loc, stat_code+".090", self.comp_090.__getattribute__(seismo),
                 header_090, ncol)
-        writeGP(loc, stat_code+".ver", self.comp_ver.__getattribute__(seismo)/g,
+        writeGP(loc, stat_code+".ver", self.comp_ver.__getattribute__(seismo),
                 header_ver, ncol)
 
         return
