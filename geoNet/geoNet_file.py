@@ -303,9 +303,14 @@ class GeoNet_File(object):
         if self.vol == 1:
             #normalize with g=9810. and get acc in cm/s^2
             g = 9810. #mm/s^2
-            self.comp_up.acc  *= g/self.comp_up.C_header["line_23"]["local_g"]/10.
-            self.comp_1st.acc *= g/self.comp_1st.C_header["line_23"]["local_g"]/10.
-            self.comp_2nd.acc *= g/self.comp_2nd.C_header["line_23"]["local_g"]/10.
+            #self.comp_up.acc  *= g/self.comp_up.C_header["line_23"]["local_g"]/10.
+            #self.comp_1st.acc *= g/self.comp_1st.C_header["line_23"]["local_g"]/10.
+            #self.comp_2nd.acc *= g/self.comp_2nd.C_header["line_23"]["local_g"]/10.
+
+            #we get acceleration in units of g
+            self.comp_up.acc  /= self.comp_up.C_header["line_23"]["local_g"]
+            self.comp_1st.acc /= self.comp_1st.C_header["line_23"]["local_g"]
+            self.comp_2nd.acc /= self.comp_2nd.C_header["line_23"]["local_g"]
 
         return
     
