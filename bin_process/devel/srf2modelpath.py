@@ -1,7 +1,15 @@
 #!/usr/bin/env python2
 """
+1.
 Creates a binary file with LONG, LAT, VALUE.
 Same format as a timeslice to be plotted in GMT.
+
+2.
+Creates a high resolution path of the fault
+for use with GMT grdmask.
+
+3.
+Creates a standard corners file to plot fault planes.
 
 ISSUES: crop will not work with multi-segment SRF
 """
@@ -11,8 +19,10 @@ from subprocess import call, Popen, PIPE
 import numpy as np
 
 from highres_modelpath import path_from_corners
+from shared_srf import *
+from tools import *
 
-srf = '../../SrfGen/m7.80-240.0x77.0_s103246_v4.srf'
+srf = 'm7.80-200.0x50.0_s103246_v7.srf'
 
 srf2xyz_bin = '/home/vap30/bin/srf2xyz'
 
@@ -34,6 +44,9 @@ array = np.fromstring(out, dtype = 'f4', sep = ' ')
 array = np.reshape(array, (len(array) // 4, 4))[:, mask]
 print("Loading complete.")
 
+###
+### OUTPUT 1: binary file for GMT grid plotting
+###
 # store to file
 array.astype(np.float32).tofile(out_file)
 
@@ -44,4 +57,33 @@ west, south = np.argmin(array[:, :2], axis = 0)
 for extreme in [north, east, south, west]:
     corners.append(array[extreme, :2].tolist())
 
-path_from_corners(corners = corners, output = 'srf.modelpath_hr')
+###
+### OUTPUT 2: path around corners for GMT grdmask cropping
+###
+# list() creates a copy, prevent modification of local copy
+path_from_corners(corners = list(corners), output = 'srf.modelpath_hr')
+
+bounds = get_bounds(srf)
+
+# find hypocentre
+hypocentre = get_hypo(srf)
+
+###
+### OUTPUT 3: corners file for fault plane and hypocentre plot
+###
+# comment placed in corners file (above/below hypocentre)
+# all lines (including the last one) must end with '\n'
+corners_header = ('> header line here for specifics \n\
+> This is the standard input file format where the \
+hypocenter is first then for each \n\
+>Hypocenter (reference??) \n', \
+'> Below are the corners \
+(first point repeated as fifth to close box \n')
+with open('corners.txt', 'w') as cf:
+    cf.write(corners_header[0])
+    cf.write('%f %f\n' % (hypocentre[0], hypocentre[1]))
+    cf.write(corners_header[1])
+    for c, corners in enumerate(bounds):
+        cf.write('> segment %d\n' % (c))
+        for i in xrange(5):
+            cf.write('%f %f\n' % tuple(corners[i % 4]))

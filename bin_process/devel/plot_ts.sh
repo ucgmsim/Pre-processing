@@ -460,7 +460,7 @@ render_slice() {
             pstext -R -J -N -O -K -D0.0/0.1 -F+f+j+a0, >>  "$plot_file"
 
     # finite fault or beachball
-    #add_source "$plot_file"
+    add_source "$plot_file"
 
     # scale to show distance
     psbasemap -R -J $plot_scale -K -O >> "$plot_file"
