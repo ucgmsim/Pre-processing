@@ -152,6 +152,15 @@ for lon, lat in ll_inputs:
                     vref, vsite, vpga, pga, version = "2008")
             # reverse amplification
             bb[i] = ampdeamp(bb[i], ampf, amp = False)
+            if deamp:
+                continue
+            if user_vs30 > 0:
+                # reamplify with user vsite
+                ampf = cb_amp(dt, get_ft_len(nt), \
+                        vref, user_vs30, vpga, pga, version = "2008")
+                bb[i] = ampdeamp(bb[i], ampf, amp = True)
+                continue
+
             # convolution factors
             # user defined are:
             # heightSoil: how far down to go in metres
