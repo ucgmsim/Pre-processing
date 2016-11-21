@@ -22,7 +22,7 @@ from highres_modelpath import path_from_corners
 from shared_srf import *
 from tools import *
 
-srf = 'm7.80-200.0x50.0_s103246_v7.srf'
+srf = 'h1.srf'
 
 srf2xyz_bin = '/home/vap30/bin/srf2xyz'
 

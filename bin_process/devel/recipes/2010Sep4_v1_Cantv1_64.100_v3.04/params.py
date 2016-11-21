@@ -170,7 +170,8 @@ plot_region = 'CANTERBURY'
 
 # main title and subtitles that appears at the top of the picture
 plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'
-plot_sub_title = 'Beavan 1Fault, Stoch Slip, v1.64'
+desc_fault_model = 'USGS automated source inversion'
+desc_vel_model = 'SIVM v1.65 h=0.4km'
 
 # show seismograms for following stations
 # longitude, latitude, offset, offset azimuth

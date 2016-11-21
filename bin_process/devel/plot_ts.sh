@@ -302,16 +302,16 @@ gmt psxy sim.modelpath -R -J -W0.4p,black,- -L -O -K >> "$plot_file_template"
 # -Efb (forground/background triangles) -Dcentre/ydisplacement/length/height -Ba<major tick>f<minor tick>
 psscale -C$base_cpt -Ef -D${x_size[1]}/-0.5/4.0/0.15h -K -O -Ba${plot_topo_a_inc}f${plot_topo_a_inc}:"ground motion (cm/s)": >> "$plot_file_template"
 # main title
-echo ${avg_ll[0]} $plot_y_max $plot_title | \
+echo ${avg_ll[0]} $plot_y_max "$plot_title" | \
         pstext -R -J -N -O -K -D0/0.4 \
                 -F+f20p,Helvetica,black+jCB >>  "$plot_file_template"
 # subtitle
-echo $plot_x_min $plot_y_max 16,Helvetica,black LB "$plot_sub_title" | \
+echo $plot_x_min $plot_y_max 14,Helvetica,black LB "$desc_fault_model\; $desc_vel_model" | \
         pstext -R -J -N -O -K -D0.0/0.1 -F+f+j+a0, >>  "$plot_file_template"
 
 if [ "$plot_purpose" == "template" ]; then
     # subtitle
-    echo $plot_x_max $plot_y_max 16,Helvetica,black RB t=180.0 sec | \
+    echo $plot_x_max $plot_y_max 14,Helvetica,black RB t=180.0 sec | \
             pstext -R -J -N -O -K -D0.0/0.1 -F+f+j+a0, >>  "$plot_file_template"
 
     # include maxgrid on map
@@ -456,7 +456,7 @@ render_slice() {
 
     # subtitle part 2 (dynamic)
     # must precede psmeca as font configuration history required
-    echo $plot_x_max $plot_y_max 16,Helvetica,black RB t=$tt sec | \
+    echo $plot_x_max $plot_y_max 14,Helvetica,black RB t=${tt}s | \
             pstext -R -J -N -O -K -D0.0/0.1 -F+f+j+a0, >>  "$plot_file"
 
     # finite fault or beachball
