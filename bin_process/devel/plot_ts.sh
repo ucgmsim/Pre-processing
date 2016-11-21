@@ -256,6 +256,16 @@ makecpt -C$cpt $extra -T$min/$plot_topo_a_max/$plot_topo_a_inc -A50 > $base_cpt
 # set all plotting defaults to use
 gmtset FONT_ANNOT_PRIMARY 16 MAP_TICK_LENGTH_PRIMARY 0.05i FONT_LABEL 16 PS_PAGE_ORIENTATION PORTRAIT MAP_FRAME_PEN 1p FORMAT_GEO_MAP D MAP_FRAME_TYPE plain FORMAT_FLOAT_OUT %lg PROJ_LENGTH_UNIT i PS_MEDIA = A2
 
+# gmt will curve model masks incorrectly
+# we need intermediate points, not just corners
+# make sure the file with more path nodes exists
+if [ ! -e "sim.modelpath_hr" ]; then
+    echo "higher res model path hasn't been created."
+    echo "trying to run the creator script (highres_modelpath.py)."
+    echo "if this fails make sure script is in \$PATH or set manually the location."
+    highres_modelpath.py
+fi
+
 # create mask for simulation domain
 grdmask sim.modelpath_hr -NNaN/0/1 -R$plot_ll_region -I$plot_dx/$plot_dy -Gmodelmask.grd
 
