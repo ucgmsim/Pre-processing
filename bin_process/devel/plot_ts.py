@@ -17,7 +17,10 @@
 import multiprocessing as mp
 import os
 from shitul import rmtree
+from subprocess import call, PIPE, Popen
 import sys
+
+from shared_gmt import *
 
 # colour palette filename for overlays
 base_cpt = 'overlay.cpt'
@@ -54,34 +57,6 @@ if purpose == 'multi':
         print('Invalid input. Exiting.')
         exit()
 
-
-# definition of locations which can be mapped
-# longitude, latitude,
-# point position [Left Centre Right, Top Middle Bottom]
-sites = {'Akaroa':(172.9683333, -43.80361111, 'RB'), \
-        'Blenheim':(173.9569444, -41.5138888, 'LM'), \
-        'Christchurch':(172.6347222, -43.5313888, 'LM'), \
-        'Darfield':(172.1116667, -43.48972222, 'CB'), \
-        'Dunedin':(170.3794444, -45.8644444, 'LM'), \
-        'Greymouth':(171.2063889, -42.4502777, 'RM'), \
-        'Haast':(169.0405556, -43.8808333, 'LM'), \
-        'Kaikoura':(173.6802778, -42.4038888, 'LM'), \
-        'Lyttleton':(172.7194444, -43.60305556, 'LM')
-        'Masterton':(175.658333, -40.952778, 'LM'), \
-        'Napier':(176.916667, -39.483333, 'LM'), \
-        'New Plymouth':(174.083333, -39.066667, 'RM'), \
-        'Nelson':(173.2838889, -41.2761111, 'CB'), \
-        'Oxford':(172.1938889, -43.29555556, 'LB'), \
-        'Palmerston North':(175.611667, -40.355000, 'RM'), \
-        'Queenstown':(168.6680556, -45.0300000, 'LM'), \
-        'Rakaia':(172.0230556, -43.75611111, 'RT'), \
-        'Rolleston':(172.3791667, -43.59083333, 'RB'), \
-        'Rotorua':(176.251389, -38.137778, 'LM'), \
-        'Taupo':(176.069400, -38.6875, 'LM'), \
-        'Tekapo':(170.4794444, -44.0069444, 'LM'), \
-        'Timaru':(171.2430556, -44.3958333, 'LM'), \
-        'Wellington':(174.777222, -41.288889, 'RM'), \
-        'Westport':(171.5997222, -41.7575000, 'RM')}
 
 # definition of known/predetermined regions to plot for
 # region to plot
