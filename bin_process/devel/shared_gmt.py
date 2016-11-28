@@ -4,9 +4,15 @@ Functions should hide obvious parameters.
 """
 
 import os
+from shutil import copyfile, move
 from subprocess import call, PIPE, Popen
+from sys import byteorder
+from time import time
 
-# if not in $PATH, can specify location manually
+import numpy as np
+
+# if gmt available in $PATH, GMT should be 'gmt'
+# to use a custom location, set full path to 'gmt' binary below
 GMT = 'gmt'
 
 # retrieve version of GMT
@@ -18,9 +24,9 @@ if GMT_MAJOR != 5:
             % (GMT_VERSION))
 # ps2raster becomes psconvert in GMT 5.2
 elif GMT_MINOR < 2:
-    ps2png = 'ps2raster'
+    psconvert = 'ps2raster'
 else:
-    ps2png = 'psconvert'
+    psconvert = 'psconvert'
 
 ###
 ### COMMON RESOURCES
@@ -57,6 +63,73 @@ sites = { \
 ###
 ### ACCESSORY FUNCTIONS
 ###
+def is_native_xyv(xyv_file, x_min, x_max, y_min, y_max, v_min = None):
+    """
+    Detects whether an input file is native or if it needs bytes swapped.
+    It makes sure values are sane, if not. Non-native is assumed.
+    xyv_file: file containing 
+    x_min: minimum x value (first column)
+    x_max: maximum x value
+    y_min: minimum y value (second column)
+    y_max: maximum y value
+    v_min: minimum value in third column (None for skip)
+    """
+    # form array of xyv data (3 columns of 4 byte floats)
+    bin_data = np.fromfile(xyv_file, dtype = '3f4')
+
+    # check the first few rows
+    for i in xrange(min(10, len(bin_data))):
+        if x_min <= bin_data[i, 0] <= x_max and \
+                y_min <= bin_data[i, 1] <= y_max and \
+                (v_min == None or v_min <= bin_data[i, 2]):
+            continue
+        else:
+            # invalid values, not native
+            return False
+    # no invalid values found, assuming native endian
+    return True
+
+def swap_bytes(xyv_file, native_version, bytes_per_var = 4):
+    """
+    Simple and fast way to swap bytes in a file.
+    xyv_file: input file
+    native_version: where to store the result
+    bytes_per_var: how long each value is
+    """
+    if byteorder == 'little':
+        data = np.fromfile(xyv_file, dtype = '>f%d' % (bytes_per_var))
+    else:
+        data = np.fromfile(xyv_file, dtype = '<f%d' % (bytes_per_var))
+
+    data.tofile(native_version)
+
+def abs_max(x_file, y_file, z_file, out_file, native = True):
+    """
+    Creates a file containing the absolute max value of 3 components.
+    Each file is assumed to contain 3 columns of 4 byte values.
+    x_file: 1st input file (named x here)
+    y_file: 2nd input file (named y here)
+    z_file: 3rd input file (named z here)
+    out_file: where to store the result
+    native: files are in native endian if True
+    """
+    # allow all-in-one with byteswap capability
+    if native:
+        fmt = '3f4'
+    elif byteorder == 'little':
+        fmt = '3>f4'
+    else:
+        fmt = '3<f4'
+
+    result = np.fromfile(x_file, dtype = fmt)
+    y = np.fromfile(y_file, dtype = fmt)[:, 2]
+    z = np.fromfile(z_file, dtype = fmt)[:, 2]
+
+    result[:, 2] = np.sqrt(result[:, 2] ** 2 + y ** 2 + z ** 2)
+    result.astype('f4').tofile(out_file)
+
+# TODO: function should be able to modify result CPT such that:
+#       background colour is extended just like foreground (bidirectional)
 def makecpt(source, output, low, high, inc = None, invert = False):
     """
     Creates a colour palette file.
@@ -77,6 +150,26 @@ def makecpt(source, output, low, high, inc = None, invert = False):
         cmd.append('-I')
     with open(output, 'w') as cptf:
         Popen(cmd, stdout = cptf).wait()
+
+def grd_mask(xy_file, out_file, region = None, dx = '1k', dy = '1k'):
+    """
+    Creates a mask file from a path. Inside = 1, outside = NaN.
+    xy_file: file containing a path
+    out_file: name of output GMT grd file
+    region: tuple region of grd file (must be set if gmt.history doesn't exist)
+    dx: x grid spacing size
+    dy: y grid spacing size
+    """
+    wd = os.path.dirname(out_file)
+    if wd == '':
+        wd = '.'
+    cmd = ([GMT, 'grdmask', xy_file, '-G%s' % (out_file), '-NNaN/1/1', \
+            '-I%s/%s' % (dx, dy)])
+    if region == None:
+        cmd.append('-R')
+    else:
+        cmd.append('-R%s/%s/%s/%s' % region)
+    Popen(cmd, cwd = wd).wait()
 
 def gmt_defaults(font_annot_primary = 16, map_tick_length_primary = '0.05i', \
         font_label = 16, ps_page_orientation = 'portrait', map_frame_pen = '1p', \
@@ -107,9 +200,14 @@ def gmt_defaults(font_annot_primary = 16, map_tick_length_primary = '0.05i', \
 ###
 class GMTPlot:
 
-    def __init__(self, pspath):
+    def __init__(self, pspath, append = False):
         self.pspath = pspath
-        self.psf = open(pspath, 'w')
+        if append:
+            self.psf = open(pspath, 'a')
+            self.new = False
+        else:
+            self.psf = open(pspath, 'w')
+            self.new = True
         # figure out where to run GMT from
         self.wd = os.path.dirname(pspath)
         if self.wd == '':
@@ -131,10 +229,16 @@ class GMTPlot:
         colour: the colour of the background
         """
         # draw background and place origin up, right as wanted
-        proc = Popen([GMT, 'psxy', '-K', '-G%s' % (colour), \
+        cmd = [GMT, 'psxy', '-K', '-G%s' % (colour), \
                 '-JX%s/%s' % (length, height), '-R0/%s/0/%s' % (length, height), \
-                '-Xa-%s' % (left_margin), '-Ya-%s' % (bottom_margin)], \
-                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+                '-Xa-%s' % (left_margin), '-Ya-%s' % (bottom_margin)]
+        # one of the functions that can be run on a blank file
+        # as such, '-O' flag needs to be taken care of
+        if self.new:
+            self.new = False
+        else:
+            cmd.append('-O')
+        proc = Popen(cmd, stdin = PIPE, stdout = self.psf, cwd = self.wd)
         proc.communicate('%s 0\n%s %s\n0 %s\n0 0' \
                 % (length, length, height, height))
         proc.wait()
@@ -165,9 +269,75 @@ class GMTPlot:
         else:
             gmt_proj = '-J%s%s/%s/%s' % (proj, lon0, lat0, sizing)
 
-        Popen([GMT, 'psxy', '-T', gmt_proj, '-X%s' % (left_margin), '-Y%s' % (bottom_margin), \
-                '-O', '-K', '-R%s/%s/%s/%s' % (x_min, x_max, y_min, y_max)], \
-                stdout = self.psf, cwd = self.wd).wait()
+        cmd = [GMT, 'psxy', '-T', gmt_proj, '-X%s' % (left_margin), \
+                '-Y%s' % (bottom_margin), '-K', \
+                '-R%s/%s/%s/%s' % (x_min, x_max, y_min, y_max)]
+        # one of the functions that can be run on a blank file
+        # as such, '-O' flag needs to be taken care of
+        if self.new:
+            self.new = False
+        else:
+            cmd.append('-O')
+
+        Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
+
+    def text(self, x, y, text, dx = 0, dy = 0, align = 'CB', \
+            size = '10p', font = 'Helvetica', colour = 'black'):
+        """
+        Add text to plot.
+        x: x position
+        y: y position
+        text: text to add
+        dx: x position offset
+        dy: y position offset
+        align: Left Centre Right, Top, Middle, Bottom
+        size: font size
+        font: font familly
+        colour: font colour
+        """
+        tproc = Popen([GMT, 'pstext', '-J', '-R', '-K', '-O', \
+                '-D%s/%s' % (dx, dy), '-N', \
+                '-F+f%s,%s,%s+j%s' % (size, font, colour, align)], \
+                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        tproc.communicate('%s %s %s\n' % (x, y, text))
+        tproc.wait()
+
+    def sites(self, site_names, shape = 'c', size = 0.1, \
+            width = 0.8, colour = 'black', \
+            fill = '220/220/220', transparency = 50, spacing = 0.08, \
+            font = 'Helvetica', font_size = '10p', font_colour = 'black'):
+        """
+        Add sites to map.
+        site_names: list of sites to add from defined dictionary
+            append ',LB' to change alignment to 'LB' or other
+        """
+        # step 1: add points on map
+        sites_xy = '\n'.join([' '.join(map(str, sites[x.split(',')[0]][:2])) \
+                for x in site_names])
+        sproc = Popen([GMT, 'psxy', '-J', '-R', '-S%s%s' % (shape, size), \
+                '-G%s@%s' % (fill, transparency), '-K', '-O', \
+                '-W%s,%s' % (width, colour)], \
+                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        sproc.communicate(sites_xy)
+        sproc.wait()
+
+        # step 2: label points
+        # array of x, y, alignment, name
+        xyan = []
+        for i, xy in enumerate(sites_xy.split('\n')):
+            try:
+                name, align = site_names[i].split(',')
+            except ValueError:
+                name = site_names[i]
+                align = sites[name][2]
+            xyan.append('%s %s %s' % (xy, align, name))
+
+        tproc = Popen([GMT, 'pstext', '-J', '-R', '-K', '-O', \
+                '-Dj%s/%s' % (spacing, spacing), '-N', \
+                '-F+j+f%s,%s,%s+a0' % (font_size, font, font_colour)], \
+                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        tproc.communicate('\n'.join(xyan))
+        tproc.wait()
 
     def land(self, fill = 'lightgray', res = 'f'):
         """
@@ -311,6 +481,73 @@ class GMTPlot:
 
         Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
 
+    def overlay(self, xyv_file, cpt, dx = '1k', dy = '1k', \
+            min_v = None, max_v = None, crop_grd = None, \
+            custom_region = None, transparency = 40, climit = 1.0, \
+            limit_low = None, limit_high = None):
+        """
+        Plot a GMT overlay aka surface.
+        xyv_file: file containing x, y and amplitude values
+        cpt: cpt to use to visualise data
+        dx: x resolution of the surface grid (lower = better quality)
+        dy: y resolution of the surface grid
+            default unit is longitude/latitude, k: kilometre, e: metre
+        min_v: either crop anything below this value (set to NaN)
+                   or crop anything above less than max_v if max_v set
+        max_v: crop anything below this value that is above min_v
+        crop_grd: GMT grd file containing wanted area = 1
+        custom_region: grd area region, tuple(x_min, x_max, y_min, y_max)
+                speedup is achieved by using a smaller region
+        transparency: 0 opaque through 100 invisible
+        climit: convergence limit: increasing can drastically improve speed
+                if iteration diff is lower than this then result is kept
+        limit_low: values below this will be equal to this
+        limit_high: values abave this will be equal to this
+                limits are one way to make sure values fit in CPT range
+                it may be faster to use Numpy pre-processing
+        """
+        # name of intermediate file being worked on
+        temp_grd = '%s.grd' % xyv_file
+
+        # because we allow setting '-R', backup history file to reset after
+        if custom_region != None:
+            copyfile(os.path.join(self.wd, 'gmt.history'), \
+                    os.path.join(self.wd, 'gmt.history.preserve'))
+            region = '-R%s/%s/%s/%s' % custom_region
+        else:
+            region = '-R'
+
+        # create surface grid
+        cmd = [GMT, 'surface', xyv_file, '-G%s' % (temp_grd), '-T0.0', \
+                '-I%s/%s' % (dx, dy), '-bi3f', \
+                '-C%s' % (climit), region]
+        if limit_low != None:
+            cmd.append('-Ll%s' % (limit_low))
+        if limit_high != None:
+            cmd.append('-Lu%s' % (limit_high))
+        Popen(cmd, cwd = self.wd).wait()
+
+        # crop to path area by grd file
+        if crop_grd != None:
+            Popen([GMT, 'grdmath', temp_grd, crop_grd, 'MUL', '=', temp_grd], \
+                    cwd = self.wd).wait()
+
+        # crop minimum value
+        if min_v != None and max_v == None:
+            Popen([GMT, 'grdclip', temp_grd, '-G%s' % (temp_grd), \
+                    '-Sb%s/NaN' % (min_v)], cwd = self.wd).wait()
+
+        # restore '-R' if changed
+        if custom_region != None:
+            move(os.path.join(self.wd, 'gmt.history.preserve'), \
+                    os.path.join(self.wd, 'gmt.history'))
+
+        # add resulting grid onto map
+        # here '-Q' will make NaN transparent
+        cmd = [GMT, 'grdimage', temp_grd, '-J', '-R', '-C%s' % (cpt), \
+                '-t%s' % (transparency), '-Q', '-K', '-O']
+        Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
+
     def finalise(self):
         """
         Finalises the postscript.
@@ -321,12 +558,19 @@ class GMTPlot:
         # no more modifications allowed
         self.psf.close()
 
-    def png(self, out_dir = None, resolution = 120, clip = True):
+    def leave(self):
+        """
+        Alternative to finalise where the file is only closed.
+        Useful if this file is opened later.
+        """
+        self.psf.close()
+
+    def png(self, out_dir = None, dpi = 96, clip = True):
         """
         Renders a PNG from the PS.
         Could be modified for more formats if needed.
         out_dir: folder to put output in (name as input, different extention)
-        resolution: DPI
+        dpi: pixels per inch
         clip: whether to crop all white
         """
         # default to output in same directory
@@ -337,8 +581,8 @@ class GMTPlot:
         if out_dir == '':
             out_dir = '.'
 
-        cmd = [GMT, ps2png, self.pspath, '-TG', \
-                '-E%s' % (resolution), '-D%s' % (out_dir)]
+        cmd = [GMT, psconvert, self.pspath, '-TG', \
+                '-E%s' % (dpi), '-D%s' % (out_dir)]
         if clip:
             cmd.append('-A')
         call(cmd)
