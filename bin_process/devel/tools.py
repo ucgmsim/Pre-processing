@@ -7,9 +7,10 @@ from subprocess import Popen, PIPE
 
 R_EARTH = 6378.139
 # ideally implemented in python
-ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
-#ll2xy_bin = '/home/vap30/bin/ll2xy'
-xy2ll_bin = '/nesi/projects/nesi00213/tools/xy2ll'
+#ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
+#xy2ll_bin = '/nesi/projects/nesi00213/tools/xy2ll'
+ll2xy_bin = '/home/vap30/bin/ll2xy'
+xy2ll_bin = '/home/vap30/bin/xy2ll'
 
 class InputError(Exception):
     pass
@@ -134,9 +135,9 @@ def ll_dist(lon1, lat1, lon2, lat2):
     """
     Return distance between a pair of lat, long points.
     """
-    # functions based on radions
+    # functions based on radians
     lat1, lat2, dlon, dlat = map(radians, \
             [lat1, lat2, (lon2 - lon1), (lat2 - lat1)])
 
-    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    return R_EARTH * 2 * atan2(sqrt(a), sqrt(1 - a))
+    a = sin(dlat / 2.0) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2.0) ** 2
+    return R_EARTH * 2.0 * atan2(sqrt(a), sqrt(1 - a))
