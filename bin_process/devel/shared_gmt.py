@@ -11,6 +11,9 @@ from time import time
 
 import numpy as np
 
+# only needed if plotting fault planes direct from SRF
+from shared_srf import *
+
 # if gmt available in $PATH, GMT should be 'gmt'
 # to use a custom location, set full path to 'gmt' binary below
 GMT = 'gmt'
@@ -26,6 +29,8 @@ if GMT_MAJOR != 5:
 elif GMT_MINOR < 2:
     psconvert = 'ps2raster'
 else:
+    print('WARNING: LIBRARY NOT TESTED WITH GMT 5.2 CHANGES')
+    print('WILL MOST DEFINITLY CAUSE ISSUES, OR USE 5.1')
     psconvert = 'psconvert'
 
 ###
@@ -67,7 +72,7 @@ def is_native_xyv(xyv_file, x_min, x_max, y_min, y_max, v_min = None):
     """
     Detects whether an input file is native or if it needs bytes swapped.
     It makes sure values are sane, if not. Non-native is assumed.
-    xyv_file: file containing 
+    xyv_file: file containing 3 columns
     x_min: minimum x value (first column)
     x_max: maximum x value
     y_min: minimum y value (second column)
@@ -161,6 +166,7 @@ def grd_mask(xy_file, out_file, region = None, dx = '1k', dy = '1k'):
     dy: y grid spacing size
     """
     wd = os.path.dirname(out_file)
+    out_file = os.path.basename(out_file)
     if wd == '':
         wd = '.'
     cmd = ([GMT, 'grdmask', xy_file, '-G%s' % (out_file), '-NNaN/1/1', \
@@ -171,13 +177,14 @@ def grd_mask(xy_file, out_file, region = None, dx = '1k', dy = '1k'):
         cmd.append('-R%s/%s/%s/%s' % region)
     Popen(cmd, cwd = wd).wait()
 
-def gmt_defaults(font_annot_primary = 16, map_tick_length_primary = '0.05i', \
+def gmt_defaults(wd = '.', font_annot_primary = 16, map_tick_length_primary = '0.05i', \
         font_label = 16, ps_page_orientation = 'portrait', map_frame_pen = '1p', \
         format_geo_map = 'D', map_frame_type = 'plain', format_float_out = '%lg', \
         proj_length_unit = 'i', ps_media = 'A2', extra = []):
     """
     Sets default values for GMT.
-    GMT stores these values in the file 'gmt.defaults'
+    GMT stores these values in the file 'gmt.conf'
+    wd: which directory to set for
     extra: list of params eg: ['FONT_ANNOT_SECONDARY', '12', 'KEY', '=', 'VALUE']
     """
     cmd = ['gmtset', \
@@ -193,7 +200,7 @@ def gmt_defaults(font_annot_primary = 16, map_tick_length_primary = '0.05i', \
             'PS_MEDIA', '=', ps_media]
     # protect users from entering non-string values
     cmd.extend(map(str, extra))
-    call(cmd)
+    Popen(cmd, cwd = wd).wait()
 
 ###
 ### MAIN PLOTTING CLASS
@@ -215,7 +222,7 @@ class GMTPlot:
         # if previous/custom gmt.defaults and gmt.history was wanted
         # it should have already been copied into this directory
         if not os.path.exists(os.path.join(self.wd, 'gmt.defaults')):
-            gmt_defaults()
+            gmt_defaults(wd = self.wd)
 
     def background(self, length, height, \
             left_margin = 0, bottom_margin = 0, colour = 'white'):
@@ -243,17 +250,14 @@ class GMTPlot:
                 % (length, length, height, height))
         proc.wait()
 
-    def spacial(self, proj, x_min, x_max, y_min, y_max, \
+    def spacial(self, proj, region, \
             lon0 = None, lat0 = None, sizing = 1, \
             left_margin = 0, bottom_margin = 0):
         """
         Sets up the spacial parameters for plotting.
         doc http://gmt.soest.hawaii.edu/doc/5.1.0/gmt.html#j-full
         proj: GMT projection eg 'X' = cartesian, 'M|m' = mercator
-        x_min: minimal X position
-        x_max: maximal X position
-        y_min: minimal Y position
-        y_max: maximal Y position
+        region: tuple containing x_min, x_max, y_min, y_max
         lon0: standard meridian (not always necessary)
         lat0: standard parallel (not always necessary)
         sizing: either scale: distance / degree longitude at meridian
@@ -271,7 +275,7 @@ class GMTPlot:
 
         cmd = [GMT, 'psxy', '-T', gmt_proj, '-X%s' % (left_margin), \
                 '-Y%s' % (bottom_margin), '-K', \
-                '-R%s/%s/%s/%s' % (x_min, x_max, y_min, y_max)]
+                '-R%s/%s/%s/%s' % region]
         # one of the functions that can be run on a blank file
         # as such, '-O' flag needs to be taken care of
         if self.new:
@@ -304,7 +308,7 @@ class GMTPlot:
 
     def sites(self, site_names, shape = 'c', size = 0.1, \
             width = 0.8, colour = 'black', \
-            fill = '220/220/220', transparency = 50, spacing = 0.08, \
+            fill = 'gainsboro', transparency = 50, spacing = 0.08, \
             font = 'Helvetica', font_size = '10p', font_colour = 'black'):
         """
         Add sites to map.
@@ -326,8 +330,10 @@ class GMTPlot:
         xyan = []
         for i, xy in enumerate(sites_xy.split('\n')):
             try:
+                # user has decided to override position
                 name, align = site_names[i].split(',')
             except ValueError:
+                # using default position
                 name = site_names[i]
                 align = sites[name][2]
             xyan.append('%s %s %s' % (xy, align, name))
@@ -384,8 +390,14 @@ class GMTPlot:
         colour: colour of water
         res: resolution
         """
-        Popen([GMT, 'pscoast', '-J', '-R', '-D%s' % (res), '-K', '-O', \
-                '-S%s' % (colour)], stdout = self.psf, cwd = self.wd).wait()
+        # XXX: WARNING: GMT land areas are made up of smaller segments
+        # as such you can see lines on them and affect visuals
+        # as a fix, water will also fill land
+        # you shouldn't have to plot water after land anyway.
+        # plotting land using grdimage / topography also fixes the issue for land.
+        Popen([GMT, 'pscoast', '-B+g%s' % (colour), '-J', '-R', \
+                '-D%s' % (res), '-K', '-O', '-S%s' % (colour)], \
+                stdout = self.psf, cwd = self.wd).wait()
 
     def ticks(self, major = '60m', minor = '30m', sides = 'ws'):
         """
@@ -455,6 +467,34 @@ class GMTPlot:
             p = Popen(cmd, stdin = PIPE, stdout = self.psf, cwd = self.wd)
             p.communicate(indata)
             p.wait()
+
+    def seismo(self, src, time, fmt = 'time', \
+            width = '1p', colour = 'red'):
+        """
+        Plots seismograms on map.
+        src: file contaning the seismogram data
+        time: draw the seismogram up to this reading
+        fmt: format of the src file
+            'inc' values are read sequentially
+            'time' values are read by time
+        width: width of the seismo line
+        colour: colour of the seismo line
+        """
+        # grep much faster than python
+        if fmt == 'time':
+            gp = Popen(['grep', src, '-e', '^>TS%d ' % (time), \
+                    '-A%d' % (time + 1)], stdout = PIPE)
+        elif gmt == 'inc':
+            gp = Popen(['grep', src, '-e', '^>', \
+                    '-A%d' % (time + 1)], stdout = PIPE)
+        gmt_in = gp.communicate()[0]
+        gp.wait()
+
+        sp = Popen([GMT, 'psxy', '-J', '-R', '-N', '-K', '-O',
+                '-W%s,%s' % (width, colour)], \
+                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        sp.communicate(gmt_in)
+        sp.wait()
 
     def cpt_scale(self, x, y, cpt, major, minor, label = None, \
             length = 4.0, thickness = 0.15, horiz = True):
@@ -548,6 +588,78 @@ class GMTPlot:
                 '-t%s' % (transparency), '-Q', '-K', '-O']
         Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
 
+    def fault(self, in_path, is_srf = False, \
+            hyp_shape = 'a', hyp_size = 0.35, \
+            plane_width = '1p', plane_colour = 'black', \
+            top_width = '2p', top_colour = 'black', \
+            hyp_width = '1p', hyp_colour = 'black'):
+        """
+        Plot SRF fault plane onto map.
+        Requires shared_srf.py, replaces addStandardFaultPlane.sh
+        in_path: location of input file
+        is_srf: if True, input is SRF file. if False, is Corners file.
+        hyp_shape: shape to plot at hypocentre 'a' for a star
+        hyp_size: size of hypocentre shape
+        plane_width: width of line making up fault planes
+        plane_colour: colour of line making up fault planes
+        top_width: as above for the top edge
+        top_colour: as above for the top edge
+        hyp_width: as above for hyp_shape outline
+        hyp_colour: as above for hyp_shape outline
+        """
+        if is_srf:
+            # use SRF library to retrieve info
+            bounds = get_bounds(in_path)
+            hypocentre = get_hypo(in_path)
+
+            # process for input into GMT
+            gmt_bounds = [['%s %s' % tuple(corner) for corner in plane] \
+                    for plane in bounds]
+            top_edges = '\n>\n'.join(['\n'.join(corners[:2]) \
+                    for corners in gmt_bounds])
+            all_edges = '\n>\n'.join(['\n'.join(corners) \
+                    for corners in gmt_bounds])
+            hypocentre = '%s %s' % tuple(hypocentre)
+        else:
+            # standard corners file
+            bounds = []
+            corners = []
+            with open(in_path) as cf:
+                for line in cf:
+                    if line[0] != '>':
+                        # not a comment
+                        corners.append(line)
+                    elif len(corners):
+                        # break in long lat stream
+                        bounds.append(corners)
+                        corners = []
+                bounds.append(corners)
+
+            # process for input into GMT
+            hypocentre = bounds[0][0]
+            top_edges = '>\n'.join([''.join(c[:2]) for c in bounds[1:]])
+            all_edges = '>\n'.join([''.join(c) for c in bounds[1:]])
+
+        # plot planes
+        planep = Popen([GMT, 'psxy', '-J', '-R', '-L', '-K', '-O', \
+                '-W%s,%s,-' % (plane_width, plane_colour)], \
+                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        planep.communicate(all_edges)
+        planep.wait()
+        # plot top edges
+        topp = Popen([GMT, 'psxy', '-J', '-R', '-K', '-O', \
+                '-W%s,%s' % (top_width, top_colour)], \
+                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        topp.communicate(top_edges)
+        topp.wait()
+        # hypocentre
+        hypp = Popen([GMT, 'psxy', '-J', '-R', '-K', '-O', \
+                '-W%s,%s' % (hyp_width, hyp_colour), \
+                '-S%s%s' % (hyp_shape, hyp_size)], \
+                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        hypp.communicate(hypocentre)
+        hypp.wait()
+
     def finalise(self):
         """
         Finalises the postscript.
@@ -568,10 +680,11 @@ class GMTPlot:
     def png(self, out_dir = None, dpi = 96, clip = True):
         """
         Renders a PNG from the PS.
+        Unfortunately relatively slow.
         Could be modified for more formats if needed.
         out_dir: folder to put output in (name as input, different extention)
         dpi: pixels per inch
-        clip: whether to crop all white
+        clip: whether to crop all whitespace
         """
         # default to output in same directory
         if out_dir == None:
