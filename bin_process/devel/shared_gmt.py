@@ -223,6 +223,8 @@ class GMTPlot:
         # it should have already been copied into this directory
         if not os.path.exists(os.path.join(self.wd, 'gmt.defaults')):
             gmt_defaults(wd = self.wd)
+        # place to reject unwanted warnings
+        self.sink = open('/dev/null', 'a')
 
     def background(self, length, height, \
             left_margin = 0, bottom_margin = 0, colour = 'white'):
@@ -345,12 +347,38 @@ class GMTPlot:
         tproc.communicate('\n'.join(xyan))
         tproc.wait()
 
+    def water(self, colour = 'lightblue', res = 'f'):
+        """
+        Adds water areas.
+        colour: colour of water
+        res: resolution
+        """
+        # GMT land areas are made up of smaller segments
+        # as such you can see lines on them and affect visuals
+        # therefore the entire area is filled, but then clipped to water
+        # pscoast etc can also slightly overlay tickmark (map) outline
+
+        # start cropping to only show wet areas
+        Popen([GMT, 'pscoast', '-J', '-R', '-D%s' % (res), \
+                '-Sc', '-K', '-O'], \
+                stdout = self.psf, cwd = self.wd).wait()
+        # fill land and water to prevent segment artifacts
+        Popen([GMT, 'pscoast', '-J', '-R', '-G%s' % (colour), \
+                '-D%s' % (res), '-K', '-O', '-S%s' % (colour)], \
+                stdout = self.psf, cwd = self.wd).wait()
+        # crop (-Q) land area off to show only water
+        Popen([GMT, 'pscoast', '-J', '-R', '-Q', '-K', '-O'], \
+                stdout = self.psf, cwd = self.wd).wait()
+
     def land(self, fill = 'lightgray', res = 'f'):
         """
         Fills land area.
         fill: colour of land
         res: resolution 'f' full, 'h' high, 'i' intermediate, 'l' low, 'c' crude
         """
+        # just like with water, land will show segment artifacts
+        # therefore the whole area needs to be filled
+        # then cropped to only include land
         Popen([GMT, 'pscoast', '-J', '-R', '-D%s' % (res), '-G%s' % (fill), \
                 '-K', '-O'], stdout = self.psf, cwd = self.wd).wait()
 
@@ -382,27 +410,15 @@ class GMTPlot:
         res: resolution of coastlines
         """
         Popen([GMT, 'pscoast', '-J', '-R', '-D%s' % (res), '-K', '-O', \
-                '-W%s,%s' % (width, colour)], stdout = self.psf, cwd = self.wd).wait()
-
-    def water(self, colour = 'lightblue', res = 'f'):
-        """
-        Adds water areas.
-        colour: colour of water
-        res: resolution
-        """
-        # XXX: WARNING: GMT land areas are made up of smaller segments
-        # as such you can see lines on them and affect visuals
-        # as a fix, water will also fill land
-        # you shouldn't have to plot water after land anyway.
-        # plotting land using grdimage / topography also fixes the issue for land.
-        Popen([GMT, 'pscoast', '-B+g%s' % (colour), '-J', '-R', \
-                '-D%s' % (res), '-K', '-O', '-S%s' % (colour)], \
+                '-W%s,%s' % (width, colour)], \
                 stdout = self.psf, cwd = self.wd).wait()
 
     def ticks(self, major = '60m', minor = '30m', sides = 'ws'):
         """
         Draws map ticks around the edge.
         Note if map doesn't have a left or bottom margin, these will be cut.
+        Also part of the map outline may be drawn over by land and/or water.
+        It is advisable therefore that ticks are added after area is finished.
         major: these increments have a longer tick
         minor: these increments have a short tick only
         sides: major increments on these sides are labeled with text
@@ -440,13 +456,13 @@ class GMTPlot:
 
         Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
 
-    def path(self, indata, isfile = True, close = False, \
+    def path(self, in_data, is_file = True, close = False, \
             width = '0.4p', colour = 'black', split = None):
         """
         Draws a path between points.
-        indata: either a filepath to file containing x, y points
+        in_data: either a filepath to file containing x, y points
                     or a string containing the x, y points
-        isfile: whether indata is a filepath (True) or a string (False)
+        is_file: whether in_data is a filepath (True) or a string (False)
         close: whether to close the path by joining the first and last points
         width: thickness of line
         colour: colour of line
@@ -460,12 +476,12 @@ class GMTPlot:
         if close:
             cmd.append('-L')
 
-        if isfile:
-            cmd.append(indata)
+        if is_file:
+            cmd.append(in_data)
             Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
         else:
             p = Popen(cmd, stdin = PIPE, stdout = self.psf, cwd = self.wd)
-            p.communicate(indata)
+            p.communicate(in_data)
             p.wait()
 
     def seismo(self, src, time, fmt = 'time', \
@@ -481,12 +497,13 @@ class GMTPlot:
         colour: colour of the seismo line
         """
         # grep much faster than python
+        # wd same as for GMT for consistency
         if fmt == 'time':
             gp = Popen(['grep', src, '-e', '^>TS%d ' % (time), \
-                    '-A%d' % (time + 1)], stdout = PIPE)
+                    '-A%d' % (time + 1)], stdout = PIPE, cwd = self.wd)
         elif gmt == 'inc':
             gp = Popen(['grep', src, '-e', '^>', \
-                    '-A%d' % (time + 1)], stdout = PIPE)
+                    '-A%d' % (time + 1)], stdout = PIPE, cwd = self.wd)
         gmt_in = gp.communicate()[0]
         gp.wait()
 
@@ -497,7 +514,8 @@ class GMTPlot:
         sp.wait()
 
     def cpt_scale(self, x, y, cpt, major, minor, label = None, \
-            length = 4.0, thickness = 0.15, horiz = True):
+            length = 4.0, thickness = 0.15, horiz = True, \
+            arrow_f = True, arrow_b = False):
         """
         Draws a colour palette legend.
         x: x position to place scale
@@ -509,6 +527,8 @@ class GMTPlot:
         length: how long to draw the scale
         thickness: how thick the scale should be drawn
         horiz: whether to make it horizontal (True) or vertical (False)
+        arrow_f: show the forwards continuation arrow (above range)
+        arrow_b: show the backwards continuation arrow (belaw range)
         """
         # build command based on parameters
         pos = '-D%s/%s/%s/%s' % (x, y, length, thickness)
@@ -518,6 +538,8 @@ class GMTPlot:
         if label != None:
             annotation = '%s:%s:' % (annotation, label.replace(':', ''))
         cmd = [GMT, 'psscale', '-C%s' % (cpt), pos, annotation, '-K', '-O']
+        if arrow_f or arrow_b:
+            cmd.append('-E%s%s' % ('f' * arrow_f, 'b' * arrow_b))
 
         Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
 
@@ -565,7 +587,9 @@ class GMTPlot:
             cmd.append('-Ll%s' % (limit_low))
         if limit_high != None:
             cmd.append('-Lu%s' % (limit_high))
-        Popen(cmd, cwd = self.wd).wait()
+        # ignore stderr: usually because no data in area
+        # algorithm in 'surface' is known to fail (no output)
+        Popen(cmd, stderr = self.sink, cwd = self.wd).wait()
 
         # crop to path area by grd file
         if crop_grd != None:
@@ -574,19 +598,29 @@ class GMTPlot:
 
         # crop minimum value
         if min_v != None and max_v == None:
+            # ignore stderr: usually because no data in area
             Popen([GMT, 'grdclip', temp_grd, '-G%s' % (temp_grd), \
-                    '-Sb%s/NaN' % (min_v)], cwd = self.wd).wait()
+                    '-Sb%s/NaN' % (min_v)], stderr = self.sink, \
+                    cwd = self.wd).wait()
 
         # restore '-R' if changed
         if custom_region != None:
             move(os.path.join(self.wd, 'gmt.history.preserve'), \
                     os.path.join(self.wd, 'gmt.history'))
 
+        # TODO: optional parameter
+        # add contours
+        Popen([GMT, 'grdcontour', '-J', '-R', temp_grd, '-C10', \
+                '-W0.8p,black', '-K', '-O'], \
+                stdout = self.psf, cwd = self.wd).wait()
+
         # add resulting grid onto map
         # here '-Q' will make NaN transparent
         cmd = [GMT, 'grdimage', temp_grd, '-J', '-R', '-C%s' % (cpt), \
                 '-t%s' % (transparency), '-Q', '-K', '-O']
-        Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
+        # ignore stderr: usually because no data in area
+        Popen(cmd, stdout = self.psf, stderr = self.sink, \
+                cwd = self.wd).wait()
 
     def fault(self, in_path, is_srf = False, \
             hyp_shape = 'a', hyp_size = 0.35, \
@@ -676,6 +710,13 @@ class GMTPlot:
         Useful if this file is opened later.
         """
         self.psf.close()
+
+    def enter(self):
+        """
+        Only used after leave. Opens file again to continue editing.
+        Useful if file is to be externally modified in-between.
+        """
+        self.psf = open(self.pspath, 'a')
 
     def png(self, out_dir = None, dpi = 96, clip = True):
         """

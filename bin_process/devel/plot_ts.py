@@ -1,29 +1,37 @@
 #!/usr/bin/env python2
 
-# Created: 21 November 2016 from bash version (created 21 April 2016)
-# Purpose: Generate visualisations of timeslices (PNG)
-# Replacing Purpose 21-04-2016: Use bash instead of csh. Source vars from e3d.par
-# Replacing Purpose 21-11-2016: Use python instead of bash for greater flexibility/integration.
-# Authors: Viktor Polak <viktor.polak@canterbury.ac.nz>
+"""
+Created: 21 November 2016 from bash version (created 21 April 2016)
+Purpose: Generate visualisations of timeslices (PNG)
+Replacing Purpose 21-04-2016: Use bash instead of csh. Source vars from e3d.par
+Replacing Purpose 21-11-2016: Use python instead of bash for greater flexibility.
+Authors: Viktor Polak <viktor.polak@canterbury.ac.nz>
 
-# USAGE:
-# Execute with python: "$ ./plot_ts.py" or "$ python2 plot_ts.py"
-# Optional first parameter: specify number of threads
-#   Default is user interactive with autodetect, capped to 8 threads
+USAGE:
+Execute with python: "$ ./plot_ts.py" or "$ python2 plot_ts.py"
 
-# ISSUES:
-# could validate parameters/check if folders/files exist.
+USE CASES:
+1. create timeslice png files
+execute with 1st parameter being number of processes else interactive choice
+2. create render with custom input same format as timeslice ('3f4')
+execute with 1st parameter = single, second = source file
+
+ISSUES:
+could validate parameters/check if folders/files exist.
+"""
 
 import multiprocessing as mp
 import os
 from shutil import rmtree
 import sys
+from tempfile import mkdtemp
+from time import time
 
 from params import *
 from shared_gmt import *
 
 # general setup
-title = 'Mw7.8 14 Nov 2016 Kaikoura Earthquake'
+title = 'Mw7.8 14 Nov 2016 Kaikoura Earthquake PGV'
 fault_model = 'InSAR source model (modified from Hamling) v2'
 vel_model = 'SIVM v1.65 h=0.4km'
 # default is inches
@@ -34,7 +42,7 @@ png_dir = os.path.join(sim_dir, 'Png')
 # temporary working directories for gmt are within here
 # prevent multiprocessing issues by isolating processes
 gmt_temp = os.path.join(sim_dir, 'GMT_WD')
-dpi = 96
+dpi = 300
 grd_dx = '1k'
 grd_dy = '1k'
 
@@ -129,55 +137,147 @@ with open(vel_mod_params, 'r') as vmpf:
         for line in lines:
             if corner in line:
                 corners.append(map(float, line.split()[1:3]))
+cnr_str = '\n'.join([' '.join(map(str, cnr)) for cnr in corners])
 
 
 
 ###
-### PLOTTING STARTS HERE
+### PLOTTING STARTS HERE - TEMPLATE
 ###
 ######################################################
 
-print('Creating resources...')
+print('========== CREATING TEMPLATE ==========')
+
+### create resources that are used throughout the process
+t0 = time()
+# topography colour scale
 makecpt('cpt/palm_springs_1.cpt', '%s/land.cpt' % (gmt_temp), \
         -250, 9000, inc = 10, invert = True)
+# overlay colour scale
 makecpt('hot', '%s/motion.cpt' % (gmt_temp), 0, 80, inc = 10, invert = True)
+# simulation area mask
 grd_mask('../sim.modelpath_hr', '%s/modelmask.grd' % (gmt_temp), \
         dx = grd_dx, dy = grd_dy, region = ll_region)
+print('Created resources (%.2fs)' % (time() - t0))
 
-print('Creating bottom template...')
-p = GMTPlot('%s/bottom.ps' % (gmt_temp))
-p.background(11, 11)
-p.spacial('M', ll_region, sizing = map_width, \
+### create a basemap template which all maps start with
+t1 = time()
+b = GMTPlot('%s/bottom.ps' % (gmt_temp))
+b.background(11, 11)
+b.spacial('M', ll_region, sizing = map_width, \
         left_margin = 1, bottom_margin = 2.5)
-p.ticks(major = '60m', minor = '30m', sides = 'ws')
 # title, fault model and velocity model subtitles
-p.text(ll_avg[0], y_max, title, size = 20, dy = 0.6)
-p.text(x_min, y_max, fault_model, size = 14, align = 'LB', dy = 0.3)
-p.text(x_min, y_max, vel_model, size = 14, align = 'LB', dy = 0.1)
-# water must go first due to GMT fails described in library
-p.water(colour = 'lightblue', res = 'f')
-p.topo('../nztopo.grd', cpt = 'land.cpt')
-p.cpt_scale(3, -0.5, 'motion.cpt', 10, 10, label = 'ground motion (cm/s)')
+b.text(ll_avg[0], y_max, title, size = 20, dy = 0.6)
+b.text(x_min, y_max, fault_model, size = 14, align = 'LB', dy = 0.3)
+b.text(x_min, y_max, vel_model, size = 14, align = 'LB', dy = 0.1)
+# topo, water, overlay cpt scale
+b.topo('../nztopo.grd', cpt = 'land.cpt')
+b.water(colour = 'lightblue', res = 'f')
+b.cpt_scale(3, -0.5, 'motion.cpt', 10, 10, label = 'ground motion (cm/s)')
 # stations
-p.points('../geonet_stations_20161119.ll', shape = 't', size = 0.08, \
+b.points('../geonet_stations_20161119.ll', shape = 't', size = 0.08, \
         fill = None, line = 'white', line_thickness = 0.8)
-p.leave()
+# do not finalise, close file
+b.leave()
+print('Created bottom template (%.2fs)' % (time() - t1))
 
-print('Creating top template...')
-p = GMTPlot('%s/top.ps' % (gmt_temp), append = True)
-p.sites(region_sites)
-p.coastlines()
-p.leave()
+### add overlay if we are only plotting one input source
+if purpose == 'single':
+    b.enter()
+    b.overlay(os.path.abspath(source), 'motion.cpt', \
+            dx = grd_dx, dy = grd_dy, climit = 2, min_v = 0, \
+            crop_grd = 'modelmask.grd')
+    b.leave()
 
-copyfile('%s/bottom.ps' % (gmt_temp), '%s/combined.ps' % (gmt_temp))
-with open('%s/combined.ps' % (gmt_temp), 'a') as c:
-    with open('%s/top.ps' % (gmt_temp), 'r') as t:
-        c.write(t.read())
+### create map data which all maps will have on top
+t2 = time()
+if purpose == 'single':
+    t = b
+    t.enter()
+else:
+    t = GMTPlot('%s/top.ps' % (gmt_temp), append = True)
+t.sites(region_sites)
+t.coastlines()
+# simulation domain
+t.path(cnr_str, is_file = False, split = '-', \
+        close = True, width = '0.4p', colour = 'black')
+# fault file - creating direct from SRF is slower
+# OK if only done in template
+t.fault(srf_file, is_srf = True)
+# ticks on top otherwise parts of map border may be drawn over
+t.ticks(major = '60m', minor = '30m', sides = 'ws')
+t.leave()
+print('Created top template (%.2fs)' % (time() - t2))
 
-p = GMTPlot('%s/combined.ps' % (gmt_temp), append = True)
-p.finalise()
-p.png(dpi = 96, clip = True)
+# render and do not continue
+if purpose == 'single':
+    t.enter()
+    t.finalise()
+    t.png(dpi = dpi, clip = True)
+    exit()
+
+### estimate time savings
+t3 = time()
+print('Time saved per timeslice: ~%.2fs' % (time() - t0))
+print('Time saved over %d timeslices: ~%.2fs' \
+        % (ts_total - ts_start, (ts_total - ts_start) * (time() - t0)))
+
+print('========== TEMPLATE COMPLETE ==========')
 
 
+###
+### PLOTTING CONTINUES - TIME SLICE LOOPING
+###
+######################################################
+
+def render_slice(n):
+    t0 = time()
+
+    # name of slice postscript
+    ps = '%s/ts%.4d.ps' % (gmt_temp, n)
+
+    # copy basefile
+    copyfile('%s/bottom.ps' % (gmt_temp), ps)
+    s = GMTPlot(ps, append = True)
+    # add timeslice timestamp
+    s.text(x_max, y_max, 't=%.2fs' % (n * 0.1), \
+            align = 'RB', size = '14p', dy = 0.1)
+
+    # if we are plotting the total displacement
+    abs_max('%s_ts%.4d.0' % (prefix, n), \
+            '%s_ts%.4d.1' % (prefix, n), \
+            '%s_ts%.4d.2' % (prefix, n), \
+            '%s_ts%.4d.X' % (prefix, n), \
+            native = False)
+    s.overlay('../%s_ts%.4d.X' % (prefix, n), 'motion.cpt', \
+            dx = grd_dx, dy = grd_dy, climit = 2, min_v = 2, \
+            crop_grd = 'modelmask.grd')
+
+    # append top file
+    s.leave()
+    with open(ps, 'a') as c:
+        with open('%s/top.ps' % (gmt_temp), 'r') as t:
+            c.write(t.read())
+    s = GMTPlot(ps, append = True)
+
+    # add seismograms if wanted
+    s.seismo('../gmt-seismo.xy', n, fmt = 'time', \
+            colour = 'magenta', width = 0.8)
+
+    # create PNG
+    s.finalise()
+    s.png(dpi = dpi, clip = True)
+
+    print('timeslice %d complete in %.2fs' % (n, time() - t0))
+
+if purpose == 'multi':
+    ts0 = time()
+    #for i in xrange(ts_start, ts_total):
+    #    render_slice(i)
+    pool = mp.Pool(processes)
+    pool.map(render_slice, xrange(ts_start, ts_total))
+    print('FINISHED TIMESLICE SEGMENT IN %.2fs' % (time() - ts0))
+    print('AVERAGE TIMESLICE TIME %.2fs' % \
+            ((time() - ts0) / (ts_total - ts_start)))
 
 #rmtree(gmt_temp)
