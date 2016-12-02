@@ -38,16 +38,17 @@ export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/$VERSION
 
 case $LOADL_STEP_NAME in
 	merge_tsP3)
+		filelist=flist_`basename $lf_sim_dir`
 		exe=/nesi/projects/nesi00213/EMOD3D/merge_ts/merge_tsP3_par 
-		ls -X LF/OutBin/*xyts-?????.e3d >tmp.filelist 
-		NFILES=`cat tmp.filelist |wc -l|sed -e 's/ //g'` 
-		OUTFILE=`head -1 tmp.filelist  |sed -e 's/-[0-9]*.e3d/.e3d/g'` 
+		ls -X $lf_sim_dir/OutBin/*xyts-?????.e3d >$filelist 
+		NFILES=`cat $filelist |wc -l|sed -e 's/ //g'` 
+		OUTFILE=`head -1 $filelist  |sed -e 's/-[0-9]*.e3d/.e3d/g'` 
 		echo "NFILES=$NFILES OUTFILE=$OUTFILE" 
-		time poe $exe filelist=tmp.filelist outfile=$OUTFILE nfiles=$NFILES ;;
+		time poe $exe filelist=$filelist outfile=$OUTFILE nfiles=$NFILES ;;
 	winbin_aio)
-		python $BINPROCESS/winbin-aio.py ;;
+		python $BINPROCESS/winbin-aio.py $lf_sim_dir ;;
 	gen_ts)
-		python $BINPROCESS/gen_ts.py ;;
+		python $BINPROCESS/gen_ts.py $lf_sim_dir ;;
 esac
 
 

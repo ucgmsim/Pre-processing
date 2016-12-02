@@ -12,10 +12,9 @@ def confirm(q):
     print q
     return show_yes_no_question()
 
-execfile(os.path.join(bin_process_dir,"set_runparams.py"))
 glob.glob('LF/*')
 lf_sim_dirs=glob.glob('LF/*')
-f_template=open('run_emod3d.ll.template')
+f_template=open('post_emod3d.ll.template')
 template=f_template.readlines()
 template
 str_template=''.join(template)
@@ -25,7 +24,7 @@ submit_yes = confirm("Also submit the job for you?")
 for lf_sim_dir in lf_sim_dirs:
     str=str_template.replace("$lf_sim_dir",lf_sim_dir)
     rup_mod = lf_sim_dir.split('/')[1]
-    fname_llscript='run_emod3d_%s.ll'%rup_mod
+    fname_llscript='post_emod3d_%s.ll'%rup_mod
     f_llscript=open(fname_llscript,'w')
     f_llscript.write('# script version: %s\n'%bin_process_ver)
     f_llscript.write(str)

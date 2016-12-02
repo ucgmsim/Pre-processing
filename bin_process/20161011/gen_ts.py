@@ -18,6 +18,12 @@ import os.path
 sys.path.append(os.path.abspath(os.path.curdir))
 from shared import *
 from params import *
+if len(sys.argv) > 1:
+    if os.path.exists(sys.argv[1]) and os.path.isdir(sys.argv[1]):
+        path_to_add = os.path.abspath(sys.argv[1])
+        sys.path.append(path_to_add)
+        print path_to_add
+        from params_uncertain import *
 
 ts2xyz = os.path.join(wcc_prog_dir, 'ts2xyz')
 

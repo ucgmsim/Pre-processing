@@ -71,6 +71,7 @@ if __name__ == '__main__' :
     
         p['ts_out_dir'] = os.path.join(p['t_slice_dir'], 'TSFiles')
         p['ts_out_prefix'] = os.path.join(p['ts_out_dir'], run_name)
+        p['FILELIST'] = os.path.join(p['lf_sim_dir'],'fdb.filelist')
 
         write_to_py(os.path.join(p['lf_sim_dir'],params_uncertain),p)
 

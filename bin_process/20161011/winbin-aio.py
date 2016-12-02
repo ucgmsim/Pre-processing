@@ -23,9 +23,16 @@ from glob import glob
 from shared import *
 from params import *
 
-if len(sys.argv) > 1 and sys.argv[1] == 'test_mode':
-    print('Running under test mode.')
-    from postprocess_test.test_params import *
+if len(sys.argv) > 1:
+    if os.path.exists(sys.argv[1]) and os.path.isdir(sys.argv[1]):
+        path_to_add = os.path.abspath(sys.argv[1])
+        sys.path.append(path_to_add)
+        print path_to_add
+        from params_uncertain import *
+    if sys.argv[1] == 'test_mode':
+       print('Running under test mode.')
+       from postprocess_test.test_params import *
+    
 
 fdbin2wcc_bin = os.path.join(wcc_prog_dir, 'fdbin2wcc')
 
