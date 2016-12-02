@@ -29,7 +29,7 @@ ys = int(ny) // int(dy_ts)
 points = xs * ys
 
 # input
-tsfiles = glob('TSFiles/*.0')
+tsfiles = glob('TSFiles/*.X')
 
 # np.memmap cannot open more than 1000 files.
 # work on smaller sets to reduce memory usage.
@@ -37,16 +37,16 @@ sset = 100
 tsmax = np.zeros(shape = (points))
 if MODE == 'PGV':
     for fset in xrange(int(ceil(len(tsfiles) / float(sset)))):
-        tsmax = np.maximum(tsmax, np.max(np.array([np.fromfile(f, dtype = '3>f')[:, -1] \
+        tsmax = np.maximum(tsmax, np.max(np.array([np.fromfile(f, dtype = '3<f')[:, -1] \
                 for f in tsfiles[fset * sset:(fset + 1) * sset]], dtype = 'f'), axis = 0))
 elif MODE == 'PGA':
     dt = float(dt) * int(dt_ts)
     for fset in xrange(int(ceil(len(tsfiles) / float(sset)))):
-        tsmax = np.maximum(tsmax, np.max(np.array([vel2acc(np.fromfile(f, dtype = '3>f')[:, -1], dt) \
+        tsmax = np.maximum(tsmax, np.max(np.array([vel2acc(np.fromfile(f, dtype = '3<f')[:, -1], dt) \
                 for f in tsfiles[fset * sset:(fset + 1) * sset]], dtype = 'f'), axis = 0))
 
 # replace latitude and longitude
-tsmaxgrid = np.fromfile(tsfiles[0], dtype = '>f')
+tsmaxgrid = np.fromfile(tsfiles[0], dtype = '<f')
 tsmaxgrid[2::3] = tsmax
 
 # output

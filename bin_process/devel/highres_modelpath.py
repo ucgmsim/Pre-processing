@@ -12,7 +12,7 @@ ISSUES: slow but very simple algorithm
         (not computationally intensive for sane min_edge_points)
 """
 
-from tools import *
+from tools import ll_mid
 
 def path_from_corners(corners = None, output = 'sim.modelpath_hr', min_edge_points = 100):
     """

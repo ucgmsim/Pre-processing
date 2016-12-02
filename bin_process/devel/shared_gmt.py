@@ -12,7 +12,10 @@ from time import time
 import numpy as np
 
 # only needed if plotting fault planes direct from SRF
-from shared_srf import *
+try:
+    from shared_srf import *
+except ImportError:
+    print('shared_srf.py not found. will not be able to plot faults from SRF.')
 
 # if gmt available in $PATH, GMT should be 'gmt'
 # to use a custom location, set full path to 'gmt' binary below
@@ -216,9 +219,9 @@ class GMTPlot:
             self.psf = open(pspath, 'w')
             self.new = True
         # figure out where to run GMT from
-        self.wd = os.path.dirname(pspath)
+        self.wd = os.path.abspath(os.path.dirname(pspath))
         if self.wd == '':
-            self.wd = '.'
+            self.wd = os.path.abspath('.')
         # if previous/custom gmt.defaults and gmt.history was wanted
         # it should have already been copied into this directory
         if not os.path.exists(os.path.join(self.wd, 'gmt.defaults')):
@@ -341,7 +344,7 @@ class GMTPlot:
             xyan.append('%s %s %s' % (xy, align, name))
 
         tproc = Popen([GMT, 'pstext', '-J', '-R', '-K', '-O', \
-                '-Dj%s/%s' % (spacing, spacing), '-N', \
+                '-Dj%s/%s' % (spacing, spacing), \
                 '-F+j+f%s,%s,%s+a0' % (font_size, font, font_colour)], \
                 stdin = PIPE, stdout = self.psf, cwd = self.wd)
         tproc.communicate('\n'.join(xyan))
@@ -546,7 +549,9 @@ class GMTPlot:
     def overlay(self, xyv_file, cpt, dx = '1k', dy = '1k', \
             min_v = None, max_v = None, crop_grd = None, \
             custom_region = None, transparency = 40, climit = 1.0, \
-            limit_low = None, limit_high = None):
+            limit_low = None, limit_high = None, contours = None, \
+            contour_thickness = 0.2, contour_colour = 'black', \
+            land_crop = False):
         """
         Plot a GMT overlay aka surface.
         xyv_file: file containing x, y and amplitude values
@@ -567,9 +572,13 @@ class GMTPlot:
         limit_high: values abave this will be equal to this
                 limits are one way to make sure values fit in CPT range
                 it may be faster to use Numpy pre-processing
+        contours: display contour lines every set value or None
+        contour_thickness: thickness of contour lines
+        contour_colour: colour of contour lines
+        land_crop: crop overlay to land area
         """
         # name of intermediate file being worked on
-        temp_grd = '%s.grd' % xyv_file
+        temp_grd = '%s/%s.grd' % (self.wd, os.path.basename(xyv_file))
 
         # because we allow setting '-R', backup history file to reset after
         if custom_region != None:
@@ -589,7 +598,17 @@ class GMTPlot:
             cmd.append('-Lu%s' % (limit_high))
         # ignore stderr: usually because no data in area
         # algorithm in 'surface' is known to fail (no output)
-        Popen(cmd, stderr = self.sink, cwd = self.wd).wait()
+        for attempt in xrange(5):
+            Popen(cmd, stderr = self.sink, cwd = self.wd).wait()
+            if os.path.exists(temp_grd):
+                break
+            else:
+                print('creating overlay grd attempt %d failed. trying again.' \
+                        % (attempt + 1))
+        if not os.path.exists(temp_grd):
+            print('failed to create grd from %s. no overlay produced.' \
+                    % (os.path.basename(xyv_file)))
+            return
 
         # crop to path area by grd file
         if crop_grd != None:
@@ -608,11 +627,10 @@ class GMTPlot:
             move(os.path.join(self.wd, 'gmt.history.preserve'), \
                     os.path.join(self.wd, 'gmt.history'))
 
-        # TODO: optional parameter
-        # add contours
-        Popen([GMT, 'grdcontour', '-J', '-R', temp_grd, '-C10', \
-                '-W0.8p,black', '-K', '-O'], \
-                stdout = self.psf, cwd = self.wd).wait()
+        # clip path for land to crop overlay
+        if land_crop:
+            Popen([GMT, 'pscoast', '-J', '-R', '-Df', '-Gc', \
+                    '-K', '-O'], stdout = self.psf, cwd = self.wd).wait()
 
         # add resulting grid onto map
         # here '-Q' will make NaN transparent
@@ -621,6 +639,22 @@ class GMTPlot:
         # ignore stderr: usually because no data in area
         Popen(cmd, stdout = self.psf, stderr = self.sink, \
                 cwd = self.wd).wait()
+
+        # add contours
+        if contours != None:
+            Popen([GMT, 'grdcontour', '-J', '-R', temp_grd, \
+            '-C%s' % (contours), '-K', '-O', \
+            '-W%s,%s' % (contour_thickness, contour_colour)], \
+                    stdout = self.psf, stderr = self.sink, \
+                    cwd = self.wd).wait()
+
+        # apply land clip path
+        if land_crop:
+            Popen([GMT, 'pscoast', '-J', '-R', '-Q', '-K', '-O'], \
+                    stdout = self.psf, cwd = self.wd).wait()
+
+        # grd file not needed anymore, prevent clutter
+        os.remove(temp_grd)
 
     def fault(self, in_path, is_srf = False, \
             hyp_shape = 'a', hyp_size = 0.35, \
