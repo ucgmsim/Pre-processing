@@ -16,35 +16,69 @@ execute with 1st parameter being number of processes else interactive choice
 2. create render with custom input same format as timeslice ('3f4')
 execute with 1st parameter = single, second = source file
 
+NOTES:
+Processes seem to be IO limited (will see speedup with more processes with SSD).
+
 ISSUES:
 could validate parameters/check if folders/files exist.
 """
 
 import multiprocessing as mp
 import os
-from shutil import rmtree
+from shutil import copy, rmtree
 import sys
 from tempfile import mkdtemp
 from time import time
 
-from params import *
+from highres_modelpath import path_from_corners
+try:
+    from params import *
+    prefix = os.path.abspath(ts_out_prefix)
+    base_dir = os.path.abspath(sim_dir)
+except ImportError:
+    print('params.py not found. can only plot in single mode.')
+    base_dir = os.path.abspath('.')
 from shared_gmt import *
 
 # general setup
 title = 'Mw7.8 14 Nov 2016 Kaikoura Earthquake PGV'
 fault_model = 'InSAR source model (modified from Hamling) v2'
 vel_model = 'SIVM v1.65 h=0.4km'
-# default is inches
-map_width = 6
-prefix = ts_out_prefix
-ps_dir = os.path.join(sim_dir, 'PlotFiles')
-png_dir = os.path.join(sim_dir, 'Png')
-# temporary working directories for gmt are within here
-# prevent multiprocessing issues by isolating processes
-gmt_temp = os.path.join(sim_dir, 'GMT_WD')
-dpi = 300
+# pick a predefined region or specify manual values
+plot_region = 'MIDNZ'
+x_min, x_max, y_min, y_max = 0, 0, 0, 0
+dpi = 96
+# overlay grid resolution 'k' for killometres, 'e' for metres.
 grd_dx = '1k'
 grd_dy = '1k'
+# larger overlay grd limit improves speed, too large = bad results
+convergence_limit = 2
+# overlay cpt range min - max, with inc colour increment
+cpt = 'hot'
+cpt_min = 0
+cpt_max = 80
+cpt_inc = 10
+cpt_legend = 'ground motion (cm/s)'
+topo_file = os.path.abspath('nztopo.grd')
+stat_file = os.path.abspath('geonet_stations_20161119.ll')
+# values below lowcut or above highcut removed, if both then keep outside
+# TODO: only lowcut implemented
+cpt_lowcut = 2.0
+cpt_highcut = None
+# crop overlay to land
+land_crop = False
+map_width = 6
+png_dir = os.path.join(base_dir, 'Png')
+# seismogram overlay data, thickness, colour and format
+seismo_ll = os.path.abspath('gmt-seismo.xy')
+seismo_line = '0.8p'
+seismo_colour = 'magenta'
+seismo_fmt = 'time'
+# temporary working directories for gmt are within here
+# prevent multiprocessing issues by isolating processes
+gmt_temp = os.path.join(base_dir, 'GMT_WD')
+
+### END OF USER DEFINED INPUT
 
 # default purpose is create multiple images
 purpose = 'multi'
@@ -89,29 +123,28 @@ if plot_region == 'CANTERBURY':
     x_min, x_max, y_min, y_max = 171.75, 173.00, -44.00, -43.20
     region_sites = ['Rolleston', 'Darfield', 'Lyttelton', 'Akaroa', \
             'Kaiapoi', 'Rakaia', 'Oxford']
-    dist_scale = '-L172.50/-43.90/$modellat/25.0 -Ba30mf30mWSen'
+    dist_scale = '-L172.50/-43.90/$modellat/25.0'
 elif plot_region == 'WIDERCANT':
     x_min, x_max, y_min, y_max = 170.52, 173.67, -44.4, -42.53
     region_sites = ['Rolleston', 'Darfield', 'Lyttelton', 'Akaroa', \
             'Kaiapoi', 'Rakaia', 'Oxford']
-    dist_scale = '-L172.50/-43.90/$modellat/25.0 -Ba30mf30mWSen'
+    dist_scale = '-L172.50/-43.90/$modellat/25.0'
 elif plot_region == 'SOUTHISLAND':
     x_min, x_max, y_min, y_max = 166.0, 174.5, -47.50, -40.00
     region_sites = ['Queenstown', 'Dunedin', 'Tekapo', 'Timaru', \
             'Christchurch', 'Haast', 'Greymouth', 'Westport', \
             'Kaikoura', 'Nelson', 'Blenheim']
-    dist_scale = '-L173/-47/$modellat/50.0 -Ba60mf60mWSen'
+    dist_scale = '-L173/-47/$modellat/50.0'
 elif plot_region == 'MIDNZ':
     x_min, x_max, y_min, y_max = 168.2, 177.9, -45.7, -37.85
     region_sites = ['Queenstown', 'Tekapo', 'Timaru', 'Christchurch', \
             'Haast', 'Greymouth', 'Westport', 'Kaikoura', 'Nelson', \
             'Blenheim', 'Wellington', 'Palmerston North', \
             'Masterton', 'Napier', 'New Plymouth', 'Taupo', 'Rotorua']
-    dist_scale = '-L176/-45/$modellat/100.0 -Ba60mf60mWSen'
+    dist_scale = '-L176/-45/$modellat/100.0'
 else:
-    # TODO: optionally read custom region
-    print('Plotting Region Not Understood')
-    exit()
+    # optionally allow custom region
+    print('Plotting region not understood, using manual selection.')
 
 # avg lon/lat (midpoint of plotting region)
 ll_avg = (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
@@ -119,7 +152,7 @@ ll_avg = (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
 ll_region = (x_min, x_max, y_min, y_max)
 
 # clear output dirs
-for out_dir in [ps_dir, png_dir, gmt_temp]:
+for out_dir in [png_dir, gmt_temp]:
     if os.path.isdir(out_dir):
         rmtree(out_dir)
     os.makedirs(out_dir)
@@ -147,22 +180,31 @@ cnr_str = '\n'.join([' '.join(map(str, cnr)) for cnr in corners])
 ######################################################
 
 print('========== CREATING TEMPLATE ==========')
+cpt_land = '%s/land.cpt' % (gmt_temp)
+cpt_overlay = '%s/motion.cpt' % (gmt_temp)
+mask = '%s/modelmask.grd'% (gmt_temp)
+template_bottom = '%s/bottom.ps' % (gmt_temp)
+template_top = '%s/top.ps' % (gmt_temp)
 
 ### create resources that are used throughout the process
 t0 = time()
 # topography colour scale
-makecpt('cpt/palm_springs_1.cpt', '%s/land.cpt' % (gmt_temp), \
+makecpt('%s/cpt/palm_springs_1.cpt' % (os.path.dirname(__file__)), cpt_land, \
         -250, 9000, inc = 10, invert = True)
 # overlay colour scale
-makecpt('hot', '%s/motion.cpt' % (gmt_temp), 0, 80, inc = 10, invert = True)
+makecpt(cpt, cpt_overlay, cpt_min, cpt_max, \
+        inc = cpt_inc, invert = True)
 # simulation area mask
-grd_mask('../sim.modelpath_hr', '%s/modelmask.grd' % (gmt_temp), \
+path_from_corners(corners = corners, min_edge_points = 100, \
+        output = '%s/sim.modelpath_hr' % (gmt_temp))
+grd_mask('%s/sim.modelpath_hr' % (gmt_temp), mask, \
         dx = grd_dx, dy = grd_dy, region = ll_region)
 print('Created resources (%.2fs)' % (time() - t0))
 
 ### create a basemap template which all maps start with
 t1 = time()
-b = GMTPlot('%s/bottom.ps' % (gmt_temp))
+b = GMTPlot(template_bottom)
+# background can be larger as whitespace is later cropped
 b.background(11, 11)
 b.spacial('M', ll_region, sizing = map_width, \
         left_margin = 1, bottom_margin = 2.5)
@@ -171,11 +213,11 @@ b.text(ll_avg[0], y_max, title, size = 20, dy = 0.6)
 b.text(x_min, y_max, fault_model, size = 14, align = 'LB', dy = 0.3)
 b.text(x_min, y_max, vel_model, size = 14, align = 'LB', dy = 0.1)
 # topo, water, overlay cpt scale
-b.topo('../nztopo.grd', cpt = 'land.cpt')
+b.topo(topo_file, cpt = cpt_land)
 b.water(colour = 'lightblue', res = 'f')
-b.cpt_scale(3, -0.5, 'motion.cpt', 10, 10, label = 'ground motion (cm/s)')
+b.cpt_scale(3, -0.5, cpt_overlay, cpt_inc, cpt_inc, label = cpt_legend)
 # stations
-b.points('../geonet_stations_20161119.ll', shape = 't', size = 0.08, \
+b.points(stat_file, shape = 't', size = 0.08, \
         fill = None, line = 'white', line_thickness = 0.8)
 # do not finalise, close file
 b.leave()
@@ -184,9 +226,10 @@ print('Created bottom template (%.2fs)' % (time() - t1))
 ### add overlay if we are only plotting one input source
 if purpose == 'single':
     b.enter()
-    b.overlay(os.path.abspath(source), 'motion.cpt', \
-            dx = grd_dx, dy = grd_dy, climit = 2, min_v = 0, \
-            crop_grd = 'modelmask.grd')
+    b.overlay(os.path.abspath(source), cpt_overlay, \
+            dx = grd_dx, dy = grd_dy, climit = convergence_limit, \
+            min_v = cpt_lowcut, crop_grd = mask, \
+            contours = cpt_inc, land_crop = land_crop)
     b.leave()
 
 ### create map data which all maps will have on top
@@ -195,7 +238,7 @@ if purpose == 'single':
     t = b
     t.enter()
 else:
-    t = GMTPlot('%s/top.ps' % (gmt_temp), append = True)
+    t = GMTPlot(template_top, append = True)
 t.sites(region_sites)
 t.coastlines()
 # simulation domain
@@ -213,7 +256,7 @@ print('Created top template (%.2fs)' % (time() - t2))
 if purpose == 'single':
     t.enter()
     t.finalise()
-    t.png(dpi = dpi, clip = True)
+    t.png(dpi = dpi, out_dir = png_dir, clip = True)
     exit()
 
 ### estimate time savings
@@ -233,11 +276,16 @@ print('========== TEMPLATE COMPLETE ==========')
 def render_slice(n):
     t0 = time()
 
+    # prepare resources in separate folder
+    # prevents GMT IO errors on its conf/history files
+    swd = mkdtemp(prefix = 'ts%.4dwd_' % (n), dir = gmt_temp)
     # name of slice postscript
-    ps = '%s/ts%.4d.ps' % (gmt_temp, n)
+    ps = '%s/ts%.4d.ps' % (swd, n)
 
-    # copy basefile
-    copyfile('%s/bottom.ps' % (gmt_temp), ps)
+    # copy GMT setup and basefile
+    copy('%s/gmt.conf' % (gmt_temp), swd)
+    copy('%s/gmt.history' % (gmt_temp), swd)
+    copyfile(template_bottom, ps)
     s = GMTPlot(ps, append = True)
     # add timeslice timestamp
     s.text(x_max, y_max, 't=%.2fs' % (n * 0.1), \
@@ -249,24 +297,26 @@ def render_slice(n):
             '%s_ts%.4d.2' % (prefix, n), \
             '%s_ts%.4d.X' % (prefix, n), \
             native = False)
-    s.overlay('../%s_ts%.4d.X' % (prefix, n), 'motion.cpt', \
-            dx = grd_dx, dy = grd_dy, climit = 2, min_v = 2, \
-            crop_grd = 'modelmask.grd')
+    s.overlay('%s_ts%.4d.X' % (prefix, n), cpt_overlay, \
+            dx = grd_dx, dy = grd_dy, climit = convergence_limit, \
+            min_v = cpt_lowcut, crop_grd = mask, \
+            contours = cpt_inc, land_crop = land_crop)
 
     # append top file
     s.leave()
     with open(ps, 'a') as c:
-        with open('%s/top.ps' % (gmt_temp), 'r') as t:
+        with open(template_top, 'r') as t:
             c.write(t.read())
-    s = GMTPlot(ps, append = True)
+    s.enter()
 
     # add seismograms if wanted
-    s.seismo('../gmt-seismo.xy', n, fmt = 'time', \
-            colour = 'magenta', width = 0.8)
+    if os.path.exists(seismo_ll):
+        s.seismo(seismo_ll, n, fmt = seismo_fmt, \
+                colour = seismo_colour, width = seismo_line)
 
     # create PNG
     s.finalise()
-    s.png(dpi = dpi, clip = True)
+    s.png(dpi = dpi, out_dir = png_dir, clip = True)
 
     print('timeslice %d complete in %.2fs' % (n, time() - t0))
 
@@ -280,4 +330,5 @@ if purpose == 'multi':
     print('AVERAGE TIMESLICE TIME %.2fs' % \
             ((time() - ts0) / (ts_total - ts_start)))
 
-#rmtree(gmt_temp)
+# clear all working files
+rmtree(gmt_temp)
