@@ -7,10 +7,10 @@ from subprocess import Popen, PIPE
 
 R_EARTH = 6378.139
 # ideally implemented in python
-#ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
-#xy2ll_bin = '/nesi/projects/nesi00213/tools/xy2ll'
-ll2xy_bin = '/home/vap30/bin/ll2xy'
-xy2ll_bin = '/home/vap30/bin/xy2ll'
+ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
+xy2ll_bin = '/nesi/projects/nesi00213/tools/xy2ll'
+#ll2xy_bin = '/home/vap30/bin/ll2xy'
+#xy2ll_bin = '/home/vap30/bin/xy2ll'
 
 class InputError(Exception):
     pass

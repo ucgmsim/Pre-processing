@@ -8,8 +8,40 @@ import sys
 sys.path.append(os.path.abspath(os.path.curdir))
 from params import *
 
+
+# shortcut functions for conversion
+def get_gp(lon, lat):
+    return ll2gp(lat, lon, mlat, mlon, mrot, nx, ny, hh)
+def get_ll(x, y):
+    return gp2ll(x, y, mlat, mlon, mrot, nx, ny, hh)
+
+
 verify_strings([MODEL_LAT, MODEL_LON, MODEL_ROT, hh, nx, ny])
 verify_dirs([stat_dir])
+
+
+if len(sys.argv)<2:
+    print "Usage: %s code outpath" %sys.argv[0]
+    print "code: XXX in fd_XXX01-hHH.[statcords,ll] format name"
+    print "outpath: path for output files"
+    print "Example: %s sinz ."%sys.argv[0]
+    print "produces fd_sinz01_hHH.ll and fd_sinz01_hHH.statcords in the current directory"
+    sys.exit(0)
+
+code = sys.argv[1]
+outpath = sys.argv[2]
+
+outpath = path.abspath(outpath)
+filename = 'fd_%s01-h%s'%(code,hh)
+
+# arbitrary longlat station input
+ll_in = stat_file
+# where to save gridpoint and longlat station files
+gp_out = path.join(outpath, '%s.statcords' % (filename))
+ll_out = path.join(outpath, '%s.ll' % (filename))
+
+print gp_out
+print ll_out
 
 # velocity model parameters
 nx = int(nx)
@@ -18,18 +50,6 @@ mlat = float(MODEL_LAT)
 mlon = float(MODEL_LON)
 mrot = float(MODEL_ROT)
 hh = float(hh)
-
-# arbitrary longlat station input
-ll_in = stat_file
-# where to save gridpoint and longlat station files
-gp_out = path.join(stat_dir, 'fd_amb01-h%s.statcords' % (hh))
-ll_out = path.join(stat_dir, 'fd_amb01-h%s.ll' % (hh))
-
-# shortcut functions for conversion
-def get_gp(lon, lat):
-    return ll2gp(lat, lon, mlat, mlon, mrot, nx, ny, hh)
-def get_ll(x, y):
-    return gp2ll(x, y, mlat, mlon, mrot, nx, ny, hh)
 
 # retrieve in station names, latitudes and longitudes
 sname, slat, slon = get_stations(ll_in, locations = True)
