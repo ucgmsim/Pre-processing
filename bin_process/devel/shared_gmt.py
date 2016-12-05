@@ -531,7 +531,7 @@ class GMTPlot:
         thickness: how thick the scale should be drawn
         horiz: whether to make it horizontal (True) or vertical (False)
         arrow_f: show the forwards continuation arrow (above range)
-        arrow_b: show the backwards continuation arrow (belaw range)
+        arrow_b: show the backwards continuation arrow (below range)
         """
         # build command based on parameters
         pos = '-D%s/%s/%s/%s' % (x, y, length, thickness)

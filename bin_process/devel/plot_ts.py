@@ -41,12 +41,11 @@ except ImportError:
 from shared_gmt import *
 
 # general setup
-title = 'Mw7.8 14 Nov 2016 Kaikoura Earthquake PGV'
+title = 'Mw7.8 14 Nov 2016 Kaikoura Earthquake'
 fault_model = 'InSAR source model (modified from Hamling) v2'
-vel_model = 'SIVM v1.65 h=0.4km'
-# pick a predefined region or specify manual values
-plot_region = 'MIDNZ'
-x_min, x_max, y_min, y_max = 0, 0, 0, 0
+vel_model = 'SIVM v1.65 h=0.2km'
+# pick a predefined region or model_params used
+plot_region = ''
 dpi = 96
 # overlay grid resolution 'k' for killometres, 'e' for metres.
 grd_dx = '1k'
@@ -114,6 +113,27 @@ elif purpose == 'multi':
             print('Invalid input. Exiting.')
             exit()
 
+# clear output dirs
+for out_dir in [png_dir, gmt_temp]:
+    if os.path.isdir(out_dir):
+        rmtree(out_dir)
+    os.makedirs(out_dir)
+
+# make temp file with simulation boundaries
+# with -45 degree rotation:
+#   c2
+# c1  c3
+#   c4
+corners = []
+with open(vel_mod_params, 'r') as vmpf:
+    lines = vmpf.readlines()
+    # make sure they are read in the correct order at efficiency cost
+    for corner in ['c1=', 'c2=', 'c3=', 'c4=']:
+        for line in lines:
+            if corner in line:
+                corners.append(map(float, line.split()[1:3]))
+# corners in GMT format
+cnr_str = '\n'.join([' '.join(map(str, cnr)) for cnr in corners])
 
 # definition of known/predetermined regions to plot for
 # region to plot
@@ -144,35 +164,19 @@ elif plot_region == 'MIDNZ':
     dist_scale = '-L176/-45/$modellat/100.0'
 else:
     # optionally allow custom region
-    print('Plotting region not understood, using manual selection.')
+    print('Plotting region not understood, using model domain.')
+    x_min = min([xy[0] for xy in corners])
+    x_max = max([xy[0] for xy in corners])
+    y_min = min([xy[1] for xy in corners])
+    y_max = max([xy[1] for xy in corners])
+    region_sites = ['Tekapo', 'Timaru', 'Christchurch', 'Greymouth', \
+            'Westport', 'Kaikoura', 'Nelson', 'Blenheim', 'Wellington', \
+            'Palmerston North', 'Masterton', 'New Plymouth', 'Taupo']
 
 # avg lon/lat (midpoint of plotting region)
 ll_avg = (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
 # combined region
 ll_region = (x_min, x_max, y_min, y_max)
-
-# clear output dirs
-for out_dir in [png_dir, gmt_temp]:
-    if os.path.isdir(out_dir):
-        rmtree(out_dir)
-    os.makedirs(out_dir)
-
-# make temp file with simulation boundaries
-# with -45 degree rotation:
-#   c2
-# c1  c3
-#   c4
-corners = []
-with open(vel_mod_params, 'r') as vmpf:
-    lines = vmpf.readlines()
-    # make sure they are read in the correct order at efficiency cost
-    for corner in ['c1=', 'c2=', 'c3=', 'c4=']:
-        for line in lines:
-            if corner in line:
-                corners.append(map(float, line.split()[1:3]))
-cnr_str = '\n'.join([' '.join(map(str, cnr)) for cnr in corners])
-
-
 
 ###
 ### PLOTTING STARTS HERE - TEMPLATE
