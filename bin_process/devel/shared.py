@@ -32,6 +32,7 @@ def get_stations(source_file, locations = False):
         for line in sp.readlines():
             if line[0] not in  ['#', '%']:
                 info = line.split()
+                print info
                 stations.append(info[2])
                 if locations:
                     station_lons.append(info[0])
