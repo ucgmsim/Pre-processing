@@ -16,8 +16,12 @@ def confirm(q):
     print q
     return show_yes_no_question()
 
+hf_sim_dirs= glob.glob('%s/*'%hf_sim_basedir)
+print hf_sim_dirs
+print hf_sim_basedir
 
-hf_sim_dirs=glob.glob('HF/%s/*'%hf_sim_basedir)
+#hf_sim_dirs=[x.replace(hf_sim_basedir+'/','') for x in hf_sim_dirs]
+#print hf_sim_dirs
 
 f_template=open('run_bb.ll.template')
 template=f_template.readlines()
@@ -30,9 +34,11 @@ for hf_sim_dir in hf_sim_dirs:
     bb_sim_dir = hf_sim_dir.replace('HF','BB')
     
     str=str_template.replace("$hf_sim_dir",hf_sim_dir)
-    str=str_template.replace("$bb_sim_dir",bb_sim_dir)
+    str=str.replace("$bb_sim_dir",bb_sim_dir)
 
-    variation = '_'.join(hf_sim_dir.split('/')[1:3])
+#    variation = '_'.join(hf_sim_dir.split('/')[0:2])
+    variation = hf_sim_dir.replace(hf_dir+'/','').replace('/','__')
+    print variation
     fname_llscript='run_bb_%s.ll'%variation
     f_llscript=open(fname_llscript,'w')
     f_llscript.write('# script version: %s\n'%bin_process_ver)
