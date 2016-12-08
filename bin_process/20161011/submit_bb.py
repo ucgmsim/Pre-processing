@@ -6,7 +6,7 @@ from version import *
 bin_process_dir = os.path.join(bin_process_path,bin_process_ver)
 sys.path.append(os.path.abspath(os.path.curdir))
 from params import *
-from params_bb_base import *
+from params_base_bb import *
 
 sys.path.append(bin_process_dir)
 from shared import *
