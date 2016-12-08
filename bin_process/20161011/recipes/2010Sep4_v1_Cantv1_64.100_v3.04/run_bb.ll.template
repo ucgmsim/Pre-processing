@@ -26,9 +26,9 @@ export BINPROCESS=/nesi/projects/nesi00213/Pre-processing/bin_process/$VERSION
 
 case $LOADL_STEP_NAME in
         hf)
-                python $BINPROCESS/hfsims-stats.py ;;
+                python $BINPROCESS/hfsims-stats.py $hf_sim_dir;;
         bb)
-                python $BINPROCESS/match_seismo.py ;;
+                python $BINPROCESS/match_seismo.py $bb_sim_dir;;
 esac
 
 

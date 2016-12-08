@@ -23,6 +23,18 @@ from shared import *
 from params import *
 from params_base_bb import *
 
+
+if len(sys.argv)!=2:
+    print "Usage: %s bb_sim_dir" %sys.argv[1]
+    print "Note that bb_sim_dir is where the output will be stored"
+    sys.exit(0)
+
+bb_sim_dir = sys.argv[1]
+
+sys.path.append(bb_sim_dir)
+from params_uncertain_bb import *
+
+
 # working files
 tmp_filelist = 'temp.filter_list'
 lf_copy = 'temp.lf'

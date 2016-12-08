@@ -21,6 +21,15 @@ from params_base_bb import *
 
 local_statfile = os.path.join(hf_sim_dir, 'local.statfile')
 
+if len(sys.argv)!=2:
+    print "Usage: %s hf_sim_dir" %sys.argv[1]
+    print "Note that hf_sim_dir is where the output will be stored"
+    sys.exit(0)
+
+hf_sim_dir = sys.argv[1]
+sys.path.append(hf_sim_dir)
+from params_uncertain_bb import *
+
 # verify input incl. params.py
 verify_binaries([hf_sim_bin])
 verify_files([stat_file, hf_slip, hf_v_model])
