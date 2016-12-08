@@ -164,15 +164,6 @@ ts_out_prefix = os.path.join(ts_out_dir, run_name)
 
 ################## plot_ts ####################
 
-# area to be shown/plotted
-# CANTERBURY, SOUTHISLAND
-plot_region = 'CANTERBURY'
-
-# main title and subtitles that appears at the top of the picture
-plot_main_title = 'Mw7.1 4 Sept 2010 Earthquake'
-desc_fault_model = 'USGS automated source inversion'
-desc_vel_model = 'SIVM v1.65 h=0.4km'
-
 # show seismograms for following stations
 # longitude, latitude, offset, offset azimuth
 # (decimal), (decimal), (km),  (degrees true)
@@ -187,52 +178,6 @@ plot_seismo_style = "SCEC"
 
 # details of the spatial and termporal discretization and spacing
 plot_orig_dt = '0.1'  # time step of the time slice output (this is DT*DT_TS from the run files)
-
-# output dirs and resolution (dpi)
-plot_ps_dir = os.path.join(t_slice_dir, 'PlotFiles')
-plot_png_dir = os.path.join(t_slice_dir, 'Png')
-plot_res = '140'   # 720 for PDF quality
-
-# topography
-plot_topo_dir = os.path.join(global_root, 'PlottingData/TopoData')
-plot_topo_file = os.path.join(plot_topo_dir, 'srtm_71_21.grd')
-plot_topo_illu = '-I' + os.path.join(plot_topo_dir, 'srtm_71_21_i5.grd')
-plot_topo_file_2 = os.path.join(plot_topo_dir, 'etopo2.grd')
-# velocity for plotting (colour palette)
-# when absmax=0, max/min is taken as pos/neg
-# ie. VALUES HERE SHOULD BE POSITIVE
-# min is cutoff (below this is transparent)
-plot_topo_a_min = '1.0'
-# inc is colour change step
-plot_topo_a_inc = '10'
-# anything at or above max shows up as max
-plot_topo_a_max = '50'
-
-# 'finitefault' or 'pointsource'
-plot_type = 'finitefault'
-# fault plane resources
-fault_plane_dir = os.path.join(global_root, 'PlottingData', 'sourcesAndStrongMotionStations')
-fault_file = os.path.join(fault_plane_dir, 'bev01_DarfieldFaultPlane.xy')
-plot_fault_add_plane = os.path.join(fault_plane_dir, 'addStandardFaultPlane.sh')
-plot_fault_line = '-W0.5p,black,-'
-plot_fault_top_edge = '-W2p,black'
-plot_fault_hyp_open = '-W1p,black'
-# pointsource resources
-plot_beachball = '171.9773 -43.252 8 154 83 16 62 74 173 7.98 22 171.9773 -43.252 4.6'
-
-# set PALETTE = '-Crelief.cpt'
-plot_palette = '-Cgray'
-
-# location of offset plotting (for when 3 component plotting used - not currently utilized)
-plot_x_org = '1.15'
-plot_y_org = '2.5'
-plot_x_inch = '5.0'
-plot_x_shift = '%0.6f' % (float(plot_x_inch) + 0.2)
-
-# specify the increments of X/Y (cartesian coords) for masks etc.
-plot_dx = '0.002'
-plot_dy = '0.002'
-
 
 ################## hf_sim ####################
 # check source code in bin dir for more help #
@@ -337,7 +282,4 @@ Y_BND_PAD = 0
 MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_nz01-h0.100')
 # output statgrid file
 STATGRID_GEN = 'statgrid-0.5x0.5-nz01_h0.100.ll'
-
-
-
 

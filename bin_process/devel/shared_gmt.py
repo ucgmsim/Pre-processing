@@ -439,7 +439,8 @@ class GMTPlot:
                 stdout = self.psf, cwd = self.wd).wait()
 
     def points(self, xy_file, shape = 't', size = 0.08, \
-            fill = None, line = 'white', line_thickness = '0.8p'):
+            fill = None, line = 'white', line_thickness = '0.8p', \
+            cpt = None):
         """
         Adds points to map.
         xy_file: file containing x, y positions to plot
@@ -448,12 +449,15 @@ class GMTPlot:
         fill: fill colour of shape (default transparent)
         line: line colour of shape
         line_thickness: how thick the outline is
+        cpt: fill using cpt (input has 3 columns, xyv)
         """
         # build command based on optional fill and thickness
         cmd = [GMT, 'psxy', '-J', '-R', xy_file, \
                 '-S%s%s' % (shape, size), '-K', '-O']
         if fill != None:
             cmd.append('-G%s' % (fill))
+        elif cpt != None:
+            cmd.append('-C%s' % (cpt))
         if line != None:
             cmd.append('-W%s,%s' % (line_thickness, line))
 
@@ -531,7 +535,7 @@ class GMTPlot:
         thickness: how thick the scale should be drawn
         horiz: whether to make it horizontal (True) or vertical (False)
         arrow_f: show the forwards continuation arrow (above range)
-        arrow_b: show the backwards continuation arrow (belaw range)
+        arrow_b: show the backwards continuation arrow (below range)
         """
         # build command based on parameters
         pos = '-D%s/%s/%s/%s' % (x, y, length, thickness)
