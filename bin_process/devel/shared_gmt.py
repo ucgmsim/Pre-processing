@@ -440,7 +440,7 @@ class GMTPlot:
 
     def points(self, xy_file, shape = 't', size = 0.08, \
             fill = None, line = 'white', line_thickness = '0.8p', \
-            cpt = None):
+            cpt = None, cols = None):
         """
         Adds points to map.
         xy_file: file containing x, y positions to plot
@@ -450,6 +450,7 @@ class GMTPlot:
         line: line colour of shape
         line_thickness: how thick the outline is
         cpt: fill using cpt (input has 3 columns, xyv)
+        cols: override columns to be used as specified by GMT '-i'
         """
         # build command based on optional fill and thickness
         cmd = [GMT, 'psxy', '-J', '-R', xy_file, \
@@ -460,6 +461,8 @@ class GMTPlot:
             cmd.append('-C%s' % (cpt))
         if line != None:
             cmd.append('-W%s,%s' % (line_thickness, line))
+        if cols != None:
+            cmd.append('-i%s' % (cols))
 
         Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
 
@@ -508,7 +511,7 @@ class GMTPlot:
         if fmt == 'time':
             gp = Popen(['grep', src, '-e', '^>TS%d ' % (time), \
                     '-A%d' % (time + 1)], stdout = PIPE, cwd = self.wd)
-        elif gmt == 'inc':
+        elif fmt == 'inc':
             gp = Popen(['grep', src, '-e', '^>', \
                     '-A%d' % (time + 1)], stdout = PIPE, cwd = self.wd)
         gmt_in = gp.communicate()[0]
@@ -555,7 +558,7 @@ class GMTPlot:
             custom_region = None, transparency = 40, climit = 1.0, \
             limit_low = None, limit_high = None, contours = None, \
             contour_thickness = 0.2, contour_colour = 'black', \
-            land_crop = False):
+            land_crop = False, binary = True):
         """
         Plot a GMT overlay aka surface.
         xyv_file: file containing x, y and amplitude values
@@ -594,8 +597,10 @@ class GMTPlot:
 
         # create surface grid
         cmd = [GMT, 'surface', xyv_file, '-G%s' % (temp_grd), '-T0.0', \
-                '-I%s/%s' % (dx, dy), '-bi3f', \
+                '-I%s/%s' % (dx, dy), \
                 '-C%s' % (climit), region]
+        if binary:
+            cmd.append('-bi3f')
         if limit_low != None:
             cmd.append('-Ll%s' % (limit_low))
         if limit_high != None:
