@@ -8,7 +8,10 @@ from params_base import *
 import glob
 from shared import *
 from version import *
-  
+
+params_hf_uncertain = 'params_hf_uncertain.py'
+params_bb_uncertain = 'params_bb_uncertain.py'
+ 
 def q1(v_mod_1d_dir): 
     show_horizontal_line()
     print "Select one of 1D Velocity models (from %s)" %v_mod_1d_dir
@@ -38,21 +41,40 @@ def q2(v_mod_1d_name):
     return yes, hf_run_name
     
 def action(hf_run_name,v_mod_1d_selected):
-    hf_sim_dir, bb_sim_dir = os.path.join(hf_dir,hf_run_name), os.path.join(bb_dir,hf_run_name)
-    dir_list =  [hf_sim_dir, bb_sim_dir]
+    hf_sim_basedir, bb_sim_basedir = os.path.join(hf_dir,hf_run_name), os.path.join(bb_dir,hf_run_name)
+    dir_list =  [hf_sim_basedir, bb_sim_basedir]
     
     verify_user_dirs(dir_list)
     
     f=open(os.path.join(sim_dir,"params_base_bb.py"),"w");
     f.write("hf_run_name='%s'\n"%hf_run_name)
-    f.write("hf_sim_dir='%s'\n"%hf_sim_dir)
-    f.write("bb_sim_dir='%s'\n"%bb_sim_dir)
-    f.write("hf_accdir='%s'\n"%os.path.join(hf_sim_dir,"Acc"))
-    f.write("hf_veldir='%s'\n"%os.path.join(hf_sim_dir,"Vel"))
-    f.write("bb_accdir='%s'\n"%os.path.join(bb_sim_dir,"Acc"))
-    f.write("bb_veldir='%s'\n"%os.path.join(bb_sim_dir,"Vel"))
+    f.write("hf_sim_basedir='%s'\n"%hf_sim_basedir)
+    f.write("bb_sim_basedir='%s'\n"%bb_sim_basedir)
     f.write("hf_v_model='%s'\n"%v_mod_1d_selected)
     f.close()
+
+    for i, srf_file in enumerate(srf_files):
+        dirs = []
+        srf_file_basename = os.path.basename(srf_file).split('.')[0] #take the filename only
+        hf_sim_dir = os.path.join(hf_sim_basedir,srf_file_basename)
+        bb_sim_dir = os.path.join(bb_sim_basedir,srf_file_basename)
+        dirs.append(hf_sim_dir)
+        dirs.append(bb_sim_dir)
+
+        verify_user_dirs(dirs)
+        params_bb_uncertain_file = os.path.join(bb_sim_dir,params_bb_uncertain) 
+        with open(params_bb_uncertain_file,'w') as f:
+            f.write("hf_accdir='%s'\n"%os.path.join(hf_sim_dir,"Acc"))
+            f.write("hf_veldir='%s'\n"%os.path.join(hf_sim_dir,"Vel"))
+            f.write("bb_accdir='%s'\n"%os.path.join(bb_sim_dir,"Acc"))
+            f.write("bb_veldir='%s'\n"%os.path.join(bb_sim_dir,"Vel"))
+    
+    os.symlink(params_bb_uncertain_file, os.path.join(hf_sim_dir,params_bb_uncertain))
+    
+    set_permission(hf_sim_basedir)
+    set_permission(bb_sim_basedir)
+
+
 
     #creating symbolic link between matching HF and BB directories
 #    try: 
@@ -64,8 +86,6 @@ def action(hf_run_name,v_mod_1d_selected):
 #    except OSError:
 #        print "Directory already exists: %s" %os.path.join(bb_sim_dir,"HF")
 
-    set_permission(hf_sim_dir)
-    set_permission(bb_sim_dir)
 
 
 def main():
