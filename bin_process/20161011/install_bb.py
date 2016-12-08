@@ -9,7 +9,6 @@ import glob
 from shared import *
 from version import *
 
-params_hf_uncertain = 'params_hf_uncertain.py'
 params_bb_uncertain = 'params_bb_uncertain.py'
  
 def q1(v_mod_1d_dir): 
@@ -68,8 +67,11 @@ def action(hf_run_name,v_mod_1d_selected):
             f.write("hf_veldir='%s'\n"%os.path.join(hf_sim_dir,"Vel"))
             f.write("bb_accdir='%s'\n"%os.path.join(bb_sim_dir,"Acc"))
             f.write("bb_veldir='%s'\n"%os.path.join(bb_sim_dir,"Vel"))
-    
-    os.symlink(params_bb_uncertain_file, os.path.join(hf_sim_dir,params_bb_uncertain))
+
+        params_hf_uncertain_file = os.path.join(hf_sim_dir,params_bb_uncertain)
+        print params_hf_uncertain_file 
+        os.symlink(params_bb_uncertain_file, params_hf_uncertain_file)
+
     
     set_permission(hf_sim_basedir)
     set_permission(bb_sim_basedir)
