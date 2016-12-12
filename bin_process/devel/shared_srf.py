@@ -6,11 +6,26 @@ https://scec.usc.edu/scecpedia/Standard_Rupture_Format
 """
 
 from math import ceil, cos, radians
+from subprocess import Popen, PIPE
+
+import numpy as np
 
 from tools import *
 
+# binary paths
+srf2xyz = '/nesi/projects/nesi00213/tools/srf2xyz'
 # assumption that all srf files contain 6 values per line
 VPL = 6.
+
+def get_nseg(srf):
+    """
+    Returns number of segments in SRF file.
+    srf: filepath to srf
+    """
+    with open(srf, 'r') as sf:
+        sf.readline()
+        nseg = int(sf.readline().split()[1])
+    return nseg
 
 def read_header(sf):
     """
@@ -70,7 +85,7 @@ def get_bounds(srf, seg = -1):
         points = int(sf.readline().split()[1])
 
         # each plane has a separate set of corners
-        for plane in planes:
+        for n, plane in enumerate(planes):
             plane_bounds = []
             nstk, ndip = plane[2:4]
             # set of points starts at corner
@@ -84,7 +99,9 @@ def get_bounds(srf, seg = -1):
             # travel along strike at bottom of dip
             skip_points(sf, nstk - 2)
             plane_bounds.insert(2, get_lonlat(sf))
-            # store plane bounds
+            # store plane bounds or return if only 1 wanted
+            if n == seg:
+                return plane_bounds
             bounds.append(plane_bounds)
     return bounds
 
@@ -108,4 +125,30 @@ def get_hypo(srf):
         lat, lon = ll_shift(lat, lon, flat_dhyp, strike + 90)
 
         return lon, lat
+
+def srf2llv(srf, seg = '-1', type = 'slip', depth = False):
+    """
+    Get longitude, latitude, depth (optional) and value of 'type'
+    srf: filepath of SRF file
+    seg: which segments to read (-1 for all)
+    type: which parameter to read
+    depth: whether to also include depth at point
+    """
+    proc = Popen([srf2xyz, 'calc_xy=0', 'lonlatdep=1', \
+            'dump_slip=0', 'infile=%s' % (srf), \
+            'type=%s' % (type), 'nseg=%d' % (seg)], stdout = PIPE)
+    out, err = proc.communicate()
+    code = proc.wait()
+    # process output
+    llv = np.fromstring(out, dtype = 'f4', sep = ' ')
+
+    # create a slice filter if depth not wanted
+    # longitude, latitude, depth, value
+    if not depth:
+        mask = np.array([True, True, False, True])
+    else:
+        mask = np.array([True, True, True, True])
+
+    # output from srf2xyz is 4 columns wide
+    return np.reshape(llv, (len(llv) // 4, 4))[:, mask]
 

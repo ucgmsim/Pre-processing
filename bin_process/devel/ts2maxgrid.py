@@ -18,36 +18,31 @@ from math import ceil, sqrt
 
 import numpy as np
 
-from params import nx, ny, dx_ts, dy_ts, dt, dt_ts
-from shared_ts import vel2acc
-
-# 'PGV' or 'PGA'
-MODE = 'PGA'
+from params import ts_out_prefix, nx, ny, dx_ts, dy_ts, dt, dt_ts
 
 xs = int(nx) // int(dx_ts)
 ys = int(ny) // int(dy_ts)
 points = xs * ys
 
 # input
-tsfiles = glob('TSFiles/*.X')
+tsfiles = glob('%s*.X' % ts_out_prefix)
 
 # np.memmap cannot open more than 1000 files.
 # work on smaller sets to reduce memory usage.
 sset = 100
 tsmax = np.zeros(shape = (points))
-if MODE == 'PGV':
-    for fset in xrange(int(ceil(len(tsfiles) / float(sset)))):
-        tsmax = np.maximum(tsmax, np.max(np.array([np.fromfile(f, dtype = '3<f')[:, -1] \
-                for f in tsfiles[fset * sset:(fset + 1) * sset]], dtype = 'f'), axis = 0))
-elif MODE == 'PGA':
-    dt = float(dt) * int(dt_ts)
-    for fset in xrange(int(ceil(len(tsfiles) / float(sset)))):
-        tsmax = np.maximum(tsmax, np.max(np.array([vel2acc(np.fromfile(f, dtype = '3<f')[:, -1], dt) \
-                for f in tsfiles[fset * sset:(fset + 1) * sset]], dtype = 'f'), axis = 0))
+for fset in xrange(int(ceil(len(tsfiles) / float(sset)))):
+    tsmax = np.maximum(tsmax, np.max(np.array([np.fromfile(f, dtype = '3<f')[:, -1] \
+            for f in tsfiles[fset * sset:(fset + 1) * sset]], dtype = 'f'), axis = 0))
 
 # replace latitude and longitude
 tsmaxgrid = np.fromfile(tsfiles[0], dtype = '<f')
 tsmaxgrid[2::3] = tsmax
+tsmaxgrid.astype(np.float32).tofile('PGV.bin')
 
-# output
-tsmaxgrid.astype(np.float32).tofile('statgrid_max.bin')
+# also generate MMI
+mmi = np.where(np.log10(tsmax) < 0.53, \
+        3.78 + 1.47 * np.log10(tsmax), \
+        2.89 + 3.16 * np.log10(tsmax))
+tsmaxgrid[2::3] = mmi
+tsmaxgrid.astype(np.float32).tofile('MMI.bin')

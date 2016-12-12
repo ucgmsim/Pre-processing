@@ -32,6 +32,7 @@ from time import time
 
 from highres_modelpath import path_from_corners
 try:
+    from params_base import *
     from params import *
     prefix = os.path.abspath(ts_out_prefix)
     base_dir = os.path.abspath(sim_dir)
@@ -59,7 +60,7 @@ cpt_max = 80
 cpt_inc = 10
 cpt_legend = 'ground motion (cm/s)'
 topo_file = os.path.abspath('nztopo.grd')
-stat_file = os.path.abspath('geonet_stations_20161119.ll')
+stat_file = os.path.abspath('geonet_stations_20161205.ll')
 # values below lowcut or above highcut removed, if both then keep outside
 # TODO: only lowcut implemented
 cpt_lowcut = 2.0
