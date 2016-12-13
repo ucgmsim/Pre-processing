@@ -9,13 +9,17 @@ from math import ceil, log, pi
 
 # sosfilt new in scipy 0.16
 # sosfiltfilt new in scipy 0.18
-from scipy.signal import butter
+try:
+    from scipy.signal import butter
+    # this is a local import
+    from sosfiltfilt import sosfiltfilt
+except ImportError:
+    print('SciPy not installed. Certain functions will fail.')
 import numpy as np
 rfft = np.fft.rfft
 irfft = np.fft.irfft
 
 from params import *
-from sosfiltfilt import sosfiltfilt
 
 # butterworth filter
 # bandpass not necessary as sampling frequency too low

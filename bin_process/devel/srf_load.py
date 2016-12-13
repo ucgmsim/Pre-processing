@@ -21,7 +21,7 @@ from shared_gmt import *
 from shared_srf import *
 from tools import *
 
-srf = 'v19.srf'
+srf = 'standard_m5.60-5.1x5.1_s103245.srf'
 
 # output directory for srf resources
 out_dir = os.path.abspath('SRF_RES')
@@ -53,7 +53,7 @@ for seg in xrange(len(bounds)):
     x_max, y_max = np.max(path, axis = 0)
     grd_mask('%s/slip_map_%d.bounds' % (out_dir, seg), \
             '%s/slip_map_%d.mask' % (out_dir, seg), \
-            dx = '0.1km', dy = '0.1km', \
+            dx = '0.005km', dy = '0.005km', \
             region = ll_region)
 print("Loading complete.")
 
@@ -87,17 +87,19 @@ with open('%s/corners.txt' % (out_dir), 'w') as cf:
 ### OUTPUT 3: GMT MAP
 ###
 
-makecpt('hot', '%s/slip.cpt' % (out_dir), 0, 150, 1, invert = True)
+makecpt('hot', '%s/slip.cpt' % (out_dir), 0, 100, 1, invert = True)
 gmt_defaults(wd = out_dir)
 p = GMTPlot('%s/plot.ps' % (out_dir))
 p.background(11, 11)
-p.spacial('M', ll_region, sizing = 6, left_margin = 1, bottom_margin = 2.5)
+p.spacial('M', (x_min - 0.1, x_max + 0.1, y_min - 0.1, y_max + 0.1), sizing = 6, left_margin = 1, bottom_margin = 2.5)
 p.land()
 p.water()
 for seg in xrange(len(bounds)):
     p.overlay('%s/slip_map_%d.bin' % (out_dir, seg), \
-            '%s/slip.cpt' % (out_dir), dx = '0.1km', dy = '0.1km', \
+            '%s/slip.cpt' % (out_dir), dx = '0.005km', dy = '0.005km', \
             climit = 2, crop_grd = '%s/slip_map_%s.mask' % (out_dir, seg), \
-            land_crop = False)
+            land_crop = False, custom_region = ll_region)
+p.fault('standard_m5.60-5.1x5.1_s103245.srf', is_srf = True)
+p.ticks(major = '10m', minor = '5m', sides = 'ws')
 p.finalise()
 p.png()

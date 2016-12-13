@@ -291,7 +291,8 @@ class GMTPlot:
         Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
 
     def text(self, x, y, text, dx = 0, dy = 0, align = 'CB', \
-            size = '10p', font = 'Helvetica', colour = 'black'):
+            size = '10p', font = 'Helvetica', colour = 'black', \
+            clip = False):
         """
         Add text to plot.
         x: x position
@@ -303,11 +304,14 @@ class GMTPlot:
         size: font size
         font: font familly
         colour: font colour
+        clip: crop text to map boundary
         """
-        tproc = Popen([GMT, 'pstext', '-J', '-R', '-K', '-O', \
-                '-D%s/%s' % (dx, dy), '-N', \
-                '-F+f%s,%s,%s+j%s' % (size, font, colour, align)], \
-                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        cmd = [GMT, 'pstext', '-J', '-R', '-K', '-O', \
+                '-D%s/%s' % (dx, dy), \
+                '-F+f%s,%s,%s+j%s' % (size, font, colour, align)]
+        if not clip:
+            cmd.append('-N')
+        tproc = Popen(cmd, stdin = PIPE, stdout = self.psf, cwd = self.wd)
         tproc.communicate('%s %s %s\n' % (x, y, text))
         tproc.wait()
 
