@@ -67,6 +67,14 @@ sites = { \
     'Timaru':(171.2430556, -44.3958333, 'LM'), \
     'Wellington':(174.777222, -41.288889, 'RM'), \
     'Westport':(171.5997222, -41.7575000, 'RM')}
+# sites which can be drawn on an NZ wide map
+# shouldn't have problems with overlapping
+sites_major = ['Blenheim', 'Christchurch', 'Dunedin', 'Greymouth', \
+        'Haast', 'Kaikoura', 'Masterton', 'Napier', 'New Plymouth', \
+        'Nelson', 'Palmerston North', 'Queenstown', 'Rotorua', \
+        'Taupo', 'Tekapo', 'Timaru', 'Wellington', 'Westport']
+# region to use when plotting the whole of NZ
+nz_region = (166, 179, -47.5, -34)
 
 ###
 ### ACCESSORY FUNCTIONS
