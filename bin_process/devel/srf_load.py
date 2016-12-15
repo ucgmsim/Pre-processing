@@ -12,6 +12,7 @@ Creates a standard corners file to plot fault planes.
 Creates a GMT plot of the SRF file.
 """
 
+from math import log10
 import os
 from shutil import rmtree
 import sys
@@ -27,6 +28,8 @@ srf = 'standard_m5.60-5.1x5.1_s103245.srf'
 
 dpi = 300
 
+# illumination file should be in the same directory
+topo = os.path.abspath('nztopo.grd')
 cpt = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
         'cpt', 'slip.cpt')
 
@@ -83,6 +86,13 @@ percentile = np.percentile(values, 95)
 maximum = np.max(values)
 average = np.average(values)
 subfaults = len(values)
+# round percentile significant digits for colour pallete
+if percentile < 1000:
+    # 1 sf
+    cpt_max = round(percentile, -int(log10(percentile)))
+else:
+    # 2 sf
+    cpt_max = round(percentile, -int(log10(percentile) - 1))
 print('Loading complete.')
 
 
@@ -108,7 +118,10 @@ print('Corners written to %s.' % ('%s/corners.txt' % (out_dir)))
 ### OUTPUT 3: GMT MAP
 ###
 print('Plotting SRF on map...')
-makecpt(cpt, '%s/slip.cpt' % (out_dir), 0, percentile, 1)
+makecpt(cpt, '%s/slip.cpt' % (out_dir), 0, cpt_max, 1)
+# also make a cpt to properly stretch topo colours
+topo_cpt = '%s/topo.cpt' % (out_dir)
+makecpt('gray', topo_cpt, -10000, 3000, inc = 10)
 gmt_defaults(wd = out_dir)
 p = GMTPlot('%s/srf_map.ps' % (out_dir))
 p.background(20, 15)
@@ -131,6 +144,7 @@ while True:
     else:
         break
 p.land()
+p.topo(topo, cpt = topo_cpt)
 p.water()
 for seg in xrange(len(bounds)):
     p.overlay('%s/slip_map_%d.bin' % (out_dir, seg), \
@@ -154,6 +168,7 @@ p.spacial('M', nz_region, sizing = 4, left_margin = zoom_width + 1)
 # height of NZ map
 full_height = mapproject(nz_region[0], nz_region[3], wd = out_dir)[1]
 p.land()
+p.topo(topo, cpt = topo_cpt)
 p.water()
 p.path(plot_bounds, is_file = False, close = True, colour = 'blue')
 # get displacement of box to draw zoom lines later
@@ -190,17 +205,17 @@ p.text(total_width / 2.0, total_height, os.path.basename(srf), \
 # max slip
 p.text(zoom_width / 2.0, total_height, 'Maximum slip: ', \
         align = 'RB', size = '14p', dy = 0.5)
-p.text(zoom_width / 2.0 + 0.1, total_height, float('%.4f' % (maximum)), \
+p.text(zoom_width / 2.0 + 0.1, total_height, '%.1f cm' % (maximum), \
         align = 'LB', size = '14p', dy = 0.5)
 # 95th percentile
 p.text(zoom_width / 2.0, total_height, '95th percentile: ', \
         align = 'RB', size = '14p', dy = 0.3)
-p.text(zoom_width / 2.0 + 0.1, total_height, float('%.4f' % (percentile)), \
+p.text(zoom_width / 2.0 + 0.1, total_height, '%.1f cm' % (percentile), \
         align = 'LB', size = '14p', dy = 0.3)
 # average slip
 p.text(zoom_width / 2.0, total_height, 'Average slip: ', \
         align = 'RB', size = '14p', dy = 0.1)
-p.text(zoom_width / 2.0 + 0.1, total_height, float('%.4f' % (average)), \
+p.text(zoom_width / 2.0 + 0.1, total_height, '%.1f cm' % (average), \
         align = 'LB', size = '14p', dy = 0.1)
 # planes
 p.text(total_width - 4 / 2.0, total_height, 'Planes: ', \
@@ -219,7 +234,7 @@ p.text(total_width - 4 / 2.0 + 0.1, total_height, subfaults, \
         align = 'LB', size = '14p', dy = 0.1)
 # scale
 p.cpt_scale(zoom_width / 2.0, -0.5, '%s/slip.cpt' % (out_dir), \
-        int(percentile / 4.0), int(percentile / 4.0) / 2.0, \
+        cpt_max / 4.0, cpt_max / 8.0, \
         label = 'Slip (cm)', length = zoom_width)
 
 p.finalise()
