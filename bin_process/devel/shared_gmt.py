@@ -17,9 +17,13 @@ try:
 except ImportError:
     print('shared_srf.py not found. will not be able to plot faults from SRF.')
 
-# if gmt available in $PATH, GMT should be 'gmt'
-# to use a custom location, set full path to 'gmt' binary below
-GMT = 'gmt'
+# if gmt available in $PATH, gmt_install_bin should be ''
+# to use a custom location, set full path to gmt 'bin' folder below
+gmt_install_bin = ''
+GMT = os.path.join(gmt_install_bin, 'gmt')
+GMTSET = os.path.join(gmt_install_bin, 'gmtset')
+GMTGET = os.path.join(gmt_install_bin, 'gmtget')
+MAPPROJECT = os.path.join(gmt_install_bin, 'mapproject')
 
 # retrieve version of GMT
 gmtp = Popen([GMT, '--version'], stdout = PIPE)
@@ -198,7 +202,7 @@ def gmt_defaults(wd = '.', font_annot_primary = 16, map_tick_length_primary = '0
     wd: which directory to set for
     extra: list of params eg: ['FONT_ANNOT_SECONDARY', '12', 'KEY', '=', 'VALUE']
     """
-    cmd = ['gmtset', \
+    cmd = [GMTSET, \
             'FONT_ANNOT_PRIMARY', '%s' % (font_annot_primary), \
             'MAP_TICK_LENGTH_PRIMARY', '%s' % (map_tick_length_primary), \
             'FONT_LABEL', '%s' % (font_label), \
@@ -212,6 +216,32 @@ def gmt_defaults(wd = '.', font_annot_primary = 16, map_tick_length_primary = '0
     # protect users from entering non-string values
     cmd.extend(map(str, extra))
     Popen(cmd, cwd = wd).wait()
+
+def mapproject(x, y, wd = '.', projection = None, region = None, unit = None):
+    """
+    Project coordinates to get position. Currently only one way.
+    WARNING: if projection specifies units of length,
+            output will still be in default units
+    projection: map projection, default uses history file
+    region: map region, default uses history file
+    unit: return value units, default uses PROJ_LENGTH_UNIT from gmt.conf
+    """
+    cmd = [MAPPROJECT]
+    if projection == None:
+        cmd.append('-J')
+    else:
+        cmd.append('-J%s' % (projection))
+    if region == None:
+        cmd.append('-R')
+    else:
+        cmd.append('-R%s' % (region))
+    if unit != None:
+        cmd.append('-D%s' % (unit))
+
+    projp = Popen(cmd, stdin = PIPE, stdout = PIPE, cwd = wd)
+    result = projp.communicate('%f %f\n' % (x, y))[0]
+    projp.wait()
+    return map(float, result.split())
 
 ###
 ### MAIN PLOTTING CLASS
@@ -394,8 +424,17 @@ class GMTPlot:
         # just like with water, land will show segment artifacts
         # therefore the whole area needs to be filled
         # then cropped to only include land
-        Popen([GMT, 'pscoast', '-J', '-R', '-D%s' % (res), '-G%s' % (fill), \
-                '-K', '-O'], stdout = self.psf, cwd = self.wd).wait()
+        # start cropping to only fill dry areas
+        Popen([GMT, 'pscoast', '-J', '-R', '-D%s' % (res), \
+                '-Gc', '-K', '-O'], \
+                stdout = self.psf, cwd = self.wd).wait()
+        # fill land and water to prevent segment artifacts
+        Popen([GMT, 'pscoast', '-J', '-R', '-G%s' % (fill), \
+                '-D%s' % (res), '-K', '-O', '-S%s' % (fill)], \
+                stdout = self.psf, cwd = self.wd).wait()
+        # crop (-Q) wet area off to show only land
+        Popen([GMT, 'pscoast', '-J', '-R', '-Q', '-K', '-O'], \
+                stdout = self.psf, cwd = self.wd).wait()
 
     def topo(self, topo_file, topo_file_illu = None, cpt = 'gray'):
         """
@@ -479,7 +518,8 @@ class GMTPlot:
         Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
 
     def path(self, in_data, is_file = True, close = False, \
-            width = '0.4p', colour = 'black', split = None):
+            width = '0.4p', colour = 'black', split = None, \
+            straight = False):
         """
         Draws a path between points.
         in_data: either a filepath to file containing x, y points
@@ -489,6 +529,7 @@ class GMTPlot:
         width: thickness of line
         colour: colour of line
         split: None continuous, '-' dashes, '.' dots
+        straight: lines appear straight, do not use great circle path
         """
         # build command based on parameters
         pen = '-W%s,%s' % (width, colour)
@@ -497,6 +538,8 @@ class GMTPlot:
         cmd = [GMT, 'psxy', '-J', '-R', '-K', '-O', pen]
         if close:
             cmd.append('-L')
+        if straight:
+            cmd.append('-A')
 
         if is_file:
             cmd.append(in_data)
@@ -600,6 +643,7 @@ class GMTPlot:
         temp_grd = '%s/%s.grd' % (self.wd, os.path.basename(xyv_file))
 
         # because we allow setting '-R', backup history file to reset after
+        # TODO: just gmtset GMT_HISTORY readonly, then true
         if custom_region != None:
             copyfile(os.path.join(self.wd, 'gmt.history'), \
                     os.path.join(self.wd, 'gmt.history.preserve'))

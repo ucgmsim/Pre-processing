@@ -22,16 +22,20 @@ from shared_gmt import *
 from shared_srf import *
 from tools import *
 
+# can specify here or pass as command line argument
 srf = 'standard_m5.60-5.1x5.1_s103245.srf'
-dx = '1k'
-dy = '1k'
+
+dpi = 300
+
 cpt = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
         'cpt', 'slip.cpt')
-dpi = 300
+
 if len(sys.argv) > 1:
     srf = sys.argv[1]
-if len(sys.argv) > 3:
-    dx, dy = sys.argv[2:4]
+
+dx, dy = srf_dxy(srf)
+dx = '%sk' % (dx)
+dy = '%sk' % (dy)
 
 # output directory for srf resources
 out_dir = os.path.abspath('SRF_RES')
@@ -76,6 +80,9 @@ for seg in xrange(len(bounds)):
             dx = dx, dy = dy, \
             region = seg_regions[seg])
 percentile = np.percentile(values, 95)
+maximum = np.max(values)
+average = np.average(values)
+subfaults = len(values)
 print('Loading complete.')
 
 
@@ -105,38 +112,115 @@ makecpt(cpt, '%s/slip.cpt' % (out_dir), 0, percentile, 1)
 gmt_defaults(wd = out_dir)
 p = GMTPlot('%s/srf_map.ps' % (out_dir))
 p.background(20, 15)
-p.spacial('M', plot_region, sizing = 6, left_margin = 1, bottom_margin = 2.5)
+# this is how hight the NZ map will end up being
+# update if changed size from 4 inches wide or nz_region changed
+p.spacial('M', nz_region, sizing = 4, \
+        left_margin = 1, bottom_margin = 2.5)
+# height of NZ map
+full_height = mapproject(nz_region[0], nz_region[3], wd = out_dir)[1]
+zoom_width = 6
+# match height of zoomed in map with full size map
+while True:
+    p.spacial('M', plot_region, sizing = zoom_width)
+    # height of this map
+    zoom_height = mapproject(plot_region[0], plot_region[3], wd = out_dir)[1]
+    if zoom_height > full_height * 1.01:
+        zoom_width -= (zoom_height - full_height) / 2.0
+    elif zoom_height < full_height * 0.99:
+        zoom_width += (full_height - zoom_height) / 2.0
+    else:
+        break
 p.land()
 p.water()
 for seg in xrange(len(bounds)):
     p.overlay('%s/slip_map_%d.bin' % (out_dir, seg), \
             '%s/slip.cpt' % (out_dir), dx = dx, dy = dy, \
             climit = 2, crop_grd = '%s/slip_map_%s.mask' % (out_dir, seg), \
-            land_crop = False, custom_region = seg_regions[seg])
-p.fault(srf, is_srf = True)
+            land_crop = False, custom_region = seg_regions[seg], \
+            transparency = 30)
+p.fault(srf, is_srf = True, hyp_colour = 'red')
 p.coastlines()
 p.sites(sites.keys())
-p.text(plot_region[0], plot_region[3], os.path.basename(srf), \
-        align = 'LB', size = '20p', dy = 0.1)
-p.ticks(major = '10m', minor = '5m', sides = 'ws')
+# work out an ideal tick increment (ticks per inch)
+# x axis is more constrainnig
+major_tick = 0.05
+while ((plot_region[1] - plot_region[0]) / major_tick) / zoom_width > 1.4:
+    major_tick += 0.05
+p.ticks(major = '%sd' % (major_tick), \
+        minor = '%sd' % (major_tick / 2.0), sides = 'ws')
 
 # draw NZ wide map to show rough location in country
-p.spacial('M', nz_region, sizing = 4, left_margin = 7)
+p.spacial('M', nz_region, sizing = 4, left_margin = zoom_width + 1)
+# height of NZ map
+full_height = mapproject(nz_region[0], nz_region[3], wd = out_dir)[1]
 p.land()
 p.water()
-p.path(plot_bounds, is_file = False, close = True)
-# try to make a line that extends from the box to the original map
-# dots per degree longitude
-dpdl = (4 * dpi) / (nz_region[1] - nz_region[0])
-# gap between maps is 1 inch, dpi = pixel gap
-# calculate equivalent longitude at first map
-el = nz_region[0] - ((1.0 * dpi) / dpdl)
-p.path('%f %f\n%f %f\n' % (plot_region[1], plot_region[2], el, nz_region[2]), \
-        is_file = False)
+p.path(plot_bounds, is_file = False, close = True, colour = 'blue')
+# get displacement of box to draw zoom lines later
+window_bottom = mapproject(plot_region[1], plot_region[2], wd = out_dir)
+window_top = mapproject(plot_region[1], plot_region[3], wd = out_dir)
+# also draw fault planes / hypocentre
 p.fault(srf, is_srf = True, plane_width = '0.4p', top_width = '0.6p', \
         hyp_colour = 'red')
 p.coastlines()
 p.ticks(major = '2d', minor = '30m', sides = 'ws')
+
+# draw zoom lines that extend from view box to original plot
+p.spacial('X', \
+        (0, window_bottom[0] + 1, 0, max(zoom_height, full_height)), \
+        sizing = '%s/%s' % (window_top[0] + 1, max(zoom_height, full_height)), \
+        left_margin = -1.0)
+p.path('%f %f\n%f %f\n' % \
+        (0, 0, window_bottom[0] + 1, window_bottom[1]), width = '0.6p', \
+        is_file = False, split = '-', straight = True, colour = 'blue')
+p.path('%f %f\n%f %f\n' % \
+        (0, zoom_height, window_top[0] + 1, window_top[1]), width = '0.6p', \
+        is_file = False, split = '-', straight = True, colour = 'blue')
+
+# add text and colour palette
+# position to enclose both plots
+total_width = zoom_width + 1 + 4
+total_height = max(zoom_height, full_height)
+p.spacial('X', (0, total_width, 0, total_height + 2), \
+        sizing = '%s/%s' % (total_width, total_height + 2), \
+        left_margin = -zoom_width)
+# SRF filename
+p.text(total_width / 2.0, total_height, os.path.basename(srf), \
+        align = 'CB', size = '20p', dy = 0.8)
+# max slip
+p.text(zoom_width / 2.0, total_height, 'Maximum slip: ', \
+        align = 'RB', size = '14p', dy = 0.5)
+p.text(zoom_width / 2.0 + 0.1, total_height, float('%.4f' % (maximum)), \
+        align = 'LB', size = '14p', dy = 0.5)
+# 95th percentile
+p.text(zoom_width / 2.0, total_height, '95th percentile: ', \
+        align = 'RB', size = '14p', dy = 0.3)
+p.text(zoom_width / 2.0 + 0.1, total_height, float('%.4f' % (percentile)), \
+        align = 'LB', size = '14p', dy = 0.3)
+# average slip
+p.text(zoom_width / 2.0, total_height, 'Average slip: ', \
+        align = 'RB', size = '14p', dy = 0.1)
+p.text(zoom_width / 2.0 + 0.1, total_height, float('%.4f' % (average)), \
+        align = 'LB', size = '14p', dy = 0.1)
+# planes
+p.text(total_width - 4 / 2.0, total_height, 'Planes: ', \
+        align = 'RB', size = '14p', dy = 0.5)
+p.text(total_width - 4 / 2.0 + 0.1, total_height, len(bounds), \
+        align = 'LB', size = '14p', dy = 0.5)
+# dx and dy
+p.text(total_width - 4 / 2.0, total_height, 'dX, dY: ', \
+        align = 'RB', size = '14p', dy = 0.3)
+p.text(total_width - 4 / 2.0 + 0.1, total_height, '%s, %s' % (dx, dy), \
+        align = 'LB', size = '14p', dy = 0.3)
+# subfaults
+p.text(total_width - 4 / 2.0, total_height, 'Subfaults: ', \
+        align = 'RB', size = '14p', dy = 0.1)
+p.text(total_width - 4 / 2.0 + 0.1, total_height, subfaults, \
+        align = 'LB', size = '14p', dy = 0.1)
+# scale
+p.cpt_scale(zoom_width / 2.0, -0.5, '%s/slip.cpt' % (out_dir), \
+        int(percentile / 4.0), int(percentile / 4.0) / 2.0, \
+        label = 'Slip (cm)', length = zoom_width)
 
 p.finalise()
 p.png(dpi = dpi)

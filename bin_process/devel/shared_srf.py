@@ -152,3 +152,18 @@ def srf2llv(srf, seg = '-1', type = 'slip', depth = False):
     # output from srf2xyz is 4 columns wide
     return np.reshape(llv, (len(llv) // 4, 4))[:, mask]
 
+def srf_dxy(srf):
+    """
+    Retrieve SRF dx and dy.
+    Assumes all planes have same dx, dy.
+    srf: SRF file path to read from
+    """
+    with open(srf, 'r') as sf:
+        # version
+        sf.readline()
+        # planes definition
+        sf.readline()
+        # first plane
+        elon, elat, nstk, ndip, length, width = sf.readline().split()
+    return float('%.2f' % (float(length) / int(nstk))), \
+            float('%.2f' % (float(width) / int(ndip)))
