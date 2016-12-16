@@ -59,18 +59,34 @@ def skip_points(sf, np):
         for _ in xrange(int(ceil(values / VPL))):
             sf.readline()
 
-def get_lonlat(sf):
+def get_lonlat(sf, value = None):
     """
     Returns only the longitude, latitude of a point.
     sf: open file at start of point
+    value: also retrieve value
     end: sf at start of next point
     """
-    lon, lat = map(float, sf.readline().split()[:2])
+    # header 1 contains:
+    # LON, LAT, DEP, STK, DIP, AREA, TINIT, DT, VS (v2.0), DEN (v2.0)
+    h1 = sf.readline().split()
+    # header 2 contains:
+    # RAKE, SLIP1, NT1, SLIP2, NT2, SLIP3, NT3
+    h2 = sf.readline().split()
+
+    # always returning lon, lat
+    lon, lat = map(float, h1[:2])
+
+    if value == 'tinit':
+        value = h1[6]
+
     # skip rest of point data
-    values = sum(map(int, sf.readline().split()[2::2]))
+    values = sum(map(int, h2[2::2]))
     for _ in xrange(int(ceil(values / VPL))):
         sf.readline()
-    return lon, lat
+
+    if value == None:
+        return lon, lat
+    return lon, lat, value
 
 def get_bounds(srf, seg = -1):
     """
@@ -151,6 +167,37 @@ def srf2llv(srf, seg = '-1', type = 'slip', depth = False):
 
     # output from srf2xyz is 4 columns wide
     return np.reshape(llv, (len(llv) // 4, 4))[:, mask]
+
+def get_tinit(srf, seg = -1):
+    """
+    Return lon, lat, tinit for subfaults.
+    Should be part of srf2llv in the future.
+    srf: srf source
+    nseg: which segment (-1 for all)
+    """
+    with open(srf, 'r') as sf:
+        # metadata
+        planes = read_header(sf)
+        points = int(sf.readline().split()[1])
+
+        # storage
+        tinit = []
+
+        # each plane has a separate set of subfaults
+        for n, plane in enumerate(planes):
+            nstk, ndip = plane[2:4]
+            if seg >= 0 and seg != n:
+                skip_points(sf, nstk * ndip)
+                continue
+
+            plane_tinit = np.zeros((nstk * ndip, 3))
+            for i in xrange(nstk * ndip):
+                plane_tinit[i] = get_lonlat(sf, value = 'tinit')
+            tinit.append(plane_tinit)
+
+            if n == seg:
+                break
+    return tinit
 
 def srf_dxy(srf):
     """
