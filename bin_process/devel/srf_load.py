@@ -29,7 +29,8 @@ srf = 'standard_m5.60-5.1x5.1_s103245.srf'
 dpi = 300
 
 # illumination file should be in the same directory
-topo = os.path.abspath('nztopo.grd')
+topo = '/nesi/projects/nesi00213/PlottingData/Topo/srtm_all_filt_nz.grd'
+topo_low = '/nesi/projects/nesi00213/PlottingData/Topo/nztopo.grd'
 cpt = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
         'cpt', 'slip.cpt')
 
@@ -79,6 +80,7 @@ plot_region = (x_min - 0.1, x_max + 0.1, y_min - 0.1, y_max + 0.1)
 plot_bounds = '%f %f\n%f %f\n%f %f\n%f %f\n' % \
         (plot_region[0], plot_region[2], plot_region[1], plot_region[2], \
         plot_region[1], plot_region[3], plot_region[0], plot_region[3])
+# read all max slip values (all at once is much faster)
 seg_llslips = srf2llv_py(srf, value = 'slip')
 for seg in xrange(len(bounds)):
     # create binary llv file for GMT overlay
@@ -90,12 +92,12 @@ for seg in xrange(len(bounds)):
             '%s/tinit_map_%d.bin' % (out_dir, seg))
     # create a mask path for GMT overlay
     path_from_corners(corners = bounds[seg], min_edge_points = 100, \
-            output = '%s/slip_map_%d.bounds' % (out_dir, seg))
+            output = '%s/plane_%d.bounds' % (out_dir, seg))
     # create mask from path
     x_min, y_min = np.min(np_bounds[seg], axis = 0)
     x_max, y_max = np.max(np_bounds[seg], axis = 0)
     seg_regions.append((x_min, x_max, y_min, y_max))
-    grd_mask('%s/slip_map_%d.bounds' % (out_dir, seg), \
+    grd_mask('%s/plane_%d.bounds' % (out_dir, seg), \
             '%s/plane_%d.mask' % (out_dir, seg), \
             dx = plot_dx, dy = plot_dy, \
             region = seg_regions[seg])
@@ -190,7 +192,7 @@ p.spacial('M', nz_region, sizing = full_width, \
 # height of NZ map
 full_height = mapproject(nz_region[0], nz_region[3], wd = out_dir)[1]
 p.land()
-p.topo(topo, cpt = topo_cpt)
+p.topo(topo_low, cpt = topo_cpt)
 p.water()
 p.path(plot_bounds, is_file = False, close = True, colour = 'blue')
 # get displacement of box to draw zoom lines later
@@ -199,7 +201,7 @@ window_top = mapproject(plot_region[1], plot_region[3], wd = out_dir)
 # also draw fault planes / hypocentre
 p.fault(srf, is_srf = True, plane_width = '0.4p', top_width = '0.6p', \
         hyp_colour = 'red')
-p.coastlines()
+p.coastlines(width = '0.1p')
 p.ticks(major = '2d', minor = '30m', sides = 'ws')
 
 ### PART C: zoom lines
