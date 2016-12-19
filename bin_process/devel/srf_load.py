@@ -58,7 +58,7 @@ print('Loading SRF file data from %s...' % (srf))
 bounds = get_bounds(srf)
 # get all tinit values, set a sane countour interval
 # contour interval should probably also depend on area
-tinit = get_tinit(srf)
+tinit = srf2llv_py(srf, value = 'tinit')
 tinit_max = max([np.max(tinit[p][:, 2]) for p in xrange(len(bounds))])
 contour_int = 2
 if tinit_max < 10:
@@ -79,11 +79,12 @@ plot_region = (x_min - 0.1, x_max + 0.1, y_min - 0.1, y_max + 0.1)
 plot_bounds = '%f %f\n%f %f\n%f %f\n%f %f\n' % \
         (plot_region[0], plot_region[2], plot_region[1], plot_region[2], \
         plot_region[1], plot_region[3], plot_region[0], plot_region[3])
+seg_llslips = srf2llv_py(srf, value = 'slip')
 for seg in xrange(len(bounds)):
     # create binary llv file for GMT overlay
-    llslip = srf2llv(srf, seg = seg, type = 'slip', depth = False)
-    llslip.astype(np.float32).tofile('%s/slip_map_%d.bin' % (out_dir, seg))
-    values = np.append(values, llslip[:, -1])
+    seg_llslips[seg].astype(np.float32).tofile( \
+            '%s/slip_map_%d.bin' % (out_dir, seg))
+    values = np.append(values, seg_llslips[seg][:, -1])
     # also store tinit values retrieved previously
     tinit[seg].astype(np.float32).tofile( \
             '%s/tinit_map_%d.bin' % (out_dir, seg))

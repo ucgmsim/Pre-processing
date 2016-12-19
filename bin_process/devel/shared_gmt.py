@@ -349,7 +349,7 @@ class GMTPlot:
             self.wd = os.path.abspath('.')
         # if previous/custom gmt.defaults and gmt.history was wanted
         # it should have already been copied into this directory
-        if not os.path.exists(os.path.join(self.wd, 'gmt.defaults')):
+        if not os.path.exists(os.path.join(self.wd, 'gmt.conf')):
             gmt_defaults(wd = self.wd)
         # place to reject unwanted warnings
         self.sink = open('/dev/null', 'a')
@@ -606,7 +606,7 @@ class GMTPlot:
 
     def path(self, in_data, is_file = True, close = False, \
             width = '0.4p', colour = 'black', split = None, \
-            straight = False):
+            straight = False, fill = None):
         """
         Draws a path between points.
         in_data: either a filepath to file containing x, y points
@@ -617,6 +617,7 @@ class GMTPlot:
         colour: colour of line
         split: None continuous, '-' dashes, '.' dots
         straight: lines appear straight, do not use great circle path
+        fill: fill inside area with this colour
         """
         # build command based on parameters
         pen = '-W%s,%s' % (width, colour)
@@ -627,6 +628,8 @@ class GMTPlot:
             cmd.append('-L')
         if straight:
             cmd.append('-A')
+        if fill != None:
+            cmd.append('-G%s' % fill)
 
         if is_file:
             cmd.append(in_data)

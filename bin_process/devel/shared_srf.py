@@ -5,7 +5,7 @@ SRF format:
 https://scec.usc.edu/scecpedia/Standard_Rupture_Format
 """
 
-from math import ceil, cos, radians
+from math import ceil, cos, radians, sqrt
 from subprocess import Popen, PIPE
 
 import numpy as np
@@ -78,6 +78,8 @@ def get_lonlat(sf, value = None):
 
     if value == 'tinit':
         value = h1[6]
+    if value == 'slip':
+        value = sqrt(float(h2[1]) ** 2 + float(h2[3]) ** 2 + float(h2[5]) ** 2)
 
     # skip rest of point data
     values = sum(map(int, h2[2::2]))
@@ -142,11 +144,11 @@ def get_hypo(srf):
 
         return lon, lat
 
-def srf2llv(srf, seg = '-1', type = 'slip', depth = False):
+def srf2llv(srf, seg = -1, value = 'slip', depth = False):
     """
     Get longitude, latitude, depth (optional) and value of 'type'
     srf: filepath of SRF file
-    seg: which segments to read (-1 for all)
+    seg: which segmentsto read (-1 for all)
     type: which parameter to read
     depth: whether to also include depth at point
     """
@@ -168,9 +170,14 @@ def srf2llv(srf, seg = '-1', type = 'slip', depth = False):
     # output from srf2xyz is 4 columns wide
     return np.reshape(llv, (len(llv) // 4, 4))[:, mask]
 
-def get_tinit(srf, seg = -1):
+def srf2llv_py(srf, value = 'slip', seg = -1):
     """
-    Return lon, lat, tinit for subfaults.
+    Return lon, lat, type for subfaults.
+    Reading all at once is faster than reading each separate.
+    # speed ratio for a large file (7 seg, 216k subfaults, slip)
+    # All in python version: 3 seconds
+    # All in srf2xyz code: 6.5 seconds
+    # Each in srf2xyz code: 6.5 seconds * 7 = 40 seconds
     Should be part of srf2llv in the future.
     srf: srf source
     nseg: which segment (-1 for all)
@@ -181,7 +188,7 @@ def get_tinit(srf, seg = -1):
         points = int(sf.readline().split()[1])
 
         # storage
-        tinit = []
+        values = []
 
         # each plane has a separate set of subfaults
         for n, plane in enumerate(planes):
@@ -190,14 +197,14 @@ def get_tinit(srf, seg = -1):
                 skip_points(sf, nstk * ndip)
                 continue
 
-            plane_tinit = np.zeros((nstk * ndip, 3))
+            plane_values = np.zeros((nstk * ndip, 3))
             for i in xrange(nstk * ndip):
-                plane_tinit[i] = get_lonlat(sf, value = 'tinit')
-            tinit.append(plane_tinit)
+                plane_values[i] = get_lonlat(sf, value = value)
+            values.append(plane_values)
 
             if n == seg:
                 break
-    return tinit
+    return values
 
 def srf_dxy(srf):
     """
