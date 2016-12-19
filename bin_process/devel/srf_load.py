@@ -25,12 +25,14 @@ from tools import *
 
 # can specify here or pass as command line argument
 srf = 'standard_m5.60-5.1x5.1_s103245.srf'
+plot_faults = False
 
 dpi = 300
 
 # illumination file should be in the same directory
 topo = '/nesi/projects/nesi00213/PlottingData/Topo/srtm_all_filt_nz.grd'
 topo_low = '/nesi/projects/nesi00213/PlottingData/Topo/nztopo.grd'
+faults = '/nesi/projects/nesi00213/PlottingData/Paths/faults/FAULTS_20161219.ll'
 cpt = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
         'cpt', 'slip.cpt')
 
@@ -163,6 +165,8 @@ p.spacial('M', plot_region, sizing = zoom_width, \
 p.land()
 p.topo(topo, cpt = topo_cpt)
 p.water()
+if plot_faults:
+    p.path(faults, is_file = True, close = False, width = '0.4p', colour = 'red')
 for seg in xrange(len(bounds)):
     p.overlay('%s/slip_map_%d.bin' % (out_dir, seg), \
             '%s/slip.cpt' % (out_dir), dx = plot_dx, dy = plot_dy, \
@@ -194,6 +198,8 @@ full_height = mapproject(nz_region[0], nz_region[3], wd = out_dir)[1]
 p.land()
 p.topo(topo_low, cpt = topo_cpt)
 p.water()
+if plot_faults:
+    p.path(faults, is_file = True, close = False, width = '0.1p', colour = 'red')
 p.path(plot_bounds, is_file = False, close = True, colour = 'blue')
 # get displacement of box to draw zoom lines later
 window_bottom = mapproject(plot_region[1], plot_region[2], wd = out_dir)
