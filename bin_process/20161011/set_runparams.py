@@ -43,7 +43,7 @@ if __name__ == '__main__' :
 
 
     p1={}
-    p2=[]  
+    p2={}  
     for i, srf_file in enumerate(srf_files):
         srf_file_basename = os.path.basename(srf_file).split('.')[0] #take the filename only
         p1['lf_sim_dir'] = os.path.join(lf_sim_root_dir,srf_file_basename)
@@ -224,5 +224,5 @@ if __name__ == '__main__' :
         p2['grid_file']= GRIDFILE
         p2['model_params']= MODELPARAMS
         
-        write_to_py(os.path.join(p1['lf_sim_dir'],parfile),p)
+        write_to_py(os.path.join(p1['lf_sim_dir'],parfile),p2)
 

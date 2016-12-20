@@ -176,6 +176,8 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     shutil.copy(os.path.join(bin_process_dir,"version"),sim_dir)
     shutil.copy(os.path.join(bin_process_dir,"submit_emod3d.sh"),sim_dir)
     shutil.copy(os.path.join(bin_process_dir,"submit_post_emod3d.sh"),sim_dir)
+    shutil.copy(os.path.join(bin_process_dir,"submit_bb.sh"),sim_dir)
+
 
 
     srf_files, stoch_files = zip(*srf_stoch_pairs)
@@ -213,7 +215,7 @@ def show_instruction(sim_dir):
     print "    4.   ./submit_post_emod3d.sh"
     print "    5.   (Linux) plot_and_ani.sh"
     print "    6.   install_bb.sh"
-    print "    7.   llsubmit run_bb.ll"
+    print "    7.   ./submit_bb.sh"
     print "    8.   Edit parametersStation.py"
     print "    9.   llsubmit runPostProcessStation.ll"
 
