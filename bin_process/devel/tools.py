@@ -9,8 +9,6 @@ R_EARTH = 6378.139
 # ideally implemented in python
 ll2xy_bin = '/nesi/projects/nesi00213/tools/ll2xy'
 xy2ll_bin = '/nesi/projects/nesi00213/tools/xy2ll'
-#ll2xy_bin = '/home/vap30/bin/ll2xy'
-#xy2ll_bin = '/home/vap30/bin/xy2ll'
 
 class InputError(Exception):
     pass
@@ -58,9 +56,7 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
 
     # nx values range from 0 -> nx - 1
     if not (-1 < x < nx) or not (-1 < y < ny):
-        #raise InputError('Input outside simulation domain.')
-        print ('Warning: Input outside simulation domain')
-        return None,None
+        raise InputError('Input outside simulation domain.')
 
     if decimated:
         x //= dx
