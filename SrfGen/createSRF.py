@@ -6,7 +6,10 @@ from shutil import copyfile
 from subprocess import call, Popen, PIPE
 
 import numpy as np
+import sys
+import shared
 
+PARAMS_SRC = 'params_src.py'
 GSF_DIR = 'Gsf'
 SRF_DIR = 'Srf'
 STOCH_DIR = 'Stoch'
@@ -508,4 +511,13 @@ if __name__ == "__main__":
                 M_DHYPO, DT, SEED, M_NAME, CASES)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
+        sys.exit(0)
+
+    p={}  
+    p['MODEL_LAT']=LAT
+    p['MODEL_LON']=LON
+    p['dt']=DT 
+    shared.write_to_py(PARAMS_SRC,p) 
+        
+            
 
