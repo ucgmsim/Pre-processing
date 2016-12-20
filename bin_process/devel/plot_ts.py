@@ -215,7 +215,6 @@ b.background(11, 11)
 b.spacial('M', ll_region, sizing = map_width, \
         left_margin = 1, bottom_margin = 2.5)
 # title, fault model and velocity model subtitles
-title = "pSA 10.0s"
 b.text(ll_avg[0], y_max, title, size = 20, dy = 0.6)
 b.text(x_min, y_max, fault_model, size = 14, align = 'LB', dy = 0.3)
 b.text(x_min, y_max, vel_model, size = 14, align = 'LB', dy = 0.1)
@@ -252,10 +251,10 @@ if purpose == 'single':
 else:
     t = GMTPlot(template_top, append = True)
 t.sites(region_sites)
-t.coastlines(width = '0.8p')
+t.coastlines()
 # simulation domain
 t.path(cnr_str, is_file = False, split = '-', \
-        close = True, width = '1.0p', colour = 'black')
+        close = True, width = '0.4p', colour = 'black')
 # fault file - creating direct from SRF is slower
 # OK if only done in template
 t.fault(srf_file, is_srf = True)
