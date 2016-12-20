@@ -171,6 +171,39 @@ def makecpt(source, output, low, high, inc = None, invert = False):
     with open(output, 'w') as cptf:
         Popen(cmd, stdout = cptf).wait()
 
+def xyz2grd(xyz_file, grd_file, region, dx = '1k', dy = None, \
+        climit = 1, wd = None):
+    """
+    Create a grid file from an xyz file.
+    xyz_file: contains x, y and value columns
+    grd_file: output file
+    region: region to create the grid for
+    dx: horizontal grid spacing of the grid file
+    dy: vertical grid spacing (leave None to use dx)
+    climit: consider interpolation result correct if diff < climit
+    wd: GMT working directory (default is destination folder)
+    """
+    # determine working directory
+    if wd == None:
+        wd = os.path.dirname(grd_file)
+        if wd == '':
+            wd = '.'
+
+    # should not affect history in wd
+    write_history(False, wd = wd)
+
+    # prepare parameters
+    region = '-R%s/%s/%s/%s' % region
+    if dy == None:
+        dy = dx
+
+    # create surface grid
+    Popen([GMT, 'surface', xyv_file, '-G%s' % (grd_file), '-T0.0', \
+            '-I%s/%s' % (dx, dy), \
+            '-C%s' % (climit), region], cwd = wd).wait()
+
+    write_history(True, wd = wd)
+
 def grd_mask(xy_file, out_file, region = None, dx = '1k', dy = '1k'):
     """
     Creates a mask file from a path. Inside = 1, outside = NaN.
@@ -223,9 +256,12 @@ def mapproject(x, y, wd = '.', projection = None, region = None, unit = None):
     WARNING: if projection specifies units of length,
             output will still be in default units
     projection: map projection, default uses history file
-    region: map region, default uses history file
+    region: map region (x_min, x_max, y_min, y_max), default uses history file
     unit: return value units, default uses PROJ_LENGTH_UNIT from gmt.conf
     """
+    # calculation should not affect plotting
+    write_history(False, wd = wd)
+
     cmd = [MAPPROJECT]
     if projection == None:
         cmd.append('-J')
@@ -234,14 +270,65 @@ def mapproject(x, y, wd = '.', projection = None, region = None, unit = None):
     if region == None:
         cmd.append('-R')
     else:
-        cmd.append('-R%s' % (region))
+        cmd.append('-R%s/%s/%s/%s' % (region))
     if unit != None:
         cmd.append('-D%s' % (unit))
 
     projp = Popen(cmd, stdin = PIPE, stdout = PIPE, cwd = wd)
     result = projp.communicate('%f %f\n' % (x, y))[0]
     projp.wait()
+
+    # re-enable history file
+    write_history(True, wd = wd)
+
     return map(float, result.split())
+
+def map_width(projection, height, region, wd = '.', \
+        start_width = 6, accuracy = 0.01, reference = 'left'):
+    """
+    Usually you create a map by giving the total width or width scaling.
+    This finds out how wide a map should be given a wanted height.
+    returns: width, height
+    projection: projection of the map
+    height: wanted height of the result dimentions
+    region: region of the map
+    wd: working directory (important for gmt_history: proj_length_unit)
+    start_width: start closing in with this width
+    accuracy: how close to approach wanted height before returning result
+    reference: consider greatest height of map to be at 'left' or 'mid'(dle)
+            could detect automatically in the future
+    """
+    # some map projections will be higher/lower in the middle of the map
+    if reference == 'left':
+        x_ref = region[0]
+    elif reference == 'mid':
+        x_ref = region[1] - region[0]
+
+    width = start_width
+    while True:
+        new_height = mapproject(x_ref, region[3], wd = wd, \
+                projection = '%s%s' % (projection, width), region = region)[1]
+        # assuming that the projection height / width ratio < 2.0
+        if new_height > height * (1 + accuracy):
+            width -= (new_height - height) / 2.0
+        elif new_height < height * (1 - accuracy):
+            width += (height - new_height) / 2.0
+        else:
+            break
+
+    return width, new_height
+
+def write_history(writable, wd = '.'):
+    """
+    Set whether GMT should update history for parameters.
+    writable: True: updates history, False: readonly history
+    """
+    if writable:
+        history = 'true'
+    else:
+        history = 'readonly'
+
+    Popen([GMTSET, 'GMT_HISTORY', history], cwd = wd).wait()
 
 ###
 ### MAIN PLOTTING CLASS
@@ -262,26 +349,26 @@ class GMTPlot:
             self.wd = os.path.abspath('.')
         # if previous/custom gmt.defaults and gmt.history was wanted
         # it should have already been copied into this directory
-        if not os.path.exists(os.path.join(self.wd, 'gmt.defaults')):
+        if not os.path.exists(os.path.join(self.wd, 'gmt.conf')):
             gmt_defaults(wd = self.wd)
         # place to reject unwanted warnings
         self.sink = open('/dev/null', 'a')
 
     def background(self, length, height, \
-            left_margin = 0, bottom_margin = 0, colour = 'white'):
+            x_margin = 0, y_margin = 0, colour = 'white'):
         """
         Draws background on GMT plot.
         This should be the first action.
-        length: how wide the background should be
-        height: how high the background should be
-        left_margin: to move origin left afterwards
-        bottom_margin: to move origin up afterwards
+        length: how wide the background should be (x margin included)
+        height: how high the background should be (y margin included)
+        x_margin: start with shifted origin, this much space is on left
+        y_margin: start with shifted origin, this much space is on bottom
         colour: the colour of the background
         """
         # draw background and place origin up, right as wanted
         cmd = [GMT, 'psxy', '-K', '-G%s' % (colour), \
                 '-JX%s/%s' % (length, height), '-R0/%s/0/%s' % (length, height), \
-                '-Xa-%s' % (left_margin), '-Ya-%s' % (bottom_margin)]
+                '-Xa-%s' % (x_margin), '-Ya-%s' % (y_margin)]
         # one of the functions that can be run on a blank file
         # as such, '-O' flag needs to be taken care of
         if self.new:
@@ -295,7 +382,7 @@ class GMTPlot:
 
     def spacial(self, proj, region, \
             lon0 = None, lat0 = None, sizing = 1, \
-            left_margin = 0, bottom_margin = 0):
+            x_shift = 0, y_shift = 0):
         """
         Sets up the spacial parameters for plotting.
         doc http://gmt.soest.hawaii.edu/doc/5.1.0/gmt.html#j-full
@@ -305,8 +392,8 @@ class GMTPlot:
         lat0: standard parallel (not always necessary)
         sizing: either scale: distance / degree longitude at meridian
                     or width: total distance of region
-        left_margin: move plotting origin in the X direction
-        right_margin: move plotting origin in the Y direction
+        x_shift: move plotting origin in the X direction
+        y_shift: move plotting origin in the Y direction
         """
         # work out projection format
         if lon0 == None:
@@ -316,8 +403,8 @@ class GMTPlot:
         else:
             gmt_proj = '-J%s%s/%s/%s' % (proj, lon0, lat0, sizing)
 
-        cmd = [GMT, 'psxy', '-T', gmt_proj, '-X%s' % (left_margin), \
-                '-Y%s' % (bottom_margin), '-K', \
+        cmd = [GMT, 'psxy', '-T', gmt_proj, '-X%s' % (x_shift), \
+                '-Y%s' % (y_shift), '-K', \
                 '-R%s/%s/%s/%s' % region]
         # one of the functions that can be run on a blank file
         # as such, '-O' flag needs to be taken care of
@@ -519,7 +606,7 @@ class GMTPlot:
 
     def path(self, in_data, is_file = True, close = False, \
             width = '0.4p', colour = 'black', split = None, \
-            straight = False):
+            straight = False, fill = None):
         """
         Draws a path between points.
         in_data: either a filepath to file containing x, y points
@@ -530,6 +617,7 @@ class GMTPlot:
         colour: colour of line
         split: None continuous, '-' dashes, '.' dots
         straight: lines appear straight, do not use great circle path
+        fill: fill inside area with this colour
         """
         # build command based on parameters
         pen = '-W%s,%s' % (width, colour)
@@ -540,6 +628,8 @@ class GMTPlot:
             cmd.append('-L')
         if straight:
             cmd.append('-A')
+        if fill != None:
+            cmd.append('-G%s' % fill)
 
         if is_file:
             cmd.append(in_data)
@@ -617,7 +707,7 @@ class GMTPlot:
         """
         Plot a GMT overlay aka surface.
         xyv_file: file containing x, y and amplitude values
-        cpt: cpt to use to visualise data
+        cpt: cpt to use to visualise data, None if only wanting contours
         dx: x resolution of the surface grid (lower = better quality)
         dy: y resolution of the surface grid
             default unit is longitude/latitude, k: kilometre, e: metre
@@ -645,8 +735,7 @@ class GMTPlot:
         # because we allow setting '-R', backup history file to reset after
         # TODO: just gmtset GMT_HISTORY readonly, then true
         if custom_region != None:
-            copyfile(os.path.join(self.wd, 'gmt.history'), \
-                    os.path.join(self.wd, 'gmt.history.preserve'))
+            write_history(False, wd = self.wd)
             region = '-R%s/%s/%s/%s' % custom_region
         else:
             region = '-R'
@@ -689,21 +778,21 @@ class GMTPlot:
 
         # restore '-R' if changed
         if custom_region != None:
-            move(os.path.join(self.wd, 'gmt.history.preserve'), \
-                    os.path.join(self.wd, 'gmt.history'))
+            write_history(True, wd = self.wd)
 
         # clip path for land to crop overlay
         if land_crop:
             Popen([GMT, 'pscoast', '-J', '-R', '-Df', '-Gc', \
                     '-K', '-O'], stdout = self.psf, cwd = self.wd).wait()
 
-        # add resulting grid onto map
-        # here '-Q' will make NaN transparent
-        cmd = [GMT, 'grdimage', temp_grd, '-J', '-R', '-C%s' % (cpt), \
-                '-t%s' % (transparency), '-Q', '-K', '-O']
-        # ignore stderr: usually because no data in area
-        Popen(cmd, stdout = self.psf, stderr = self.sink, \
-                cwd = self.wd).wait()
+        if cpt != None:
+            # add resulting grid onto map
+            # here '-Q' will make NaN transparent
+            cmd = [GMT, 'grdimage', temp_grd, '-J', '-R', '-C%s' % (cpt), \
+                    '-t%s' % (transparency), '-Q', '-K', '-O']
+            # ignore stderr: usually because no data in area
+            Popen(cmd, stdout = self.psf, stderr = self.sink, \
+                    cwd = self.wd).wait()
 
         # add contours
         if contours != None:

@@ -60,8 +60,9 @@ slat = map(float, slat)
 sxy = []
 suname = []
 for i in xrange(len(sname)):
-    xy = get_gp(slon[i], slat[i])
-    if xy[0] is None or xy[1] is None:
+    try:
+        xy = get_gp(slon[i], slat[i])
+    except InputError:
         continue
     if xy not in sxy:
         sxy.append(xy)

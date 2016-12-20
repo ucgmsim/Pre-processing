@@ -5,7 +5,7 @@ SRF format:
 https://scec.usc.edu/scecpedia/Standard_Rupture_Format
 """
 
-from math import ceil, cos, radians
+from math import ceil, cos, radians, sqrt
 from subprocess import Popen, PIPE
 
 import numpy as np
@@ -59,18 +59,36 @@ def skip_points(sf, np):
         for _ in xrange(int(ceil(values / VPL))):
             sf.readline()
 
-def get_lonlat(sf):
+def get_lonlat(sf, value = None):
     """
     Returns only the longitude, latitude of a point.
     sf: open file at start of point
+    value: also retrieve value
     end: sf at start of next point
     """
-    lon, lat = map(float, sf.readline().split()[:2])
+    # header 1 contains:
+    # LON, LAT, DEP, STK, DIP, AREA, TINIT, DT, VS (v2.0), DEN (v2.0)
+    h1 = sf.readline().split()
+    # header 2 contains:
+    # RAKE, SLIP1, NT1, SLIP2, NT2, SLIP3, NT3
+    h2 = sf.readline().split()
+
+    # always returning lon, lat
+    lon, lat = map(float, h1[:2])
+
+    if value == 'tinit':
+        value = h1[6]
+    if value == 'slip':
+        value = sqrt(float(h2[1]) ** 2 + float(h2[3]) ** 2 + float(h2[5]) ** 2)
+
     # skip rest of point data
-    values = sum(map(int, sf.readline().split()[2::2]))
+    values = sum(map(int, h2[2::2]))
     for _ in xrange(int(ceil(values / VPL))):
         sf.readline()
-    return lon, lat
+
+    if value == None:
+        return lon, lat
+    return lon, lat, value
 
 def get_bounds(srf, seg = -1):
     """
@@ -126,11 +144,11 @@ def get_hypo(srf):
 
         return lon, lat
 
-def srf2llv(srf, seg = '-1', type = 'slip', depth = False):
+def srf2llv(srf, seg = -1, value = 'slip', depth = False):
     """
     Get longitude, latitude, depth (optional) and value of 'type'
     srf: filepath of SRF file
-    seg: which segments to read (-1 for all)
+    seg: which segmentsto read (-1 for all)
     type: which parameter to read
     depth: whether to also include depth at point
     """
@@ -151,6 +169,42 @@ def srf2llv(srf, seg = '-1', type = 'slip', depth = False):
 
     # output from srf2xyz is 4 columns wide
     return np.reshape(llv, (len(llv) // 4, 4))[:, mask]
+
+def srf2llv_py(srf, value = 'slip', seg = -1):
+    """
+    Return lon, lat, type for subfaults.
+    Reading all at once is faster than reading each separate.
+    # speed ratio for a large file (7 seg, 216k subfaults, slip)
+    # All in python version: 3 seconds
+    # All in srf2xyz code: 6.5 seconds
+    # Each in srf2xyz code: 6.5 seconds * 7 = 40 seconds
+    Should be part of srf2llv in the future.
+    srf: srf source
+    nseg: which segment (-1 for all)
+    """
+    with open(srf, 'r') as sf:
+        # metadata
+        planes = read_header(sf)
+        points = int(sf.readline().split()[1])
+
+        # storage
+        values = []
+
+        # each plane has a separate set of subfaults
+        for n, plane in enumerate(planes):
+            nstk, ndip = plane[2:4]
+            if seg >= 0 and seg != n:
+                skip_points(sf, nstk * ndip)
+                continue
+
+            plane_values = np.zeros((nstk * ndip, 3))
+            for i in xrange(nstk * ndip):
+                plane_values[i] = get_lonlat(sf, value = value)
+            values.append(plane_values)
+
+            if n == seg:
+                break
+    return values
 
 def srf_dxy(srf):
     """
