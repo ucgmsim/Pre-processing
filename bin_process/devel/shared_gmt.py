@@ -654,7 +654,7 @@ class GMTPlot:
             p.wait()
 
     def seismo(self, src, time, fmt = 'time', \
-            width = '1p', colour = 'red'):
+            width = '1p', colour = 'red', straight = True):
         """
         Plots seismograms on map.
         Note grep '--no-group-separator' only works in GNU GREP
@@ -665,6 +665,9 @@ class GMTPlot:
             'time' values are read by time
         width: width of the seismo line
         colour: colour of the seismo line
+        straight: don't draw great circle arcs -
+                True for straight lon/lat line projections such as Mercator
+                False if using other projecitons such as Transverse Merc.
         """
         # grep much faster than python
         # wd same as for GMT for consistency
@@ -677,9 +680,11 @@ class GMTPlot:
         gmt_in = gp.communicate()[0]
         gp.wait()
 
-        sp = Popen([GMT, 'psxy', '-J', '-R', '-N', '-K', '-O',
-                '-W%s,%s' % (width, colour)], \
-                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        cmd = [GMT, 'psxy', '-J', '-R', '-N', '-K', '-O',
+                '-W%s,%s' % (width, colour)]
+        if straight:
+            cmd.append('-A')
+        sp = Popen(cmd, stdin = PIPE, stdout = self.psf, cwd = self.wd)
         sp.communicate(gmt_in)
         sp.wait()
 

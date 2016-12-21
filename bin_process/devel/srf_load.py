@@ -200,7 +200,7 @@ p.topo(topo_low, cpt = topo_cpt)
 p.water()
 if plot_faults:
     p.path(faults, is_file = True, close = False, width = '0.1p', colour = 'red')
-p.path(plot_bounds, is_file = False, close = True, colour = 'blue')
+p.path(plot_bounds, is_file = False, close = True, colour = 'black')
 # get displacement of box to draw zoom lines later
 window_bottom = mapproject(plot_region[1], plot_region[2], wd = out_dir)
 window_top = mapproject(plot_region[1], plot_region[3], wd = out_dir)
@@ -219,11 +219,11 @@ p.spacial('X', \
 p.path('%f %f\n%f %f\n' % \
         (0, 0, window_bottom[0] + gap, window_bottom[1]), \
         width = '0.6p', is_file = False, split = '-', \
-        straight = True, colour = 'blue')
+        straight = True, colour = 'black')
 p.path('%f %f\n%f %f\n' % \
         (0, zoom_height, window_top[0] + gap, window_top[1]), \
         width = '0.6p', is_file = False, split = '-', \
-        straight = True, colour = 'blue')
+        straight = True, colour = 'black')
 
 ### PART D: surrounding info
 # add text and colour palette
