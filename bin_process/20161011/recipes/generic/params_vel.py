@@ -14,7 +14,7 @@ EXTENT_LATLON_SPACING = '0.1'
 MIN_VS = '0.5'
 TOPO_TYPE= 'BULLDOZED'
 
-HH = '0.1'
+HH = '0.100'
 NX = '1400'
 NY = '1200'
 NZ = '460'
@@ -22,6 +22,6 @@ SIM_DURATION = '30.0'
 SUFX = '_nz01-h0.100'
 
 vel_mod_params_dir = os.path.join(global_root, 'VelocityModel/ModelParams')
-GRIDFILE = os.path.join(vel_mod_params_dir, 'gridout_%s'%SUFX) # containing the local (x,y,z) coordinates for this 3D run
-MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords_%s'%SUFX) # input for statgrid gen
+GRIDFILE = os.path.join(vel_mod_params_dir, 'gridout%s'%SUFX) # containing the local (x,y,z) coordinates for this 3D run
+MODEL_COORDS = os.path.join(vel_mod_params_dir, 'model_coords%s'%SUFX) # input for statgrid gen
 

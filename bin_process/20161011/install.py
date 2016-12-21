@@ -5,6 +5,8 @@ global_root='/nesi/projects/nesi00213/'
 bin_process_path = '/nesi/projects/nesi00213/Pre-processing/bin_process/'
 install_bb_name='install_bb.py'
 
+params_vel = 'params_vel.py'
+
 import os
 import os.path
 import sys
@@ -12,6 +14,8 @@ import datetime
 import glob
 import shutil
 import getpass
+import importlib
+
 from version import *
 
 bin_process_dir = os.path.join(bin_process_path,bin_process_ver)
@@ -95,14 +99,14 @@ def q2(srf_selected_dir,srf_file_options):
     return srf_files_selected, srf_stoch_pairs
 
 
-def q3():
-    show_horizontal_line()
-    print "Select HH "
-    show_horizontal_line()
-    hh_options = ['0.100','0.200','0.400','0.500']
-    hh = show_multiple_choice(hh_options)
-    print hh
-    return hh
+#def q3():
+#    show_horizontal_line()
+#    print "Select HH "
+#    show_horizontal_line()
+#    HH_options = ['0.100','0.200','0.400','0.500']
+#    HH = show_multiple_choice(HH_options)
+#    print HH
+#    return HH
 
 
 def q4(vel_mod_dir):
@@ -118,13 +122,18 @@ def q4(vel_mod_dir):
     print v_mod_ver
     vel_mod_dir = os.path.join(vel_mod_dir,v_mod_ver)
     print vel_mod_dir
-    return v_mod_ver,vel_mod_dir
+    params_vel_path = os.path.join(vel_mod_dir,params_vel)
+    if not os.path.exists(params_vel_path):
+        print "Error: %s doesn't exist" %(params_vel_path)
+        sys.exit()
+
+    return v_mod_ver,vel_mod_dir, params_vel_path
 
 
-def q5(hh,srf_selected,v_mod_ver,emod3d_version):
+def q5(HH,srf_selected,v_mod_ver,emod3d_version):
     #automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
     userString=datetime.date.today().strftime("%y%m%d")   #additional string to customize (today's date for starters)
-    hString='-h'+hh
+    hString='-h'+HH
     srfString=srf_selected #use full name of RupModel directory #srf_selected.split("_")[0]
     vModelString='VM'+str(v_mod_ver)
     vString='_EMODv'+emod3d_version
@@ -236,9 +245,12 @@ def main():
     
     srf_selected,srf_selected_dir,srf_file_options = q1(srf_dir)
     srf_files_selected, srf_stoch_pairs = q2(srf_selected_dir, srf_file_options)
-    hh = q3()
-    v_mod_ver,vel_mod_dir_full = q4(vel_mod_dir)
-    yes, run_name = q5(hh,srf_selected,v_mod_ver,emod3d_version)
+#    HH = q3() ## HH is taken directly from params_vel.py
+    v_mod_ver,vel_mod_dir_full, params_vel_path = q4(vel_mod_dir)
+    
+    execfile(params_vel_path,globals())
+    
+    yes, run_name = q5(HH,srf_selected,v_mod_ver,emod3d_version)
     run_name = add_name_suffix(run_name,yes)
     
     recipe_selected_dir= q6(recipe_dir)
