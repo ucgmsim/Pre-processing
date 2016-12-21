@@ -30,7 +30,7 @@ import sys
 from tempfile import mkdtemp
 from time import time
 
-from highres_modelpath import path_from_corners
+from tools import path_from_corners
 try:
     from params_base import *
     from params import *
@@ -42,9 +42,9 @@ except ImportError:
 from shared_gmt import *
 
 # general setup
-title = 'Mw7.8 14 Nov 2016 Kaikoura Earthquake'
-fault_model = 'InSAR source model (modified from Hamling) v2'
-vel_model = 'SIVM v1.65 h=0.2km'
+title = 'Mw5.6 Real Time Event'
+fault_model = 'Autogen Source Model'
+vel_model = 'SIVM v1.65 h=0.1km'
 # pick a predefined region or model_params used
 plot_region = ''
 dpi = 96
@@ -59,11 +59,11 @@ cpt_min = 0
 cpt_max = 80
 cpt_inc = 10
 cpt_legend = 'ground motion (cm/s)'
-topo_file = os.path.abspath('nztopo.grd')
-stat_file = os.path.abspath('geonet_stations_20161205.ll')
+topo_file = '/nesi/projects/nesi00213/PlottingData/Topo/nztopo.grd'
+stat_file = os.path.abspath('20150105_175001_eventStats_2016-12-12.ll')
 # values below lowcut or above highcut removed, if both then keep outside
 # TODO: only lowcut implemented
-cpt_lowcut = 2.0
+cpt_lowcut = 0.1
 cpt_highcut = None
 # crop overlay to land
 land_crop = False
@@ -166,13 +166,14 @@ elif plot_region == 'MIDNZ':
 else:
     # optionally allow custom region
     print('Plotting region not understood, using model domain.')
-    x_min = min([xy[0] for xy in corners])
-    x_max = max([xy[0] for xy in corners])
-    y_min = min([xy[1] for xy in corners])
-    y_max = max([xy[1] for xy in corners])
+    x_min = min([xy[0] for xy in corners]) - 0.2
+    x_max = max([xy[0] for xy in corners]) + 0.2
+    y_min = min([xy[1] for xy in corners]) - 0.2
+    y_max = max([xy[1] for xy in corners]) + 0.2
     region_sites = ['Tekapo', 'Timaru', 'Christchurch', 'Greymouth', \
             'Westport', 'Kaikoura', 'Nelson', 'Blenheim', 'Wellington', \
             'Palmerston North', 'Masterton', 'New Plymouth', 'Taupo']
+    region_sites = sites.keys()
 
 # avg lon/lat (midpoint of plotting region)
 ll_avg = (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
@@ -224,6 +225,11 @@ b.cpt_scale(3, -0.5, cpt_overlay, cpt_inc, cpt_inc, label = cpt_legend)
 # stations
 b.points(stat_file, shape = 't', size = 0.08, \
         fill = None, line = 'white', line_thickness = 0.8)
+# NAMED STATIONS
+#with open(stat_file, 'r') as sf:
+#    for line in sf:
+#        x, y, n = line.split()
+#        b.text(float(x), float(y), n, dx = 0, dy = 0, clip = True)
 # do not finalise, close file
 b.leave()
 print('Created bottom template (%.2fs)' % (time() - t1))

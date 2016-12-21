@@ -583,16 +583,20 @@ class GMTPlot:
         Adds points to map.
         xy_file: file containing x, y positions to plot
         shape: shape to plot at positions
-        size: size of shape
+        size: size of shape, skip or just units to read from data column
         fill: fill colour of shape (default transparent)
         line: line colour of shape
         line_thickness: how thick the outline is
         cpt: fill using cpt (input has 3 columns, xyv)
         cols: override columns to be used as specified by GMT '-i'
         """
+        if size == None:
+            shaping = '-S%s' % (shape)
+        else:
+            shaping = '-S%s%s' % (shape, size)
         # build command based on optional fill and thickness
         cmd = [GMT, 'psxy', '-J', '-R', xy_file, \
-                '-S%s%s' % (shape, size), '-K', '-O']
+                shaping, '-K', '-O']
         if fill != None:
             cmd.append('-G%s' % (fill))
         elif cpt != None:
@@ -606,7 +610,7 @@ class GMTPlot:
 
     def path(self, in_data, is_file = True, close = False, \
             width = '0.4p', colour = 'black', split = None, \
-            straight = False, fill = None):
+            straight = False, fill = None, cols = None):
         """
         Draws a path between points.
         in_data: either a filepath to file containing x, y points
@@ -618,6 +622,7 @@ class GMTPlot:
         split: None continuous, '-' dashes, '.' dots
         straight: lines appear straight, do not use great circle path
         fill: fill inside area with this colour
+        cols: override columns to be used as specified by GMT '-i'
         """
         # build command based on parameters
         pen = '-W%s,%s' % (width, colour)
@@ -630,6 +635,8 @@ class GMTPlot:
             cmd.append('-A')
         if fill != None:
             cmd.append('-G%s' % fill)
+        if cols != None:
+            cmd.append('-i%s' % cols)
 
         if is_file:
             cmd.append(in_data)

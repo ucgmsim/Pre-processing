@@ -14,7 +14,7 @@ class InputError(Exception):
     pass
 
 def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
-        dx = 1, dy = 1, decimated = False):
+        dx = 1, dy = 1, decimated = False, verbose = False):
     """
     Converts latitude/longitude to a gridpoint position.
     Three main modes of operation:
@@ -33,7 +33,8 @@ def ll2gp(lat, lon, mlat, mlon, rot, nx, ny, hh, \
     cmd = [ll2xy_bin, 'mlat=%s' % (mlat), 'mlon=%s' % (mlon), \
               'geoproj=1', 'center_origin=1', 'h=%s' % (hh), \
               'xazim=%s' % (xazim), 'xlen=%s' % (xlen), 'ylen=%s' % (ylen)]
-    print ' '.join(cmd)
+    if verbose:
+        print ' '.join(cmd)
     p_conv = Popen(cmd,
             stdin = PIPE, stdout = PIPE)
     stdout = p_conv.communicate('%s %s' % (lon, lat))[0]
