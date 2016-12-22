@@ -6,6 +6,7 @@ bin_process_path = '/nesi/projects/nesi00213/Pre-processing/bin_process/'
 install_bb_name='install_bb.py'
 
 params_vel = 'params_vel.py'
+params_src = 'params_src.py'
 
 import os
 import os.path
@@ -22,7 +23,6 @@ bin_process_dir = os.path.join(bin_process_path,bin_process_ver)
 sys.path.append(bin_process_dir)  #unnecessary if this file is a symbolic link
 from shared import *
 
-
 # directories - main. change global_root with user_root as required
 run_dir = os.path.join(global_root,'RunFolder')
 user = getpass.getuser()
@@ -33,8 +33,10 @@ vel_mod_subdirs = ['Cant','SI']
 recipe_dir = os.path.join(bin_process_dir,"recipes")
 v_mod_1d_dir = os.path.join(global_root,'VelocityModel','Mod-1D')
 gmsa_dir = os.path.join(global_root,'groundMotionStationAnalysis')
+stat_dir = os.path.join(global_root,'StationInfo')
 
-def q1_accept_custom_rupmodel():
+
+def q_accept_custom_rupmodel():
     show_horizontal_line()
     print "Do you wish to use custom rupture files?"
     show_horizontal_line()
@@ -42,7 +44,7 @@ def q1_accept_custom_rupmodel():
    
 
 
-def q1_custom_rupmodel_path():
+def q_custom_rupmodel_path():
     verified = False
     while not verified:
         rupture_path = raw_input("Enter path to custom Rupture Model (the parent of Srf/Stoch SRF directory): ")
@@ -54,7 +56,7 @@ def q1_custom_rupmodel_path():
       
         
        
-def q1(srf_dir):
+def q_select_rupmodel_dir(srf_dir):
     show_horizontal_line()
     print "Select Rupture Model - Step 1."
     show_horizontal_line()
@@ -69,11 +71,16 @@ def q1(srf_dir):
         print "No such Srf directory : %s" %srf_selected_dir
         sys.exit()
 
-    return srf_selected,srf_selected_dir,srf_file_options
+    params_src_path=os.path.join(srf_dir,srf_selected,params_src)
+    if not os.path.exists(params_src_path):
+        print "Error: %s doesn't exist" %(params_src_path)
+        sys.exit()
+
+    return srf_selected,srf_selected_dir,srf_file_options,params_src_path
 
 
 
-def q2(srf_selected_dir,srf_file_options):
+def q_select_rupmodel(srf_selected_dir,srf_file_options):
     show_horizontal_line()
     print "Select Rupture Model - Step 2."
     show_horizontal_line()
@@ -109,7 +116,7 @@ def q2(srf_selected_dir,srf_file_options):
 #    return HH
 
 
-def q4(vel_mod_dir):
+def q_select_vel_model(vel_mod_dir):
     show_horizontal_line()
     print "Select one of available VelocityModels (from %s)" %vel_mod_dir
     show_horizontal_line()
@@ -129,8 +136,24 @@ def q4(vel_mod_dir):
 
     return v_mod_ver,vel_mod_dir, params_vel_path
 
+def q_select_stat_file(remove_fd=False):
+    show_horizontal_line()
+    print "Select one of available Station list (from %s)" %stat_dir
+    show_horizontal_line()
+    stat_files = glob.glob(os.path.join(stat_dir,'*.ll'))
+    stat_files = [os.path.basename(x) for x in stat_files]
+    if remove_fd:
+        stat_files = [x for x in stat_files if not x.startswith('fd_')]
+    
+    stat_files.sort()
+    stat_file = show_multiple_choice(stat_files)
+    print stat_file
+    stat_file_path = os.path.join(stat_dir,stat_file)
+    print stat_file_path
+    return stat_file_path
 
-def q5(HH,srf_selected,v_mod_ver,emod3d_version):
+
+def q_get_run_name(HH,srf_selected,v_mod_ver,emod3d_version):
     #automatic generation of the run name (LP here only, HF and BB come later after declaration of HF and BB parameters). 
     userString=datetime.date.today().strftime("%y%m%d")   #additional string to customize (today's date for starters)
     hString='-h'+HH
@@ -144,7 +167,7 @@ def q5(HH,srf_selected,v_mod_ver,emod3d_version):
     return yes, run_name
 
 
-def q6(recipe_dir):
+def q_select_recipe(recipe_dir):
     recipes = os.listdir(recipe_dir)
     show_horizontal_line()
     print "Choose one of available recipes (from %s)" % recipe_dir
@@ -155,7 +178,7 @@ def q6(recipe_dir):
     return recipe_selected_dir
 
 
-def q7(run_name,recipe_selected_dir):
+def q_final_confirm(run_name,recipe_selected_dir):
     show_horizontal_line(c="*")
     print "To be created: \n%s" %run_name
     print "Recipe to be copied from \n%s" %recipe_selected_dir
@@ -166,7 +189,7 @@ def q7(run_name,recipe_selected_dir):
 
 
      
-def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_stoch_pairs):
+def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root, run_dir, vel_mod_dir,srf_dir,srf_stoch_pairs,params_src_path,params_vel_path,stat_file_path):
 
     lf_sim_root_dir, hf_dir, bb_dir, figures_dir  = os.path.join(sim_dir,"LF"), os.path.join(sim_dir,"HF"), os.path.join(sim_dir,"BB"), os.path.join(sim_dir,"Figures")
 
@@ -187,31 +210,40 @@ def action(sim_dir,recipe_selected_dir,run_name,version, global_root, user_root,
     shutil.copy(os.path.join(bin_process_dir,"submit_post_emod3d.sh"),sim_dir)
     shutil.copy(os.path.join(bin_process_dir,"submit_bb.sh"),sim_dir)
 
-
-
     srf_files, stoch_files = zip(*srf_stoch_pairs)
-    f=open(os.path.join(sim_dir,"params_base.py"),"w");
-    f.write("run_name='%s'\n" %run_name)
-    f.write("version='%s'\n" %version)
-    f.write("bin_process_ver='%s'\n" %bin_process_ver)
+    with open(os.path.join(sim_dir,"params_base.py"),"w") as f:
+        f.write("run_name='%s'\n" %run_name)
+        f.write("version='%s'\n" %version)
+        f.write("bin_process_ver='%s'\n" %bin_process_ver)
 
-    f.write("global_root='%s'\n" %global_root)
-    f.write("user_root='%s'\n" %user_root)
-    f.write("run_dir='%s'\n"%run_dir)
-    f.write("sim_dir='%s'\n"%sim_dir)
-    f.write("lf_sim_root_dir='%s'\n"%lf_sim_root_dir)
-    f.write("hf_dir='%s'\n"%hf_dir)
-    f.write("bb_dir='%s'\n"%bb_dir)
-    f.write("figures_dir='%s'\n"%figures_dir)
-    f.write("srf_dir='%s'\n"%srf_dir)
-    f.write("srf_files=%s\n"%str(list(srf_files)))
-    f.write("hf_slips=%s\n"%str(list(stoch_files)))
-    f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
-    f.write("v_mod_1d_dir='%s'\n"%v_mod_1d_dir)
+        f.write("global_root='%s'\n" %global_root)
+        f.write("user_root='%s'\n" %user_root)
+        f.write("run_dir='%s'\n"%run_dir)
+        f.write("sim_dir='%s'\n"%sim_dir)
+        f.write("lf_sim_root_dir='%s'\n"%lf_sim_root_dir)
+        f.write("hf_dir='%s'\n"%hf_dir)
+        f.write("bb_dir='%s'\n"%bb_dir)
+        f.write("figures_dir='%s'\n"%figures_dir)
+        f.write("srf_dir='%s'\n"%srf_dir)
+        f.write("srf_files=%s\n"%str(list(srf_files)))
+        f.write("hf_slips=%s\n"%str(list(stoch_files)))
+        f.write("vel_mod_dir='%s'\n"%vel_mod_dir)
+        f.write("v_mod_1d_dir='%s'\n"%v_mod_1d_dir)
+        f.write("params_vel='%s'\n"%params_vel_path) #assumes one params_vel for all velocity models tested (not yet supported)
+        f.write("params_src='%s'\n"%params_src_path) #assumes one params_src for all rupture models tested (supported)
+        f.write("stat_file='%s'\n" %stat_file_path)
+    
 
-    f.close()
     print dir_list[0]
     set_permission(dir_list[0]) #if user_root is first time created, recursively set permission from there. otherwise, set permission from sim_dir
+
+    print "Producing statcords and FD_STATLIST"
+    sys.path.append(sim_dir)
+    import statlist2gp
+    fd_statcords, fd_statlist = statlist2gp.main()
+    with open(os.path.join(sim_dir,"params_base.py"),"a") as f:
+        f.write("stat_coords='%s'\n"%fd_statcords)
+        f.write("FD_STATLIST='%s'\n"%fd_statlist)
 
 
 def show_instruction(sim_dir):
@@ -237,30 +269,32 @@ def main():
     print " "*37+"EMOD3D Job Preparation Ver."+bin_process_ver
     show_horizontal_line(c="*")
     
-    yes = q1_accept_custom_rupmodel()
+    yes = q_accept_custom_rupmodel()
     if yes:
-        srf_dir = q1_custom_rupmodel_path()
+        srf_dir = q_custom_rupmodel_path()
     else:
         srf_dir = srf_default_dir
     
-    srf_selected,srf_selected_dir,srf_file_options = q1(srf_dir)
-    srf_files_selected, srf_stoch_pairs = q2(srf_selected_dir, srf_file_options)
+    srf_selected,srf_selected_dir,srf_file_options,params_src_path = q_select_rupmodel_dir(srf_dir)
+    srf_files_selected, srf_stoch_pairs = q_select_rupmodel(srf_selected_dir, srf_file_options)
 #    HH = q3() ## HH is taken directly from params_vel.py
-    v_mod_ver,vel_mod_dir_full, params_vel_path = q4(vel_mod_dir)
+    v_mod_ver,vel_mod_dir_full, params_vel_path = q_select_vel_model(vel_mod_dir)
     
-    execfile(params_vel_path,globals())
+    execfile(params_vel_path,globals()) #import params_vel, to retrieve HH
     
-    yes, run_name = q5(HH,srf_selected,v_mod_ver,emod3d_version)
+    stat_file_path = q_select_stat_file(remove_fd=True) 
+    
+    yes, run_name = q_get_run_name(HH,srf_selected,v_mod_ver,emod3d_version)
     run_name = add_name_suffix(run_name,yes)
     
-    recipe_selected_dir= q6(recipe_dir)
-    final_yes = q7(run_name,recipe_selected_dir)
+    recipe_selected_dir= q_select_recipe(recipe_dir)
+    final_yes = q_final_confirm(run_name,recipe_selected_dir)
     if not final_yes:
         print "Installation exited"
         sys.exit()
 
     sim_dir = os.path.join(user_root,run_name)
-    action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, user_root, run_dir, vel_mod_dir_full, srf_dir,srf_stoch_pairs)
+    action(sim_dir,recipe_selected_dir,run_name,emod3d_version, global_root, user_root, run_dir, vel_mod_dir_full, srf_dir,srf_stoch_pairs,params_src_path,params_vel_path,stat_file_path)
 
     #add bin_process to PATH if it is not already there
     if not bin_process_dir in os.environ['PATH']:

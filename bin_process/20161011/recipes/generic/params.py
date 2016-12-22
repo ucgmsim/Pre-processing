@@ -1,10 +1,15 @@
 import os.path
+import os
 from platform import node
 from params_base import *
 
-import params_vel as vel 
-import params_src as src
-import params_stat as stat
+#import params_vel as vel 
+#import params_src as src
+#import params_stat as stat
+
+execfile(params_vel,globals())
+execfile(params_src,globals())
+
 
 # number of processes
 n_proc = '512'  
@@ -14,26 +19,26 @@ flo = '1.0' # hertz
 ######## Global CONSTANTS ########
 #FROM RUPTURE MODEL
 # model reference location
-MODEL_LAT = vel.ORIGIN_LAT
-MODEL_LON = vel.ORIGIN_LON
+MODEL_LAT = ORIGIN_LAT
+MODEL_LON = ORIGIN_LON
 
 # dt should be 0.005 (or smaller), small increments required in simulation
-dt = src.DT
+dt = DT
 
 #FROM VELOCITY MODEL
-MODEL_ROT = vel.ORIGIN_ROT
+MODEL_ROT = ORIGIN_ROT
 # spatial grid spacing
-hh = vel.HH
+hh = HH
 # x, y, z grid size (multiples of grid spacing)
-nx = vel.NX
-ny = vel.NY
-nz = vel.NZ
+nx = NX
+ny = NY
+nz = NZ
 
-sufx = vel.SUFX #need to get from VELOCITY MODEL
+sufx = SUFX #need to get from VELOCITY MODEL
 
 # cap number of timesteps in simulation, not all timesteps have outputs
 # max simulation timeperiod = nt * dt eg: 10,000 * 0.005 = 50 seconds
-sim_duration = vel.SIM_DURATION
+sim_duration = SIM_DURATION
 
 
 
