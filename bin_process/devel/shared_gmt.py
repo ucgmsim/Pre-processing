@@ -228,7 +228,7 @@ def grd_mask(xy_file, out_file, region = None, dx = '1k', dy = '1k'):
 def gmt_defaults(wd = '.', font_annot_primary = 16, map_tick_length_primary = '0.05i', \
         font_label = 16, ps_page_orientation = 'portrait', map_frame_pen = '1p', \
         format_geo_map = 'D', map_frame_type = 'plain', format_float_out = '%lg', \
-        proj_length_unit = 'i', ps_media = 'A2', extra = []):
+        proj_length_unit = 'i', ps_media = 'A0', extra = []):
     """
     Sets default values for GMT.
     GMT stores these values in the file 'gmt.conf'
@@ -576,12 +576,13 @@ class GMTPlot:
                 '-Ba%sf%s%s' % (major, minor, sides)], \
                 stdout = self.psf, cwd = self.wd).wait()
 
-    def points(self, xy_file, shape = 't', size = 0.08, \
+    def points(self, in_data, is_file = True, shape = 't', size = 0.08, \
             fill = None, line = 'white', line_thickness = '0.8p', \
             cpt = None, cols = None):
         """
         Adds points to map.
-        xy_file: file containing x, y positions to plot
+        in_data: file or text containing '\n' separated x, y positions to plot
+        is_file: whether in_data is a filepath (True) or a string (False)
         shape: shape to plot at positions
         size: size of shape, skip or just units to read from data column
         fill: fill colour of shape (default transparent)
@@ -595,7 +596,7 @@ class GMTPlot:
         else:
             shaping = '-S%s%s' % (shape, size)
         # build command based on optional fill and thickness
-        cmd = [GMT, 'psxy', '-J', '-R', xy_file, \
+        cmd = [GMT, 'psxy', '-J', '-R', \
                 shaping, '-K', '-O']
         if fill != None:
             cmd.append('-G%s' % (fill))
@@ -606,7 +607,13 @@ class GMTPlot:
         if cols != None:
             cmd.append('-i%s' % (cols))
 
-        Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
+        if is_file:
+            cmd.append(in_data)
+            Popen(cmd, stdout = self.psf, cwd = self.wd).wait()
+        else:
+            p = Popen(cmd, stdin = PIPE, stdout = self.psf, cwd = self.wd)
+            p.communicate(in_data)
+            p.wait()
 
     def path(self, in_data, is_file = True, close = False, \
             width = '0.4p', colour = 'black', split = None, \
@@ -647,9 +654,10 @@ class GMTPlot:
             p.wait()
 
     def seismo(self, src, time, fmt = 'time', \
-            width = '1p', colour = 'red'):
+            width = '1p', colour = 'red', straight = True):
         """
         Plots seismograms on map.
+        Note grep '--no-group-separator' only works in GNU GREP
         src: file contaning the seismogram data
         time: draw the seismogram up to this reading
         fmt: format of the src file
@@ -657,6 +665,9 @@ class GMTPlot:
             'time' values are read by time
         width: width of the seismo line
         colour: colour of the seismo line
+        straight: don't draw great circle arcs -
+                True for straight lon/lat line projections such as Mercator
+                False if using other projecitons such as Transverse Merc.
         """
         # grep much faster than python
         # wd same as for GMT for consistency
@@ -664,14 +675,16 @@ class GMTPlot:
             gp = Popen(['grep', src, '-e', '^>TS%d ' % (time), \
                     '-A%d' % (time + 1)], stdout = PIPE, cwd = self.wd)
         elif fmt == 'inc':
-            gp = Popen(['grep', src, '-e', '^>', \
+            gp = Popen(['grep', src, '-e', '^>', '--no-group-separator', \
                     '-A%d' % (time + 1)], stdout = PIPE, cwd = self.wd)
         gmt_in = gp.communicate()[0]
         gp.wait()
 
-        sp = Popen([GMT, 'psxy', '-J', '-R', '-N', '-K', '-O',
-                '-W%s,%s' % (width, colour)], \
-                stdin = PIPE, stdout = self.psf, cwd = self.wd)
+        cmd = [GMT, 'psxy', '-J', '-R', '-N', '-K', '-O',
+                '-W%s,%s' % (width, colour)]
+        if straight:
+            cmd.append('-A')
+        sp = Popen(cmd, stdin = PIPE, stdout = self.psf, cwd = self.wd)
         sp.communicate(gmt_in)
         sp.wait()
 
