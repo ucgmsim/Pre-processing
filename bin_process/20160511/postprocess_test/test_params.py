@@ -1,6 +1,0 @@
-vel_dir = 'postprocess_test/Vel'
-bin_output = 'postprocess_test/OutBin'
-output_prefix = 'testcase'
-SCALE = '1.0'
-FD_STATLIST = '/hpc/scratch/nesi00213/StationInfo/fd_nz01-h0.100.ll'
-wcc_prog_dir = '/hpc/scratch/nesi00213/EMOD3D/WccFormat/bin/ppc64-Linux-p2n14-c-gcc'
