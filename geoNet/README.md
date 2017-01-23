@@ -1,10 +1,12 @@
 # geoNet
 ```
-Usage
+Usage:
+    Use the examples in the examples directory to download and process data from GeoNet
 ```
-Use the examples in the examples directory to download and process data from GeoNet
+
 
 ```
 Warning:
-```
     Code will breakdown on Windows and possibly also on Mac
+```
+    
