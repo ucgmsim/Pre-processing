@@ -30,7 +30,7 @@ lat = float(config.get("Parameters","ORIGIN_LAT").replace("'",""))
 rotate = float(config.get("Parameters","ORIGIN_ROT").replace("'",""))
 x_len = float(config.get("Parameters","EXTENT_X").replace("'",""))
 y_len = float(config.get("Parameters","EXTENT_Y").replace("'",""))
-minimal_distance = float(config.get("Parameters","EXTENT_LATLON_SPACING").replace("'",""))
+minimal_distance = 5.0*float(config.get("Parameters","EXTENT_LATLON_SPACING").replace("'",""))
 suffix = config.get("Parameters","SUFX").replace("'","")
 maximal_distance = 8.0 # fixed to 8km
 
@@ -105,7 +105,7 @@ with open("non_uniform_%s%s_%s%s.ll" %(str(lon),str(lat),str(minimal_distance),s
             # fp.write("%f, %f, %f\n" % (p[0], p[1], float(i)))
             counter += 1
             # TODO: this only creates an 8 char name, make it better
-            name = hashlib.md5("%f.5%f.5" % (longitude, latitude)).hexdigest()[:8]
+            name = hashlib.md5("%f.5%f.5" % (longitude, latitude)).hexdigest()[:7]
             fp.write("%f\t%f\t%s\n" % (longitude, latitude, name ))
 
 
