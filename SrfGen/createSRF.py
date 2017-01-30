@@ -6,25 +6,22 @@ from shutil import copyfile
 from subprocess import call, Popen, PIPE
 
 import numpy as np
-import sys
-import shared
 
-PARAMS_SRC = 'params_src.py'
 GSF_DIR = 'Gsf'
 SRF_DIR = 'Srf'
 STOCH_DIR = 'Stoch'
 
 GSF_BIN = '/nesi/projects/nesi00213/tools/fault_seg2gsf'
 FF_SRF_BIN = '/nesi/projects/nesi00213/tools/genslip-v3.3'
-PS_SRF_BIN = '/nesi/projects/nesi00213/tools/generic_slip2srf'
+#PS_SRF_BIN = '/nesi/projects/nesi00213/tools/generic_slip2srf'
 SRF_JOIN_BIN = '/nesi/projects/nesi00213/tools/srf_join'
 STOCH_BIN = '/nesi/projects/nesi00213/tools/srf2stoch'
-VELFILE = 'lp_generic1d-gp01.vmod'
+VELFILE = 'lp_generic1d-gp01_v1.vmod'
 
 # for testing on viktor's laptop
-GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
-FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
-SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
+#GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
+#FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
+#SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3 * log(mom) / log(10.0)) - 10.7
@@ -428,8 +425,7 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         if int(SEG_DELAY):
             XSEG = []
             sbound = 0.0
-            # NSEG - 1 because no delay/gap between last value and next one?
-            for g in xrange(NSEG - 1):
+            for g in xrange(NSEG):
                 sbound += FLEN[g]
                 XSEG.append(sbound - 0.5 * FLEN_TOT)
             # warning: gawk handles precision automatically, may not always match
@@ -450,7 +446,6 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
                 fs.write('%f %f %f %.4f %.4f %.4f %.4f %.4f %i %i\n' % ( \
                         ELON[f], ELAT[f], DTOP[f], STK[f], DIP[f], \
                         RAK[f], FLEN[f], FWID[f], NX[f], NY[f]))
-
         # create GSF file
         call([GSF_BIN, 'read_slip_vals=0', 'infile=%s' % ('fault_seg.in'), 'outfile=%s/%s' % (GSF_DIR, GSF_FILE)])
 
@@ -511,13 +506,4 @@ if __name__ == "__main__":
                 M_DHYPO, DT, SEED, M_NAME, CASES)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
-        sys.exit(0)
-
-    p={}  
-    p['MODEL_LAT']=LAT
-    p['MODEL_LON']=LON
-    p['dt']=DT 
-    shared.write_to_py(PARAMS_SRC,p) 
-        
-            
 
