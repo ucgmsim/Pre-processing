@@ -421,8 +421,7 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         SHYP_TOT = SHYPO[0] + 0.5 * FLEN[0] - 0.5 * FLEN_TOT
 
         XSEG = "-1"
-        # should this be if NSEG > 1?
-        if int(SEG_DELAY):
+        if int(NSEG > 1):
             XSEG = []
             sbound = 0.0
             for g in xrange(NSEG):
