@@ -6,8 +6,8 @@ from matplotlib import pylab as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from time import time
 
-from quakecore.putils import get_stat_acc_plot, get_stat_vel_plot
-from quakecore.utils import get_sorted_stats_code,  read_statsll
+from geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
+from geoNet.utils import get_sorted_stats_code,  read_statsll
 
 init_time = time()
 #parent_dir_loc="/nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw4pt9_20110429_190804_11Jan2017/Vol1/data"
