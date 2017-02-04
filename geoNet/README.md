@@ -16,7 +16,7 @@ groundMotionStationAnalysis code (now called post-processing).
 
 ```
 Installation:
-```
+
 (0) copy setup.py so that geoNet and setup.py reside in the same parent directory then
 
 (1) python2.7 setup.py build
@@ -27,11 +27,13 @@ Installation:
 (3) python2.7 setup.py install --user 
 
   On hypocentre this places the geoNet package in ~/.local/lib64/python2.7/site-packages
+```
 
 ```
 Uninstall:
-```
+
   rm -r ~/.local/lib64/python2.7/site-packages/geoNet
+```
 
 ```
 Usage example:
