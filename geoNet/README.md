@@ -1,4 +1,5 @@
-#geoNet 
+#geoNet
+```
 Follow the examples listed in examples directory to download and process geoNet data.
 Some of the products/plots produced during real-time ground motion simulation drills 
 are dependent upon 
@@ -8,9 +9,10 @@ are dependent upon
 which are copied over and placed in gmpe directory. 
 The scripts that produce products for real-time simulation drills are placed 
 in the examples directory. The example scripts make heavy use of utils.py and 
-putils.py which contain many convenience functions. Note that some of the productsxi
+putils.py which contain many convenience functions. Note that some of the products
 produced for real-time simulation drills are similar to those produced in 
 groundMotionStationAnalysis code (now called post-processing).
+```
 
 ```
 Installation:
