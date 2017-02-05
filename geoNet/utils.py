@@ -8,10 +8,10 @@ from glob import glob
 import datetime
 from itertools import izip
 #https://docs.python.org/2.5/whatsnew/pep-328.html
-from geoNet.rspectra import Response_Spectra
-from geoNet.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
-from geoNet.gmpe.calculateGMPE import set_siteprop
-from geoNet.gmpe import readStationFile as rsf
+from pyqc.rspectra import Response_Spectra
+from pyqc.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
+from pyqc.gmpe.calculateGMPE import set_siteprop
+from pyqc.gmpe import readStationFile as rsf
 
 def readGP(loc, fname):
     """
@@ -236,7 +236,20 @@ def read_statsll(loc, name):
 
     return stats_dict
 
+def write_statsll(loc, fname, stats_dict):
+    """
+    loc:
+        where fname is saved
+    stats_dict:
+        is of type returned by read_statsll
+    """
 
+    with open("/".join([loc,fname]),'w') as f:
+        for stat_code in stats_dict:
+            (lon, lat) = stats_dict[stat_code]
+            f.write("{:<15.4f} {:^15.4f} {:^10s} \n".format(lon, lat, stat_code))
+
+    return
 def get_sorted_stats_code(loc, stats_dict, comp="geom"):
     """
         Applies for vel and acc data only
