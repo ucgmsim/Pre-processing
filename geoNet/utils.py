@@ -8,10 +8,10 @@ from glob import glob
 import datetime
 from itertools import izip
 #https://docs.python.org/2.5/whatsnew/pep-328.html
-from pyqc.rspectra import Response_Spectra
-from pyqc.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
-from pyqc.gmpe.calculateGMPE import set_siteprop
-from pyqc.gmpe import readStationFile as rsf
+from geoNet.rspectra import Response_Spectra
+from geoNet.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
+from geoNet.gmpe.calculateGMPE import set_siteprop
+from geoNet.gmpe import readStationFile as rsf
 
 def readGP(loc, fname):
     """
