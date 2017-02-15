@@ -11,13 +11,19 @@ import numpy as np
 import os
 from time import time
 from glob import glob
+import scipy
+import sys
 #geoNet imports
 from geoNet import scrapeGeoNet as sg
 from geoNet import utils, putils
 from geoNet.gen_stats_kml import write_stats_kml
+from geoNet.geoNet_file import GeoNet_File
+from geoNet.process import Process, adjust_gf_for_time_delay
 
 def getData(loc, BASE_URL):
     """
+    loc:
+        .V1A data will be downloaded to loc/Vol1
     """
     init_time=time()
     print("Downloading data ...")
@@ -50,6 +56,15 @@ def event_statsll(fname, loc,
                   loc_all_geoNet_stats, fname_all_geoNet_stats,
                   loc_V1A):
     """
+    fname:
+        stations.ll file name
+    loc:
+        stations.ll saved at loc
+    loc_all_geoNet_stats, fname_all_geoNet_stats:
+        location and name of master file that contains (lon, lat, stat_code)
+        for all SMSs.
+    loc_V1A:
+        where .V1A data files are saved in getData.
     """
     init_time=time()
     print("Creating stations list ...")
@@ -107,52 +122,60 @@ def event_statsll(fname, loc,
     return
 
 
-def processData():
+def processData(LOC):
     """
+    LOC:
+        where .V1A data files are saved in getData.
     """
     init_time=time()
-    print("Creating stations list ...")
+    print("Processing .V1A files ...")
+
+    std_err = open("processData_stderr.txt", 'w')
+    std_out = open("processData_stdout.txt", 'w')
+    sys.stdout = std_out
 
     #Only LOC needs to be changed in this example, LOC is where the geoNet data
     #files are placed after download
-    LOC="/".join([os.getcwd(), "Vol1", "data"])
+    #LOC="/".join([os.getcwd(), "Vol1", "data"])
 
     FILE_NAMES = []
     event_stats_V1A = glob("/".join([LOC,"*.V1A"]))
     FILE_NAMES = [os.path.basename(_) for _ in event_stats_V1A]
 
-    print("\n Processing %d stations in Vol1 data ..." %len(FILE_NAMES))
+    std_out.write("\n Processing %d stations in Vol1 data ...\n" %len(FILE_NAMES))
 
     for station_file_name in FILE_NAMES:
-        print("\n**************************")
-        print("%s" %station_file_name)
-        print("\n**************************")
+        std_out.write("\n**************************\n")
+        std_out.write("%s" %station_file_name)
+        std_out.write("\n**************************\n")
         try:
             gf = GeoNet_File(station_file_name, LOC, vol=1)
             if gf.comp_1st.acc.size < 5./gf.comp_1st.delta_t:
-                print("%s has less than 5 secs of data" %station_file_name)
-                print("skipping %s" %station_file_name)
+                std_out.write("%s has less than 5 secs of data\n" %station_file_name)
+                std_out.write("skipping %s\n" %station_file_name)
                 continue
             
             #When appended zeroes at the beginning of the record are removed, the 
             #record might then be empty, skipp processing in such a case
             agf=adjust_gf_for_time_delay(gf)
             if agf.comp_1st.acc.size <= 10: 
-                print("no elements in %s. Skipping it." %station_file_name)
+                std_out.write("no elements in %s. Skipping it.\n" %station_file_name)
                 continue
+
+            gf.comp_1st.acc = scipy.signal.detrend(gf.comp_1st.acc, type='linear')
+            gf.comp_2nd.acc = scipy.signal.detrend(gf.comp_2nd.acc, type='linear')
+            gf.comp_up.acc = scipy.signal.detrend(gf.comp_up.acc, type='linear')       
 
             gf.comp_1st.acc -= gf.comp_1st.acc.mean()
             gf.comp_2nd.acc -= gf.comp_2nd.acc.mean()
             gf.comp_up.acc  -= gf.comp_up.acc.mean()
 
-            gf.comp_1st.acc = detrend(gf.comp_1st.acc, type='linear')
-            gf.comp_2nd.acc = detrend(gf.comp_2nd.acc, type='linear')
-            gf.comp_up.acc = detrend(gf.comp_up.acc, type='linear')       
+
             pgf = Process(gf, lowcut=0.05, gpInt=False)
             #pgf = Process(gf, lowcut=0.05, ft=0.25)
         except Exception as e:
-            print(e)
-            print("%s is problematic, skipping it" %station_file_name)
+            std_err.write(str(e))
+            std_err.write("%s is problematic, skipping it.\n" %station_file_name)
             continue
             #raise
 
@@ -166,12 +189,16 @@ def processData():
             pgf.save2disk(LOC+"/accBB/", stat_code, 'accBB')
 
         except Exception as e:
-            print(e)
-            print("Skipping this station %s\n" %station_file_name)
+            std_err.write(str(e))
+            std_err.write("Skipping this station %s\n" %station_file_name)
             continue
 
+    std_out.close()
+    std_err.close()
+
+    sys.stdout=sys.__stdout__
     final_time=time()
-    print("Done in {:.1f} secs".format(final_time - init_time))
+    print("Done processing in {:.1f} secs\n".format(final_time - init_time))
 
     return
 
@@ -301,3 +328,7 @@ if __name__ == "__main__":
     event_statsll(fname, loc,
                   loc_all_geoNet_stats, fname_all_geoNet_stats,
                   loc_V1A)
+
+
+    #LOC="/".join([os.getcwd(), "Vol1", "data"])
+    processData(loc_V1A)
