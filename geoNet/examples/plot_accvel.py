@@ -1,3 +1,7 @@
+"""
+Plots all the SMS data in a given directory by reading all *.000 files and 
+sorting the SMSs in order of increasing PGV
+"""
 import numpy as np
 import matplotlib
 # Force matplotlib to not use any Xwindows backend.
@@ -7,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from time import time
 
 from geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
-from geoNet.utils import get_sorted_stats_code,  read_statsll
+from geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
 
 init_time = time()
 #parent_dir_loc="/nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw4pt9_20110429_190804_11Jan2017/Vol1/data"
@@ -25,17 +29,13 @@ loc_velBB="/".join([parent_dir_loc, plot_dir_velBB])
 loc_acc = loc_accBB
 loc_vel = loc_velBB
 
-#import sys
-#sys.exit()
-#To plot all stations in file all_stats use code below
-#with open("all_stats.txt",'r') as f:
-#    event_stats = f.readlines()
 
 stats_dict = read_statsll("/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105",
                           'geonet_stations_20170117.ll')
-#from get_processed_stats_list import get_processed_stats_list
-#stats_dict=get_processed_stats_list(loc_velBB,stats_dict)
-#stations are sorted according to PSA
+#Some of the SMSs may not be processed. Assign stats_dict to only those that were processed.
+stats_dict = get_processed_stats_list(loc_velBB, stats_dict, verbose=True)
+
+#stations are sorted according to PGV
 sorted_stats_code = get_sorted_stats_code(loc_velBB,stats_dict,comp='geom')
 pdf_acc = PdfPages('plots_acc.pdf')
 pdf_vel = PdfPages('plots_vel.pdf')
