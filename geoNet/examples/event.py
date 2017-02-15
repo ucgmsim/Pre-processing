@@ -276,7 +276,7 @@ def plot_psa(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     from matplotlib.backends.backend_pdf import PdfPages
 
     from geoNet.putils import get_stat_PSA_plot
-    from geoNet.utils import get_sorted_stats_code,  read_statsll
+    from geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
 
     init_time=time()
     print("Creating pSA plots for all Observed SMSs ...")
@@ -298,7 +298,9 @@ def plot_psa(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     #stats_dict = read_statsll("/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105",
     #                          'geonet_stations_20170117.ll')
     stats_dict = read_statsll(loc_statsll, fname_statsll)
-    #stations are sorted according to PSA
+    #Some of the SMSs may not be processed. Assign stats_dict to only those that were processed.
+    stats_dict = get_processed_stats_list(loc_velBB, stats_dict, verbose=True)
+    #stations are sorted according to PGV
     sorted_stats_code = get_sorted_stats_code(loc_velBB,stats_dict)
     pdf_psa = PdfPages('plots_psa.pdf')
     for stat in sorted_stats_code:
@@ -312,6 +314,87 @@ def plot_psa(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     final_time = time()
     print("Done pSA plots in {:.1f} secs.\n".format(final_time - init_time))
 
+    return
+
+
+def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
+             loc_statsll, fname_statsll):
+    """
+    Writes PGV, PGA, pSA intensity measures to files used in GMT plotting scripts
+    """
+
+    from geoNet.utils import (get_sorted_stats_code, read_statsll, 
+    get_event_data, get_event_PSA, get_extremum, get_processed_stats_list)
+
+    init_time=time()
+    print("Writting IMs for GMT plotting ...")
+
+    loc_accBB="/".join([parent_dir_loc, plot_dir_accBB])
+    loc_velBB="/".join([parent_dir_loc, plot_dir_velBB])
+
+    loc_acc = loc_accBB
+    loc_vel = loc_velBB
+
+    stats_dict = read_statsll(loc_statsll, fname_statsll)
+    #Some of the SMSs may not be processed. Assign stats_dict to only those that were processed.
+    stats_dict = get_processed_stats_list(loc_velBB, stats_dict, verbose=True)
+
+    #stations are sorted according to PGV
+    #Altough not required helps identify maximum and minimum IM interval
+    sorted_stats_code = get_sorted_stats_code(loc_velBB, stats_dict, comp='geom')
+    sorted_stats_code = [_["name"] for _ in sorted_stats_code]
+
+    #write PGVs
+    event_velBB = get_event_data(loc_velBB, sorted_stats_code)
+    with open("event_obs_PGVs.txt", 'w') as f:
+        for stat_data in event_velBB:
+            stat_code=stat_data['name']
+            lon, lat = stats_dict[stat_code]
+            ext_vel_000, _ = get_extremum(stat_data['000'])
+            ext_vel_090, _ = get_extremum(stat_data['090'])
+            max_vel_geom = np.sqrt(np.abs(ext_vel_000*ext_vel_090))
+
+            line = "{:10.4f} {:10.4f}".format(lon, lat)
+            line+= " {:^15.6f}".format(max_vel_geom)
+            f.write(line+"\n")
+
+    #write PGAs
+    event_accBB = get_event_data(loc_accBB, sorted_stats_code)
+    with open("event_obs_PGAs.txt", 'w') as f:
+        for stat_data in event_accBB:
+            stat_code=stat_data['name']
+            lon, lat = stats_dict[stat_code]
+            ext_acc_000, _ = get_extremum(stat_data['000'])
+            ext_acc_090, _ = get_extremum(stat_data['090'])
+            max_acc_geom = np.sqrt(np.abs(ext_acc_000*ext_acc_090))
+
+            line = "{:10.4f} {:10.4f}".format(lon, lat)
+            line+= " {:^15.6f}".format(max_acc_geom)
+            f.write(line+"\n")
+
+    #sys.exit("getting out")
+
+
+    #need new iterator object
+    #write PSAs
+    period=np.array([0.1, 0.2, 0.5, 1.0, 3.0, 5.0, 8.0, 10.0])
+    event_PSA   = get_event_PSA(get_event_data(loc_accBB, sorted_stats_code),
+                                period, xi=0.05, m=1., gamma=0.5, beta=0.25)
+
+
+    with open("event_obs_PSAs.txt", 'w') as f:
+        f.write((len(period)*" {:5.1f} ").format(*period))
+        f.write("\n")
+        for stat_data in event_PSA:
+            stat_code=stat_data['name']
+            lon, lat = stats_dict[stat_code]
+            pSA_geom = stat_data['geom']
+            line = "{:10.4f} {:10.4f}".format(lon, lat)
+            line+= (len(period)*" {:^15.6f} ").format(*pSA_geom)
+            f.write(line+"\n")
+
+    final_time = time()
+    print("Done in {:.1f} secs.\n".format(final_time - init_time))
     return
 
 if __name__ == "__main__":
@@ -340,4 +423,9 @@ if __name__ == "__main__":
                 loc_statsll, fname_statsll)
 
     plot_psa(loc_V1A, "accBB", "velBB",
-                loc_statsll, fname_statsll)
+             loc_statsll, fname_statsll)
+
+    IMsOnMap(loc_V1A, "accBB", "velBB",
+             loc_statsll, fname_statsll)
+
+
