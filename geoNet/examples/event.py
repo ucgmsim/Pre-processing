@@ -202,8 +202,8 @@ def processData(LOC):
 
     return
 
-
-def plot_accvel():
+def plot_accvel(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
+                loc_statsll, fname_statsll):
     """
     Plots all the SMS data in a given directory by reading all *.000 files and 
     sorting the SMSs in order of increasing PGV
@@ -211,22 +211,21 @@ def plot_accvel():
     init_time=time()
     print("Creating acc and vel plots for all Observed SMSs ...")
 
-    import numpy as np
+    #import numpy as np
     import matplotlib
     # Force matplotlib to not use any Xwindows backend.
     matplotlib.use('Agg')
     from matplotlib import pylab as plt
     from matplotlib.backends.backend_pdf import PdfPages
-    from time import time
 
     from geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
     from geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
 
     init_time = time()
     #parent_dir_loc="/nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw4pt9_20110429_190804_11Jan2017/Vol1/data"
-    parent_dir_loc="/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105/Vol1/data"
-    plot_dir_accBB="accBB"
-    plot_dir_velBB="velBB"
+    #parent_dir_loc="/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105/Vol1/data"
+    #plot_dir_accBB="accBB"
+    #plot_dir_velBB="velBB"
     #plot_dir_accLF_0pt25="accLF_0pt25"
     #plot_dir_velLF_0pt25="velLF_0pt25"
     #plot_dir="velBB"
@@ -239,8 +238,9 @@ def plot_accvel():
     loc_vel = loc_velBB
 
 
-    stats_dict = read_statsll("/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105",
-                              'geonet_stations_20170117.ll')
+    #stats_dict = read_statsll("/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105",
+    #                          'geonet_stations_20170117.ll')
+    stats_dict = read_statsll(loc_statsll, fname_statsll)
     #Some of the SMSs may not be processed. Assign stats_dict to only those that were processed.
     stats_dict = get_processed_stats_list(loc_velBB, stats_dict, verbose=True)
 
@@ -261,21 +261,31 @@ def plot_accvel():
     pdf_vel.close()
 
     final_time = time()
-    print("Done in {:.1f}".format(final_time - init_time))
+    print("Done plotting acc, vel in {:.1f} secs.\n".format(final_time - init_time))
     return
 
 
-def plot_psa():
+def plot_psa(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
+             loc_statsll, fname_statsll):
     """
     """
+    import matplotlib
+    # Force matplotlib to not use any Xwindows backend.
+    matplotlib.use('Agg')
+    from matplotlib import pylab as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    from geoNet.putils import get_stat_PSA_plot
+    from geoNet.utils import get_sorted_stats_code,  read_statsll
+
     init_time=time()
     print("Creating pSA plots for all Observed SMSs ...")
 
     #parent_dir_loc="/nesi/projects/nesi00213/ObservedGroundMotions/Mw5pt95_20150105_174841/Vol1/data"
-    parent_dir_loc="/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105/Vol1/data"
-    #plot_dir="velLF"
-    plot_dir_accBB="accBB"
-    plot_dir_velBB="velBB"
+    #parent_dir_loc="/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105/Vol1/data"
+    ##plot_dir="velLF"
+    #plot_dir_accBB="accBB"
+    #plot_dir_velBB="velBB"
     #plot_dir_accLF_0pt25="accLF_0pt25"
     #plot_dir="velBB"
     loc_accBB="/".join([parent_dir_loc, plot_dir_accBB])
@@ -284,17 +294,10 @@ def plot_psa():
 
     loc_acc = loc_accBB
 
-    #for individual plots use example below
-    #stat, PSA, fig_psa, ax = get_stat_PSA_plot(loc_acc, "MTHS")
-    #fig_psa.savefig("psa")
-    #import sys
-    #sys.exit()
-    #To plot all stations in file all_stats use code below
-    #with open("all_stats.txt",'r') as f:
-    #    event_stats = f.readlines()
 
-    stats_dict = read_statsll("/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105",
-                              'geonet_stations_20170117.ll')
+    #stats_dict = read_statsll("/nesi/projects/nesi00213/RealTime/Obs/Mw6pt6_2013-08-16_023105",
+    #                          'geonet_stations_20170117.ll')
+    stats_dict = read_statsll(loc_statsll, fname_statsll)
     #stations are sorted according to PSA
     sorted_stats_code = get_sorted_stats_code(loc_velBB,stats_dict)
     pdf_psa = PdfPages('plots_psa.pdf')
@@ -307,7 +310,7 @@ def plot_psa():
     pdf_psa.close()
 
     final_time = time()
-    print("Done in {:.1f}".format(final_time - init_time))
+    print("Done pSA plots in {:.1f} secs.\n".format(final_time - init_time))
 
     return
 
@@ -318,17 +321,23 @@ if __name__ == "__main__":
     BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-02_074142/Vol1/data/"
     getData(loc, BASE_URL)
 
-    fname="event_stats.ll"
-    loc=os.getcwd()
+    fname_statsll="event_stats.ll"
+    loc_statsll=os.getcwd()
     #loc_all_geoNet_stats="/nesi/projects/nesi00213/StationInfo"
     loc_all_geoNet_stats="."
     fname_all_geoNet_stats="all_geoNet_stats_2016-12-20.ll"
     loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
 
-    event_statsll(fname, loc,
+    event_statsll(fname_statsll, loc_statsll,
                   loc_all_geoNet_stats, fname_all_geoNet_stats,
                   loc_V1A)
 
 
     #LOC="/".join([os.getcwd(), "Vol1", "data"])
     processData(loc_V1A)
+
+    plot_accvel(loc_V1A, "accBB", "velBB",
+                loc_statsll, fname_statsll)
+
+    plot_psa(loc_V1A, "accBB", "velBB",
+                loc_statsll, fname_statsll)
