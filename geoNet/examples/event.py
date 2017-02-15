@@ -7,51 +7,61 @@ task. For individual needs and customized interaction with geoNet package use
 the separate python scripts instead.
 """
 
+import numpy as np
+import os
+from time import time
+from glob import glob
+#geoNet imports
+from geoNet import scrapeGeoNet as sg
+from geoNet import utils, putils
+from geoNet.gen_stats_kml import write_stats_kml
 
-def getData():
+def getData(loc, BASE_URL):
     """
     """
     init_time=time()
     print("Downloading data ...")
     #only the BASE_RUL needs to be changed in this example
-    BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-01_102129/Vol1/data/"
+    #BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-01_102129/Vol1/data/"
 
-    sg.make_dataPlot_dirs_v2(loc=".",num_vol=1)
-    LOC = "/".join([os.getcwd(),"Vol1"])
+    sg.make_dataPlot_dirs_v2(loc=loc,num_vol=1)
 
-    std_out, std_err = sg.get_geoNet_data(loc=LOC,
+    std_out, std_err = sg.get_geoNet_data(
+                       loc="/".join([loc, "Vol1"]),
                        geoNet_dir="data",
                        geoNet_url=BASE_URL,
                        wget_options="-N"
                        )
 
-    print("Finished downloading data")
-    with open("std_out.txt", 'w') as f:
+    with open("getData_stdout.txt", 'w') as f:
         f.writelines(std_out)
 
-    with open("std_err.txt", 'w') as f:
+    with open("getData_stderr.txt", 'w') as f:
         f.writelines(std_err)
 
 
     final_time=time()
-    print("Finished downloading data in {:.1f} secs".format(final_time - init_time))
+    print("Finished downloading data in {:.1f} secs\n".format(final_time - init_time))
 
     return
 
 
-def event_statsll():
+def event_statsll(fname, loc,
+                  loc_all_geoNet_stats, fname_all_geoNet_stats,
+                  loc_V1A):
     """
     """
     init_time=time()
     print("Creating stations list ...")
-
+    
+    std_out = open("event_statsll_stdout.txt", 'w')
     #Firs get statsll dictionary by assigning lon, lat from the saved list known 
     #to be in WGS84 coordinates
-    fname="event_stats.ll"
-    #loc_all_geoNet_stats="/nesi/projects/nesi00213/StationInfo"
-    loc_all_geoNet_stats="."
-    fname_all_geoNet_stats="all_geoNet_stats+2016-12-20.ll"
-    loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
+    #fname="event_stats.ll"
+    ##loc_all_geoNet_stats="/nesi/projects/nesi00213/StationInfo"
+    #loc_all_geoNet_stats="."
+    #fname_all_geoNet_stats="all_geoNet_stats+2016-12-20.ll"
+    #loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
     (
     event_stats1,
     fname_statsll
@@ -59,7 +69,7 @@ def event_statsll():
                             loc_all_geoNet_stats,
                             fname_all_geoNet_stats, 
                             loc_V1A, save_stats=False,
-                            fname=fname, loc=os.getcwd())
+                            fname=fname, loc=loc)
 
     #Now create another dictionary in which the lon, lat are read from .V1A files
     #which may or may not be in WGS84 coordinates. Unless something goes wrong
@@ -67,7 +77,7 @@ def event_statsll():
     #Note fname=None crashed
     event_stats2, _ = sg.statsll_from_V1A(
                          loc_V1A, save_stats=False,
-                         fname=fname, loc=os.getcwd())
+                         fname=fname, loc=loc)
 
 
     #Find stats that are in event_stat2 but not in event_stats1
@@ -76,12 +86,23 @@ def event_statsll():
 
     #perform check
     if  not stat_codes1.issubset(stat_codes2):
-        print("Some station (lon, lat) were not read from .V1A files\n")
+        std_out.write("Some station (lon, lat) were not read from .V1A files\n")
 
     for stat_code in (stat_codes2 -stat_codes1):
         event_stats1[stat_code] = event_stats2[stat_code]
+    #write statsll for this event
+    with open("/".join([loc, fname]),'w') as f:
+        for stat_code in event_stats1:
+            (lon, lat) = event_stats1[stat_code]
+            f.write("{:<15.4f} {:^15.4f} {:^10s} \n".format(lon, lat, stat_code))
+
+    #or use the convenience function
+    #write_statsll(loc, fname, event_stats1)
+    write_stats_kml(loc, fname_statsll.split(".")[0]+".kml", event_stats1)
+
+    std_out.close()
     final_time=time()
-    print("Done in {:.1f} secs".format(final_time - init_time))
+    print("Done in {:.1f} secs\n".format(final_time - init_time))
 
     return
 
@@ -262,3 +283,21 @@ def plot_psa():
     print("Done in {:.1f}".format(final_time - init_time))
 
     return
+
+if __name__ == "__main__":
+
+    loc = os.getcwd()
+    #BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-01_102129/Vol1/data/"
+    BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-02_074142/Vol1/data/"
+    getData(loc, BASE_URL)
+
+    fname="event_stats.ll"
+    loc=os.getcwd()
+    #loc_all_geoNet_stats="/nesi/projects/nesi00213/StationInfo"
+    loc_all_geoNet_stats="."
+    fname_all_geoNet_stats="all_geoNet_stats_2016-12-20.ll"
+    loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
+
+    event_statsll(fname, loc,
+                  loc_all_geoNet_stats, fname_all_geoNet_stats,
+                  loc_V1A)
