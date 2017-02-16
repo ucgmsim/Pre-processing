@@ -180,7 +180,8 @@ def processData(LOC):
             #raise
 
         #extract stat code
-        stat_code = station_file_name.split(".")[0].split("_")[2]
+        #stat_code = station_file_name.split(".")[0].split("_")[2]
+        YYYYMMDD, HHMM, stat_code = utils.parse_V1A_fname(station_file_name)
 
         try:
             #expects that velBB etc directories already exist, created when getData.py is used
