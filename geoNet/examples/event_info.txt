@@ -1,1 +1,21 @@
 #Contains info required by event.py
+#use this as example
+
+#location where the downloaded files will be placed
+loc =/home/ahsan/Pre-processing
+BASE_URL=ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-02_074142/Vol1/data/
+
+#location where fname_statsll will be saved
+loc_statsll=/home/ahsan/Pre-processing
+fname_statsll="event_stats.ll"
+
+#loc_all_geoNet_stats=/nesi/projects/nesi00213/StationInfo
+loc_all_geoNet_stats=/home/ahsan/Pre-processing
+fname_all_geoNet_stats=all_geoNet_stats_2016-12-20.ll
+
+
+#loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
+loc_V1A=/home/ahsan/Pre-processing/Vol1/data
+
+obs_velDir=velBB
+obs_accDir=accBB

@@ -397,19 +397,59 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     print("Done in {:.1f} secs.\n".format(final_time - init_time))
     return
 
-if __name__ == "__main__":
+def keyValueFromTxt(fname):
+    """
+    Parses file that has the form key=value and returns a dictionary
+    """
+    keyValue = dict()
+    fname = os.path.abspath(fname)
+    print("Reading input from {:s}\n".format(fname))
+    with open(fname, 'r') as f:
+        for line in f:
+            #remove white spaces
+            if line.startswith("#") or line.startswith("%"):
+                continue
+            if line in ["\n", "\r", "\rn"]:
+                continue
+            line = line.strip()
+            line = line.replace(" ", "")
+            line = line.replace("\"", "")
+            key, value = line.split("=")
+            keyValue[key] = value
 
-    loc = os.getcwd()
+    return keyValue
+
+if __name__ == "__main__":
+    import argparse                                                                 
+    parser = argparse.ArgumentParser(description='Real-time simulation event_info')
+    parser.add_argument('-f','--fname', help='name of input file is required', required=True)         
+    args = vars(parser.parse_args())
+    
+    keyValue = keyValueFromTxt(args['fname']) 
+
+
+    loc = keyValue['loc'] 
+    BASE_URL = keyValue['BASE_URL']
+    loc_statsll = keyValue['loc_statsll']
+    fname_statsll = keyValue['fname_statsll']
+    loc_all_geoNet_stats = keyValue['loc_all_geoNet_stats']
+    fname_all_geoNet_stats = keyValue['fname_all_geoNet_stats']
+    loc_V1A = keyValue['loc_V1A']
+    obs_velDir = keyValue['obs_velDir']
+    obs_accDir = keyValue['obs_accDir']
+
+
+    #loc = os.getcwd()
     #BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-01_102129/Vol1/data/"
-    BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-02_074142/Vol1/data/"
+    #BASE_URL="ftp://ftp.geonet.org.nz/strong/processed/Proc/2017/02_Feb/2017-02-02_074142/Vol1/data/"
     getData(loc, BASE_URL)
 
-    fname_statsll="event_stats.ll"
-    loc_statsll=os.getcwd()
+    #fname_statsll="event_stats.ll"
+    #loc_statsll=os.getcwd()
     #loc_all_geoNet_stats="/nesi/projects/nesi00213/StationInfo"
-    loc_all_geoNet_stats="."
-    fname_all_geoNet_stats="all_geoNet_stats_2016-12-20.ll"
-    loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
+    #loc_all_geoNet_stats="."
+    #fname_all_geoNet_stats="all_geoNet_stats_2016-12-20.ll"
+    #loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
 
     event_statsll(fname_statsll, loc_statsll,
                   loc_all_geoNet_stats, fname_all_geoNet_stats,
@@ -419,13 +459,22 @@ if __name__ == "__main__":
     #LOC="/".join([os.getcwd(), "Vol1", "data"])
     processData(loc_V1A)
 
-    plot_accvel(loc_V1A, "accBB", "velBB",
+#    plot_accvel(loc_V1A, "accBB", "velBB",
+#                loc_statsll, fname_statsll)
+#
+#    plot_psa(loc_V1A, "accBB", "velBB",
+#             loc_statsll, fname_statsll)
+#
+#    IMsOnMap(loc_V1A, "accBB", "velBB",
+#             loc_statsll, fname_statsll)
+#
+    plot_accvel(loc_V1A, obs_accDir, obs_velDir,
                 loc_statsll, fname_statsll)
 
-    plot_psa(loc_V1A, "accBB", "velBB",
+    plot_psa(loc_V1A, obs_accDir, obs_velDir,
              loc_statsll, fname_statsll)
 
-    IMsOnMap(loc_V1A, "accBB", "velBB",
+    IMsOnMap(loc_V1A, obs_accDir, obs_velDir,
              loc_statsll, fname_statsll)
 
 
