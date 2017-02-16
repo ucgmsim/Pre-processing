@@ -386,13 +386,11 @@ def keyValueFromTxt(fname):
 
     return keyValue
 
-if __name__ == "__main__":
-    import argparse                                                                 
-    parser = argparse.ArgumentParser(description='Real-time simulation event_info')
-    parser.add_argument('-f','--fname', help='name of input file is required', required=True)         
-    args = vars(parser.parse_args())
-    
-    keyValue = keyValueFromTxt(args['fname']) 
+def run(arg):
+    """
+    main function that runs realtime.py
+    """
+    keyValue = keyValueFromTxt(arg) 
 
     loc = keyValue['loc'] 
     BASE_URL = keyValue['BASE_URL']
@@ -422,4 +420,11 @@ if __name__ == "__main__":
     IMsOnMap(loc_V1A, obs_accDir, obs_velDir,
              loc_statsll, fname_statsll)
 
+    return
 
+if __name__ == "__main__":
+    import argparse                                                                 
+    parser = argparse.ArgumentParser(description='Real-time simulation event_info')
+    parser.add_argument('-f','--fname', help='name of input file is required', required=True)         
+    args = vars(parser.parse_args())
+    run(args['fname'])
