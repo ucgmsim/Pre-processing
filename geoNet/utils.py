@@ -719,3 +719,47 @@ def get_bias(pSA_obs, pSA_sim, rescale=True):
     return bias, std
 
 
+
+from scipy.interpolate import UnivariateSpline as US
+from scipy.integrate import cumtrapz
+
+def int_stat_data_sp(stat_data):
+    """
+    stat_data is of type returned by get_stat_data
+    return:
+        integral obtained from a spline representation
+    """
+    int_stat_data = dict.fromkeys(stat_data.keys())
+    int_stat_data['name'] = stat_data['name']
+    int_stat_data['t'] = stat_data['t']
+
+    for key in ["000", "090", "ver"]:
+        #s=0 means no smoothing, and the spline passes through all data points
+        #k=3 cubic interpolation
+        spl = US(stat_data["t"], stat_data[key], s=0, k=3)
+        ispl=spl.antiderivative(n=1)
+        #In general antiderivative sets the initial value of the integral to zero 
+        int_stat_data[key] = ispl(stat_data['t'])
+
+    return int_stat_data
+
+
+
+
+
+def int_stat_data(stat_data):
+    """
+    stat_data is of type returned by get_stat_data
+    return:
+        integral obtained from cumtrapz
+    """
+    int_stat_data = dict.fromkeys(stat_data.keys())
+    int_stat_data['name'] = stat_data['name']
+    int_stat_data['t'] = stat_data['t']
+
+    for key in ["000", "090", "ver"]:
+        int_stat_data[key] = cumtrapz(y=stat_data[key],
+                                      dx=stat_data["t"][1]-stat_data["t"][0],
+                                      initial=0.)
+    return int_stat_data
+
