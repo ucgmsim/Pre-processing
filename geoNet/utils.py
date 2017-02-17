@@ -7,6 +7,9 @@ import os
 from glob import glob
 import datetime
 from itertools import izip
+from scipy.interpolate import UnivariateSpline as US
+from scipy.integrate import cumtrapz
+from scipy import signal
 #https://docs.python.org/2.5/whatsnew/pep-328.html
 from geoNet.rspectra import Response_Spectra
 from geoNet.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
@@ -720,8 +723,7 @@ def get_bias(pSA_obs, pSA_sim, rescale=True):
 
 
 
-from scipy.interpolate import UnivariateSpline as US
-from scipy.integrate import cumtrapz
+
 
 def int_stat_data_sp(stat_data):
     """
@@ -780,4 +782,31 @@ def diff_stat_data(stat_data):
                                           dt, edge_order=2, axis=None)
     return diff_stat_data
 
+def filt_stat_data(stat_data,freq, btype, output='sos', order=4):
+    """
+    Note:
+        requires scipy version 15. or greater. Digital filters only
+    stat_data:
+        is of type returned by get_stat_data. stat_data is modified inplace
+    freq:
+       scalar or length 2 sequence e.g [f_lowcut, f_highcut] 
+    btype:
+        {‘lowpass’, ‘highpass’, ‘bandpass’, ‘bandstop’}
+    return:
+        sos
+    """
+    dt = stat_data['t'][1]-stat_data['t'][0]
+    #sampling frequency fs
+    fs = 1/dt
+    #Nyquist frequncy Nyq
+    Nyq = fs/2.
+    if np.isscalar(freq):
+        freq = [freq]
+    freq = np.asarray(freq)
+    Wn = freq/Nyq
 
+    sos = signal.butter(order, Wn, btype, analog=False)
+    for comp in ['000', '090', 'ver']:
+        stat_data[comp] = signal.sosfilt(sos, stat_data[comp])
+
+    return sos
