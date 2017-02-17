@@ -763,3 +763,21 @@ def int_stat_data(stat_data):
                                       initial=0.)
     return int_stat_data
 
+def diff_stat_data(stat_data):
+    """
+    stat_data is of type returned by get_stat_data
+    return:
+        derivative is  obtained numpy.gradient  that does second order central
+        difference.
+    """
+    diff_stat_data = dict.fromkeys(stat_data.keys())
+    diff_stat_data['name'] = stat_data['name']
+    diff_stat_data['t'] = stat_data['t']
+
+    for key in ["000", "090", "ver"]:
+        dt=stat_data["t"][1]-stat_data["t"][0]
+        diff_stat_data[key] = np.gradient(stat_data[key],
+                                          dt, edge_order=2, axis=None)
+    return diff_stat_data
+
+
