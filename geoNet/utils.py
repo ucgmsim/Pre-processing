@@ -794,7 +794,7 @@ def filt_stat_data(stat_data,freq, btype, output='sos', order=4,
     freq:
        scalar or length 2 sequence e.g [f_lowcut, f_highcut] 
     btype:
-        {‘lowpass’, ‘highpass’, ‘bandpass’, ‘bandstop’}
+        {lowpass, highpass, bandpass, bandstop}
     return:
         sos
         b, a (numerator, denominator of filter)
@@ -838,7 +838,7 @@ def fft_stat_data(stat_data):
     """
     fft_stat_data = {}
     for comp in ['000', '090', 'ver']:
-        fft_stat_data[comp] = fftpack.fft(stat_data[comp]
+        fft_stat_data[comp] = fftpack.fft(stat_data[comp])
 
     dt = stat_data['t'][1]-stat_data['t'][0]
     fft_stat_data['f'] = fftpack.fftfreq(stat_data['000'].size, d=dt)
