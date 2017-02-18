@@ -815,7 +815,8 @@ def filt_stat_data(stat_data,freq, btype, output='sos', order=4,
     sos = signal.iirfilter(order, Wn, rp=None, rs=None, btype=btype,
                            analog=False, ftype='butter', output=output)
     for comp in ['000', '090', 'ver']:
-        stat_data[comp] = signal.sosfilt(sos, stat_data[comp])
+        stat_data[comp] = signal.sosfiltfilt(sos, stat_data[comp])
+        #stat_data[comp] = signal.sosfilt(sos, stat_data[comp])
 
     #get single transfer function from series of 2nd-order sections
     b, a = signal.sos2tf(sos)
@@ -823,7 +824,8 @@ def filt_stat_data(stat_data,freq, btype, output='sos', order=4,
     #default worN=512 frequencies between 0 and pi
     w, h = signal.freqz(b, a, worN=worN, whole=False, plot=None)
     #un-normalize by Nyq and convert to hz from radians/second (omega=2pif,f = omega/(2pi))
-    w = w*Nyq/(2.*np.pi)
+    #Note that 0<= w <=pi not 2pi
+    w = w*Nyq/(np.pi)
 
 
     return {"sos":sos, 'b':b, 'a':a, "w":w, 'h':h}
