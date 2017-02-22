@@ -1,10 +1,5 @@
 """
-Reads event_info.txt and performs task for real-time simulation drills.
-The functions here are named after and perform the same tasks as those 
-separate python scripts. This python script is specifically written for use 
-in real-time simulations drills. Each function performs a specific and indepedent 
-task. For individual needs and customized interaction with geoNet package use 
-the separate python scripts instead.
+Use in analysis of event to produce data files for plotting etc
 """
 
 import numpy as np
@@ -13,6 +8,7 @@ from time import time
 from glob import glob
 import scipy
 import sys
+import operator as op
 #geoNet imports
 from geoNet import scrapeGeoNet as sg
 from geoNet import utils, putils
@@ -77,7 +73,7 @@ def event_statsll(fname, loc,
                             loc_all_geoNet_stats,
                             fname_all_geoNet_stats, 
                             loc_V1A, save_stats=False,
-                            fname=fname, loc=loc)
+                            fname=None, loc=loc)
 
     #Now create another dictionary in which the lon, lat are read from .V1A files
     #which may or may not be in WGS84 coordinates. Unless something goes wrong
@@ -85,7 +81,7 @@ def event_statsll(fname, loc,
     #Note fname=None crashed
     event_stats2, _ = sg.statsll_from_V1A(
                          loc_V1A, save_stats=False,
-                         fname=fname, loc=loc)
+                         fname=None, loc=loc)
 
 
     #Find stats that are in event_stat2 but not in event_stats1
@@ -148,7 +144,7 @@ def processData(LOC):
             #record might then be empty, skipp processing in such a case. 
             #The number 10 is rather arbirary, 1 should suffice
             agf=adjust_gf_for_time_delay(gf)
-            if agf.comp_1st.acc.size <= 10: 
+            if agf.comp_1st.acc.size <= 1: 
                 std_out.write("no elements in %s. Skipping it.\n" %station_file_name)
                 continue
 
@@ -364,6 +360,150 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     print("Done in {:.1f} secs.\n".format(final_time - init_time))
     return
 
+def IMsOnMap_ratios(parent_dir_loc_obs, plot_dir_accBB_obs, plot_dir_velBB_obs,
+                    loc_statsll_obs, fname_statsll_obs,
+                    parent_dir_loc_sim, plot_dir_accBB_sim, plot_dir_velBB_sim,
+                    loc_statsll_sim, fname_statsll_sim):
+    """
+    Writes PGV, PGA, pSA intensity measures to files used in GMT plotting scripts
+    """
+
+    from geoNet.utils import (get_sorted_stats_code, read_statsll, 
+    get_event_data, get_event_PSA, get_extremum, get_processed_stats_list, 
+    get_stat_data, get_PSA)
+
+    init_time=time()
+    print("Writting IMs for GMT plotting ...")
+
+    loc_accBB_obs="/".join([parent_dir_loc_obs, plot_dir_accBB_obs])
+    loc_velBB_obs="/".join([parent_dir_loc_obs, plot_dir_velBB_obs])
+
+    loc_acc_obs = loc_accBB_obs
+    loc_vel_obs = loc_velBB_obs
+
+    loc_accBB_sim="/".join([parent_dir_loc_sim, plot_dir_accBB_sim])
+    loc_velBB_sim="/".join([parent_dir_loc_sim, plot_dir_velBB_sim])
+
+    loc_acc_sim = loc_accBB_sim
+    loc_vel_sim = loc_velBB_sim
+
+
+    stats_dict_sim = read_statsll(loc_statsll_sim, fname_statsll_sim)
+    stats_dict_obs = read_statsll(loc_statsll_obs, fname_statsll_obs)
+    #Some of the SMSs may not be processed. Assign stats_dict to only those that were processed.
+    stats_dict_obs = get_processed_stats_list(loc_velBB_obs, stats_dict_obs, verbose=True)
+
+    #stations are sorted according to PGV
+    #Altough not required helps identify maximum and minimum IM interval
+    sorted_stats_code = get_sorted_stats_code(loc_velBB_obs, stats_dict_obs, comp='geom')
+    sorted_stats_code = [_["name"] for _ in sorted_stats_code]
+
+    #write PGVs
+    event_velBB = get_event_data(loc_velBB_obs, sorted_stats_code)
+    with open("event_ratios_PGVs.txt", 'w') as f:
+        lines = []
+        for stat_data in event_velBB:
+            stat_code=stat_data['name']
+            #Only take ratios if SMS is both in sims and obs
+            if not stats_dict_sim.has_key(stat_code):
+                continue
+            lon, lat = stats_dict_obs[stat_code]
+            ext_vel_000, _ = get_extremum(stat_data['000'])
+            ext_vel_090, _ = get_extremum(stat_data['090'])
+            max_vel_geom = np.sqrt(np.abs(ext_vel_000*ext_vel_090))
+
+            #simulations
+            stat_data_sim = get_stat_data(loc_vel_sim, stat_code)
+            ext_vel_000_sim, _ = get_extremum(stat_data_sim['000'])
+            ext_vel_090_sim, _ = get_extremum(stat_data_sim['090'])
+            max_vel_geom_sim = np.sqrt(np.abs(ext_vel_000_sim*ext_vel_090_sim))
+            lines.append([lon, lat, np.log(max_vel_geom/max_vel_geom_sim)])
+
+        lines = sorted(lines, key=op.itemgetter(2))
+        for line in lines:
+            #line = "{:10.4f} {:10.4f}".format(lon, lat)
+            ##line+= " {:^15.6f}".format(max_vel_geom)
+            #line+= " {:^15.6f}".format(np.log(max_vel_geom/max_vel_geom_sim))
+            line = "{:10.4f} {:10.4f} {:^15.6f}".format(*line)
+            f.write(line+"\n")
+
+    #write PGAs
+    event_accBB = get_event_data(loc_accBB_obs, sorted_stats_code)
+    with open("event_ratios_PGAs.txt", 'w') as f:
+        lines = []
+        for stat_data in event_accBB:
+            stat_code=stat_data['name']
+            #Only take ratios if SMS is both in sims and obs
+            if stats_dict_sim.has_key(stat_code) is False:
+                continue
+            lon, lat = stats_dict_obs[stat_code]
+            ext_acc_000, _ = get_extremum(stat_data['000'])
+            ext_acc_090, _ = get_extremum(stat_data['090'])
+            max_acc_geom = np.sqrt(np.abs(ext_acc_000*ext_acc_090))
+
+
+            #simulations
+            stat_data_sim = get_stat_data(loc_acc_sim, stat_code)
+            ext_acc_000_sim, _ = get_extremum(stat_data_sim['000'])
+            ext_acc_090_sim, _ = get_extremum(stat_data_sim['090'])
+            max_acc_geom_sim = np.sqrt(np.abs(ext_acc_000_sim*ext_acc_090_sim))
+            #simulation acc are in cm/s^2 change to g units
+            max_acc_geom_sim /=981.
+
+            lines.append([lon, lat, np.log(max_acc_geom/max_acc_geom_sim)])
+
+        lines = sorted(lines, key=op.itemgetter(2))
+        for line in lines:
+            #line = "{:10.4f} {:10.4f}".format(lon, lat)
+            #line+= " {:^15.6f}".format(np.log(max_acc_geom/max_acc_geom_sim))
+            line = "{:10.4f} {:10.4f} {:^15.6f}".format(*line)
+            f.write(line+"\n")
+
+
+
+    #need new iterator object
+    #write PSAs
+    period=np.array([0.1, 0.2, 0.5, 1.0, 3.0, 5.0, 8.0, 10.0])
+    event_PSA   = get_event_PSA(get_event_data(loc_accBB_obs, sorted_stats_code),
+                                period, xi=0.05, m=1., gamma=0.5, beta=0.25)
+
+
+    with open("event_ratios_PSAs.txt", 'w') as f:
+        lines = []
+        f.write((len(period)*" {:5.1f} ").format(*period))
+        f.write("\n")
+        for stat_data in event_PSA:
+            stat_code=stat_data['name']
+            #Only take ratios if SMS is both in sims and obs
+            if stats_dict_sim.has_key(stat_code) is False:
+                continue
+            lon, lat = stats_dict_obs[stat_code]
+            pSA_geom = stat_data['geom']
+
+            #simulations
+            stat_data_sim = get_stat_data(loc_acc_sim, stat_code)
+            #simulation acc are in cm/s^2 change to g units
+            for key in ["000", "090", "ver"]:
+                stat_data_sim[key] /=981.
+            dt = stat_data_sim['t'][1]-stat_data_sim['t'][0]
+            stat_PSA_sim = get_PSA(stat_data_sim, dt, period)
+            pSA_geom_sim = stat_PSA_sim['geom']
+        
+            lines.append([lon, lat] + list(np.log(pSA_geom/pSA_geom_sim)))
+
+        #sorted pSA according to smallest period
+        lines = sorted(lines, key=op.itemgetter(2))
+        for line in lines:
+            #line = "{:10.4f} {:10.4f}".format(lon, lat)
+            #line+= (len(period)*" {:^15.6f} ").format(*(np.log(pSA_geom/pSA_geom_sim)))
+            line = ("{:10.4f} {:10.4f}"+len(period)*" {:^15.6f}").format(*line)
+            f.write(line+"\n")
+
+    final_time = time()
+    print("Done in {:.1f} secs.\n".format(final_time - init_time))
+    return
+
+
 def keyValueFromTxt(fname):
     """
     Parses file that has the form key=value and returns a dictionary
@@ -386,13 +526,11 @@ def keyValueFromTxt(fname):
 
     return keyValue
 
-if __name__ == "__main__":
-    import argparse                                                                 
-    parser = argparse.ArgumentParser(description='Real-time simulation event_info')
-    parser.add_argument('-f','--fname', help='name of input file is required', required=True)         
-    args = vars(parser.parse_args())
-    
-    keyValue = keyValueFromTxt(args['fname']) 
+def run(arg):
+    """
+    main function that runs realtime.py
+    """
+    keyValue = keyValueFromTxt(arg) 
 
     loc = keyValue['loc'] 
     BASE_URL = keyValue['BASE_URL']
@@ -404,22 +542,41 @@ if __name__ == "__main__":
     obs_velDir = keyValue['obs_velDir']
     obs_accDir = keyValue['obs_accDir']
 
-    getData(loc, BASE_URL)
+    sim_velDir = keyValue['sim_velDir']
+    sim_accDir = keyValue['sim_accDir']
+    lf_sim_dir = keyValue["lf_sim_dir"]
+    hf_dir = keyValue["hf_dir"]
+    bb_dir = keyValue["bb_dir"]
+    loc_statsll_sim = keyValue['loc_statsll_sim']
+    fname_statsll_sim = keyValue['fname_statsll_sim']
 
-    event_statsll(fname_statsll, loc_statsll,
-                  loc_all_geoNet_stats, fname_all_geoNet_stats,
-                  loc_V1A)
-
-
-    processData(loc_V1A)
-
-    plot_accvel(loc_V1A, obs_accDir, obs_velDir,
-                loc_statsll, fname_statsll)
-
-    plot_psa(loc_V1A, obs_accDir, obs_velDir,
-             loc_statsll, fname_statsll)
-
-    IMsOnMap(loc_V1A, obs_accDir, obs_velDir,
-             loc_statsll, fname_statsll)
+    srf_dir = keyValue["srf_dir"]
+    srf_file = keyValue["srf_file"]
+    #event_statsll(fname_statsll, loc_statsll,
+    #              loc_all_geoNet_stats, fname_all_geoNet_stats,
+    #              loc_V1A)
 
 
+    #processData(loc_V1A)
+
+    #plot_accvel(loc_V1A, obs_accDir, obs_velDir,
+    #            loc_statsll, fname_statsll)
+
+    #plot_psa(loc_V1A, obs_accDir, obs_velDir,
+    #         loc_statsll, fname_statsll)
+
+    #IMsOnMap(loc_V1A, obs_accDir, obs_velDir,
+    #         loc_statsll, fname_statsll)
+
+    IMsOnMap_ratios(loc_V1A, obs_accDir, obs_velDir, loc_statsll, fname_statsll,
+                    bb_dir, sim_accDir, sim_velDir, loc_statsll_sim, fname_statsll_sim 
+    )
+
+    return
+
+if __name__ == "__main__":
+    import argparse                                                                 
+    parser = argparse.ArgumentParser(description='Use for event analyses.')
+    parser.add_argument('-f','--fname', help='name of input file is required', required=True)         
+    args = vars(parser.parse_args())
+    run(args['fname'])
