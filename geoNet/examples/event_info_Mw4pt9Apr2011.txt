@@ -33,3 +33,10 @@ sim_accDir=Acc
 #srf file
 srf_dir=/nesi/projects/nesi00213/RupModel/ahsan/2011Apr29_m4pt9/ptSource/Srf
 srf_file=2011Apr29_v2_m4pt9.srf
+
+
+#Source parameters used by GMPE
+Mw=4.9
+rake=151.
+dip=90.
+Ztor=7
