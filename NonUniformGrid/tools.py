@@ -201,7 +201,6 @@ def ll2gp_file(lat_vals, lon_vals, mlat, mlon, rot, nx, ny, hh):
 
     max_x = (nx - 1) * hh
     max_y = (ny - 1) * hh
-    print ">>>>", max_x, max_y
 
     for line in p_conv.stdout:
         try:
