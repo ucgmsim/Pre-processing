@@ -7,6 +7,9 @@ import os
 from glob import glob
 import datetime
 from itertools import izip
+from scipy.interpolate import UnivariateSpline as US
+from scipy.integrate import cumtrapz
+from scipy import signal, fftpack
 #https://docs.python.org/2.5/whatsnew/pep-328.html
 from geoNet.rspectra import Response_Spectra
 from geoNet.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
@@ -719,3 +722,128 @@ def get_bias(pSA_obs, pSA_sim, rescale=True):
     return bias, std
 
 
+
+
+
+def int_stat_data_sp(stat_data):
+    """
+    stat_data is of type returned by get_stat_data
+    return:
+        integral obtained from a spline representation
+    """
+    int_stat_data = dict.fromkeys(stat_data.keys())
+    int_stat_data['name'] = stat_data['name']
+    int_stat_data['t'] = stat_data['t']
+
+    for key in ["000", "090", "ver"]:
+        #s=0 means no smoothing, and the spline passes through all data points
+        #k=3 cubic interpolation
+        spl = US(stat_data["t"], stat_data[key], s=0, k=3)
+        ispl=spl.antiderivative(n=1)
+        #In general antiderivative sets the initial value of the integral to zero 
+        int_stat_data[key] = ispl(stat_data['t'])
+
+    return int_stat_data
+
+
+
+
+
+def int_stat_data(stat_data):
+    """
+    stat_data is of type returned by get_stat_data
+    return:
+        integral obtained from cumtrapz
+    """
+    int_stat_data = dict.fromkeys(stat_data.keys())
+    int_stat_data['name'] = stat_data['name']
+    int_stat_data['t'] = stat_data['t']
+
+    for key in ["000", "090", "ver"]:
+        int_stat_data[key] = cumtrapz(y=stat_data[key],
+                                      dx=stat_data["t"][1]-stat_data["t"][0],
+                                      initial=0.)
+    return int_stat_data
+
+def diff_stat_data(stat_data):
+    """
+    stat_data is of type returned by get_stat_data
+    return:
+        derivative is  obtained numpy.gradient  that does second order central
+        difference.
+    """
+    diff_stat_data = dict.fromkeys(stat_data.keys())
+    diff_stat_data['name'] = stat_data['name']
+    diff_stat_data['t'] = stat_data['t']
+
+    for key in ["000", "090", "ver"]:
+        dt=stat_data["t"][1]-stat_data["t"][0]
+        diff_stat_data[key] = np.gradient(stat_data[key],
+                                          dt, edge_order=2, axis=None)
+    return diff_stat_data
+
+def filt_stat_data(stat_data,freq, btype, output='sos', order=4,
+                   worN=512):
+    """
+    Note:
+        requires scipy version 15. or greater. Digital filters only
+        plot(w, abs(h)) for frequency response.
+        sosfilt may be replace with sosfiltfilt for zero phase.
+    stat_data:
+        is of type returned by get_stat_data. stat_data is modified inplace
+    freq:
+       scalar or length 2 sequence e.g [f_lowcut, f_highcut] 
+    btype:
+        {lowpass, highpass, bandpass, bandstop}
+    return:
+        sos
+        b, a (numerator, denominator of filter)
+        w, h (frequency and frequency response)
+    """
+    dt = stat_data['t'][1]-stat_data['t'][0]
+    #sampling frequency fs
+    fs = 1/dt
+    #Nyquist frequncy Nyq
+    Nyq = fs/2.
+    if np.isscalar(freq):
+        freq = [freq]
+    freq = np.asarray(freq)
+    Wn = freq/Nyq
+
+    #sos = signal.butter(order, Wn, btype, analog=False)
+    #signal.butter is just a wrapper function to iirfilter
+    sos = signal.iirfilter(order, Wn, rp=None, rs=None, btype=btype,
+                           analog=False, ftype='butter', output=output)
+    for comp in ['000', '090', 'ver']:
+        stat_data[comp] = signal.sosfiltfilt(sos, stat_data[comp])
+        #stat_data[comp] = signal.sosfilt(sos, stat_data[comp])
+
+    #get single transfer function from series of 2nd-order sections
+    b, a = signal.sos2tf(sos)
+    #get frequency response of the filter
+    #default worN=512 frequencies between 0 and pi
+    w, h = signal.freqz(b, a, worN=worN, whole=False, plot=None)
+    #un-normalize by Nyq and convert to hz from radians/second (omega=2pif,f = omega/(2pi))
+    #Note that 0<= w <=pi not 2pi
+    w = w*Nyq/(np.pi)
+
+
+    return {"sos":sos, 'b':b, 'a':a, "w":w, 'h':h}
+
+
+def fft_stat_data(stat_data):
+    """
+    Note: the size of the fft is set by convention see
+    https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.fftpack.fft.html#scipy.fftpack.fft
+    returns:
+        stat_data type with keys ['000', '090', 'ver', 'f', 'name']
+    """
+    fft_stat_data = {}
+    for comp in ['000', '090', 'ver']:
+        fft_stat_data[comp] = fftpack.fft(stat_data[comp])
+
+    dt = stat_data['t'][1]-stat_data['t'][0]
+    fft_stat_data['f'] = fftpack.fftfreq(stat_data['000'].size, d=dt)
+    fft_stat_data['name']=stat_data['name']
+
+    return fft_stat_data

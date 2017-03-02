@@ -1,0 +1,42 @@
+#Contains info required by event.py
+#use this as example
+
+#location where the downloaded files will be placed
+loc = /nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw4pt9_20110429_190804_11Jan2017
+BASE_URL = "ftp://ftp.geonet.org.nz/strong/processed/Proc/2011/04_Apr/2011-04-29_190804/Vol1/data" 
+
+#location where fname_statsll will be saved
+loc_statsll=/nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw4pt9_20110429_190804_11Jan2017
+fname_statsll="20110429_190804_eventStats_2017-01-10.ll"
+
+loc_all_geoNet_stats=/nesi/projects/nesi00213/StationInfo
+fname_all_geoNet_stats=all_geoNet_stats_2016-12-20.ll
+
+
+#loc_V1A="/".join([os.getcwd(), "Vol1", "data"])
+loc_V1A=/nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw4pt9_20110429_190804_11Jan2017/Vol1/data
+
+obs_velDir=velBB_1
+obs_accDir=accBB_1
+
+#for simulations
+loc_statsll_sim=/nesi/projects/nesi00213/RunFolder/ahsan/ptSource_2011Apr29_v2_m4pt9_VMv1p64_FVM-h0p100_170123
+fname_statsll_sim=HF_BB_stats.ll
+
+lf_sim_dir=/nesi/projects/nesi00213/RunFolder/ahsan/ptSource_2011Apr29_v2_m4pt9_VMv1p64_FVM-h0p100_170123/LF
+hf_dir=/nesi/projects/nesi00213/RunFolder/ahsan/ptSource_2011Apr29_v2_m4pt9_VMv1p64_FVM-h0p100_170123/HF
+bb_dir=/nesi/projects/nesi00213/RunFolder/ahsan/ptSource_2011Apr29_v2_m4pt9_VMv1p64_FVM-h0p100_170123/BB/Cant1D_v2-midQ_hfnp2mm+_rvf0p8_sd50_k0p045
+sim_velDir=Vel
+sim_accDir=Acc
+
+
+#srf file
+srf_dir=/nesi/projects/nesi00213/RupModel/ahsan/2011Apr29_m4pt9/ptSource/Srf
+srf_file=2011Apr29_v2_m4pt9.srf
+
+
+#Source parameters used by GMPE
+Mw=4.9
+rake=151.
+dip=90.
+Ztor=7
