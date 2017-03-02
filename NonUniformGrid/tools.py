@@ -5,9 +5,9 @@ import csv
 from subprocess import Popen, PIPE
 
 
-def read_csv(filename):
+def read_csv(filename, delimiter=","):
     with open(filename, 'r') as input_file:
-        reader = csv.reader(input_file, delimiter=",")
+        reader = csv.reader(input_file, delimiter=delimiter)
         result = []
         for each_row in reader:
             result.append(each_row)
