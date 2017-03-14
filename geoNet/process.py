@@ -1,19 +1,22 @@
 import numpy as np
 import scipy.linalg
 from scipy.integrate import cumtrapz
+import copy
 from butterworth import ButterWorth, butter_bandpass_filter
-from utilities import writeGP
+from geoNet.utils import writeGP, get_GP_header, adjust_for_time_delay, acc2vel
 cos, sin, pi = (np.cos, np.sin, np.pi)
 
 
 class SMD(object):
     """
     Strong Motion Data container
+    gpInt:
+        perform integration as done by Graves and Pitarka (poor method)
     """
     _template = dict.fromkeys(('BB','HF','LF'))
     
     def __init__(self, acc, dt=0.005, lowcut=0.1, highcut=50.,
-                     fs=(1./0.005), ft=1., order=4, output=None): 
+                     fs=(1./0.005), ft=1., order=4, output=None, gpInt=False): 
 
         self._acc = self._template.copy()
         self._vel = self._template.copy()
@@ -28,6 +31,8 @@ class SMD(object):
         self.ft =ft
         self.order=order
         self.output=output
+
+        self.gpInt = gpInt
 
         self.g = 9810. #mm/s^2
 
@@ -44,7 +49,10 @@ class SMD(object):
     @property
     def velBB(self):
         if self._vel['BB'] is None:
-            self._vel['BB'] = cumtrapz(y=self.accBB, dx=self.dt, initial=0.)*self.g/10.
+            if self.gpInt:
+                self._vel['BB']=acc2vel(self.accBB, self.dt)*self.g/10.
+            else:
+                self._vel['BB'] = cumtrapz(y=self.accBB, dx=self.dt, initial=0.)*self.g/10.
 
         return self._vel['BB']
         
@@ -76,14 +84,20 @@ class SMD(object):
     @property
     def velHF(self):
         if self._vel['HF'] is None:
-            self._vel['HF'] = cumtrapz(y=self.accHF, dx=self.dt, initial=0.)*self.g/10.
+            if self.gpInt:
+                self._vel['HF'] = acc2vel(self.accHF, self.dt)*self.g/10.
+            else:
+                self._vel['HF'] = cumtrapz(y=self.accHF, dx=self.dt, initial=0.)*self.g/10.
 
         return self._vel['HF']
 
     @property
     def velLF(self):
         if self._vel['LF'] is None:
-            self._vel['LF'] = cumtrapz(y=self.accLF, dx=self.dt, initial=0.)*self.g/10.
+            if self.gpInt:
+                self._vel['LF'] = acc2vel(self.accLF, self.dt)*self.g/10.
+            else:
+                self._vel['LF'] = cumtrapz(y=self.accLF, dx=self.dt, initial=0.)*self.g/10.
 
         return self._vel['LF']
 
@@ -102,6 +116,33 @@ class SMD(object):
         return self._disp['LF']
 
 
+def adjust_gf_for_time_delay(gf):
+    """
+    Note: 
+        Only works with geoNet Vol1 data
+    gf: 
+        is of type geoNet_file
+    returns: 
+        a deep copy of gf, leaving the original untouched
+    """
+    gf = copy.deepcopy(gf)
+    gf.comp_1st.acc,_,_ = adjust_for_time_delay(gf.comp_1st.acc,
+                                            gf.comp_1st.delta_t,
+                                            gf.comp_1st.time_delay)
+    gf.comp_1st.time_delay=0.
+
+    gf.comp_2nd.acc,_,_ = adjust_for_time_delay(gf.comp_2nd.acc,
+                                            gf.comp_2nd.delta_t,
+                                            gf.comp_2nd.time_delay)
+
+    gf.comp_2nd.time_delay=0.
+
+    gf.comp_up.acc,_,_  = adjust_for_time_delay(gf.comp_up.acc,
+                                            gf.comp_up.delta_t,
+                                            gf.comp_up.time_delay)
+    gf.comp_up.time_delay=0.
+
+    return gf
 
 class Process(object):
 
@@ -192,24 +233,12 @@ class Process(object):
         print("\nSaving Rotated %s  data for %s at:\n %s: "
               % (seismo, stat_code, loc))
         
-        header_000 = stat_code + " 0 broadband\n"
-        header_090 = stat_code + " 90 broadband\n"
-        header_ver = stat_code + " ver broadband\n"
-        time_delay = str(self.gf.comp_1st.time_delay)
+        size=self.comp_000.accBB.size
+        delta_t=self.delta_t
+        time_delay = self.gf.comp_1st.time_delay
+        header_000, header_090, header_ver = get_GP_header(
+                                       stat_code, size, delta_t, time_delay)       
 
-        header_000 += " ".join(map(str, [self.comp_000.accBB.size,
-                                         self.delta_t,
-                                         "0. 0. "+time_delay+" 0. 0. 0.\n"]
-                                         ))
-        header_090 += " ".join(map(str, [self.comp_090.accBB.size,
-                                        self.delta_t,
-                                        "0. 0. "+time_delay+" 0. 0. 0.\n"]
-                                        ))
-        header_ver += " ".join(map(str, [self.comp_ver.accBB.size,
-                                         self.delta_t,
-                                         "0. 0. "+time_delay+" 0. 0. 0.\n"]
-                                         ))
-        
         ncol = 6
         writeGP(loc, stat_code+".000", self.comp_000.__getattribute__(seismo),
                 header_000, ncol)
