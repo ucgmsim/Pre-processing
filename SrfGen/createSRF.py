@@ -12,16 +12,12 @@ SRF_DIR = 'Srf'
 STOCH_DIR = 'Stoch'
 
 GSF_BIN = '/nesi/projects/nesi00213/tools/fault_seg2gsf'
-FF_SRF_BIN = '/nesi/projects/nesi00213/tools/genslip-v3.3'
-#PS_SRF_BIN = '/nesi/projects/nesi00213/tools/generic_slip2srf'
+# note version is missing, will be appended
+FF_SRF_BIN = '/nesi/projects/nesi00213/tools/genslip'
+PS_SRF_BIN = '/nesi/projects/nesi00213/tools/generic_slip2srf'
 SRF_JOIN_BIN = '/nesi/projects/nesi00213/tools/srf_join'
 STOCH_BIN = '/nesi/projects/nesi00213/tools/srf2stoch'
 VELFILE = 'lp_generic1d-gp01_v1.vmod'
-
-# for testing on viktor's laptop
-#GSF_BIN = '/home/vap30/bin/fault_seg2gsf'
-#FF_SRF_BIN = '/home/vap30/bin/genslip-v3.3'
-#SRF_JOIN_BIN = '/home/vap30/bin/srf_join'
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3 * log(mom) / log(10.0)) - 10.7
@@ -242,16 +238,26 @@ def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' % \
                 (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny))
 
-def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo):
+def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
+            rvfrac, rough, slip_cov, genslip = '3.3'):
     if not path.exists(SRF_DIR):
         makedirs(SRF_DIR)
     with open('%s/%s' % (SRF_DIR, srf_file), 'w') as srfp:
-        call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
-                'infile=%s/%s' % (GSF_DIR, gsf_file), 'mag=%f' % (mw), 'nx=%s' % (nx), \
-                'ny=%s' % (ny), 'ns=1', 'nh=1', 'seed=%d' % (seed), \
+        genslip_bin = '%s-v%s' % (FF_SRF_BIN, genslip)
+        if int(genslip[0]) < 5:
+            xstk = 'nx'
+            ydip = 'ny'
+        else:
+            xstk = 'nstk'
+            ydip = 'ndip'
+        cmd = [genslip_bin, 'read_erf=0', 'write_srf=1', 'read_gsf=1', 'write_gsf=0', \
+                'infile=%s/%s' % (GSF_DIR, gsf_file), 'mag=%f' % (mw), '%s=%s' % (xstk, nx), \
+                '%s=%s' % (ydip, ny), 'ns=1', 'nh=1', 'seed=%d' % (seed), \
                 'velfile=%s' % (VELFILE), 'shypo=%f' % (shypo), 'dhypo=%f' % (dhypo), \
-                'dt=%f' % dt, 'plane_header=1'], \
-                stdout = srfp)
+                'dt=%f' % dt, 'plane_header=1', 'srf_version=2.0', 'rvfrac=%s' % (rvfrac), \
+                'shal_vrup=0.6', 'deep_vrup=0.6', 'fdrup_time=1', 'alpha_rough=%s' % (rough), \
+                'slip_sigma=%s' % (slip_cov)]
+        call(cmd, stdout = srfp)
 
 def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
     if not path.exists(STOCH_DIR):
@@ -336,10 +342,11 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
             makedirs(STOCH_DIR)
         gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
 
-def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, \
-        flen = None, dlen = None, fwid = None, dwid = None, dtop = None, \
-        shypo = None, dhypo = None, stoch = True, depth = None, mwsr = None,
-        corners = True, corners_file = 'cnrs.txt', outroot = None):
+def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, rvfrac, \
+        rough, slip_cov, flen = None, dlen = None, fwid = None, dwid = None, \
+        dtop = None, shypo = None, dhypo = None, stoch = True, depth = None, \
+        mwsr = None, corners = True, corners_file = 'cnrs.txt', \
+        outroot = None, genslip = '3.3'):
     """
     Create a Finite Fault SRF.
     Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
@@ -368,7 +375,8 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, \
         STOCHF_FILE = '%s.stoch' % (outroot)
 
     gen_gsf(GSF_FILE, lon, lat, dtop, strike, dip, rake, flen, fwid, NX, NY)
-    gen_srf(SRF_FILE, GSF_FILE, mw, dt, NX, NY, seed, shypo, dhypo)
+    gen_srf(SRF_FILE, GSF_FILE, mw, dt, NX, NY, seed, shypo, dhypo, \
+            rvfrac, rough, slip_cov, genslip = genslip)
     if stoch:
         gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
 
@@ -376,11 +384,22 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         m_rvfac_seg, m_gwid, m_rup_delay, m_flen, \
         m_dlen, m_fwid, m_dwid, m_dtop, m_stk, \
         m_rak, m_dip, m_elon, m_elat, m_shypo, \
-        m_dhypo, dt, seed, m_name, cases, output = None):
+        m_dhypo, dt, seed, rvfrac, rough, slip_cov, \
+        m_name, cases, output = None, genslip = '3.3'):
     if not path.exists(GSF_DIR):
         makedirs(GSF_DIR)
     if not path.exists(SRF_DIR):
         makedirs(SRF_DIR)
+
+    genslip_bin = '%s-v%s' % (FF_SRF_BIN, genslip)
+    if int(genslip[0]) < 5:
+        xstk = 'nx'
+        ydip = 'ny'
+        rup_delay = 'rup_delay'
+    else:
+        xstk = 'nstk'
+        ydip = 'ndip'
+        rup_delay = 'rupture_delay'
 
     casefiles = []
     for c, case in enumerate(cases):
@@ -448,19 +467,23 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         # create GSF file
         call([GSF_BIN, 'read_slip_vals=0', 'infile=%s' % ('fault_seg.in'), 'outfile=%s/%s' % (GSF_DIR, GSF_FILE)])
 
-        # calling with outfile parameter will append 's0000-h0000' to filename
+        # calling with outfile parameter will append 's0000-h0000' to filename (v3.3)
         # could fix binary not do this undesirable behaviour
         # ns = slip realisations, nh = hypocentre realisations
         with open('%s/%s' % (SRF_DIR, SRF_FILE), 'w') as srfp:
-            call([FF_SRF_BIN, 'read_erf=0', 'write_srf=1', 'seg_delay=%s' % (SEG_DELAY), \
-                    'read_gsf=1', 'infile=%s/%s' % (GSF_DIR, GSF_FILE), \
-                    'nseg_bounds=%d' % (NSEG - 1), 'xseg=%s' % (XSEG), \
+            cmd = [genslip_bin, 'read_erf=0', 'write_srf=1', 'seg_delay=%s' % (SEG_DELAY), \
+                    'read_gsf=1', 'write_gsf=1', 'infile=%s/%s' % (GSF_DIR, GSF_FILE), \
+                    'nseg=%s' % (NSEG), 'nseg_bounds=%d' % (NSEG - 1), 'xseg=%s' % (XSEG), \
                     'rvfac_seg=%s' % (RVFAC_SEG), 'gwid=%s' % (GWID), \
-                    'mag=%f' % (MAG), 'nx=%f' % (NX_TOT), 'ny=%f' % (NY[0]), \
+                    'mag=%f' % (MAG), '%s=%f' % (xstk, NX_TOT), '%s=%f' % (ydip, NY[0]), \
                     'ns=1', 'nh=1', 'seed=%d' % (seed), 'velfile=%s' % (VELFILE), \
                     'shypo=%f' % (SHYP_TOT), 'dhypo=%f' % (DHYPO[0]), 'dt=%f' % (dt), \
                     'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
-                    'top_taper=0.0', 'rup_delay=%s' % (RUP_DELAY)], stdout = srfp)
+                    'top_taper=0.0', '%s=%s' % (rup_delay, RUP_DELAY), \
+                    'srf_version=2.0', 'rvfrac=%s' % (rvfrac), \
+                    'shal_vrup=0.6', 'deep_vrup=0.6', 'fdrup_time=1', \
+                    'alpha_rough=%s' % (rough), 'slip_sigma=%s' % (slip_cov)]
+            call(cmd, stdout = srfp)
 
     # joined filename
     if output == None:
@@ -488,21 +511,23 @@ if __name__ == "__main__":
         CreateSRF_ps(LAT, LON, DEPTH, MAG, MOM, STK, RAK, DIP, PREFIX, stoch = True)
     elif TYPE == 2:
         # point source to finite fault srf
-        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, \
-                depth = DEPTH, mwsr = MWSR, stoch = True, \
-                corners = True, corners_file = CORNERS)
+        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, RVFRAC, \
+                ROUGH, SLIP_COV, depth = DEPTH, mwsr = MWSR, stoch = True, \
+                corners = True, corners_file = CORNERS, genslip = GENSLIP)
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
-        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, \
-                FLEN, DLEN, FWID, DWID, DTOP, SHYPO, DHYPO, stoch = True, \
-                corners = True, corners_file = CORNERS)
+        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, RVFRAC, \
+                ROUGH, SLIP_COV, FLEN, DLEN, FWID, DWID, DTOP, SHYPO, DHYPO, \
+                stoch = True, corners = True, corners_file = CORNERS, \
+                genslip = GENSLIP)
     elif TYPE == 4:
         # multi segment finite fault srf
         CreateSRF_multi(M_NSEG, M_SEG_DELAY, M_MAG, M_MOM, \
                 M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
                 M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-                M_DHYPO, DT, SEED, M_NAME, CASES)
+                M_DHYPO, DT, SEED, RVFRAC, ROUGH, SLIP_COV, \
+                M_NAME, CASES, genslip = GENSLIP)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
 

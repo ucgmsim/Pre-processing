@@ -5,7 +5,7 @@
 # 2: point source to finite fault srf
 # 3: finite fault to finite fault srf
 # 4: multi-segment finite fault srf
-TYPE = 2 
+TYPE = 2
 
 # PREFIX for gsf/srf/stoch files
 PREFIX = 'standard_'
@@ -41,6 +41,15 @@ MOM = -1
 ###
 ### RELATING TO TYPES 2,3,4 (finite fault output)
 ###
+# GENSLIP VERSION:
+# '3.3', '5.2.3a'
+GENSLIP = '5.2.3a'
+# roughness of fault only for genslip 5.0+
+# 0.1 is a good value to use - Rob Graves
+# 0.0050119 (10^(-2.3)) Shi & Day 2014, default in 5.2.3a
+ROUGH = 0.01
+RVFRAC = 0.8
+SLIP_COV = 0.85
 DT = 0.025
 SEED = 103245
 # only used in type 4 to go over multiple seeds
