@@ -778,8 +778,12 @@ def diff_stat_data(stat_data):
 
     for key in ["000", "090", "ver"]:
         dt=stat_data["t"][1]-stat_data["t"][0]
+
+        #axis keyword added to numpy version 1.11
+        #diff_stat_data[key] = np.gradient(stat_data[key],
+        #                                  dt, edge_order=2, axis=None)
         diff_stat_data[key] = np.gradient(stat_data[key],
-                                          dt, edge_order=2, axis=None)
+                                          dt, edge_order=2)
     return diff_stat_data
 
 def filt_stat_data(stat_data,freq, btype, output='sos', order=4,
