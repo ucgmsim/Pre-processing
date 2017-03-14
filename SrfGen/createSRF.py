@@ -19,6 +19,38 @@ SRF_JOIN_BIN = '/nesi/projects/nesi00213/tools/srf_join'
 STOCH_BIN = '/nesi/projects/nesi00213/tools/srf2stoch'
 VELFILE = 'lp_generic1d-gp01_v1.vmod'
 
+def srf_join(in1, in2, out):
+    """
+    like srf_join.c but that wasn't working properly
+    """
+    with open(in1, 'r') as f1:
+        s1 = f1.readlines()
+    with open(in2, 'r') as f2:
+        s2 = f2.readlines()
+    o = open(out, 'w')
+
+    # must be the same version
+    assert(s1[0] == s2[0])
+    o.write(s1[0])
+
+    # planes - header
+    p1 = int(s1[1].split()[1])
+    p2 = int(s2[1].split()[1])
+    o.write('PLANE %d\n' % (p1 + p2))
+    q1 = 2 + p1 * 2
+    q2 = 2 + p2 * 2
+    # planes - content
+    o.write(''.join(s1[2 : q1]))
+    o.write(''.join(s2[2 : q2]))
+
+    # points - header
+    o.write('POINTS %d\n' % (int(s1[q1].split()[1]) + int(s2[q2].split()[1])))
+    # points - rest of file
+    o.write(''.join(s1[q1 + 1 : ]))
+    o.write(''.join(s2[q2 + 1 : ]))
+
+    o.close()
+
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3 * log(mom) / log(10.0)) - 10.7
 get_nx = lambda FLEN, DLEN : '%.0f' % (FLEN / DLEN)
@@ -492,10 +524,13 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
     copyfile('%s/%s' % (SRF_DIR, casefiles[0]), '%s/%s' % (SRF_DIR, output))
     # join rest of cases into the first
     for i in xrange(len(cases) - 1):
-        call([SRF_JOIN_BIN, \
-                'infile1=%s/%s' % (SRF_DIR, output), \
-                'infile2=%s/%s' % (SRF_DIR, casefiles[i + 1]), \
-                'outfile=%s/%s' % (SRF_DIR, output)])
+        #call([SRF_JOIN_BIN, \
+        #        'infile1=%s/%s' % (SRF_DIR, output), \
+        #        'infile2=%s/%s' % (SRF_DIR, casefiles[i + 1]), \
+        #        'outfile=%s/%s' % (SRF_DIR, output)])
+        srf_join('%s/%s' % (SRF_DIR, output), \
+                '%s/%s' % (SRF_DIR, casefiles[i + 1]), \
+                '%s/%s' % (SRF_DIR, output))
     # remove casefiles
     for casefile in casefiles:
         remove('%s/%s' % (SRF_DIR, casefile))
