@@ -32,15 +32,17 @@ print geo_json
 
 point_list = []
 all_points = tools.read_csv(sys.argv[1], delimiter="\t")
+
 for point in all_points:
-    point_list.append(Point(float(point[0]), float(point[1])))
+    point_list.append([float(point[0]), float(point[1]), point[2]])
+
 
 print len(point_list)
 
 with open('cropped_' + sys.argv[1], mode="w") as out:
     # check each polygon to see if it contains the point
+    polygon = shape(geo_json['geometry'])
     for point in point_list:
-        polygon = shape(geo_json['geometry'])
-
-        if polygon.contains(point):
-           out.write("%f %f\n" % (point.x, point.y))
+        tmp_point = Point(point[0],point[1])
+        if polygon.contains(tmp_point):
+           out.write("%f\t%f\t%s\n" % (point[0], point[1], point[2]))
