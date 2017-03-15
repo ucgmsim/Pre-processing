@@ -38,14 +38,19 @@ def readGP(loc, fname):
     return data, num_pts, dt, shift
 
 
-def get_GP_header(stat_code, size, delta_t, time_delay):
+def get_GP_header(stat_code, size, delta_t, time_delay, comment="broadband"):
     """
     Return header for GP file
     """
 
-    header_000 = stat_code + " 0 broadband\n"
-    header_090 = stat_code + " 90 broadband\n"
-    header_ver = stat_code + " ver broadband\n"
+    #header_000 = stat_code + " 0 broadband\n"
+    #header_090 = stat_code + " 90 broadband\n"
+    #header_ver = stat_code + " ver broadband\n"
+    comment = str(comment)
+    comment = comment.strip("\n")
+    header_000 = "{:s} 000 {:s}\n".format(stat_code, comment)
+    header_090 = "{:s} 090 {:s}\n".format(stat_code, comment)
+    header_ver = "{:s} ver {:s}\n".format(stat_code, comment)
     stat_info= ("{:<10d}"+ 7*"{:<10.3f}"+"\n").format(size, delta_t, 0., 0. ,time_delay, 0., 0., 0.)
 
     header_000+=stat_info

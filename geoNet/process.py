@@ -217,7 +217,7 @@ class Process(object):
         self.acc_000 = (R[1,0] * self.gf.comp_1st.acc + R[1,1]*self.gf.comp_2nd.acc)
         return
 
-    def save2disk(self,loc, stat_code, seismo="velLF"):
+    def save2disk(self,loc, stat_code, seismo="velLF", comment="broadband"):
         """
         The first two rows in .000, .090 and .ver files are
         row1: 
@@ -228,6 +228,8 @@ class Process(object):
         e.g	    22000      0.005   0. 0. -1.  0. 0. 0.  
 
         acceleration is in units of g, vel in cm/s and disp in cm 
+        comment:
+            comment is appended to the first line
         """
 
         print("\nSaving Rotated %s  data for %s at:\n %s: "
@@ -237,7 +239,7 @@ class Process(object):
         delta_t=self.delta_t
         time_delay = self.gf.comp_1st.time_delay
         header_000, header_090, header_ver = get_GP_header(
-                                       stat_code, size, delta_t, time_delay)       
+                                       stat_code, size, delta_t, time_delay, comment)
 
         ncol = 6
         writeGP(loc, stat_code+".000", self.comp_000.__getattribute__(seismo),
