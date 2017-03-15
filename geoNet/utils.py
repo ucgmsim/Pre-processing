@@ -339,7 +339,7 @@ def get_empIM(periods, siteprop, faultprop):
 
 def get_empIM_v2(Rrup, period, faultprop, Rjb=None, Rtvz=0., V30measured=0., V30=250.):
     """
-    Similar to get_empIM except that both Rrup and period can be a numpy arrays or scalar.
+    Similar to get_empIM except that both Rrup, period and V30 can be a numpy arrays or scalar.
     Note that in set_siteprop we have 
         self.Rjb=np.sqrt(np.max((0,Rrup**2-faultprop.Ztor**2)))
     and therefore Rjb has no effect currently
@@ -349,17 +349,23 @@ def get_empIM_v2(Rrup, period, faultprop, Rjb=None, Rtvz=0., V30measured=0., V30
     if np.isscalar(period):
         period = [period]
 
+    if np.isscalar(V30):
+        V30 = [V30]*len(Rrup)
+
     Rrup=np.asarray(Rrup)
     if Rjb is None: 
         Rjb=-Rrup
+    V30=np.asarray(V30)
+    if not Rrup.size == V30.size: raise AssertionError("Rrup.size not equal to V30.size")
     period=np.asarray(period)
+
 
     empIM_values = np.empty((Rrup.size, period.size))
     empIM_sigmas = np.empty((Rrup.size, period.size))
-    for i, (x,y) in enumerate(izip(Rrup, Rjb)):
+    for i, (x,y,z) in enumerate(izip(Rrup, Rjb, V30)):
         #x,y = Rrup[i], Rjb[i]
         siteprop = set_siteprop(faultprop, period=np.nan, Rrup=x, Rjb=y,
-                                Rtvz=Rtvz, V30measured=V30measured, V30=V30)
+                                Rtvz=Rtvz, V30measured=V30measured, V30=z)
 
         empIM = get_empIM(period, siteprop, faultprop)
         empIM_values[i] = empIM[:,0]
