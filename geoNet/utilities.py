@@ -1,3 +1,8 @@
+"""
+readGP and writeGP have been moved to utils. 
+read_geoNet_list moved to geoNet_file to make it independent. 
+utilities should not be used and will be removed in the future
+"""
 import numpy as np
 
 def readGP(loc, fname):

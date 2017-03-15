@@ -173,7 +173,31 @@ unused4
 """.split()
 
 import numpy as np
-from utilities import read_geoNet_list
+#from utilities import read_geoNet_list
+
+def read_geoNet_list(lines, line_width = 80, width=8):
+    """
+    Convinience function for parsing lines in GeoNet format
+    """
+    data = []
+    slices = np.arange(0, line_width, width)
+    for line in lines[:-1]:
+        for i in slices:
+            if(line[i:i+width] == "999999.9"):
+                return np.asarray(data, dtype=float) 
+            else:
+                data.append(float(line[i:i+width]))
+
+    last_line = lines[-1].rstrip()
+    for i in xrange(0, len(last_line), width):
+        if(last_line[i:i+width] == "999999.9"):
+            return np.asarray(data, dtype=float)
+        else:
+            data.append(float(last_line[i:i+width]))
+    
+
+    return np.asarray(data, dtype=float)
+
 class FileComponent(object):
     
     def __init__(self):

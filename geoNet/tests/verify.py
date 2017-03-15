@@ -2,7 +2,8 @@ from geoNet_file import GeoNet_File
 from process import Process
 import butterworth as bw
 import os
-from utilities import readGP
+#from utilities import readGP
+from utils import readGP
 import numpy as np
 gf_wvz = GeoNet_File("20100903_163541_WVZ.V1A",
                      "/".join([os.getcwd(),"tests","data"]),
@@ -11,9 +12,9 @@ gf_wvz = GeoNet_File("20100903_163541_WVZ.V1A",
 pgf_wvz = Process(gf_wvz, lowcut=0.1)
 #Read the same data as filtered by Brendon
 floc = "/hpc/home/hnr12/ObservedGroundMotions/20100903163541/BB/"
-vel_ver_BB = readGP(floc, "WVZ.ver")
-vel_000_BB = readGP(floc, "WVZ.000")
-vel_090_BB = readGP(floc, "WVZ.090")
+vel_ver_BB , num_pts, dt, shift= readGP(floc, "WVZ.ver")
+vel_000_BB , num_pts, dt, shift= readGP(floc, "WVZ.000")
+vel_090_BB , num_pts, dt, shift= readGP(floc, "WVZ.090")
 
 vel_ver = pgf_wvz.comp_ver.velBB
 vel_000 = pgf_wvz.comp_000.velBB
