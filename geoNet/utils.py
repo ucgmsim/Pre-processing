@@ -857,3 +857,29 @@ def fft_stat_data(stat_data):
     fft_stat_data['name']=stat_data['name']
 
     return fft_stat_data
+
+
+def keyValueFromTxt(fname):
+    """
+    Parses file that has the form key=value and returns a dictionary
+    """
+    keyValue = dict()
+    fname = os.path.abspath(fname)
+    print("Reading input from {:s}\n".format(fname))
+    with open(fname, 'r') as f:
+        for line in f:
+            #remove white spaces
+            if line.startswith("#") or line.startswith("%"):
+                continue
+            if line in ["\n", "\r", "\rn"]:
+                continue
+            for delim in ['#', '%']:
+                line = line.partition(delim)[0]
+            line = line.strip()
+            line = line.replace(" ", "")
+            line = line.replace("\"", "")
+            key, value = line.split("=")
+            keyValue[key] = value
+
+    return keyValue
+
