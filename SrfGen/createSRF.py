@@ -4,6 +4,7 @@ from math import exp, log, sin, cos, radians, sqrt
 from os import makedirs, path, remove
 from shutil import copyfile
 from subprocess import call, Popen, PIPE
+import sys
 
 import numpy as np
 
@@ -374,6 +375,9 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
             makedirs(STOCH_DIR)
         gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
 
+    # location of resulting SRF file
+    return '%s/%s' % (SRF_DIR, SRF_FILE)
+
 def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, rvfrac, \
         rough, slip_cov, flen = None, dlen = None, fwid = None, dwid = None, \
         dtop = None, shypo = None, dhypo = None, stoch = True, depth = None, \
@@ -411,6 +415,9 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, rvfrac, \
             rvfrac, rough, slip_cov, genslip = genslip)
     if stoch:
         gen_stoch(STOCH_FILE, SRF_FILE, dx = 2.0, dy = 2.0)
+
+    # location of resulting SRF
+    return '%s/%s' % (SRF_DIR, SRF_FILE)
 
 def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
         m_rvfac_seg, m_gwid, m_rup_delay, m_flen, \
@@ -537,27 +544,30 @@ def CreateSRF_multi(m_nseg, m_seg_delay, m_mag, m_mom, \
     gen_stoch('%s.stoch' % (''.join(output.split('.')[:-1])), \
             output, dx = 2.0, dy = 2.0)
 
+    # path to resulting SRF
+    return '%s/%s' % (SRF_DIR, output)
+
 
 
 if __name__ == "__main__":
     from setSrfParams import *
     if TYPE == 1:
         # point source to point source srf
-        CreateSRF_ps(LAT, LON, DEPTH, MAG, MOM, STK, RAK, DIP, PREFIX, stoch = True)
+        srf = CreateSRF_ps(LAT, LON, DEPTH, MAG, MOM, STK, RAK, DIP, PREFIX, stoch = True)
     elif TYPE == 2:
         # point source to finite fault srf
-        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, RVFRAC, \
+        srf = CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, RVFRAC, \
                 ROUGH, SLIP_COV, depth = DEPTH, mwsr = MWSR, stoch = True, \
                 corners = True, corners_file = CORNERS, genslip = GENSLIP)
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
-        CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, RVFRAC, \
+        srf = CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, SEED, RVFRAC, \
                 ROUGH, SLIP_COV, FLEN, DLEN, FWID, DWID, DTOP, SHYPO, DHYPO, \
                 stoch = True, corners = True, corners_file = CORNERS, \
                 genslip = GENSLIP)
     elif TYPE == 4:
         # multi segment finite fault srf
-        CreateSRF_multi(M_NSEG, M_SEG_DELAY, M_MAG, M_MOM, \
+        srf = CreateSRF_multi(M_NSEG, M_SEG_DELAY, M_MAG, M_MOM, \
                 M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
                 M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
@@ -565,4 +575,28 @@ if __name__ == "__main__":
                 M_NAME, CASES, genslip = GENSLIP)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
+        exit(1)
 
+    # run SRF plots
+    if len(sys.argv) > 1 and sys.argv[1] == 'noplot':
+        exit(0)
+
+    if TYPE == 1:
+        print('Point source plotting not yet implemented.')
+        exit(0)
+
+    # start plotting
+    from subprocess import call, Popen, PIPE
+
+    for script in ['plot_srf_square.py', 'plot_srf_map.py']:
+        path_tester = Popen(['which', script], stdout = PIPE)
+        script_path = path_tester.communicate()[0].rstrip()
+        path_tester.wait()
+        if not path.exists(script_path):
+            print('Plotting script %s is not available in PATH!' % (script))
+            exit(1)
+
+    print('Plotting SRF as square plot...')
+    call(['plot_srf_square.py', srf])
+    print('Plotting SRF as map plot...')
+    call(['plot_srf_map.py', srf])
