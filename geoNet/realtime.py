@@ -383,7 +383,19 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
 
     #write PGVs
     event_velBB = get_event_data(loc_velBB, sorted_stats_code)
-    with open("event_obs_PGVs.txt", 'w') as f:
+    with open("event_obs_PGVs_lin.txt", 'w') as f, open("event_obs_PGVs_log.txt", 'w') as g:
+        f.write("Observed PGVs\n")
+        f.write("units of cm/s\n")
+        f.write("hot:invert 0.2\n")
+        f.write("0.008471  20.5 0.005 0.25\n")
+        f.write("1\n")
+        f.write("{:s}\n".format(fname_statsll[0:17]))
+        g.write("Observed PGVs\n")
+        g.write("units of cm/s\n")
+        g.write("hot:invert 0.2\n")
+        g.write("0.008471  20.5 0.005 0.25\n")
+        g.write("1\n")
+        g.write("{:s}\n".format(fname_statsll[0:17]))
         for stat_data in event_velBB:
             stat_code=stat_data['name']
             lon, lat = stats_dict[stat_code]
@@ -394,10 +406,24 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
             line = "{:10.4f} {:10.4f}".format(lon, lat)
             line+= " {:^15.6f}".format(max_vel_geom)
             f.write(line+"\n")
+            g.write("{:10.4f} {:10.4f} {:^15.6f}\n".format(lon, lat, np.log(max_vel_geom)))
 
     #write PGAs
     event_accBB = get_event_data(loc_accBB, sorted_stats_code)
-    with open("event_obs_PGAs.txt", 'w') as f:
+    #with open("event_obs_PGAs.txt", 'w') as f:
+    with open("event_obs_PGAs_lin.txt", 'w') as f, open("event_obs_PGAs_log.txt", 'w') as g:
+        f.write("Observed PGAs\n")
+        f.write("units of g\n")
+        f.write("hot:invert 0.2\n")
+        f.write("0.008471  20.5 0.005 0.25\n")
+        f.write("1\n")
+        f.write("{:s}\n".format(fname_statsll[0:17]))
+        g.write("Observed PGAs\n")
+        g.write("units of g\n")
+        g.write("hot:invert 0.2\n")
+        g.write("0.008471  20.5 0.005 0.25\n")
+        g.write("1\n")
+        g.write("{:s}\n".format(fname_statsll[0:17]))
         for stat_data in event_accBB:
             stat_code=stat_data['name']
             lon, lat = stats_dict[stat_code]
@@ -408,7 +434,7 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
             line = "{:10.4f} {:10.4f}".format(lon, lat)
             line+= " {:^15.6f}".format(max_acc_geom)
             f.write(line+"\n")
-
+            g.write("{:10.4f} {:10.4f} {:^15.6f}\n".format(lon, lat, np.log(max_acc_geom)))
     #sys.exit("getting out")
 
 
@@ -418,17 +444,33 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     event_PSA   = get_event_PSA(get_event_data(loc_accBB, sorted_stats_code),
                                 period, xi=0.05, m=1., gamma=0.5, beta=0.25)
 
-
-    with open("event_obs_PSAs.txt", 'w') as f:
+    #with open("event_obs_PSAs.txt", 'w') as f:
+    with open("event_obs_PSAs_lin.txt", 'w') as f, open("event_obs_PSAs_log.txt", 'w') as g:
+        f.write("Observed PSAs\n")
+        f.write("units of g\n")
+        f.write("hot:invert 0.2\n")
+        f.write("0.008471  20.5 0.005 0.25\n")
+        f.write("{:d}\n".format(len(period)))
         f.write((len(period)*" {:5.1f} ").format(*period))
         f.write("\n")
+        g.write("Observed PSAs\n")
+        g.write("units of g\n")
+        g.write("hot:invert 0.2\n")
+        g.write("0.008471  20.5 0.005 0.25\n")
+        g.write("{:d}\n".format(len(period)))
+        g.write((len(period)*" {:5.1f} ").format(*period))
+        g.write("\n")
+
         for stat_data in event_PSA:
             stat_code=stat_data['name']
             lon, lat = stats_dict[stat_code]
             pSA_geom = stat_data['geom']
             line = "{:10.4f} {:10.4f}".format(lon, lat)
+            logline=line+ (len(period)*" {:^15.6f} ").format(*np.log(pSA_geom))
             line+= (len(period)*" {:^15.6f} ").format(*pSA_geom)
             f.write(line+"\n")
+            g.write(logline+"\n")
+
 
     final_time = time()
     print("Done in {:.1f} secs.\n".format(final_time - init_time))
