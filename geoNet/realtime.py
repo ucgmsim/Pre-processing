@@ -13,6 +13,7 @@ from time import time
 from glob import glob
 import scipy
 import sys
+import subprocess as sp
 #geoNet imports
 from geoNet import scrapeGeoNet as sg
 from geoNet import utils, putils
@@ -114,6 +115,75 @@ def event_statsll(fname, loc,
     return
 
 
+def event_statsVs30(fname_statsll, loc=os.getcwd(),
+                  dirVs30_prog="/home/ahsan/Documents/Vs30-mapping",
+                  Vs30_prog="extractVs30.R"):
+    """
+    fname_statsll:
+        stations.ll file name, pass the file name and full path combined
+    loc:
+        where .Vs30 files are saved 
+    """
+    init_time=time()
+    print("Creating Vs30 files  ...")
+
+    cwd = os.getcwd()
+    dirProg = dirVs30_prog
+    os.chdir(dirProg)
+
+
+    fname_Vs30_out = "/".join([loc,"Vs30.out"])
+
+    fname_Vs30_in="/".join([loc, "statsll.temp"])
+    with open(fname_statsll, 'r') as f, open(fname_Vs30_in, 'w') as g:
+        g.write("Site.Longitude  Site.Latitude  Site.Code\n")
+        for line in f:
+            g.write(line)
+
+    prog = sp.Popen(["Rscript", Vs30_prog, "Vs30_est_map_20170119.Rdata", fname_Vs30_in,
+                    fname_Vs30_out], stdout=sp.PIPE,
+                    stderr=sp.PIPE, shell=False)
+
+    std_out, std_err = prog.communicate()
+    with open("/".join([loc, "Vs30_stdout.txt"]), 'w') as f:
+        f.writelines(std_out)
+
+    with open("/".join([loc, "Vs30_stderr.txt"]), 'w') as f:
+        f.writelines(std_err)
+
+    os.remove(fname_Vs30_in)
+
+    fname_Vs30 = fname_statsll.replace(".ll", ".vs30")
+    fname_Vs30Ref = fname_statsll.replace(".ll", ".vs30ref")
+    with open(fname_Vs30_out, 'r') as fin, open(fname_Vs30, 'w') as fVs30, open(fname_Vs30Ref, 'w') as fVs30_ref:
+        header = fin.readline()
+        fVs30.write("%used {:s}\n".format("/".join([dirVs30_prog, Vs30_prog])))
+        fVs30_ref.write("%used {:s}\n".format("/".join([dirVs30_prog, Vs30_prog])))
+        for line in fin:
+            stat_code, lon, lat, Vs30 = line.split(",")
+            #remove \n
+            Vs30 = Vs30.strip()
+            stat_code = stat_code.strip("\"")
+            if Vs30 == "NA":
+                Vs30 = 500
+
+            Vs30 = int(Vs30)
+
+            fVs30.write("{:<10s} {:^10d}\n".format(stat_code, Vs30))
+            fVs30_ref.write("{:<10s} {:^10d}\n".format(stat_code, 500))
+            #lon=float(lon)
+            #lat=float(lat)
+            #fout.write("{:<15.4f} {:^15.4f} {:^10d}\n".format(lon, lat, Vs30))       
+            #fout.write("{:<15.4f} {:^15.4f} {:^10s}\n".format(lon, lat, stat_code))
+            #fout.write("{:<15.4f} {:^15.4f} {:^10d} {:^10s}\n".format(lon, lat, Vs30, stat_code))
+
+    os.chdir(cwd)
+    final_time=time()
+    print("Done Vs30 calcs in {:.1f} secs\n".format(final_time - init_time))
+
+    return
+
+
 def processData(LOC):
     """
     LOC:
@@ -176,9 +246,9 @@ def processData(LOC):
 
         try:
             #expects that velBB etc directories already exist, created when getData.py is used
-            pgf.save2disk(LOC+"/velBB/", stat_code, 'velBB')
-            pgf.save2disk(LOC+"/velLF/", stat_code, 'velLF')
-            pgf.save2disk(LOC+"/accBB/", stat_code, 'accBB')
+            pgf.save2disk(LOC+"/velBB/", stat_code, 'velBB',comment="observed")
+            pgf.save2disk(LOC+"/velLF/", stat_code, 'velLF',comment="observed")
+            pgf.save2disk(LOC+"/accBB/", stat_code, 'accBB',comment="observed")
 
         except Exception as e:
             std_err.write(str(e))
@@ -364,33 +434,33 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     print("Done in {:.1f} secs.\n".format(final_time - init_time))
     return
 
-def keyValueFromTxt(fname):
-    """
-    Parses file that has the form key=value and returns a dictionary
-    """
-    keyValue = dict()
-    fname = os.path.abspath(fname)
-    print("Reading input from {:s}\n".format(fname))
-    with open(fname, 'r') as f:
-        for line in f:
-            #remove white spaces
-            if line.startswith("#") or line.startswith("%"):
-                continue
-            if line in ["\n", "\r", "\rn"]:
-                continue
-            line = line.strip()
-            line = line.replace(" ", "")
-            line = line.replace("\"", "")
-            key, value = line.split("=")
-            keyValue[key] = value
-
-    return keyValue
+#def keyValueFromTxt(fname):
+#    """
+#    Parses file that has the form key=value and returns a dictionary
+#    """
+#    keyValue = dict()
+#    fname = os.path.abspath(fname)
+#    print("Reading input from {:s}\n".format(fname))
+#    with open(fname, 'r') as f:
+#        for line in f:
+#            #remove white spaces
+#            if line.startswith("#") or line.startswith("%"):
+#                continue
+#            if line in ["\n", "\r", "\rn"]:
+#                continue
+#            line = line.strip()
+#            line = line.replace(" ", "")
+#            line = line.replace("\"", "")
+#            key, value = line.split("=")
+#            keyValue[key] = value
+#
+#    return keyValue
 
 def run(arg):
     """
     main function that runs realtime.py
     """
-    keyValue = keyValueFromTxt(arg) 
+    keyValue = utils.keyValueFromTxt(arg) 
 
     loc = keyValue['loc'] 
     BASE_URL = keyValue['BASE_URL']
@@ -408,6 +478,11 @@ def run(arg):
                   loc_all_geoNet_stats, fname_all_geoNet_stats,
                   loc_V1A)
 
+
+    event_statsVs30("/".join([loc_statsll, fname_statsll]),
+                    loc=loc_statsll,
+                    dirVs30_prog="/home/ahsan/Documents/Vs30-mapping",
+                    Vs30_prog="extractVs30.R")
 
     processData(loc_V1A)
 
