@@ -63,9 +63,11 @@ def CreateSRF_ffdStoch():
 
         # run createSRF with randomised parameters
         CreateSRF_ff(LAT, LON, m_mag, STK, \
-                RAK, DIP, DT, PREFIX, seed, m_flen, \
+                RAK, DIP, DT, PREFIX, seed, RVFRAC, \
+                ROUGH, SLIP_COV, m_flen, \
                 DLEN, m_fwid, DWID, DTOP, \
-                SHYPO, DHYPO, outroot = output)
+                SHYPO, DHYPO, outroot = output, \
+                genslip = GENSLIP)
 
         # append stoch data to info file
         with open('Srf/%s' % (metainfo), 'a') as of:
@@ -141,8 +143,8 @@ def CreateSRF_multiStoch():
                 M_RVFAC_SEG, M_GWID, M_RUP_DELAY, m_flen, \
                 M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-                M_DHYPO, DT, seed, M_NAME, CASES, \
-                output)
+                M_DHYPO, DT, seed, RVFRAC, ROUGH, SLIP_COV, \
+                M_NAME, CASES, output = output, genslip = GENSLIP)
 
         # append stoch data to info file
         with open('Srf/%s' % (metainfo), 'a') as of:
