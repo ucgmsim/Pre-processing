@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 
+import os
 from random import uniform, randint
 from time import time
 
@@ -90,6 +91,8 @@ def CreateSRF_multiStoch():
     # least significant digit 10 seconds appart
     run_id = str(time())[2:9]
 
+    if not os.path.exists('Srf'):
+        os.makedirs('Srf')
     # file containing variability info
     metainfo = '%s_%s.txt' % (M_NAME, run_id)
     # overwrite file / list variables printed
