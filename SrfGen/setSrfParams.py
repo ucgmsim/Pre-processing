@@ -5,12 +5,12 @@
 # 2: point source to finite fault srf
 # 3: finite fault to finite fault srf
 # 4: multi-segment finite fault srf
-TYPE = 2
+TYPE = 4
 
+# specify basename for gsf, srf and stoch file created
 # PREFIX for gsf/srf/stoch files
-PREFIX = 'standard_'
-# FILENAME for corners file
-CORNERS = 'cnrs.txt'
+# if prefix ends with '_', automatic naming follows
+PREFIX = 'source'
 
 ###
 ### COMMON PARAMETERS (apply to all types but multi)
@@ -25,11 +25,13 @@ DEPTH = 15.0
 # magnitude (float)
 MAG = 7.5
 # strike (int)
-STK =5  
+STK = 5
 # dip (int)
-DIP = 62 
+DIP = 62
 # rake (int)
 RAK = 77
+# rupture timestep
+DT = 0.025
 
 ###
 ### RELATING TO TYPE 1 (point to point)
@@ -50,7 +52,6 @@ GENSLIP = '5.2.3a'
 ROUGH = 0.01
 RVFRAC = 0.8
 SLIP_COV = 0.85
-DT = 0.025
 SEED = 103245
 # only used in type 4 to go over multiple seeds
 SEED_INC = 1
@@ -87,17 +88,14 @@ DHYPO = 22.8544094807
 
 # how many scenarios to run. different scenarios can have
 # randomised parameters (randomisation amount set below)
-N_SCENARIOS = 5 
+N_SCENARIOS = 5
 # how many scenarios to run before incrementing the seed value.
 # this will randomise parameters but keep the seed the same.
 N_SEED_INC = 20
 # description of main segments
 CASES = ['rv', 'ss']
 
-# prefix for all files
-M_NAME = 'bev01'
 # master segments can be made up of multiple sub-segments
-# set 
 #M_MAG = [6.50, 7.06]
 M_MAG = [6.63, 7.00]
 # as above, if MOM invalid ( <= 0), calculated from MAG
@@ -108,7 +106,7 @@ M_NSEG = [1, 3]
 M_SEG_DELAY = ["0", "1"]
 M_RVFAC_SEG = ["-1", "0.5,0.5"]
 M_GWID = ["-1", "8.0,8.0"]
-M_RUP_DELAY = ["0", "4.0"]
+M_RUP_DELAY = [0, 4.0]
 
 # 2 dimentional arrays for each set of segments
 # demensions should match MASTER_NSEG
