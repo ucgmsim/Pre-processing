@@ -1,11 +1,15 @@
 #!/usr/bin/env python2
 
+from math import exp, log
 import os
 from random import uniform, randint
 from time import time
 
 from setSrfParams import *
 from createSRF import CreateSRF_ff, CreateSRF_multi
+
+mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
+mom2mag = lambda mom : (2 / 3. * log(mom) / log(10.0)) - 10.7
 
 def param_as_string(param):
     # 1st case: single value
@@ -91,12 +95,16 @@ def CreateSRF_multiStoch():
     # least significant digit 10 seconds appart
     run_id = str(time())[2:9]
 
-    if not os.path.exists('Srf'):
-        os.makedirs('Srf')
+    out_dir = os.path.dirname(PREFIX)
+    if out_dir == '':
+        out_dir = '.'
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
     # file containing variability info
-    metainfo = '%s_%s.txt' % (M_NAME, run_id)
+    metainfo = '%s_%s.txt' % (PREFIX.rstrip('_'), run_id)
     # overwrite file / list variables printed
-    with open('Srf/%s' % (metainfo), 'w') as of:
+    with open(metainfo, 'w') as of:
         for column in ['filename', 'seed', 'nseg', 'mag', 'flen', 'fwid']:
             of.write('%s\t' % column)
         of.write('\n')
@@ -112,13 +120,14 @@ def CreateSRF_multiStoch():
         m_mag = []
         m_flen = []
         m_fwid = []
+        m0_tot = mag2mom(MW_TOTAL)
         for case in xrange(len(CASES)):
             # randomise MAGnitude
             if V_MAG[case]:
-                m_mag.append(round(M_MAG[case] + \
-                        uniform(-V_MAG[case], V_MAG[case]), 2))
+                m_mag.append(mag2mom(M_MAG[case]) / m0_tot \
+                        + uniform(-V_MAG[case], V_MAG[case]))
             else:
-                m_mag.append(M_MAG[case])
+                m_mag.append(mag2mom(M_MAG[case]) / m0_tot)
             # randomise FaultLENgth
             if V_FLEN[case]:
                 c_flen = []
@@ -138,8 +147,14 @@ def CreateSRF_multiStoch():
                                         * len(M_FWID[case]))
             else:
                 m_fwid.append(M_FWID[case])
+        # make sure moment ratio is not negative
+        m_mag = [max(m_mag[i], 0.01) for i in xrange(len(m_mag))]
+        # normalise moment ratios
+        m_mag = [m_mag[i] / sum(m_mag) for i in xrange(len(m_mag))]
+        # convert back to magnitudes
+        m_mag = [mom2mag(m_mag[i] * m0_tot) for i in xrange(len(m_mag))]
 
-        output = '%s_%s_%.4d.srf' % (M_NAME, run_id, ns)
+        output = '%s_%s_%.4d' % (PREFIX.rstrip('_'), run_id, ns)
 
         # run createSRF with randomised parameters
         CreateSRF_multi(M_NSEG, M_SEG_DELAY, m_mag, M_MOM, \
@@ -147,12 +162,12 @@ def CreateSRF_multiStoch():
                 M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
                 M_DHYPO, DT, seed, RVFRAC, ROUGH, SLIP_COV, \
-                M_NAME, CASES, output = output, genslip = GENSLIP)
+                output, CASES, genslip = GENSLIP)
 
         # append stoch data to info file
-        with open('Srf/%s' % (metainfo), 'a') as of:
+        with open(metainfo, 'a') as of:
             # filename
-            of.write('%s\t' % output)
+            of.write('%s.srf\t' % output)
             # seed
             of.write('%i\t' % seed)
             # segment distribution

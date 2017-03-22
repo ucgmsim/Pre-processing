@@ -49,7 +49,7 @@ def srf_join(in1, in2, out):
     o.close()
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
-mom2mag = lambda mom : (2 / 3 * log(mom) / log(10.0)) - 10.7
+mom2mag = lambda mom : (2 / 3. * log(mom) / log(10.0)) - 10.7
 get_nx = lambda FLEN, DLEN : '%.0f' % (FLEN / DLEN)
 get_ny = lambda FWID, DWID : '%.0f' % (FWID / DWID)
 get_fileroot = lambda MAG, FLEN, FWID, seed : \
@@ -493,6 +493,7 @@ def CreateSRF_multi(nseg, seg_delay, mag, mom, \
                     'shal_vrup=0.6', 'deep_vrup=0.6', 'fdrup_time=1', \
                     'alpha_rough=%s' % (rough), 'slip_sigma=%s' % (slip_cov)]
             call(cmd, stdout = srfp)
+        os.remove(gsf_file)
 
     # joined filename
     if prefix[-1] == '_':
