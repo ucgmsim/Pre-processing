@@ -131,8 +131,7 @@ M_DHYPO = [[4], [10], [6],[6], [6],[4], [6]]
 
 # used for calculating M0total in magnitude variability
 MW_TOTAL = 7.2
-# if multi-segment:
-# magnitude variability (M0 / M0total ratio, individual but normalised)
+# if multi-segment: relative moment variability
 # else: absolute variability
 V_MAG = [0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0]
 # fault width/length variability (proportion, eg. 0.1 = 10%)

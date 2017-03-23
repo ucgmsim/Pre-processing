@@ -152,8 +152,9 @@ def CreateSRF_multiStoch():
         for case in xrange(len(CASES)):
             # randomise MAGnitude
             if V_MAG[case]:
-                m_mag.append(mag2mom(M_MAG[case]) / m0_tot \
-                        + uniform(-V_MAG[case], V_MAG[case]))
+                maxd = mag2mom(M_MAG[case]) * V_MAG[case]
+                m_mag.append((mag2mom(M_MAG[case]) \
+                        + uniform(-maxd, maxd)) / m0_tot)
             else:
                 m_mag.append(mag2mom(M_MAG[case]) / m0_tot)
             # randomise FaultLENgth
@@ -175,8 +176,6 @@ def CreateSRF_multiStoch():
                                         * len(M_FWID[case]))
             else:
                 m_fwid.append(M_FWID[case])
-        # make sure moment ratio is not negative
-        m_mag = [max(m_mag[i], 0.000000001) for i in xrange(len(m_mag))]
         # normalise moment ratios
         m_mag = [m_mag[i] / sum(m_mag) for i in xrange(len(m_mag))]
         # convert back to magnitudes
