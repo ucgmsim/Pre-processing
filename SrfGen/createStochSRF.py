@@ -176,7 +176,7 @@ def CreateSRF_multiStoch():
             else:
                 m_fwid.append(M_FWID[case])
         # make sure moment ratio is not negative
-        m_mag = [max(m_mag[i], 0.01) for i in xrange(len(m_mag))]
+        m_mag = [max(m_mag[i], 0.000000001) for i in xrange(len(m_mag))]
         # normalise moment ratios
         m_mag = [m_mag[i] / sum(m_mag) for i in xrange(len(m_mag))]
         # convert back to magnitudes

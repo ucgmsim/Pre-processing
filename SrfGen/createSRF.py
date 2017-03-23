@@ -369,7 +369,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
     # location of resulting SRF file
     return srf_file
 
-def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, rvfrac, \
+def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, rvfrac, \
         rough, slip_cov, flen = None, dlen = None, fwid = None, dwid = None, \
         dtop = None, shypo = None, dhypo = None, stoch = True, depth = None, \
         mwsr = None, corners = True, corners_file = 'cnrs.txt', \
@@ -378,6 +378,9 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, rvfrac, \
     Create a Finite Fault SRF.
     Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
     """
+
+    # do not change input variables
+    prefix = prefix0
 
     # only given point source parameters? calculate rest
     if flen == None:
@@ -410,12 +413,17 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix, seed, rvfrac, \
     # location of resulting SRF
     return srf_file
 
-def CreateSRF_multi(nseg, seg_delay, mag, mom, \
+def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
         rvfac_seg, gwid, rup_delay, flen, \
         dlen, fwid, dwid, dtop, stk, \
         rak, dip, elon, elat, shypo, \
         dhypo, dt, seed, rvfrac, rough, slip_cov, \
-        prefix, cases, genslip = '3.3'):
+        prefix0, cases, genslip = '3.3'):
+
+    # do not change the variables passed to the function
+    mag = list(mag0)
+    mom = list(mom0)
+    prefix = prefix0
 
     genslip_bin = '%s-v%s' % (FF_SRF_BIN, genslip)
     if int(genslip[0]) < 5:
