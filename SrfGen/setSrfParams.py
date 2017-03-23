@@ -138,5 +138,12 @@ V_MAG = [0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0]
 # fault width/length variability (proportion, eg. 0.1 = 10%)
 V_FWID = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
 V_FLEN = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+# rupture time delay variability, requires dependency specification below
+# absolute value
+V_RDELAY = [0, 1, 3, 0.5, 0, 0, 0]
+# rupture dependency
+# None means it is a starting point
+# or 0 -> N-1 (segment which triggers this one)
+D_RDELAY = [None, 0, 1, 1, 2, 2, 3]
 
 # TODO: magnitude as a function result if wanted

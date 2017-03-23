@@ -89,6 +89,32 @@ def CreateSRF_ffdStoch():
             # end of line / end of this srf file
             of.write('\n')
 
+def randomise_rupdelay(delay, var, deps):
+    """
+    Randomise rupture delay by variability 'var'
+    such that dependencies 'dep' are adjusted as needed.
+    delay: input delay times
+    var: absolute variability
+    deps: segment which triggers or None if independent
+    """
+    for i in xrange(len(delay)):
+        if var[i] == 0:
+            # segments have no variability
+            continue
+
+        # calculate, apply diff
+        diff = uniform(-var[i], var[i])
+        delay[i] += diff
+        # propagate diff forwards only
+        f = [i]
+        while len(f) > 0:
+            target = f.pop(0)
+            for j in xrange(len(deps)):
+                if deps[j] == target:
+                    delay[j] += diff
+                    f.append(j)
+    return delay
+
 def CreateSRF_multiStoch():
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
@@ -121,6 +147,8 @@ def CreateSRF_multiStoch():
         m_flen = []
         m_fwid = []
         m0_tot = mag2mom(MW_TOTAL)
+        # randomise time delay
+        m_rdelay = randomise_rupdelay(M_RUP_DELAY, V_RDELAY, D_RDELAY)
         for case in xrange(len(CASES)):
             # randomise MAGnitude
             if V_MAG[case]:
@@ -158,7 +186,7 @@ def CreateSRF_multiStoch():
 
         # run createSRF with randomised parameters
         CreateSRF_multi(M_NSEG, M_SEG_DELAY, m_mag, M_MOM, \
-                M_RVFAC_SEG, M_GWID, M_RUP_DELAY, m_flen, \
+                M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
                 M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
                 M_DHYPO, DT, seed, RVFRAC, ROUGH, SLIP_COV, \
