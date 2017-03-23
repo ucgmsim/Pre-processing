@@ -131,7 +131,7 @@ def CreateSRF_multiStoch():
     metainfo = '%s_%s.txt' % (PREFIX.rstrip('_'), run_id)
     # overwrite file / list variables printed
     with open(metainfo, 'w') as of:
-        for column in ['filename', 'seed', 'nseg', 'mag', 'flen', 'fwid']:
+        for column in ['filename', 'seed', 'nseg', 'mag', 'flen', 'fwid', 'rupdelay']:
             of.write('%s\t' % column)
         of.write('\n')
 
@@ -206,6 +206,8 @@ def CreateSRF_multiStoch():
             of.write('%s\t' % param_as_string(m_flen))
             # fault width
             of.write('%s\t' % param_as_string(m_fwid))
+            # fault width
+            of.write('%s\t' % param_as_string(m_rdelay))
             # end of line / end of this srf file
             of.write('\n')
 
