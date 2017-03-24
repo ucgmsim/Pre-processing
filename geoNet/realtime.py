@@ -100,7 +100,11 @@ def event_statsll(fname, loc,
     for stat_code in (stat_codes2 -stat_codes1):
         event_stats1[stat_code] = event_stats2[stat_code]
     #write statsll for this event
-    with open("/".join([loc, fname]),'w') as f:
+    fpath=os.path.join(loc,fname)
+    if not os.path.isdir(loc):
+        os.makedirs(loc)
+        
+    with open(fpath,'w') as f:
         for stat_code in event_stats1:
             (lon, lat) = event_stats1[stat_code]
             f.write("{:<15.4f} {:^15.4f} {:^10s} \n".format(lon, lat, stat_code))
@@ -514,6 +518,19 @@ def run(arg):
     obs_velDir = keyValue['obs_velDir']
     obs_accDir = keyValue['obs_accDir']
 
+    if keyValue.has_key('dirVs30_prog'):
+        dirVs30_prog=keyValue['dirVs30_prog']
+    else:
+        dirVs30_prog="/home/ahsan/Documents/Vs30-mapping"
+
+    if keyValue.has_key('Vs30_prog'):
+        Vs30_prog=keyValue['Vs30_prog']
+    else:
+        Vs30_prog="extractVs30.R"
+
+    print dirVs30_prog
+
+
     getData(loc, BASE_URL)
 
     event_statsll(fname_statsll, loc_statsll,
@@ -523,8 +540,8 @@ def run(arg):
 
     event_statsVs30("/".join([loc_statsll, fname_statsll]),
                     loc=loc_statsll,
-                    dirVs30_prog="/home/ahsan/Documents/Vs30-mapping",
-                    Vs30_prog="extractVs30.R")
+                    dirVs30_prog=dirVs30_prog,
+                    Vs30_prog=Vs30_prog)
 
     processData(loc_V1A)
 
