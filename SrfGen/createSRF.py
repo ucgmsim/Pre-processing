@@ -7,6 +7,7 @@ from subprocess import call, Popen, PIPE
 import sys
 
 import numpy as np
+sys.path.append(os.path.abspath(os.curdir)) #if there is a local srf_config, use it to override the default one
 
 from srf_config import *
 
