@@ -5,7 +5,7 @@
 # 2: point source to finite fault srf
 # 3: finite fault to finite fault srf
 # 4: multi-segment finite fault srf
-TYPE = 4 
+TYPE = $type 
 
 # specify basename for gsf, srf and stoch file created
 # PREFIX for gsf/srf/stoch files
@@ -17,21 +17,21 @@ PREFIX = 'Srf/source'
 ###
 
 # latitude (float)
-LAT = -41.7340
+#LAT = $lat
 # longitude (float)
-LON = 174.1522
+#LON = $lon
 # depth (float)
-DEPTH = 14.0
+#DEPTH = $depth
 # magnitude (float)
-MAG = 6.6
+#MAG = $mag
 # strike (int)
-STK = 240
+#STK = $stk
 # dip (int)
-DIP = 85 
+#DIP = $dip
 # rake (int)
-RAK = -179
+#RAK = $rak
 # rupture timestep
-DT = 0.025
+#DT = $dt
 
 ###
 ### RELATING TO TYPE 1 (point to point)
