@@ -11,6 +11,9 @@ TYPE = $type
 # PREFIX for gsf/srf/stoch files
 # if prefix ends with '_', automatic naming follows
 PREFIX = 'Srf/source'
+# directory for Stoch file(s)
+# set to None to not produce the stoch file
+STOCH = 'Stoch'
 
 ###
 ### COMMON PARAMETERS (apply to all types but multi)
