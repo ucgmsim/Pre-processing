@@ -11,6 +11,9 @@ sys.path.append(os.path.abspath(os.curdir)) #if there is a local srf_config, use
 
 from srf_config import *
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+VELFILE = VELFILE.replace('<REPO>', '%s/' % (script_dir))
+
 def srf_join(in1, in2, out):
     """
     like srf_join.c but that wasn't working properly
@@ -284,6 +287,9 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         call(cmd, stdout = srfp)
 
 def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
+    out_dir = os.path.dirname(stoch_file)
+    if out_dir != '' and not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
