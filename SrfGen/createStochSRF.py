@@ -72,7 +72,7 @@ def CreateSRF_ffdStoch():
                 ROUGH, SLIP_COV, m_flen, \
                 DLEN, m_fwid, DWID, DTOP, \
                 SHYPO, DHYPO, outroot = output, \
-                genslip = GENSLIP)
+                genslip = GENSLIP, stoch = STOCH)
 
         # append stoch data to info file
         with open('Srf/%s' % (metainfo), 'a') as of:
@@ -146,7 +146,8 @@ def CreateSRF_multiStoch():
         m_mag = []
         m_flen = []
         m_fwid = []
-        m0_tot = mag2mom(MW_TOTAL)
+        m0_tot = sum([mag2mom(M_MAG[i]) for i in xrange(len(CASES))])
+        m0_target = mag2mom(MW_TOTAL)
         # randomise time delay
         m_rdelay = randomise_rupdelay(M_RUP_DELAY, V_RDELAY, D_RDELAY)
         for case in xrange(len(CASES)):
@@ -179,7 +180,7 @@ def CreateSRF_multiStoch():
         # normalise moment ratios
         m_mag = [m_mag[i] / sum(m_mag) for i in xrange(len(m_mag))]
         # convert back to magnitudes
-        m_mag = [mom2mag(m_mag[i] * m0_tot) for i in xrange(len(m_mag))]
+        m_mag = [mom2mag(m_mag[i] * m0_target) for i in xrange(len(m_mag))]
 
         output = '%s_%s_%.4d' % (PREFIX.rstrip('_'), run_id, ns)
 
@@ -189,7 +190,7 @@ def CreateSRF_multiStoch():
                 M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
                 M_DHYPO, DT, seed, RVFRAC, ROUGH, SLIP_COV, \
-                output, CASES, genslip = GENSLIP)
+                output, CASES, genslip = GENSLIP, stoch = STOCH)
 
         # append stoch data to info file
         with open(metainfo, 'a') as of:

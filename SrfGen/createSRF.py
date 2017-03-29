@@ -11,6 +11,9 @@ sys.path.append(os.path.abspath(os.curdir)) #if there is a local srf_config, use
 
 from srf_config import *
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+VELFILE = VELFILE.replace('<REPO>', '%s/' % (script_dir))
+
 def srf_join(in1, in2, out):
     """
     like srf_join.c but that wasn't working properly
@@ -284,13 +287,16 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         call(cmd, stdout = srfp)
 
 def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
+    out_dir = os.path.dirname(stoch_file)
+    if out_dir != '' and not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
                     stdin = srfp, stdout = stochp)
 
 def CreateSRF_ps(lat, lon, depth, mw, mom, \
-        strike, rake, dip, dt, prefix = 'source', stoch = True):
+        strike, rake, dip, dt, prefix = 'source', stoch = None):
     """
     Must specify either magnitude or moment (mw, mom).
     """
@@ -328,7 +334,6 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
         prefix = '%s%s' % (prefix, ('m%f' % (mw)).replace('.', 'pt'))
     gsf_file = '%s.gsf' % (prefix)
     srf_file = '%s.srf' % (prefix)
-    stoch_file = '%s.stoch' % (prefix)
     out_dir = os.path.dirname(srf_file)
     if out_dir != '' and not os.path.exists(out_dir):
         os.makedirs(out_dir)
@@ -358,7 +363,8 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
 
     ###
     # CONVERT TO STOCH
-    if stoch:
+    if stoch != None:
+        stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0)
 
     # location of resulting SRF file
@@ -366,7 +372,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
 
 def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, rvfrac, \
         rough, slip_cov, flen = None, dlen = None, fwid = None, dwid = None, \
-        dtop = None, shypo = None, dhypo = None, stoch = True, depth = None, \
+        dtop = None, shypo = None, dhypo = None, stoch = None, depth = None, \
         mwsr = None, corners = True, corners_file = 'cnrs.txt', \
         genslip = '3.3'):
     """
@@ -394,7 +400,6 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, rvfrac, \
         prefix = '%s%s' % (prefix, get_fileroot(mw, flen, fwid, seed))
     gsf_file = '%s.gsf' % (prefix)
     srf_file = '%s.srf' % (prefix)
-    stoch_file = '%s.stoch' % (prefix)
     out_dir = os.path.dirname(srf_file)
     if out_dir != '' and not os.path.exists(out_dir):
         os.makedirs(out_dir)
@@ -403,6 +408,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, rvfrac, \
     gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
             rvfrac, rough, slip_cov, genslip = genslip)
     if stoch:
+        stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0)
 
     # location of resulting SRF
@@ -413,7 +419,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
         dlen, fwid, dwid, dtop, stk, \
         rak, dip, elon, elat, shypo, \
         dhypo, dt, seed, rvfrac, rough, slip_cov, \
-        prefix0, cases, genslip = '3.3'):
+        prefix0, cases, genslip = '3.3', stoch = None):
 
     # do not change the variables passed to the function
     mag = list(mag0)
@@ -510,7 +516,9 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
     # remove casefiles
     for casefile in casefiles:
         os.remove(casefile)
-    gen_stoch('%s.stoch' % (prefix), joined_srf, dx = 2.0, dy = 2.0)
+    if stoch != None:
+        stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
+        gen_stoch('%s.stoch' % (prefix), joined_srf, dx = 2.0, dy = 2.0)
 
     # path to resulting SRF
     return joined_srf
@@ -526,17 +534,17 @@ if __name__ == "__main__":
     if TYPE == 1:
         # point source to point source srf
         srf = CreateSRF_ps(LAT, LON, DEPTH, MAG, MOM, STK, RAK, DIP, DT, \
-        PREFIX, stoch = True)
+        PREFIX, stoch = STOCH)
     elif TYPE == 2:
         # point source to finite fault srf
         srf = CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, \
                 SEED, RVFRAC, ROUGH, SLIP_COV, depth = DEPTH, mwsr = MWSR, \
-                stoch = True, corners = True, genslip = GENSLIP)
+                stoch = STOCH, corners = True, genslip = GENSLIP)
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
         srf = CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, \
                 SEED, RVFRAC, ROUGH, SLIP_COV, FLEN, DLEN, FWID, DWID, DTOP, \
-                SHYPO, DHYPO, stoch = True, corners = True, genslip = GENSLIP)
+                SHYPO, DHYPO, stoch = STOCH, corners = True, genslip = GENSLIP)
     elif TYPE == 4:
         # multi segment finite fault srf
         srf = CreateSRF_multi(M_NSEG, M_SEG_DELAY, M_MAG, M_MOM, \
@@ -544,7 +552,7 @@ if __name__ == "__main__":
                 M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
                 M_DHYPO, DT, SEED, RVFRAC, ROUGH, SLIP_COV, \
-                PREFIX, CASES, genslip = GENSLIP)
+                PREFIX, CASES, genslip = GENSLIP, stoch = STOCH)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
         exit(1)

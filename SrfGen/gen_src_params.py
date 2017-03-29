@@ -23,7 +23,7 @@ def main():
 
     args=parser.parse_args()
 
-    with open(os.path.join(mydir,"setSrfParams.py.template"),'r') as fr:
+    with open(os.path.join(mydir,"setSrfParams.template.py"),'r') as fr:
        lines = fr.readlines()
        str_lines=''.join(lines)
        str_lines2= string.Template(str_lines).substitute({'type':args.type,'lat':args.lat,'lon':args.lon,'depth':args.depth,'mag':args.mag, 'stk':args.stk, 'dip':args.dip,'rak':args.rak, 'dt':args.dt})
