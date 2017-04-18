@@ -20,21 +20,21 @@ STOCH = 'Stoch'
 ###
 
 # latitude (float)
-#LAT = $lat
+LAT = $lat
 # longitude (float)
-#LON = $lon
+LON = $lon
 # depth (float)
-#DEPTH = $depth
+DEPTH = $depth
 # magnitude (float)
-#MAG = $mag
+MAG = $mag
 # strike (int)
-#STK = $stk
+STK = $stk
 # dip (int)
-#DIP = $dip
+DIP = $dip
 # rake (int)
-#RAK = $rak
+RAK = $rak
 # rupture timestep
-#DT = $dt
+DT = $dt
 
 ###
 ### RELATING TO TYPE 1 (point to point)
@@ -147,5 +147,8 @@ V_RDELAY = [0, 1, 3, 0.5, 0, 0, 0]
 # None means it is a starting point
 # or 0 -> N-1 (segment which triggers this one)
 D_RDELAY = [None, 0, 1, 1, 2, 2, 3]
+# hypocentre variabiity - absolute
+# for first segment, [SHYPO, DHYPO]
+V_HYPO = [1.1, 3]
 
 # TODO: magnitude as a function result if wanted

@@ -43,6 +43,18 @@ def CreateSRF_ffdStoch():
         # increment seed if wanted
         seed = SEED + SEED_INC * ns // N_SEED_INC
 
+        # randomise hypocentre position - SHYPO -flen/2 -> flen/2
+        shypo = SHYPO
+        if V_HYPO[0]:
+            mn = max( - FLEN / 2, SHYPO - V_HYPO[0])
+            mx = min( FLEN / 2, SHYPO + V_HYPO[0])
+            shypo = uniform(mn, mx)
+        # randomise hypocentre posinion - HYPO 0 -> fwid
+        dhypo = DHYPO
+        if V_HYPO[1]:
+            mn = max(0, DHYPO - V_HYPO[1])
+            mx = min(FWID, DHYPO + V_HYPO[1])
+            dhypo[0][0] = uniform(mn, mx)
         # randomise MAGnitude
         if V_MAG[0]:
             m_mag = round(MAG + \
@@ -71,7 +83,7 @@ def CreateSRF_ffdStoch():
                 RAK, DIP, DT, PREFIX, seed, RVFRAC, \
                 ROUGH, SLIP_COV, m_flen, \
                 DLEN, m_fwid, DWID, DTOP, \
-                SHYPO, DHYPO, outroot = output, \
+                shypo, dhypo, outroot = output, \
                 genslip = GENSLIP, stoch = STOCH)
 
         # append stoch data to info file
@@ -142,14 +154,30 @@ def CreateSRF_multiStoch():
         # increment seed if wanted
         seed = SEED + SEED_INC * ns // N_SEED_INC
 
+        # randomise time delay
+        m_rdelay = randomise_rupdelay(M_RUP_DELAY, V_RDELAY, D_RDELAY)
+        # randomise hypocentre position - SHYPO -flen/2 -> flen/2
+        m_shypo = list(M_SHYPO)
+        if V_HYPO[0]:
+            shypo = M_SHYPO[0][0]
+            flen = M_FLEN[0][0]
+            mn = max( - flen / 2, shypo - V_HYPO[0])
+            mx = min( flen / 2, shypo + V_HYPO[0])
+            m_shypo[0][0] = uniform(mn, mx)
+        # randomise hypocentre posinion - HYPO 0 -> fwid
+        m_dhypo = list(M_DHYPO)
+        if V_HYPO[1]:
+            dhypo = M_DHYPO[0][0]
+            fwid = M_FWID[0][0]
+            mn = max(0, dhypo - V_HYPO[1])
+            mx = min(fwid, dhypo + V_HYPO[1])
+            m_dhypo[0][0] = uniform(mn, mx)
         # cases can be randomised individually
         m_mag = []
         m_flen = []
         m_fwid = []
         m0_tot = sum([mag2mom(M_MAG[i]) for i in xrange(len(CASES))])
         m0_target = mag2mom(MW_TOTAL)
-        # randomise time delay
-        m_rdelay = randomise_rupdelay(M_RUP_DELAY, V_RDELAY, D_RDELAY)
         for case in xrange(len(CASES)):
             # randomise MAGnitude
             if V_MAG[case]:
@@ -188,8 +216,8 @@ def CreateSRF_multiStoch():
         CreateSRF_multi(M_NSEG, M_SEG_DELAY, m_mag, M_MOM, \
                 M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
                 M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
-                M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-                M_DHYPO, DT, seed, RVFRAC, ROUGH, SLIP_COV, \
+                M_RAK, M_DIP, M_ELON, M_ELAT, m_shypo, \
+                m_dhypo, DT, seed, RVFRAC, ROUGH, SLIP_COV, \
                 output, CASES, genslip = GENSLIP, stoch = STOCH)
 
         # append stoch data to info file

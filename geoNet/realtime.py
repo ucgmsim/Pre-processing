@@ -78,7 +78,7 @@ def event_statsll(fname, loc,
                             loc_all_geoNet_stats,
                             fname_all_geoNet_stats, 
                             loc_V1A, save_stats=False,
-                            fname=None, loc=loc)
+                            fname=fname, loc=loc)
 
     #Now create another dictionary in which the lon, lat are read from .V1A files
     #which may or may not be in WGS84 coordinates. Unless something goes wrong
