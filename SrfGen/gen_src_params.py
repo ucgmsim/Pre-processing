@@ -194,7 +194,7 @@ def gen_params(params_all,f):
         f.write("# rupture dependency\n")
         f.write("# None means it is a starting point\n")
         f.write("# otherwise it shoould be the segment that triggered this segment\n")
-        f.write("# e.g. [None, 0,1,1,3] means the seg.0 is the starting point, seg.1 is triggered by seg.0. seg.2 seg.3 is triggered by seg.1, seg.4 is triggered by seg.3 \n")
+        f.write("# e.g. D_RDELAY = [None, 0,1,1,3] means the seg.0 is the starting point, seg.1 is triggered by seg.0. seg.2 seg.3 is triggered by seg.1, seg.4 is triggered by seg.3 \n")
         f.write("D_RDELAY = %s\n"%params_all['D_RDELAY'])
         f.write("# hypocentre variabiity - absolute for first segment, [SHYPO, DHYPO]\n")
         f.write("#e.g. V_HYPO = [1.1, 3]")
