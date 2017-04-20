@@ -69,7 +69,7 @@ def gen_params(params_all,f):
     if src_type in [2,3,4]:
         f.write("# GENSLIP VERSION:\n# '3.3', '5.2.3a'\n# e.g. GENSLIP = '5.2.3a'\n")
         if params_all['GENSLIP'] == msg_specify:
-            f.write("GENSLIP ''%s\n"%msg_specify)
+            f.write("GENSLIP = ''%s\n"%msg_specify)
         else:
             f.write("GENSLIP = '%s'\n"%params_all['GENSLIP'])
         f.write("# roughness of fault only for genslip 5.0+\n# 0.1 is a good valu   e to use - Rob Graves\n# 0.0050119 = (10^(-2.3)) - Shi & Day 2014. Used as default in 5.2.3a\n")
