@@ -480,8 +480,9 @@ def main():
         #print i,': ',params_all[i]
     #for i in :
     #    print i,': ',a[i]
-    print "#"*20,"\n","setSrfParams.py is located at: %s\n"%os.path.join(mydir,"setSrfParams.py"),"#"*20
-    f = open(os.path.join(mydir,"setSrfParams.py"),'w')
+    print "#"*20,"\n","setSrfParams.py is located at: %s\n"%os.path.join(os.getcwd(),"setSrfParams.py"),"#"*20
+
+    f = open(os.path.join(os.getcwd(),"setSrfParams.py"),'w')
     gen_params(params_all,f) 
     #with open(os.path.join(mydir,"setSrfParams.py.template"),'r') as fr:
     #   lines = fr.readlines()
