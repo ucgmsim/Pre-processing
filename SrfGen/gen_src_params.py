@@ -184,7 +184,7 @@ def gen_params(params_all,f):
         f.write("V_MAG = %s\n"%params_all['V_MAG'])
         f.write("# fault width/length variability (proportion, eg. 0.1 = 10%)\n")
         f.write("# e.g V_FWID = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]\n")
-        f.write("# e.g V_FLEN = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]")
+        f.write("# e.g V_FLEN = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]\n")
         f.write("V_FWID = %s\n"%params_all['V_FWID'])
         f.write("V_FLEN = %s\n"%params_all['V_FLEN'])
         f.write("# rupture time delay variability, requires dependency specification below\n")
