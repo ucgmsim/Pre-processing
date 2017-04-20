@@ -41,7 +41,9 @@ def gen_params(params_all,f):
     f.write("# directory for Stoch file(s)\n")
     f.write("# set to None to not produce the stoch file\n")
     f.write("STOCH = '%s'\n"%params_all['STOCH'])
-
+    f.write("# rupture timestep (float), e.g. DT = 0.025\n")
+    f.write("DT = %s\n"%params_all['DT'])
+    
     ##params for 1,2,3
     if src_type in [1,2,3]:
         f.write("# latitude (float), e.g. LAT = -43.5095\n")
@@ -58,8 +60,6 @@ def gen_params(params_all,f):
         f.write("DIP = %s\n"%params_all['DIP'])
         f.write("# rake (int), e.g RAK = 6\n")
         f.write("RAK = %s\n"%params_all['RAK'])
-        f.write("# rupture timestep (float), e.g. DT = 0.025\n")
-        f.write("DT = %s\n"%params_all['DT'])
     #type 1 specific 
     if src_type == 1:
         f.write("# specify seismic moment directly (e.g. -1 to use magnitude)\n")
