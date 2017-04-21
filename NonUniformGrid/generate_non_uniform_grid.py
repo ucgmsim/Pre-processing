@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,7 +105,8 @@ with open("non_uniform_%s%s_%s%s.ll" %(str(lon),str(lat),str(minimal_distance),s
             # fp.write("%f, %f, %f\n" % (p[0], p[1], float(i)))
             counter += 1
             # TODO: this only creates an 8 char name, make it better
-            name = hashlib.md5("%f.5%f.5" % (longitude, latitude)).hexdigest()[:7]
+            #name = hashlib.md5("%.5f%.5f" % (longitude, latitude)).hexdigest()[:7]
+            name = ("%x" % counter).zfill(7)
             fp.write("%f\t%f\t%s\n" % (longitude, latitude, name ))
 
 
