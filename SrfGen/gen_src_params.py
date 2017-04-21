@@ -41,7 +41,9 @@ def gen_params(params_all,f):
     f.write("# directory for Stoch file(s)\n")
     f.write("# set to None to not produce the stoch file\n")
     f.write("STOCH = '%s'\n"%params_all['STOCH'])
-
+    f.write("# rupture timestep (float), e.g. DT = 0.025\n")
+    f.write("DT = %s\n"%params_all['DT'])
+    
     ##params for 1,2,3
     if src_type in [1,2,3]:
         f.write("# latitude (float), e.g. LAT = -43.5095\n")
@@ -58,8 +60,6 @@ def gen_params(params_all,f):
         f.write("DIP = %s\n"%params_all['DIP'])
         f.write("# rake (int), e.g RAK = 6\n")
         f.write("RAK = %s\n"%params_all['RAK'])
-        f.write("# rupture timestep (float), e.g. DT = 0.025\n")
-        f.write("DT = %s\n"%params_all['DT'])
     #type 1 specific 
     if src_type == 1:
         f.write("# specify seismic moment directly (e.g. -1 to use magnitude)\n")
@@ -194,9 +194,10 @@ def gen_params(params_all,f):
         f.write("# rupture dependency\n")
         f.write("# None means it is a starting point\n")
         f.write("# otherwise it shoould be the segment that triggered this segment\n")
-        f.write("# e.g. [None, 0,1,1,3] means the seg.0 is the starting point, seg.1 is triggered by seg.0. seg.2 seg.3 is triggered by seg.1, seg.4 is triggered by seg.3 \n")
+        f.write("# e.g. D_RDELAY = [None, 0,1,1,3] means the seg.0 is the starting point, seg.1 is triggered by seg.0. seg.2 seg.3 is triggered by seg.1, seg.4 is triggered by seg.3 \n")
         f.write("D_RDELAY = %s\n"%params_all['D_RDELAY'])
         f.write("# hypocentre variabiity - absolute for first segment, [SHYPO, DHYPO]\n")
+        f.write("#e.g. V_HYPO = [1.1, 3]\n")
         f.write("V_HYPO = %s\n"%params_all['V_HYPO'])
         
     
@@ -480,8 +481,9 @@ def main():
         #print i,': ',params_all[i]
     #for i in :
     #    print i,': ',a[i]
-    print "#"*20,"\n","setSrfParams.py is located at: %s\n"%os.path.join(mydir,"setSrfParams.py"),"#"*20
-    f = open(os.path.join(mydir,"setSrfParams.py"),'w')
+    print "#"*20,"\n","setSrfParams.py is located at: %s\n"%os.path.join(os.getcwd(),"setSrfParams.py"),"#"*20
+
+    f = open(os.path.join(os.getcwd(),"setSrfParams.py"),'w')
     gen_params(params_all,f) 
     #with open(os.path.join(mydir,"setSrfParams.py.template"),'r') as fr:
     #   lines = fr.readlines()
