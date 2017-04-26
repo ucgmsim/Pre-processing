@@ -518,7 +518,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
         os.remove(casefile)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch('%s.stoch' % (prefix), joined_srf, dx = 2.0, dy = 2.0)
+        gen_stoch(stoch_file, joined_srf, dx = 2.0, dy = 2.0)
 
     # path to resulting SRF
     return joined_srf
