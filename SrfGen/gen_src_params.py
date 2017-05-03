@@ -176,29 +176,29 @@ def gen_params(params_all,f):
     if src_type == 3 or src_type == 4:
         f.write("###\n### RELATING TO STOCHASTIC GENERATION\n###\n")
         f.write("### set variability, it will change the relative values between scenarios\n")
-        f.write("\n# used for calculating M0total in magnitude variability, e.g MW_TOTAL = 7.2\n")
-        f.write("MW_TOTAL = %s\n"%params_all['MW_TOTAL'])
+        f.write("\n# used for calculating M0total in magnitude variability\n")
+        f.write("MW_TOTAL = 7.2\n")
         f.write("### for type 3 srf, variables below will have only one value and will be use as absolute variability\n")
         f.write("### for type 4 srf, variables should have the same length as CASES and will be use as relative moment variability.\n")
-        f.write("# V_MAG = [0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0]\n")
-        f.write("V_MAG = %s\n"%params_all['V_MAG'])
+        f.write("V_MAG = [0.0, 0.0, 0.0, 0.4, 0.0, 0.0, 0.0]\n")
+        #f.write("V_MAG = %s\n"%params_all['V_MAG'])
         f.write("# fault width/length variability (proportion, eg. 0.1 = 10%)\n")
-        f.write("# e.g V_FWID = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]\n")
-        f.write("# e.g V_FLEN = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]\n")
-        f.write("V_FWID = %s\n"%params_all['V_FWID'])
-        f.write("V_FLEN = %s\n"%params_all['V_FLEN'])
+        f.write("V_FWID = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]\n")
+        f.write("V_FLEN = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]\n")
+        #f.write("V_FWID = %s\n"%params_all['V_FWID'])
+        #f.write("V_FLEN = %s\n"%params_all['V_FLEN'])
         f.write("# rupture time delay variability, requires dependency specification below\n")
         f.write("# absolute value\n")
-        f.write("# e.g.V_RDELAY = [0, 1, 3, 0.5, 0, 0, 0]\n")
-        f.write("V_RDELAY = %s\n"%params_all['V_RDELAY'])
+        f.write("V_RDELAY = [0, 1, 3, 0.5, 0, 0, 0]\n")
+        #f.write("V_RDELAY = %s\n"%params_all['V_RDELAY'])
         f.write("# rupture dependency\n")
         f.write("# None means it is a starting point\n")
         f.write("# otherwise it shoould be the segment that triggered this segment\n")
         f.write("# e.g. D_RDELAY = [None, 0,1,1,3] means the seg.0 is the starting point, seg.1 is triggered by seg.0. seg.2 seg.3 is triggered by seg.1, seg.4 is triggered by seg.3 \n")
-        f.write("D_RDELAY = %s\n"%params_all['D_RDELAY'])
+        f.write("D_RDELAY = [None, 0,1,1,3]\n")
         f.write("# hypocentre variabiity - absolute for first segment, [SHYPO, DHYPO]\n")
-        f.write("#e.g. V_HYPO = [1.1, 3]\n")
-        f.write("V_HYPO = %s\n"%params_all['V_HYPO'])
+        f.write("V_HYPO = [1.1, 3]\n")
+        #f.write("V_HYPO = %s\n"%params_all['V_HYPO'])
         
     
     #f.write()
@@ -229,9 +229,17 @@ def get_order(src_type):
     if src_type == 2:
         return ['TYPE','LAT', 'LON', 'MAG', 'STK', 'RAK', 'DIP', 'DT', 'PREFIX', 'SEED', 'RVFRAC', 'ROUGH', 'SLIP_COV', 'DEPTH', 'MWSR', 'STOCH', 'GENSLIP']
     if src_type == 3:
-        return ['TYPE','LAT', 'LON', 'DEPTH','MAG', 'STK', 'RAK', 'DIP', 'DT', 'PREFIX','SEED', 'RVFRAC', 'ROUGH', 'SLIP_COV', 'FLEN', 'DLEN', 'FWID', 'DWID', 'DTOP','SHYPO', 'DHYPO', 'STOCH', 'GENSLIP','MW_TOTAL', 'V_MAG', 'V_FWID', 'V_FLEN', 'V_RDELAY', 'D_RDELAY', 'V_HYPO']
+        return ['TYPE','LAT', 'LON', 'DEPTH','MAG', 'STK', 'RAK', 'DIP', 'DT', 'PREFIX','SEED', 'RVFRAC',\
+         'ROUGH', 'SLIP_COV', 'FLEN', 'DLEN', 'FWID', 'DWID', 'DTOP','SHYPO', 'DHYPO', 'STOCH', 'GENSLIP',\
+            #'MW_TOTAL', 'V_MAG', 'V_FWID', 'V_FLEN', 'V_RDELAY', 'D_RDELAY', 'V_HYPO'\
+                ]
     if src_type == 4:
-        return ['TYPE','M_NSEG', 'M_SEG_DELAY', 'M_MAG', 'M_MOM','M_RVFAC_SEG', 'M_GWID', 'M_RUP_DELAY', 'M_FLEN', 'M_DLEN', 'M_FWID', 'M_DWID', 'M_DTOP', 'M_STK', 'M_RAK', 'M_DIP', 'M_ELON', 'M_ELAT', 'M_SHYPO', 'M_DHYPO', 'DT', 'SEED', 'SEED_INC', 'RVFRAC', 'ROUGH', 'SLIP_COV', 'PREFIX', 'N_SCENARIOS', 'N_SEED_INC', 'CASES', 'GENSLIP', 'STOCH','MW_TOTAL', 'V_MAG', 'V_FWID', 'V_FLEN', 'V_RDELAY', 'D_RDELAY', 'V_HYPO']
+        return ['TYPE','M_NSEG', 'M_SEG_DELAY', 'M_MAG', 'M_MOM','M_RVFAC_SEG', 'M_GWID', 'M_RUP_DELAY',\
+                'M_FLEN', 'M_DLEN', 'M_FWID', 'M_DWID', 'M_DTOP', 'M_STK', 'M_RAK', 'M_DIP', 'M_ELON',\
+                'M_ELAT', 'M_SHYPO', 'M_DHYPO', 'DT', 'SEED', 'SEED_INC', 'RVFRAC', 'ROUGH', 'SLIP_COV',\
+                'PREFIX', 'N_SCENARIOS', 'N_SEED_INC', 'CASES', 'GENSLIP', 'STOCH',\
+                #'MW_TOTAL', 'V_MAG', 'V_FWID', 'V_FLEN', 'V_RDELAY', 'D_RDELAY', 'V_HYPO'\
+                ]
 
 def get_order_from_temp(file_path):
     order = []
