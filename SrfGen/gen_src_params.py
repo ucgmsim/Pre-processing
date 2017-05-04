@@ -3,6 +3,7 @@
 import argparse
 import os
 import string
+from datetime import datetime
 from inspect import getsourcefile
 import sys
 mydir=os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
@@ -12,9 +13,12 @@ default_params= {}
 default_params['PREFIX'] = 'Srf/source'
 default_params['STOCH']  = 'Stoch'
 default_params['SEED_INC'] = 1
+default_params['SEED'] = 103245
 msg_specify = "#!!!PLEASE SPECIFY!!!#"
 msg_not_assigned = "#This param was not specified, please edit setSrfParams.py manually."
 
+####
+timestamp_format = "%Y%m%d_%H%M%S"
 
 
 def gen_params(params_all,f):
@@ -360,7 +364,7 @@ def main():
     parser_type2.add_argument('--DIP',type=float,nargs='?',default=None,help='dip (int)')
     parser_type2.add_argument('--DT',type=float,nargs='?',default=None,help='rupture timestep')
     parser_type2.add_argument('--DEPTH',type=float,nargs='?',default=None)
-    parser_type2.add_argument('--SEED',type=float,nargs='?',default=None)
+    parser_type2.add_argument('--SEED',type=int,nargs='?',default=default_params['SEED'])
     parser_type2.add_argument('--RVFRAC',type=float,nargs='?',default=None)
     parser_type2.add_argument('--ROUGH',type=float,nargs='?',default=None)
     parser_type2.add_argument('--SLIP_COV',type=float,nargs='?',default=None) 
@@ -381,7 +385,7 @@ def main():
     parser_type3.add_argument('--DT',type=float,nargs='?',default=None)
     parser_type3.add_argument('--DEPTH',type=float,nargs='?',default=None)
     #can be read from template
-    parser_type3.add_argument('--SEED',type=float,nargs='?',default=None)
+    parser_type3.add_argument('--SEED',type=int,nargs='?',default=default_params['SEED'])
     parser_type3.add_argument('--RVFRAC',type=float,nargs='?',default=None)
     parser_type3.add_argument('--ROUGH',type=float,nargs='?',default=None)
     parser_type3.add_argument('--SLIP_COV',type=float,nargs='?',default=None)
@@ -423,7 +427,7 @@ def main():
     #parser_type4.add_argument('--M_SHYPO',type=float,nargs='?',default=None)
     #parser_type4.add_argument('--M_DHYPO',type=float,nargs='?',default=None)
     parser_type4.add_argument('--DT',type=float,nargs='?',default=None)
-    parser_type4.add_argument('--SEED',type=int,nargs='?',default=None)
+    parser_type4.add_argument('--SEED',type=int,nargs='?',default=default_params['SEED'])
     parser_type4.add_argument('--SEED_INC',type=int,default=None)
     parser_type4.add_argument('--RVFRAC',type=float,nargs='?',default=None)
     parser_type4.add_argument('--ROUGH',type=float,nargs='?',default=None)
@@ -479,20 +483,45 @@ def main():
     args=parser.parse_args()
     #print args 
     params_all = vars(args)
+    confirm_params(params_all)
     
+    #generate the sub-folder directory
+    try:
+        f_name = open("../name",'r')
+    except:
+        print "Cannot reach file under /event, please run this script at /event/Src/"
+        sys.exit()
+    else:
+        event_name = f_name.readline().replace('\n','')
+    srf_dir = 't'+params_all['TYPE']+'_'+str(params_all['SEED'])
+    sub_folder = os.path.join("Model", os.path.join(event_name,srf_dir) )
+    #determind if the sub-folder already exist, if yes, create another with time stamp
+    if os.path.exists(sub_folder):
+        timestamp = datetime.now().strftime(timestamp_format)
+        sub_folder = sub_folder+'_'+timestamp
+    os.makedirs(sub_folder)
+    params_dir = os.path.join(sub_folder,"setSrfParams.py")
+
+    try:
+        f = open(params_dir, 'w')
+    except e:
+        print e
+        sys.exit()
+    else:
+        gen_params(params_all,f)
     #if check_params(params_all):
     #    print "Input error, please use -h/--help for usage"
     #    sys.exit(0)
    
-    confirm_params(params_all) 
     #print get_order(template_dir)
         #print i,': ',params_all[i]
     #for i in :
     #    print i,': ',a[i]
-    print "#"*20,"\n","setSrfParams.py is located at: %s\n"%os.path.join(os.getcwd(),"setSrfParams.py"),"#"*20
+    print "#"*20
+    print "Please cd to where setSrfParams.py is located at and run make_src.sh"
+    print "cd %s"%os.path.join(os.getcwd(),params_dir)
+    print "#"*20
 
-    f = open(os.path.join(os.getcwd(),"setSrfParams.py"),'w')
-    gen_params(params_all,f) 
     #with open(os.path.join(mydir,"setSrfParams.py.template"),'r') as fr:
     #   lines = fr.readlines()
     #   str_lines=''.join(lines)
