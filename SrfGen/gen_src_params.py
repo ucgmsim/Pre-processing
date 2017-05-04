@@ -493,7 +493,10 @@ def main():
         sys.exit()
     else:
         event_name = f_name.readline().replace('\n','')
-    srf_dir = 't'+params_all['TYPE']+'_'+str(params_all['SEED'])
+    if int(params_all['TYPE']) != 1:
+        srf_dir = 't'+params_all['TYPE']+'_'+str(params_all['SEED'])
+    else:
+        srf_dir = 't'+params_all['TYPE']
     sub_folder = os.path.join("Model", os.path.join(event_name,srf_dir) )
     #determind if the sub-folder already exist, if yes, create another with time stamp
     if os.path.exists(sub_folder):
