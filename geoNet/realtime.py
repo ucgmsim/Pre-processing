@@ -556,66 +556,6 @@ def run(arg):
 
     return
 
-def run_stat(arg):
-    keyValue = utils.keyValueFromTxt(arg)
-
-    loc = keyValue['loc'] 
-    BASE_URL = keyValue['BASE_URL']
-    loc_statsll = keyValue['loc_statsll']
-    fname_statsll = keyValue['fname_statsll']
-    loc_all_geoNet_stats = keyValue['loc_all_geoNet_stats']
-    fname_all_geoNet_stats = keyValue['fname_all_geoNet_stats']
-    loc_V1A = keyValue['loc_V1A']
-
-    if keyValue.has_key('dirVs30_prog'):
-        dirVs30_prog=keyValue['dirVs30_prog']
-    else:
-        print "please specify vs30 script directory"
-        sys.exit()
-
-    if keyValue.has_key('Vs30_prog'):
-        Vs30_prog=keyValue['Vs30_prog']
-    else:
-        print "please sepcify vs30 script version (filename)"
-        sys.exit()
-
-    print dirVs30_prog
-    
-    event_statsll(fname_statsll, loc_statsll,loc_all_geoNet_stats, fname_all_geoNet_stats,loc_V1A)
-
-    event_statsVs30("/".join([loc_statsll, fname_statsll]),loc=loc_statsll,dirVs30_prog=dirVs30_prog,Vs30_prog=Vs30_prog)
-
-
-
-def run_obs(arg):
-    """
-    sub_function from run()
-    """
-    keyValue = utils.keyValueFromTxt(arg)
-
-    loc = keyValue['loc'] 
-    BASE_URL = keyValue['BASE_URL']
-    loc_statsll = keyValue['loc_statsll']
-    fname_statsll = keyValue['fname_statsll']
-    loc_all_geoNet_stats = keyValue['loc_all_geoNet_stats']
-    fname_all_geoNet_stats = keyValue['fname_all_geoNet_stats']
-    loc_V1A = keyValue['loc_V1A']
-    obs_velDir = keyValue['obs_velDir']
-    obs_accDir = keyValue['obs_accDir']
-
-
-    getData(loc, BASE_URL)
-    processData(loc_V1A)
-    plot_accvel(loc_V1A, obs_accDir, obs_velDir,
-                loc_statsll, fname_statsll)
-
-    plot_psa(loc_V1A, obs_accDir, obs_velDir,
-            loc_statsll, fname_statsll)
-    
-    IMsOnMap(loc_V1A, obs_accDir, obs_velDir,
-            loc_statsll, fname_statsll)
-
-
 if __name__ == "__main__":
     import argparse                                                                 
     parser = argparse.ArgumentParser(description='Real-time simulation event_info')
