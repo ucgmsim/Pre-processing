@@ -144,7 +144,7 @@ def event_statsVs30(fname_statsll, loc=os.getcwd(),
         for line in f:
             g.write(line)
 
-    prog = sp.Popen(["Rscript", Vs30_prog, "Vs30_est_map_20170119.Rdata", fname_Vs30_in,
+    prog = sp.Popen(["Rscript", Vs30_prog, "KRIGE_NZGD00_allNZ.Rdata", fname_Vs30_in,
                     fname_Vs30_out], stdout=sp.PIPE,
                     stderr=sp.PIPE, shell=False)
 
@@ -164,16 +164,16 @@ def event_statsVs30(fname_statsll, loc=os.getcwd(),
         fVs30.write("%used {:s}\n".format("/".join([dirVs30_prog, Vs30_prog])))
         fVs30_ref.write("%used {:s}\n".format("/".join([dirVs30_prog, Vs30_prog])))
         for line in fin:
-            stat_code, lon, lat, Vs30 = line.split(",")
+            stat_code, lon, lat, Vs30 = line.split()
             #remove \n
             Vs30 = Vs30.strip()
             stat_code = stat_code.strip("\"")
             if Vs30 == "NA":
                 Vs30 = 500
 
-            Vs30 = int(Vs30)
+            Vs30 = float(Vs30)
 
-            fVs30.write("{:<10s} {:^10d}\n".format(stat_code, Vs30))
+            fVs30.write("{:<10s} {:^10f}\n".format(stat_code, Vs30))
             fVs30_ref.write("{:<10s} {:^10d}\n".format(stat_code, 500))
             #lon=float(lon)
             #lat=float(lat)
