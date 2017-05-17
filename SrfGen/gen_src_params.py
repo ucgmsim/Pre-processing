@@ -6,6 +6,9 @@ import string
 from datetime import datetime
 from inspect import getsourcefile
 import sys
+
+import ConfigParser
+
 mydir=os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 template_dir = os.path.join(mydir,'setSrfParams.py.template')
 
@@ -485,14 +488,26 @@ def main():
     params_all = vars(args)
     confirm_params(params_all)
     
-    #generate the sub-folder directory
+    config = ConfigParser.RawConfigParser()
     try:
-        f_name = open("../name",'r')
+        config.read(os.path.join('..','gmsim.cfg'))
     except:
         print "Cannot reach file under /event, please run this script at /event/Src/"
         sys.exit()
     else:
-        event_name = f_name.readline().replace('\n','')
+        event_name=config.get('gmsim','event_name')
+        bindir=config.get('local','bin_path')
+
+
+    #generate the sub-folder directory
+#    try:
+#        f_name = open("../name",'r')
+#    except:
+#        print "Cannot reach file under /event, please run this script at /event/Src/"
+#        sys.exit()
+#    else:
+#        event_name = f_name.readline().replace('\n','')
+#
     if int(params_all['TYPE']) != 1:
         srf_dir = 't'+params_all['TYPE']+'_'+str(params_all['SEED'])
     else:
