@@ -492,7 +492,7 @@ def main():
     try:
         config.read(os.path.join('..','gmsim.cfg'))
     except:
-        print "Cannot reach file under /event, please run this script at /event/Src/"
+        print "Cannot reach the config file under /event, please run this script at /event/Src/"
         sys.exit()
     else:
         event_name=config.get('gmsim','event_name')
