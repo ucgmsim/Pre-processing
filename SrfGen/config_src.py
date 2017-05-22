@@ -536,8 +536,9 @@ def main():
     #for i in :
     #    print i,': ',a[i]
     print "#"*20
-    print "Afte manually fill in all the required parameters, please cd to where setSrfParams.py is located at and run make_src.sh"
+    print "Please go to:"
     print "cd %s"%os.path.dirname(os.path.join(os.getcwd(),params_dir))
+    print "to manually edit all the parameters that is empty in setSrfParams.py and run make_src.sh"
     print "#"*20
 
     #with open(os.path.join(mydir,"setSrfParams.py.template"),'r') as fr:
