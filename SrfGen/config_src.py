@@ -8,7 +8,7 @@ from inspect import getsourcefile
 import sys
 
 import ConfigParser
-
+import shared
 mydir=os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 template_dir = os.path.join(mydir,'setSrfParams.py.template')
 
@@ -489,8 +489,17 @@ def main():
     confirm_params(params_all)
     
     config = ConfigParser.RawConfigParser()
+    #attemping to reach gmsim.cfg with existing shell code
+    config_location, err= shared.exe('find_config.sh', debug=False)
+    if "Error" in config_location:
+        print config_location
+        sys.exit()
+    else:
+        #remove the \n in string
+        config_location = config_location.replace('\n','')
+
     try:
-        config.read(os.path.join('..','gmsim.cfg'))
+        config.read(config_location)
     except:
         print "Cannot reach the config file under /event, please run this script at /event/Src/"
         sys.exit()
@@ -507,12 +516,26 @@ def main():
 #        sys.exit()
 #    else:
 #        event_name = f_name.readline().replace('\n','')
-#
+
+
+    #make sure the path is correct
+    #check if src folder is at the same level as gmsim.cfg
+    src_global_root = os.path.join(os.path.dirname(config_location), 'Src')
+    if not os.path.isdir(src_global_root):
+        print "Cannot find Src folder within the same level as gmsim.cfg"
+        print "the structure might have changed, please contact Dev to update this script"
+        sys.exit()
+        
+    #determind the sub-folder name
     if int(params_all['TYPE']) != 1:
         srf_dir = 't'+params_all['TYPE']+'_'+str(params_all['SEED'])
     else:
         srf_dir = 't'+params_all['TYPE']
+
+    #determind the relative path of the sub-folder
     sub_folder = os.path.join("Model", os.path.join(event_name,srf_dir) )
+    #make it absolute intead of relative
+    sub_folder = os.path.join(src_global_root, sub_folder)
     #determind if the sub-folder already exist, if yes, create another with time stamp
     if os.path.exists(sub_folder):
         timestamp = datetime.now().strftime(timestamp_format)
