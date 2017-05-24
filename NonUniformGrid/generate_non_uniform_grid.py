@@ -11,9 +11,9 @@ import hashlib
 import ConfigParser
 from StringIO import StringIO
 
-usage = "%s [params_file] [centroids_file.csv] [vs500.csv]" % (sys.argv[0])
+usage = "%s [params_file] [centroids_file.csv] [vs500.csv] [minimal_resolution in km]" % (sys.argv[0])
 # Read all necessary csv files
-if len(sys.argv) < 3:
+if len(sys.argv) < 4:
     print sys.argv
     print "Please provide all the necessary input files"
     print usage
@@ -21,7 +21,8 @@ if len(sys.argv) < 3:
 
 # extract information from the parameters file
 config = ConfigParser.ConfigParser()
-with open(sys.argv[1]) as stream:
+parameters_file = sys.argv[1]
+with open(parameters_file) as stream:
     stream = StringIO("[Parameters]\n" + stream.read())
     config.readfp(stream)
 
@@ -30,8 +31,9 @@ lat = float(config.get("Parameters","ORIGIN_LAT").replace("'",""))
 rotate = float(config.get("Parameters","ORIGIN_ROT").replace("'",""))
 x_len = float(config.get("Parameters","EXTENT_X").replace("'",""))
 y_len = float(config.get("Parameters","EXTENT_Y").replace("'",""))
-minimal_distance = 5.0*float(config.get("Parameters","EXTENT_LATLON_SPACING").replace("'",""))
-suffix = config.get("Parameters","SUFX").replace("'","")
+#minimal_distance = 5.0*float(config.get("Parameters","EXTENT_LATLON_SPACING").replace("'",""))
+minimal_distance = 5.0*float(sys.argv[4])
+suffix = "-hh%s" %(int(1000.0*float(sys.argv[4])))
 maximal_distance = 8.0 # fixed to 8km
 
 nx = int(x_len / maximal_distance) + 1
@@ -95,18 +97,22 @@ print "Finished"
 print non_uniform_mesh.current_distance
 
 counter = 0
-with open("non_uniform_%s%s_%s%s.ll" %(str(lon),str(lat),str(minimal_distance),suffix), "w") as fp:
+with open("non_uniform_%s%s.ll" %(parameters_file.replace(".py",""), suffix), "w") as fp:
     #fp.write("Lon,Lat,Level\n")
     for i in range(non_uniform_mesh.finest_level + 1):
+        counter_level = 0
         print "writing level", i
+        lvl_str = str(i)
         levels = non_uniform_mesh.get_points_at_level(i)
         for p in levels:
             longitude, latitude = tools.gp2ll(p[0], p[1], lat, lon, rotate, nx, ny, maximal_distance)
             # fp.write("%f, %f, %f\n" % (p[0], p[1], float(i)))
             counter += 1
+            counter_level += 1
             # TODO: this only creates an 8 char name, make it better
             #name = hashlib.md5("%.5f%.5f" % (longitude, latitude)).hexdigest()[:7]
-            name = ("%x" % counter).zfill(7)
+
+            name = lvl_str+("%x" % counter_level).zfill(7-len(lvl_str))
             fp.write("%f\t%f\t%s\n" % (longitude, latitude, name ))
 
 

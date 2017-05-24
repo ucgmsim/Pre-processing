@@ -55,6 +55,7 @@ class NonUniformGrid:
         next_distance = self.current_distance / 2.0
 
         if next_distance < self.min_distance:
+            print next_distance,"vs.",self.min_distance
             return False
         new_mesh = []
         counter = 0
