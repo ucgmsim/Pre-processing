@@ -419,8 +419,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
         rvfac_seg, gwid, rup_delay, flen, \
         dlen, fwid, dwid, dtop, stk, \
         rak, dip, elon, elat, shypo, \
-        dhypo, dt, seed, rvfrac, rough, slip_cov, \
-        prefix0, cases, \
+        dhypo, dt, seed, prefix0, cases, \
         genslip = '3.3',rvfrac=None, rough=None, slip_cov=None, \
         stoch = None):
 
@@ -533,6 +532,26 @@ if __name__ == "__main__":
     except ImportError:
         print('setSrfParams.py not found.')
         exit(1)
+    except:
+        print "Error: setSrfParams.py has issues."
+        print sys.exc_info()[0]
+        raise
+
+    try:
+        RVFRAC
+    except NameError:
+        RVFRAC=None
+
+    try:
+        ROUGH
+    except NameError:
+        ROUGH=None
+
+    try:
+        SLIP_COV
+    except NameError:
+        SLIP_COV=None
+
 
     if TYPE == 1:
         # point source to point source srf

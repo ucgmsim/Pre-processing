@@ -96,7 +96,7 @@ def gen_params(params_all,f):
         f.write("%s# (float), e.g. SLIP_COV = 0.85\n"%line_header)
         f.write("%sSLIP_COV = %s\n"%(line_header,params_all['SLIP_COV']))
         
-        f.write("%s# seed for stoch, e.g. SEED = 103245\n")
+        f.write("# seed for stoch, e.g. SEED = 103245\n")
         f.write("SEED = %s\n"%params_all["SEED"])
     if src_type == 4:
         f.write("# only used in type 4 to go over multiple seeds\n")
