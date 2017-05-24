@@ -266,7 +266,7 @@ def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
         gexec.wait()
 
 def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
-            rvfrac, rough, slip_cov, genslip = '3.3'):
+            genslip = '3.3', rvfrac=None, rough=None, slip_cov=None):
     with open(srf_file, 'w') as srfp:
         genslip_bin = '%s-v%s' % (FF_SRF_BIN, genslip)
         if int(genslip[0]) < 5:
@@ -284,6 +284,7 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
                 'srf_version=2.0', 'rvfrac=%s' % (rvfrac), 'shal_vrup=0.6', \
                 'deep_vrup=0.6', 'fdrup_time=1', 'alpha_rough=%s' % (rough), \
                 'slip_sigma=%s' % (slip_cov)]
+        print "Executing %s" %''.join(cmd)
         call(cmd, stdout = srfp)
 
 def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
@@ -370,11 +371,11 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
     # location of resulting SRF file
     return srf_file
 
-def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, rvfrac, \
-        rough, slip_cov, flen = None, dlen = None, fwid = None, dwid = None, \
+def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
+        flen = None, dlen = None, fwid = None, dwid = None, \
         dtop = None, shypo = None, dhypo = None, stoch = None, depth = None, \
         mwsr = None, corners = True, corners_file = 'cnrs.txt', \
-        genslip = '3.3'):
+        genslip = '3.3',rvfrac=None, rough=None, slip_cov=None):
     """
     Create a Finite Fault SRF.
     Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
@@ -406,7 +407,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, rvfrac, \
 
     gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny)
     gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
-            rvfrac, rough, slip_cov, genslip = genslip)
+            genslip = genslip,rvfrac=rvfrac, rough=rough, slip_cov=slip_cov)
     if stoch:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0)
@@ -419,7 +420,9 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
         dlen, fwid, dwid, dtop, stk, \
         rak, dip, elon, elat, shypo, \
         dhypo, dt, seed, rvfrac, rough, slip_cov, \
-        prefix0, cases, genslip = '3.3', stoch = None):
+        prefix0, cases, \
+        genslip = '3.3',rvfrac=None, rough=None, slip_cov=None, \
+        stoch = None):
 
     # do not change the variables passed to the function
     mag = list(mag0)
@@ -538,21 +541,25 @@ if __name__ == "__main__":
     elif TYPE == 2:
         # point source to finite fault srf
         srf = CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, \
-                SEED, RVFRAC, ROUGH, SLIP_COV, depth = DEPTH, mwsr = MWSR, \
-                stoch = STOCH, corners = True, genslip = GENSLIP)
+                SEED, depth = DEPTH, mwsr = MWSR, \
+                stoch = STOCH, corners = True, \
+                genslip = GENSLIP,rvfrac=RVFRAC,rough=ROUGH,slip_cov=SLIP_COV)
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
         srf = CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, \
-                SEED, RVFRAC, ROUGH, SLIP_COV, FLEN, DLEN, FWID, DWID, DTOP, \
-                SHYPO, DHYPO, stoch = STOCH, corners = True, genslip = GENSLIP)
+                SEED, FLEN, DLEN, FWID, DWID, DTOP, \
+                SHYPO, DHYPO, stoch = STOCH, corners = True, \
+                genslip = GENSLIP,rvfrac=RVFRAC,rough=ROUGH,slip_cov=SLIP_COV)
     elif TYPE == 4:
         # multi segment finite fault srf
         srf = CreateSRF_multi(M_NSEG, M_SEG_DELAY, M_MAG, M_MOM, \
                 M_RVFAC_SEG, M_GWID, M_RUP_DELAY, M_FLEN, \
                 M_DLEN, M_FWID, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, M_SHYPO, \
-                M_DHYPO, DT, SEED, RVFRAC, ROUGH, SLIP_COV, \
-                PREFIX, CASES, genslip = GENSLIP, stoch = STOCH)
+                M_DHYPO, DT, SEED, \
+                PREFIX, CASES, \
+                genslip = GENSLIP,rvfrac=RVFRAC,rough=ROUGH,slip_cov=SLIP_COV, \
+                stoch = STOCH)
     else:
         print('Bad type of SRF generation specified. Check parameter file.')
         exit(1)

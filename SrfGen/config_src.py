@@ -79,13 +79,22 @@ def gen_params(params_all,f):
             f.write("GENSLIP = ''%s\n"%msg_specify)
         else:
             f.write("GENSLIP = '%s'\n"%params_all['GENSLIP'])
-        f.write("# roughness of fault only for genslip 5.0+\n# 0.1 is a good valu   e to use - Rob Graves\n# 0.0050119 = (10^(-2.3)) - Shi & Day 2014. Used as default in 5.2.3a\n")
-        f.write("ROUGH = %s\n"%params_all['ROUGH'])
-        f.write("# (float), e.g. RVFRAC = 0.8\n")
-        f.write("RVFRAC = %s\n"%params_all['RVFRAC'])
-        f.write("# (float), e.g. SLIP_COV = 0.85\n")
-        f.write("SLIP_COV = %s\n"%params_all['SLIP_COV'])
-        f.write("# seed for stoch, e.g. SEED = 103245\n")
+
+        if params_all['GENSLIP']=='3.3':
+            line_header="#"
+        else:
+            line_header=""
+
+        f.write("%s# roughness of fault only for genslip 5.0+\n \
+        %s# 0.1 is a good value to use - Rob Graves\n \
+        %s# 0.0050119 = (10^(-2.3)) - Shi & Day 2014. Used as default in 5.2.3a\n" %(line_header,line_header,line_header))
+        f.write("%sROUGH = %s\n"%(line_header,params_all['ROUGH']))
+        f.write("%s# (float), e.g. RVFRAC = 0.8\n"%line_header)
+        f.write("%sRVFRAC = %s\n"%(line_header,params_all['RVFRAC']))
+        f.write("%s# (float), e.g. SLIP_COV = 0.85\n"%line_header)
+        f.write("%sSLIP_COV = %s\n"%(line_header,params_all['SLIP_COV']))
+        
+        f.write("%s# seed for stoch, e.g. SEED = 103245\n")
         f.write("SEED = %s\n"%params_all["SEED"])
     if src_type == 4:
         f.write("# only used in type 4 to go over multiple seeds\n")
@@ -373,7 +382,7 @@ def main():
     parser_type2.add_argument('--SLIP_COV',type=float,nargs='?',default=None) 
     parser_type2.add_argument('--MWSR',type=str,nargs='?',default=None,help='Mw Scaling Relation (string), one of:HanksBakun2002,BerrymanEtAl2002,VillamorEtAl2001')
     parser_type2.add_argument('--STOCH',type=str,nargs='?',default=None,help='String to set stoch gener    ation. Default vaule will be used if not specified')
-    parser_type2.add_argument('--GENSLIP',type=str,nargs='?',default=None,help='Version of genslip')
+    parser_type2.add_argument('--GENSLIP',type=str,nargs='?',default="3.3",help='Version of genslip')
 
     parser_type2.add_argument('--PREFIX', type=str, nargs='?', default=None ,help='The prefix you want     for SRF files. defualt= source. Ending with _ will auto append extra info to file name. Defualt value will be used if not specified.')
     
@@ -401,7 +410,7 @@ def main():
     parser_type3.add_argument('--DHYPO',type=float,nargs='?',default=None)
     parser_type3.add_argument('--STOCH',type=str,nargs='?',default=None)
     parser_type3.add_argument('--PREFIX',type=str,nargs='?',default=None)
-    parser_type3.add_argument('--GENSLIP',type=str,nargs='?',default=None)
+    parser_type3.add_argument('--GENSLIP',type=str,nargs='?',default="3.3")
     parser_type3.add_argument('--MW_TOTAL',type=float,nargs='?',default=None)
     #parser_type3.add_argument('--V_MAG',type=str,nargs='?',default=None)
     #parser_type3.add_argument('--V_FLEN',type=str,nargs='?',default=None)   
@@ -439,7 +448,7 @@ def main():
     parser_type4.add_argument('--N_SCENARIOS',type=int,nargs='?',default=None)
     parser_type4.add_argument('--N_SEED_INC',type=int,nargs='?',default=None)
     #parser_type4.add_argument('--CASES',type=str,nargs='+',default=None)
-    parser_type4.add_argument('--GENSLIP',type=str,nargs='?',default=None) 
+    parser_type4.add_argument('--GENSLIP',type=str,nargs='?',default="3.3") 
     parser_type4.add_argument('--STOCH',type=str,nargs='?',default=None)
     parser_type4.add_argument('--MW_TOTAL',type=float,nargs='?',default=None) 
     #testdir = os.path.join(mydir,'setSrfParams.py.template')
