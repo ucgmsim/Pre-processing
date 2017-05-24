@@ -12,13 +12,15 @@ import shared
 mydir=os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 template_dir = os.path.join(mydir,'setSrfParams.py.template')
 
+src_param_file_name = 'setSrfParams.py'
 default_params= {}
 default_params['PREFIX'] = 'Srf/source'
 default_params['STOCH']  = 'Stoch'
 default_params['SEED_INC'] = 1
 default_params['SEED'] = 103245
 msg_specify = "#!!!PLEASE SPECIFY!!!#"
-msg_not_assigned = "#This param was not specified, please edit setSrfParams.py manually."
+msg_not_assigned = "#This param was not specified, please edit %s manually."%src_param_file_name
+msg_create_new_params = 'Create new %s'%src_param_file_name
 
 ####
 timestamp_format = "%Y%m%d_%H%M%S"
@@ -274,14 +276,75 @@ def print_not_assigned(list_missing_params,params_all):
     if len(list_missing_params) == 0:
         return
     print "#"*20
-    print "the params below are not specified, please manually edit setSrfParams.py to specify the value."
+    print "the params below are not specified, please manually edit %s to specify the value."%src_param_file_name
     print "#"*20
     for i in list_missing_params:
         #print i,': ',params_all[i]
         print i,'='
+def q_select_src_confirm(params_dir, params_tmp):
+    #show the two params files
+    params_file = os.path.join(params_dir,src_param_file_name)
+    shared.exe('diff -y %s %s'%(params_file, params_tmp))
+    shared.show_horizontal_line()
+    print "do you want to replace this param file?"
+    shared.show_horizontal_line()
+    return shared.show_yes_no_question()
 
+def q_create_new_params(src_dir):
+    timestamp = datetime.now().strftime(timestamp_format)
+    src_dir_with_suffix = src_dir+'_'+timestamp
+    shared.show_horizontal_line()
+    print "Do you want to create a sub-folder: %s?"%src_dir_with_suffix
+    shared.show_horizontal_line()
+    return shared.show_yes_no_question(),src_dir_with_suffix
 
-        
+def q_select_src(folder_path, params_all,params_tmp):
+    src_options = os.listdir(folder_path)
+    #avoiding anything is not a folder and has the same type (start with t[type])
+    src_options = [x for x in src_options if os.path.isdir(os.path.join(folder_path,x)) and not x.startswith('.') and x.startswith('t'+params_all['TYPE'])]
+    src_options.sort()
+    #manually add in a "create" option
+    src_options.insert(0,msg_create_new_params)
+    #generate folder name base on src type
+    if int(params_all['TYPE']) != 1:
+        src_dir = 't'+params_all['TYPE']+'_'+str(params_all['SEED'])
+    else:
+        src_dir = 't'+params_all['TYPE']
+    #there is no existing sub-folder, creating a folder automatically
+    if len(src_options) == 0:
+        #create folder
+        print "no existing folder, creating: %s"%src_dir
+        return os.path.join(folder_path,src_dir)
+    #check is folder name exist
+    src_folder_exist = False
+    for option in src_options:
+        if option == src_dir:
+            src_folder_exist = True
+    if src_folder_exist:
+        #ask for replace
+        select_confirm = False
+        while not select_confirm:
+            #show_src_options()
+            shared.show_horizontal_line()
+            print "select the src folder you want to place the %s into"%src_param_file_name
+            shared.show_horizontal_line()
+            src_selected = shared.show_multiple_choice(src_options,singular=True)
+            #make it absolute path to prevent crashes
+            #print src_selected
+            src_selected = os.path.join(folder_path,src_selected)
+            if msg_create_new_params in src_selected:
+                #creating a new sub-folder and param file
+                select_confirm, sub_folder_name = q_create_new_params(src_dir)
+                src_selected = os.path.join(folder_path,sub_folder_name)
+            else:
+                select_confirm = q_select_src_confirm(src_selected, params_tmp)
+        return src_selected
+    else:
+        #there are existing folder, but no folder with the same name: create a folder automatically.
+        #create folder
+        print "no existing folder, creating: %s"%src_dir
+        return os.path.join(folder_path,src_dir)
+
 def confirm_params(params_all):
     #print params_all['TYPE']
     src_type = int(params_all['TYPE'])
@@ -302,7 +365,7 @@ def confirm_params(params_all):
                 params_all[i] = None
                 print i,': ',params_all[i],' ',msg_not_assigned
         
-        print "Only params above are set.\nPlease manually modify the rest of params by editing setSrfParams.py.\n"
+        print "Only params above are set.\nPlease manually modify the rest of params by editing %s.\n"%src_param_file_name
         return 
     '''
     #print params_all['TYPE']
@@ -318,18 +381,13 @@ def confirm_params(params_all):
                     #print "cannot find",i
                     params_all[i] = msg_specify
                     list_missing_params.append(i)
-                    
         else:
             params_all[i] = msg_specify
             #print i,': ',params_all[i]
             list_missing_params.append(i)
     #print list of missing params
     print_not_assigned(list_missing_params,params_all)
-        
-
-    #for i in params_all:
-    #    print i,': ',params_all[i]
-    
+    shared.show_horizontal_line()
 
 
 def main():
@@ -443,50 +501,11 @@ def main():
     parser_type4.add_argument('--STOCH',type=str,nargs='?',default=None)
     parser_type4.add_argument('--MW_TOTAL',type=float,nargs='?',default=None) 
     #testdir = os.path.join(mydir,'setSrfParams.py.template')
-    #print  get_default("PREFIX",testdir
-     
-    #import runpy
-    #test=runpy.run_path(testdir)
-    #teststr = ("t={PREFIX}").format(**test)
-    #print teststr 
-    #import imp
-
-    #testimp = imp.load_source("a.py.tmp",mydir)
-    #print "test:",testimp
     
-    #test2 = imp.find_module("a", [os.path.join(mydir,'')] )
-    #print test2
-   
-    #import importlib
-    #testdir = os.path.join(mydir,'a.py.tmp')
-    #test3 = importlib.import_module(testdir) 
-    
-    
-    
-    #parser_type1.add_argument('', type=float)
-    #parser_type1.add_argument('', type=float)
-    #parser_type1.add_argument('', type=float)
-
-    #group2 = parser.add_argument_group('type 2', 'Additional arguments for type 2 srf')
-    #group3 = parser.add_argument_group('type 3', 'Additional arguments for type 3 srf')
-    #group4 = parser.add_argument_group('type 4', 'Additional arguments for type 4 srf')
-    
-    #arguments needed for type 1
-    #group2.add_argument("lat",type=float,help="latitude")
-    #group2.add_argument("--stoch", help="Set 1 to use stochastic generation")
-    #parser.add_argument("lat",type=float,help= "latitue")
-    #parser.add_argument("lon",type=float)
-    #parser.add_argument("depth",type=float)
-    #parser.add_argument("mag",type=float)
-    #parser.add_argument("stk",type=float)
-    #parser.add_argument("dip",type=float)
-    #parser.add_argument("rak",type=float)
-    #parser.add_argument("dt",type=float)
 
     args=parser.parse_args()
     #print args 
     params_all = vars(args)
-    confirm_params(params_all)
     
     config = ConfigParser.RawConfigParser()
     #attemping to reach gmsim.cfg with existing shell code
@@ -525,28 +544,37 @@ def main():
         print "Cannot find Src folder within the same level as gmsim.cfg"
         print "the structure might have changed, please contact Dev to update this script"
         sys.exit()
-        
-    #determind the sub-folder name
-    if int(params_all['TYPE']) != 1:
-        srf_dir = 't'+params_all['TYPE']+'_'+str(params_all['SEED'])
+
+    #show the user what values has been taken
+    confirm_params(params_all)
+
+    #ask for user to choose if he wants to replace params or create new one
+    src_model_dir = os.path.join(os.path.join(src_global_root,'Model'), event_name)
+    #check if the model folder exist
+    if not os.path.exists(src_model_dir):
+        print "Cannot find folder %s,please make check folder structure"
+        sys.exit()
     else:
-        srf_dir = 't'+params_all['TYPE']
-
-    #determind the relative path of the sub-folder
-    sub_folder = os.path.join("Model", os.path.join(event_name,srf_dir) )
-    #make it absolute intead of relative
-    sub_folder = os.path.join(src_global_root, sub_folder)
-    #determind if the sub-folder already exist, if yes, create another with time stamp
-    if os.path.exists(sub_folder):
-        timestamp = datetime.now().strftime(timestamp_format)
-        sub_folder = sub_folder+'_'+timestamp
-    os.makedirs(sub_folder)
-    params_dir = os.path.join(sub_folder,"setSrfParams.py")
-
+        #create a params.tmp file for comparison usage
+        params_tmp = os.path.join(src_model_dir, 'params.tmp')
+        try: 
+            f = open(params_tmp,'w')
+        except:
+            print "cannt create tmp file %s."%params_tmp
+            sys.exit()
+        else:
+            gen_params(params_all,f)
+            f.close()
+        params_dir = q_select_src(src_model_dir, params_all, params_tmp)
+    
+    #check if the sub-folder exists
+    if not os.path.exists(params_dir):
+        os.makedirs(params_dir)
+    params_file = os.path.join(params_dir,src_param_file_name)
     try:
-        f = open(params_dir, 'w')
-    except e:
-        print e
+        f = open(params_file, 'w')
+    except:
+        print "Error while trying to open %s"%params_file
         sys.exit()
     else:
         gen_params(params_all,f)
@@ -554,26 +582,14 @@ def main():
     #    print "Input error, please use -h/--help for usage"
     #    sys.exit(0)
    
-    #print get_order(template_dir)
-        #print i,': ',params_all[i]
-    #for i in :
-    #    print i,': ',a[i]
     print "#"*20
     print "Please go to:"
-    print "cd %s"%os.path.dirname(os.path.join(os.getcwd(),params_dir))
-    print "to manually edit all the parameters that is empty in setSrfParams.py and run make_src.sh"
+    print "cd %s"%params_dir
+    print "to manually edit all the parameters that is empty in %s and run make_src.sh"%src_param_file_name
     print "#"*20
 
-    #with open(os.path.join(mydir,"setSrfParams.py.template"),'r') as fr:
-    #   lines = fr.readlines()
-    #   str_lines=''.join(lines)
-    #   str_lines2= string.Template(str_lines).substitute({'type':args.type,'lat':args.lat,'lon':args.lon,'depth':args.depth,'mag':args.mag, 'stk':args.stk, 'dip':args.dip,'rak':args.rak, 'dt':args.dt})
-    #order = get_order(template_dir)
-    #with open(os.path.join(os.path.curdir,'setSrfParams.py'),'w') as fw:
-    #    for i in order:
-    #        if i in params_all:
-    #            fw.write("%s = %s"%
-    #      fw.write(str_lines2)
+    #clean up the tmp file
+    shared.exe('rm %s'%params_tmp,debug = False)
 
 if __name__=='__main__':
     main()
