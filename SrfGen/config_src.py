@@ -96,7 +96,7 @@ def gen_params(params_all,f):
         f.write("%s# (float), e.g. SLIP_COV = 0.85\n"%line_header)
         f.write("%sSLIP_COV = %s\n"%(line_header,params_all['SLIP_COV']))
         
-        f.write("%s# seed for stoch, e.g. SEED = 103245\n")
+        f.write("# seed for stoch, e.g. SEED = 103245\n")
         f.write("SEED = %s\n"%params_all["SEED"])
     if src_type == 4:
         f.write("# only used in type 4 to go over multiple seeds\n")
@@ -351,7 +351,7 @@ def q_select_src(folder_path, params_all,params_tmp):
     else:
         #there are existing folder, but no folder with the same name: create a folder automatically.
         #create folder
-        print "no existing folder, creating: %s"%src_dir
+        print "no existing folder with type %s, \nUsing sub-folder name: %s"%(params_all['TYPE'],src_dir)
         return os.path.join(folder_path,src_dir)
 
 def confirm_params(params_all):
@@ -558,23 +558,31 @@ def main():
     confirm_params(params_all)
 
     #ask for user to choose if he wants to replace params or create new one
+    #src_model_dir is should be event/src/model/event_name/
     src_model_dir = os.path.join(os.path.join(src_global_root,'Model'), event_name)
     #check if the model folder exist
     if not os.path.exists(src_model_dir):
-        print "Cannot find folder %s,please make check folder structure"
-        sys.exit()
-    else:
-        #create a params.tmp file for comparison usage
-        params_tmp = os.path.join(src_model_dir, 'params.tmp')
-        try: 
-            f = open(params_tmp,'w')
+        print "Cannot find folder %s. \nAttemp to create..."%src_model_dir
+        
+        try:
+            os.makedirs(src_model_dir)
         except:
-            print "cannt create tmp file %s."%params_tmp
+            print "Cannot create folder %s"%src_model_dir
             sys.exit()
         else:
-            gen_params(params_all,f)
-            f.close()
-        params_dir = q_select_src(src_model_dir, params_all, params_tmp)
+            print "Created Folder: %s"%src_model_dir
+
+    #create a params.tmp file for comparison usage
+    params_tmp = os.path.join(src_model_dir, 'params.tmp')
+    try: 
+        f = open(params_tmp,'w')
+    except:
+        print "cannt create tmp file %s."%params_tmp
+        sys.exit()
+    else:
+        gen_params(params_all,f)
+        f.close()
+    params_dir = q_select_src(src_model_dir, params_all, params_tmp)
     
     #check if the sub-folder exists
     if not os.path.exists(params_dir):
