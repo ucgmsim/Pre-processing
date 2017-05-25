@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from math import exp, log, sin, cos, radians, sqrt
+from math import exp, log, log10, sin, cos, radians, sqrt
 import os
 from shutil import copyfile
 from subprocess import call, Popen, PIPE
@@ -54,6 +54,13 @@ get_fileroot = lambda MAG, FLEN, FWID, seed : \
         'm%.2f-%.1fx%.1f_s%d' % (MAG, FLEN, FWID, seed)
 get_gsfname = lambda MAG, DLEN, DWID : \
         'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
+# Leonard 2014 Relations
+def leonard(rake, A):
+    # if dip slip else strike slip
+    if round(rake % 360 / 90.) % 2:
+        return 4.19 + log10(A)
+    else:
+        return 4.18 + log10(A)
 
 # by earth radius
 one_deg_lat = radians(6371.0072)
@@ -412,6 +419,8 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0)
 
+    # print leonard Mw from A (SCR)
+    print('Leonard 2014 Mw: %s' % (leonard(rake, fwid * flen)))
     # location of resulting SRF
     return srf_file
 
@@ -505,6 +514,8 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
                     'alpha_rough=%s' % (rough), 'slip_sigma=%s' % (slip_cov)]
             call(cmd, stdout = srfp)
         os.remove(gsf_file)
+        # print leonard Mw from A (SCR)
+        print('Leonard 2014 Mw: %s' % (leonard(rak[c][f], fwid[c][f] * flen[c][f])))
 
     # joined filename
     if prefix[-1] == '_':
