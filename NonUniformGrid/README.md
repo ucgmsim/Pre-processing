@@ -6,19 +6,26 @@ the Velocity Model code.
 
 ### Usage
 
+Execute `generate_non_uniform_grid.py` by specifying the velocity parameters, `population_grid.csv` and `Vs_500_200m.csv` files found on
+`/inputs`. Finally, you should define a minimal grid spacing in Kilometers. Typically, you will do something like:
+```buildoutcfg
+python generate_non_uniform_grid.py whole_nz.py inputs/population_grid.csv inputs/Vs_500_200m.csv 0.1
+```
 
-Execute `generate_non_uniform_grid.py` by specifying the `params_vel.py`,
-`population_grid.csv` and `Vs_500_200m.csv` files. 
+To generate the non-uniform grid corresponding to the whole NZ, use `whole_nz.py`. Otherwise you can
+just create a non-uniform grid for the South Island (`south_island.py`).
 
-This will produde a `.ll` file with the name given as `non_uniform_LonLat_ResolSuffix.ll` where
-Lon and Lat are the Longitude and Latitude of the centre of the domain, Resol is the resolution of
-the Velocity Model and `Suffix` is a suffix specified if any.
+Running the code will produde a `.ll` file with the name given as `non_uniform_params_vel_Suffix.ll` where
+ `Suffix` is a suffix specified `-hhMinimal_spacing` (for example )
 
+After generating a new grid, it is necessary to re-create the corresponding vs_30 files.
+
+- TODO: Automate all the process by writing a wrapper.
+- TODO: Parallelize the generation of the non-uniform grid
 
 ### Remarks
 
 - This code has a binary version of `xy2ll` and `ll2xy` that should be usable, however
 if this does not work, one needs to specify them.
-
 
 

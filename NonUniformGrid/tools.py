@@ -15,15 +15,15 @@ def read_csv(filename, delimiter=","):
 
 
 def dump_csv_from_point_list(csv_file_name, points, header=None):
-    with open( csv_file_name, "w") as output_file:
+    with open(csv_file_name, "w") as output_file:
         if header:
-            output_file.write("%s\n" %header)
+            output_file.write("%s\n" % header)
 
         for point in points:
             try:
-                output_file.write(",".join(map(str,point))+"\n")
+                output_file.write(",".join(map(str, point)) + "\n")
             except:
-                print "error dumping",point
+                print "error dumping", point
 
 
 # Uses population csv and vs_500 csv
@@ -69,7 +69,7 @@ def mixed_criteria(domain, population_hash, vs500_sorted_grid, min_population_ac
         score_population = 0.0
     else:
         score_population = 1.0 - (
-        (max_population_acceptable - population_value) / (max_population_acceptable - min_population_acceptable))
+            (max_population_acceptable - population_value) / (max_population_acceptable - min_population_acceptable))
 
     if vs500_value > vs500_max_acceptable:
         score_vs500 = 0.0
@@ -79,12 +79,11 @@ def mixed_criteria(domain, population_hash, vs500_sorted_grid, min_population_ac
         score_vs500 = (vs500_max_acceptable - vs500_value) / (vs500_max_acceptable - vs500_min_acceptable)
 
     total_score = weight_pop * score_population + weight_vs * score_vs500
-    assert(total_score <= 1.0)
+    assert (total_score <= 1.0)
 
     if total_score >= threshold:
         return True
     return False
-
 
 
 def convert_csv_to_grid_points(csv_file_name, parameters, ordered=True):

@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 
-import matplotlib.pyplot as plt
-import numpy as np
 import sys
 import tools
 import generate_mesh
-from tools import read_csv, mixed_criteria
+from tools import mixed_criteria
 import point_sorting
-import hashlib
 import ConfigParser
 from StringIO import StringIO
 
