@@ -379,6 +379,13 @@ def confirm_params(params_all):
     '''
     #print params_all['TYPE']
     for i in order:
+        #an addition workaround to eliminate irrelavent params from showing. 
+        #may need a better way for this if it gets complicated than this.
+        if params_all['GENSLIP'] == '3.3':
+            if i in ['ROUGH','RVFRAC','SLIP_COV']:
+                #exit the check cycle and will not assign the params with 'please_assign' messages
+                continue
+
         if i in params_all:
             if params_all[i] != None:
                 print i,'= ',params_all[i]
@@ -387,7 +394,6 @@ def confirm_params(params_all):
                     params_all[i] = default_params[i]
                     print i,'= ',params_all[i]
                 else:
-                    #print "cannot find",i
                     params_all[i] = msg_specify
                     list_missing_params.append(i)
         else:
