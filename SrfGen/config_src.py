@@ -87,9 +87,9 @@ def gen_params(params_all,f):
         else:
             line_header=""
 
-        f.write("%s# roughness of fault only for genslip 5.0+\n \
-        %s# 0.1 is a good value to use - Rob Graves\n \
-        %s# 0.0050119 = (10^(-2.3)) - Shi & Day 2014. Used as default in 5.2.3a\n" %(line_header,line_header,line_header))
+        f.write("%s# roughness of fault only for genslip 5.0+\n"%(line_header))
+        f.write("%s# 0.1 is a good value to use - Rob Graves\n"%(line_header))
+        f.write("%s# 0.0050119 = (10^(-2.3)) - Shi & Day 2014. Used as default in 5.2.3a\n" %(line_header))
         f.write("%sROUGH = %s\n"%(line_header,params_all['ROUGH']))
         f.write("%s# (float), e.g. RVFRAC = 0.8\n"%line_header)
         f.write("%sRVFRAC = %s\n"%(line_header,params_all['RVFRAC']))
