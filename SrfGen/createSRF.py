@@ -563,6 +563,11 @@ if __name__ == "__main__":
     except NameError:
         SLIP_COV=None
 
+    try:
+        STOCH
+    except NameError:
+        STOCH=None
+
 
     if TYPE == 1:
         # point source to point source srf
@@ -576,6 +581,7 @@ if __name__ == "__main__":
                 genslip = GENSLIP,rvfrac=RVFRAC,rough=ROUGH,slip_cov=SLIP_COV)
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
+
         srf = CreateSRF_ff(LAT, LON, MAG, STK, RAK, DIP, DT, PREFIX, \
                 SEED, FLEN, DLEN, FWID, DWID, DTOP, \
                 SHYPO, DHYPO, stoch = STOCH, corners = True, \
