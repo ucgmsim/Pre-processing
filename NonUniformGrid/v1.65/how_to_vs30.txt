@@ -1,11 +1,11 @@
 # convert non_uniform to input for Kevin's
 awk '{print $1"\t"$2"\t"$3}' non_uniform_XXX.ll > input_vs30.ll
 # append the following line on the first line of input_vs30.ll
-echo "Site.Longitude  Site.Latitude   Site.Code" | cat input_vs30.ll > input_vs30.ll
+sed -i '1i Site.Longitude  Site.Latitude   Site.Code' input_vs30.ll
 # go to Kevin's directory 
 cd ~kmf76/Vs30-mapping/GMsim_Vs30_extract/
 # run R script
-Rscript extractVs30_raster.R ~kmf76/VsMap/Rdata/hyb_NZGD00_allNZ.Rdata /path_to/input_vs30.ll vs30_out.ll
+Rscript extractVs30_raster.R ~kmf76/VsMap/Rdata/KRIGE_NZGD00_allNZ.Rdata /path_to/input_vs30.ll /path_to/vs30_out.ll
 # remove first line of vs30_out.ll
 # take 1st and 4th columns 
 awk '{print $1" "$4}' vs30_out.ll > vs_30_non_uniform_XXX.vs30
