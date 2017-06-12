@@ -80,8 +80,8 @@ for region in finest_regions:
 non_uniform_mesh = generate_mesh.NonUniformGrid(dx, minimal_distance, initial_grid, initial_domain)
 print "Done Creating Grids"
 
-weight_population = 0.5
-weight_vs500 = 0.5
+weight_population = 0.55
+weight_vs500 = 0.45
 score_threshold = 0.5
 
 f = lambda domain: mixed_criteria(domain, population_information, vs500_sorted_grid, weight_pop=weight_population,
