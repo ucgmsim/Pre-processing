@@ -173,6 +173,10 @@ unused4
 """.split()
 
 import numpy as np
+from datetime import datetime
+import pytz
+from math import ceil, floor
+import os 
 #from utilities import read_geoNet_list
 
 def read_geoNet_list(lines, line_width = 80, width=8):
@@ -201,6 +205,9 @@ def read_geoNet_list(lines, line_width = 80, width=8):
 class FileComponent(object):
     
     def __init__(self):
+        """
+        buffer_start_time and event_origin_time in UTC now saved
+        """
         self.acc = None
         self.vel = None
         self.disp= None
@@ -256,14 +263,41 @@ class FileComponent(object):
         )
 
         self.angle = float(self.B_header['site_info']['comp_dir'])
-        self.time_delay = (self.B_header['sample_info']['buffer_start_time_minute']-
-                           self.B_header['event_origin']['min'])*60000+\
-                          (self.B_header['sample_info']['buffer_start_time_secx1000']-
-                           self.B_header['event_origin']['secx10']*100)
-        self.time_delay *=1e-3
+        #self.time_delay = (self.B_header['sample_info']['buffer_start_time_minute']-
+        #                   self.B_header['event_origin']['min'])*60000+\
+        #                  (self.B_header['sample_info']['buffer_start_time_secx1000']-
+        #                   self.B_header['event_origin']['secx10']*100)
+        #self.time_delay *=1e-3
+
+        eo = self.B_header['event_origin']
+        event_origin_time = datetime(eo['year'], eo['month'], eo['day'], eo['hour'],
+                                     eo['min'], int(floor(eo['secx10']/10.)),
+                                     int(1e6*eo['secx10']/10. - 1e6*floor(eo['secx10']/10.))
+                                     )
+        #because datetime is unaware by default
+        self.event_origin_time = event_origin_time.replace(tzinfo=pytz.utc)
+
+        buffer_start_time = datetime(eo['buffer_start_time_year'],
+                                         eo['buffer_start_time_month'],
+                                         self.B_header["source_info"]['buffer_start_time_day'],
+                                         self.B_header["source_info"]['buffer_start_time_hour'],
+                                         self.B_header['sample_info']['buffer_start_time_minute'],
+                                         int(floor(self.B_header['sample_info']['buffer_start_time_secx1000']*1e-3)),
+                                         int(1e6*self.B_header['sample_info']['buffer_start_time_secx1000']*1e-3-
+                                            1e6*floor(self.B_header['sample_info']['buffer_start_time_secx1000']*1e-3)
+                                            )
+                                         )
+        #because datetime is unaware by default
+        self.buffer_start_time = buffer_start_time.replace(tzinfo=pytz.utc)
+
+        self.time_delay= (self.buffer_start_time - self.event_origin_time).total_seconds()
+
+
+
+
 
         self.delta_t = float(self.C_header['line_23']['sampling_interval'])
-        from math import ceil
+        #from math import ceil
         num_acc_lines = int(ceil(self.B_header["sample_info"]["acc_samples"]/10.))
         num_vel_lines = int(ceil(self.B_header["sample_info"]["vel_samples"]/10.))
         num_disp_lines= int(ceil(self.B_header["sample_info"]["disp_samples"]/10.))
@@ -296,7 +330,6 @@ class FileComponent(object):
         print("\n******************************\n")
         return " ".join(self.A_header)
 
-import os 
 class GeoNet_File(object):
     
     def __init__(self, station_fileName, base_dir=os.getcwd(),vol=1):
