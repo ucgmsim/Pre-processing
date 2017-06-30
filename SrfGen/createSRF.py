@@ -464,7 +464,8 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, \
                 for f in xrange(nseg[c])])
         nx_tot = sum(nx)
         flen_tot = sum(flen[c])
-        # hypocentre is based on the first segment
+        # hypocentre is given based on the first segment
+        # needs to be relative to full length instead of first segment
         shyp_tot = shypo[c][0] + 0.5 * flen[c][0] - 0.5 * flen_tot
 
         xseg = '-1'
