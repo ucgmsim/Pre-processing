@@ -62,11 +62,18 @@ while dbi < dbl:
         lengths.append(geo.ll_dist(pts[plane][0], pts[plane][1], \
                 pts[plane + 1][0], pts[plane + 1][1]))
         bearing = geo.ll_bearing(mids[plane][0], mids[plane][1], \
-                pts[plane][0], pts[plane][1])
+                pts[plane + 1][0], pts[plane + 1][1])
         if abs(bearing - strike_avg) < 90:
             strikes.append(bearing)
+            reverse = False
         else:
             strikes.append((bearing + 180) % 360)
+            reverse = True
+    # assuming no reverse angles and ordering in one direction
+    if reverse:
+        mids = mids[::-1]
+        lengths = lengths[::-1]
+        strikes = strikes[::-1]
     trace_length = sum(lengths)
     hyp_step = trace_length / (N_HYPO * 2.)
 
