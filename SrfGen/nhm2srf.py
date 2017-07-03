@@ -79,8 +79,8 @@ while dbi < dbl:
     seg_delay = [0]
     mag = [float(db[dbi + 10].split()[0])]
     mom = [-1]
-    rvfac_seg = [-1]
-    gwid = [-1]
+    rvfac_seg = ['-1']
+    gwid = ['-1']
     rup_delay = [0]
 
     rake = [[float(db[dbi + 5])] * n_plane]
