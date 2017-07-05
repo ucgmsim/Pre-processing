@@ -10,7 +10,7 @@ sys.path.append('/home/nesi00213/qcore')
 from createSRF import CreateSRF_multi
 import geo
 
-NHM_FILE = 'NZ_Flt.txt'
+NHM_FILE = 'NZ_FLTmodel_2010.txt'
 GMT_FILE = 'fault_traces.gmt'
 N_HYPO = 3
 
@@ -19,6 +19,15 @@ N_HYPO = 3
 ###
 if os.path.exists(GMT_FILE):
     os.remove(GMT_FILE)
+
+if len(sys.argv) > 1:
+    if not os.path.exists(sys.argv[1]):
+        print('Fault selecion file not found: %s' % (sys.argv[1]))
+        exit(1)
+    with open(sys.argv[1], 'r') as fn_file:
+        fault_names = map(str.strip, fn_file.readlines())
+else:
+    fault_names = None
 
 ###
 ### LOAD FAULTS
@@ -36,10 +45,16 @@ dbl = len(db)
 ### PROCESS FAULTS
 ###
 while dbi < dbl:
+    name = db[dbi]
     # points in fault trace
     n_pt = int(db[dbi + 11])
     # definition lines to shift to next definition
     n_ln = 13 + n_pt
+    # skip if not wanted
+    if fault_names != None and name not in fault_names:
+        dbi += n_ln
+        continue
+    # load trace
     pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
     # clean points (remove duplicates)
     for i in xrange(n_pt - 2, -1, -1):
@@ -81,7 +96,6 @@ while dbi < dbl:
     seed = 2342
     dt = 0.025
     cases = ['combined']
-    name = db[dbi]
     nseg = [n_plane]
     seg_delay = [0]
     mag = [float(db[dbi + 10].split()[0])]
