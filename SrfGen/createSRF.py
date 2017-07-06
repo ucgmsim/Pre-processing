@@ -483,9 +483,10 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         case_root = '%s_%s' % (prefix.rstrip('_'), case)
         gsf_file = '%s.gsf' % (case_root)
         srf_file = '%s.srf' % (case_root)
+        fsg_file = '%s_seg.in' % (case_root)
         casefiles.append(srf_file)
 
-        with open('fault_seg.in', 'w') as fs:
+        with open(fsg_file, 'w') as fs:
             fs.write('%d\n' % (nseg[c]))
             for f in xrange(nseg[c]):
                 fs.write('%f %f %f %.4f %.4f %.4f %.4f %.4f %i %i\n' % ( \
@@ -493,9 +494,9 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
                         stk[c][f], dip[c][f], rak[c][f], \
                         flen[c][f], fwid[c][f], nx[f], ny[f]))
         # create GSF file
-        call([GSF_BIN, 'read_slip_vals=0', 'infile=fault_seg.in', \
+        call([GSF_BIN, 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
                 'outfile=%s' % (gsf_file)])
-        os.remove('fault_seg.in')
+        os.remove(fsg_file)
 
         # calling with outfile parameter will:
         # append 's0000-h0000' to filename (v3.3)
