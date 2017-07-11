@@ -12,7 +12,7 @@ import geo
 
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 GMT_FILE = 'fault_traces.gmt'
-N_HYPO = 3
+N_HYPO = 1
 
 ###
 ### PREPARE
@@ -71,6 +71,8 @@ while dbi < dbl:
     mids = []
     lengths = []
     strikes = []
+    stk_norm = 0
+    stk_rev = 0
     for plane in xrange(n_pt - 1):
         mids.append(geo.ll_mid(pts[plane][0], pts[plane][1], \
                 pts[plane + 1][0], pts[plane + 1][1]))
@@ -78,14 +80,17 @@ while dbi < dbl:
                 pts[plane + 1][0], pts[plane + 1][1]))
         bearing = geo.ll_bearing(mids[plane][0], mids[plane][1], \
                 pts[plane + 1][0], pts[plane + 1][1])
-        if abs(bearing - strike_avg) < 90:
+        if abs((bearing - strike_avg + 180) % 360 - 180) < 90:
             strikes.append(bearing)
-            reverse = False
+            stk_norm += 1
         else:
             strikes.append((bearing + 180) % 360)
-            reverse = True
+            stk_rev += 1
+    if stk_norm and stk_rev:
+        print('WARNING: FAULT GOES BACK IN REVERSE OF ORIGINAL DIRECTION: %s' \
+                % (name))
     # assuming no reverse angles and ordering in one direction
-    if reverse:
+    if stk_rev:
         mids = mids[::-1]
         lengths = lengths[::-1]
         strikes = strikes[::-1]
@@ -108,14 +113,17 @@ while dbi < dbl:
     dip = [[float(db[dbi + 3].split()[0])] * n_plane]
     dtop = [[float(db[dbi + 7].split()[0])] * n_plane]
     flen = [lengths]
-    dlen = [[0.1] * n_plane]
+    if trace_length < 50:
+        dlen = [[0.1] * n_plane]
+    else:
+        dlen = [[0.2] * n_plane]
     fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
             / sin(radians(dip[0][0]))] * n_plane]
-    dwid = [[0.1] * n_plane]
+    dwid = dlen
     stk = [strikes]
     elon = [[ll[0] for ll in mids]]
     elat = [[ll[1] for ll in mids]]
-    dhypo = [[fwid[0][0] / 2.] * n_plane]
+    dhypo = [[fwid[0][0] * 0.6] * n_plane]
 
     for n_shyp in xrange(N_HYPO):
         # hypocentre position from far left edge
@@ -123,16 +131,16 @@ while dbi < dbl:
         # NOTE: this shypo is relative to the first combined fault
         # if not adjusted later, must be relative to full length
         shypo = [[shyp_shift - (lengths[0] / 2.)]]
-        prefix = '%s_HYP%.2d-%.2d' % (name, n_shyp + 1, N_HYPO)
+        prefix = 'Srf/%s_HYP%.2d-%.2d' % (name, n_shyp + 1, N_HYPO)
         # create SRF from description
         CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
                 rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
                 elon, elat, shypo, dhypo, dt, seed, prefix, cases)
 
     # store fault traces
-    with open(GMT_FILE, 'a') as traces:
-        traces.write('> %s\n%s\n' \
-                % (db[dbi], '\n'.join(db[dbi + 12 : dbi + 12 + n_pt])))
+    #with open(GMT_FILE, 'a') as traces:
+    #    traces.write('> %s\n%s\n' \
+    #            % (db[dbi], '\n'.join(db[dbi + 12 : dbi + 12 + n_pt])))
 
     # move to next fault definition
     dbi += n_ln
