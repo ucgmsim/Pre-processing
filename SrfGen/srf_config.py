@@ -1,4 +1,4 @@
-GSF_BIN='/nesi/projects/nesi00213/tools/fault_seg2gsf'
+GSF_BIN='/nesi/projects/nesi00213/tools/fault_seg2gsf_dipdir'
 # note version is missing, will be appended
 FF_SRF_BIN='/nesi/projects/nesi00213/tools/genslip'
 PS_SRF_BIN='/nesi/projects/nesi00213/tools/generic_slip2srf'

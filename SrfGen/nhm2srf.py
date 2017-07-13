@@ -115,8 +115,10 @@ while dbi < dbl:
     flen = [lengths]
     if trace_length < 50:
         dlen = [[0.1] * n_plane]
-    else:
+    elif trace_length < 100:
         dlen = [[0.2] * n_plane]
+    else:
+        dlen = [[0.5] * n_plane]
     fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
             / sin(radians(dip[0][0]))] * n_plane]
     dwid = dlen
@@ -135,7 +137,8 @@ while dbi < dbl:
         # create SRF from description
         CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
                 rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
-                elon, elat, shypo, dhypo, dt, seed, prefix, cases)
+                elon, elat, shypo, dhypo, dt, seed, prefix, cases, \
+                dip_dir = dip_dir)
 
     # store fault traces
     #with open(GMT_FILE, 'a') as traces:

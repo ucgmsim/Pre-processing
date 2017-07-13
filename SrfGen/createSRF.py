@@ -433,7 +433,8 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
 def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         flen, dlen, fwid, dwid, dtop, stk, rak, dip, elon, elat, \
         shypo, dhypo, dt, seed, prefix0, cases, genslip = '3.3', \
-        rvfrac = None, rough = None, slip_cov = None, stoch = None):
+        rvfrac = None, rough = None, slip_cov = None, stoch = None, \
+        dip_dir = None):
 
     # do not change any pointers
     mag = list(mag0)
@@ -494,8 +495,11 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
                         stk[c][f], dip[c][f], rak[c][f], \
                         flen[c][f], fwid[c][f], nx[f], ny[f]))
         # create GSF file
-        call([GSF_BIN, 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
-                'outfile=%s' % (gsf_file)])
+        cmd = [GSF_BIN, 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
+                'outfile=%s' % (gsf_file)]
+        if dip_dir != None:
+            cmd.append('dipdir=%s' % (dip_dir))
+        call(cmd)
         os.remove(fsg_file)
 
         # calling with outfile parameter will:
