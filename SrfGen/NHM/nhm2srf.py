@@ -4,9 +4,7 @@ from math import sin, radians
 import os
 import sys
 
-sys.path.append('/home/nesi00213/Pre-processing/SrfGen')
-sys.path.append('/home/vap30/ucgmsim/qcore')
-sys.path.append('/home/nesi00213/qcore')
+sys.path.append('..')
 from createSRF import CreateSRF_multi
 import geo
 
@@ -17,8 +15,8 @@ N_HYPO = 1
 ###
 ### PREPARE
 ###
-if os.path.exists(GMT_FILE):
-    os.remove(GMT_FILE)
+#if os.path.exists(GMT_FILE):
+#    os.remove(GMT_FILE)
 
 if len(sys.argv) > 1:
     if not os.path.exists(sys.argv[1]):
