@@ -16,7 +16,8 @@ from Bradley_2010_Sa import Bradley_2010_Sa
 nhm = 'NZ_FLTmodel_2010.txt'
 table = 'vminfo.txt'
 pgv_target = 2
-out = 'out'
+out = os.path.abspath('out')
+centre = 'res/centre.txt'
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -67,6 +68,97 @@ def grd_proportion(grd_file):
     except IOError:
         return 0.0
 
+# get longitude on NZ centre path at latitude
+def centre_lon(lat_target):
+    # find closest points either side
+    with open(centre, 'r') as c:
+        for line in c:
+            ll = map(float, line.split())
+            if ll[1] < lat_target:
+                ll_bottom = ll
+            else:
+                ll_top = ll
+                break
+    try:
+        # find rough proportion of distance
+        lat_ratio = (lat_target - ll_bottom[1]) / (ll_top[1] - ll_bottom[1])
+    except (UnboundLocalError, NameError):
+        print('WARNING: VM edge out of lat bounds for centre line.')
+        raise
+    # consider same ratio along longitude differenc to be correct
+    return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
+
+# 
+def corners2region(c1, c2, c3, c4):
+    all_corners = np.array([c1, c2, c3, c4])
+    x_min, y_min = np.min(all_corners, axis = 0)
+    x_max, y_max = np.max(all_corners, axis = 0)
+    return (x_min, x_max, y_min, y_max)
+
+#
+def corners2path(c1, c2, c3, c4, output):
+    with open(output, 'w') as o:
+        o.write('>corners\n%s %s\n%s %s\n%s %s\n%s %s\n%s %s\n' \
+                % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], \
+                c4[0], c4[1], c1[0], c1[1]))
+
+# maximum width along lines a and b
+def max_width(a0, a1, b0, b1, m0, m1):
+    len_a = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
+    len_b = geo.ll_dist(b0[0], b0[1], b1[0], b1[1])
+    len_m = geo.ll_dist(m0[0], m0[1], m1[0], m1[1])
+    bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
+    bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
+    bearing_m = geo.ll_bearing(m0[0], m0[1], m1[0], m1[1])
+    over_e = None
+    over_w = None
+    over_s = None
+    for x in np.linspace(0, 1, 81, endpoint = True):
+        m = geo.ll_shift(m0[1], m0[0], x * len_m, bearing_m)[::-1]
+        a = geo.ll_shift(a0[1], a0[0], x * len_a, bearing_a)[::-1]
+        b = geo.ll_shift(b0[1], b0[0], x * len_b, bearing_b)[::-1]
+        bearing_p = geo.ll_bearing(m[0], m[1], a[0], a[1])
+        ap = geo.ll_shift(m[1], m[0], 600, bearing_p)[::-1]
+        bp = geo.ll_shift(m[1], m[0], 600, bearing_p + 180)[::-1]
+        # mid to east edge, west edge
+        m2ee = geo.ll_dist(m[0], m[1], a[0], a[1])
+        m2we = geo.ll_dist(m[0], m[1], b[0], b[1])
+        # gmt spacial is not great-circle path connective
+        geo.path_from_corners(corners = [ap, bp], output = 'temp000.000', \
+                min_edge_points = 80, close = False)
+        isections = gmt.intersections(['srf.path', 'res/rough_land.txt', 'temp000.000'], containing = 'temp000.000')
+        if len(isections) == 0:
+            if over_e == None:
+                # land has not been discovered yet
+                over_s = x * len_m - 15
+            continue
+        east = isections[np.argmax(isections, axis = 0)[0]]
+        west = isections[np.argmin(isections, axis = 0)[0]]
+        #
+        m2e = geo.ll_dist(m[0], m[1], east[0], east[1])
+        be = geo.ll_bearing(m[0], m[1], east[0], east[1])
+        if abs(be - (bearing + 90) % 360) > 90:
+            m2e *= -1
+        over_e = max(over_e, m2e - m2ee + 15)
+        #
+        m2w = geo.ll_dist(m[0], m[1], west[0], west[1])
+        bw = geo.ll_bearing(m[0], m[1], west[0], west[1])
+        if abs(bw - (bearing - 90) % 360) > 90:
+            m2w *= -1
+        over_w = max(over_w, m2w - m2we + 15)
+
+    # shift
+    if over_e < 0:
+        a0 = geo.ll_shift(a0[1], a0[0], over_e, bearing + 90)[::-1]
+        a1 = geo.ll_shift(a1[1], a1[0], over_e, bearing + 90)[::-1]
+    if over_w < 0:
+        b0 = geo.ll_shift(b0[1], b0[0], over_w, bearing - 90)[::-1]
+        b1 = geo.ll_shift(b1[1], b1[0], over_w, bearing - 90)[::-1]
+    if over_s != None:
+        a0 = geo.ll_shift(a0[1], a0[0], over_s, bearing_a)[::-1]
+        b0 = geo.ll_shift(b0[1], b0[0], over_s, bearing_b)[::-1]
+    return a0, a1, b0, b1
+
 # make sure output directory exists for images
 if not os.path.exists(out):
     os.makedirs(out)
@@ -83,7 +175,7 @@ with open(nhm, 'r') as nf:
 while dbi < dbl:
     name = db[dbi].strip()
     n_pt = int(db[dbi + 11])
-    #if os.path.exists('%s/%s.png' % (out, name)):
+    #if name != 'HikHBaymin':
     #    dbi += 13 + n_pt
     #    continue
     faultprop.Mw = float(db[dbi + 10].split()[0])
@@ -119,20 +211,56 @@ while dbi < dbl:
     gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, dx = '1k', dy = '1k', wd = out, outside = 0)
     land = grd_proportion('%s/landmask.grd' % (out))
 
-    # store info
-    with open(table, 'a') as t:
-        t.write('%s,%s,%s,%.0f\n' % (name, x_ext, y_ext, land))
-    # move to next definition
-    dbi += 13 + n_pt
-    continue
-
-    # TODO: BELOW
+    with open('srf.path', 'w') as sp:
+        sp.write('\n'.join([' '.join(map(str, ll)) for ll in pts]))
+        sp.write('\n%s %s\n' % (pts[0][0], pts[0][1]))
 
     # modify if necessary
+    adjusted = False
     if faultprop.Mw >= 6.2 and land < 90:
+        adjusted = True
         print 'modifying', name
-        gmt.grd_mask('east.txt', '%s/east.grd' % (out), region = ll_region0, dx = '1k', dy = '1k', wd = 'out', outside = 0)
-        gmt.grd_mask('west.txt', '%s/west.grd' % (out), region = ll_region0, dx = '1k', dy = '1k', wd = 'out', outside = 0)
+        # rotate based on centre line bearing
+        l1 = centre_lon(min_y[1])
+        l2 = centre_lon(max_y[1])
+        mid = geo.ll_mid(l1, min_y[1], l2, max_y[1])
+        mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
+        bearing = geo.ll_bearing(mid[0], mid[1], l2, max_y[1])
+        t_u = geo.ll_shift(mid0[1], mid0[0], x_ext / 2., bearing)[::-1]
+        t_l = geo.ll_shift(mid0[1], mid0[0], x_ext / 2., bearing + 180)[::-1]
+        c1 = geo.ll_shift(t_u[1], t_u[0], y_ext / 2., bearing + 90)[::-1]
+        c2 = geo.ll_shift(t_u[1], t_u[0], y_ext / 2., bearing - 90)[::-1]
+        c3 = geo.ll_shift(t_l[1], t_l[0], y_ext / 2., bearing - 90)[::-1]
+        c4 = geo.ll_shift(t_l[1], t_l[0], y_ext / 2., bearing + 90)[::-1]
+        c4, c1, c3, c2 = max_width(c4, c1, c3, c2, t_l, t_u)
+        # adjust region to fit
+        ll_region = (min(c4[0], c1[0], c3[0], c2[0], ll_region[0]), \
+                max(c4[0], c1[0], c3[0], c2[0], ll_region[1]), \
+                min(c4[1], c1[1], c3[1], c2[1], ll_region[2]), \
+                max(c4[1], c1[1], c3[1], c2[1], ll_region[3]))
+
+        # proportion in ocean
+        ll_region1 = corners2region(c1, c2, c3, c4)
+        path_vm = '%s/landmask_vm.path' % (out)
+        grd_vm = '%s/landmask_vm.grd' % (out)
+        grd_land = '%s/landmask1.grd' % (out)
+        grd_and = '%s/landmask_AND.grd' % (out)
+        corners2path(c1, c2, c3, c4, path_vm)
+        gmt.grd_mask('f', grd_land, \
+                region = ll_region1, dx = '1k', dy = '1k', wd = out)
+        gmt.grd_mask(path_vm, grd_vm, \
+                region = ll_region1, dx = '1k', dy = '1k', wd = out)
+        total_vm = grd_proportion(grd_vm)
+        gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_and], \
+                region = ll_region1, dx = '1k', dy = '1k', wd = out)
+        land1 = grd_proportion(grd_and) / total_vm * 100
+
+    # store info
+    with open(table, 'a') as t:
+        if adjusted:
+            t.write('%s,%s,%s,%.0f,%.0f\n' % (name, x_ext, y_ext, land, land1))
+        else:
+            t.write('%s,%s,%s,%.0f,NaN\n' % (name, x_ext, y_ext, land))
 
     # plot
     p = gmt.GMTPlot('out/%s.ps' % (name))
@@ -143,11 +271,25 @@ while dbi < dbl:
     # top edge
     p.path('\n'.join([' '.join(map(str, ll)) for ll in pts[:len(pts) / 2]]), is_file = False)
     # vm domain
+    #if not adjusted:
     p.path('%s %s\n%s %s\n%s %s\n%s %s' % (min_x[0], min_y[1], max_x[0], min_y[1], max_x[0], max_y[1], min_x[0], max_y[1]), is_file = False, close = True, fill = 'black@95')
-    # Mw text
-    p.text((max_x[0] + min_x[0]) / 2., max_y[1], 'Mw: %s X: %.0fkm, Y: %.0fkm, land: %s' % (faultprop.Mw, x_ext, y_ext, land), align = 'CB', dy = 0.1)
+    if adjusted:
+        p.path('%s %s\n%s %s\n%s %s\n%s %s' % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]), is_file = False, close = True, fill = 'black@95', \
+                split = '-', width = '1.0p')
+    # info text
+    p.text((ll_region[0] + ll_region[1]) / 2., ll_region[3], \
+            'Mw: %s X: %.0fkm, Y: %.0fkm, land: %.0f%%' \
+            % (faultprop.Mw, x_ext, y_ext, land), align = 'CT', dy = -0.1, \
+            box_fill = 'white@50')
+    if adjusted:
+        p.text((ll_region[0] + ll_region[1]) / 2., ll_region[3], \
+                'MODIFIED land: %.0f%%' \
+                % (land1), align = 'CT', dy = -0.25, \
+                box_fill = 'white@50')
     # for testing, show land mask cover
-    p.overlay('out/west.grd', 'hot', dx = '1k', dy = '1k', custom_region = ll_region0)
+    #p.overlay('out/west.grd', 'hot', dx = '1k', dy = '1k', custom_region = ll_region0)
+    p.path('res/rough_land.txt', is_file = True, close = False, colour = 'blue', width = '0.2p')
+    p.path('res/centre.txt', is_file = True, close = False, colour = 'red', width = '0.2p')
     p.finalise()
     p.png(dpi = 200, clip = True, background = 'white')
 
