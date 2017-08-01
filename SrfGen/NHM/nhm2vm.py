@@ -110,10 +110,15 @@ def max_width(a0, a1, b0, b1, m0, m1):
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
     bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
     bearing_m = geo.ll_bearing(m0[0], m0[1], m1[0], m1[1])
+
+    # number of scan lines accross domain (inclusive of edges)
+    scanlines = 81
+    # first scan, reduce east and west
     over_e = None
     over_w = None
-    over_s = None
-    for x in np.linspace(0, 1, 81, endpoint = True):
+    # store scan data for 2nd level processing
+    scan_extremes = np.zeros((scanlines, 2, 2))
+    for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint = True)):
         m = geo.ll_shift(m0[1], m0[0], x * len_m, bearing_m)[::-1]
         a = geo.ll_shift(a0[1], a0[0], x * len_a, bearing_a)[::-1]
         b = geo.ll_shift(b0[1], b0[0], x * len_b, bearing_b)[::-1]
@@ -124,16 +129,18 @@ def max_width(a0, a1, b0, b1, m0, m1):
         m2ee = geo.ll_dist(m[0], m[1], a[0], a[1])
         m2we = geo.ll_dist(m[0], m[1], b[0], b[1])
         # gmt spacial is not great-circle path connective
-        geo.path_from_corners(corners = [ap, bp], output = 'temp000.000', \
+        geo.path_from_corners(corners = [ap, bp], output = 'tempEXT.tmp', \
                 min_edge_points = 80, close = False)
-        isections = gmt.intersections(['srf.path', 'res/rough_land.txt', 'temp000.000'], containing = 'temp000.000')
+        isections = gmt.intersections( \
+                ['srf.path', 'res/rough_land.txt', 'tempEXT.tmp'], \
+                containing = 'tempEXT.tmp')
         if len(isections) == 0:
-            if over_e == None:
-                # land has not been discovered yet
-                over_s = x * len_m - 15
+            scan_extremes[i] = np.nan
             continue
         east = isections[np.argmax(isections, axis = 0)[0]]
         west = isections[np.argmin(isections, axis = 0)[0]]
+        scan_extremes[i] = east, west
+
         #
         m2e = geo.ll_dist(m[0], m[1], east[0], east[1])
         be = geo.ll_bearing(m[0], m[1], east[0], east[1])
@@ -147,13 +154,50 @@ def max_width(a0, a1, b0, b1, m0, m1):
             m2w *= -1
         over_w = max(over_w, m2w - m2we + 15)
 
-    # shift
-    if over_e < 0:
+    # shift sides
+    if over_e != None and over_e < 0:
         a0 = geo.ll_shift(a0[1], a0[0], over_e, bearing + 90)[::-1]
         a1 = geo.ll_shift(a1[1], a1[0], over_e, bearing + 90)[::-1]
-    if over_w < 0:
+    if over_e != None and over_w < 0:
         b0 = geo.ll_shift(b0[1], b0[0], over_w, bearing - 90)[::-1]
         b1 = geo.ll_shift(b1[1], b1[0], over_w, bearing - 90)[::-1]
+
+    # corners have moved
+    len_a = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
+    len_b = geo.ll_dist(b0[0], b0[1], b1[0], b1[1])
+    bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
+    bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
+    # second scan, reduce north and south
+    over_s = None
+    over_n = None
+    land_discovered = False
+    for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint = True)):
+        a = geo.ll_shift(a0[1], a0[0], x * len_a, bearing_a)[::-1]
+        b = geo.ll_shift(b0[1], b0[0], x * len_b, bearing_b)[::-1]
+        # determine if window contains any land by locations of intersections
+        isect_inside = False
+        isect_east = False
+        isect_west = False
+        for extreme in scan_extremes[i]:
+            if b[0] <= extreme[0] <= a[0]:
+                isect_inside = True
+            elif extreme[0] > a[0]:
+                isect_east = True
+            else:
+                isect_west = True
+        # not on land if isect outside zone and either no east or no west isect
+        if not isect_inside and (not isect_east or not isect_west):
+            if not land_discovered:
+                # shift bottom edge up
+                over_s = x * len_m - 15
+        else:
+            land_discovered = True
+            over_n = x * len_m + 15
+
+    # shift top and bottom edge
+    if over_n != None:
+        a1 = geo.ll_shift(a0[1], a0[0], over_n, bearing_a)[::-1]
+        b1 = geo.ll_shift(b0[1], b0[0], over_n, bearing_b)[::-1]
     if over_s != None:
         a0 = geo.ll_shift(a0[1], a0[0], over_s, bearing_a)[::-1]
         b0 = geo.ll_shift(b0[1], b0[0], over_s, bearing_b)[::-1]
@@ -175,7 +219,7 @@ with open(nhm, 'r') as nf:
 while dbi < dbl:
     name = db[dbi].strip()
     n_pt = int(db[dbi + 11])
-    #if name != 'HikHBaymin':
+    #if name != 'Astrolabe04':
     #    dbi += 13 + n_pt
     #    continue
     faultprop.Mw = float(db[dbi + 10].split()[0])
@@ -253,7 +297,11 @@ while dbi < dbl:
         total_vm = grd_proportion(grd_vm)
         gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_and], \
                 region = ll_region1, dx = '1k', dy = '1k', wd = out)
-        land1 = grd_proportion(grd_and) / total_vm * 100
+        try:
+            land1 = grd_proportion(grd_and) / total_vm * 100
+        except ZeroDivisionError:
+            # this should not happen, bug in GMT
+            land1 = 0
 
     # store info
     with open(table, 'a') as t:
