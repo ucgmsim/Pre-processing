@@ -345,6 +345,29 @@ while dbi < dbl:
                 'EXTENT_LATLON_SPACING=%s' % (hh), \
                 'MIN_VS=0.5', \
                 'TOPO_TYPE=BULLDOZED\n']))
+    with open('out/params_vel.%s.py' % (name), 'w') as pv:
+        pv.write('\n'.join(['mag = "%s"' % (faultprop.Mw), \
+                'centroidDepth = "%s"' % (float(db[dbi + 6].split()[0]) * 0.6), \
+                'MODEL_LAT = "%s"' % (mid0[1]), \
+                'MODEL_LON = "%s"' % (mid0[0]), \
+                'MODEL_ROT = "%s"' % (bearing), \
+                'hh = "%s"' % (hh), \
+                'min_vs = "0.5"', \
+                'model_version = "1.65"', \
+                'topo_type = "BULLDOZED"', \
+                'output_directory = "%s"' % (name), \
+                'extracted_slice_parameters_directory = "SliceParametersNZ/SliceParametersExtracted.txt"', \
+                'code = "rt"', \
+                'extent_x = "%s"' % (xlen), \
+                'extent_y = "%s"' % (ylen), \
+                'extent_zmax = "%s"' % (zlen), \
+                'extent_zmin = "0.0"', \
+                'sim_duration = "%s"' % (auto_time(faultprop.Mw)), \
+                'flo = "1.0"', \
+                'nx = "%s"' % (int(round(xlen / hh))), \
+                'ny = "%s"' % (int(round(ylen / hh))), \
+                'nz = "%s"' % (int(round(zlen / hh))), \
+                'suffx = "_rt01-h%.3f"' % (hh)]))
     with open(table, 'a') as t:
         if adjusted:
             t.write('%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, \
