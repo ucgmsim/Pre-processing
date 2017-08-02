@@ -18,6 +18,7 @@ table = 'vminfo.txt'
 pgv_target = 2
 out = os.path.abspath('out')
 centre = 'res/centre.txt'
+hh = 0.4
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -59,6 +60,15 @@ def find_rrup():
         else:
             break
     return rrup, pgv
+
+# z extent based on magnitude, centroid depth
+def auto_z(mag, depth):
+    return round(10 + depth + (10 \
+            * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), \
+            (0.3))), 0)
+# simulation time based on magnitude
+def auto_time(mag):
+    return np.power(10, max(1, 0.5 * mag - 1))
 
 # proportion of gmt mask file filled (0 -> 1)
 def grd_proportion(grd_file):
@@ -195,10 +205,10 @@ def max_width(a0, a1, b0, b1, m0, m1):
             over_n = x * len_m + 15
 
     # shift top and bottom edge
-    if over_n != None:
+    if over_n != None and over_n < len_a:
         a1 = geo.ll_shift(a0[1], a0[0], over_n, bearing_a)[::-1]
         b1 = geo.ll_shift(b0[1], b0[0], over_n, bearing_b)[::-1]
-    if over_s != None:
+    if over_s != None and over_s > 0:
         a0 = geo.ll_shift(a0[1], a0[0], over_s, bearing_a)[::-1]
         b0 = geo.ll_shift(b0[1], b0[0], over_s, bearing_b)[::-1]
     return a0, a1, b0, b1
@@ -208,8 +218,8 @@ if not os.path.exists(out):
     os.makedirs(out)
 
 # clear table file
-with open(table, 'w') as _:
-    pass
+with open(table, 'w') as t:
+    t.write('"name","xlen","ylen","land","adjusted xlen","adjusted ylen","adjusted land"\n')
 
 # loop through faults
 with open(nhm, 'r') as nf:
@@ -219,7 +229,7 @@ with open(nhm, 'r') as nf:
 while dbi < dbl:
     name = db[dbi].strip()
     n_pt = int(db[dbi + 11])
-    #if name != 'Astrolabe04':
+    #if name != 'WhiteIs02':
     #    dbi += 13 + n_pt
     #    continue
     faultprop.Mw = float(db[dbi + 10].split()[0])
@@ -269,7 +279,7 @@ while dbi < dbl:
         l2 = centre_lon(max_y[1])
         mid = geo.ll_mid(l1, min_y[1], l2, max_y[1])
         mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
-        bearing = geo.ll_bearing(mid[0], mid[1], l2, max_y[1])
+        bearing = round(geo.ll_bearing(mid[0], mid[1], l2, max_y[1]))
         t_u = geo.ll_shift(mid0[1], mid0[0], x_ext / 2., bearing)[::-1]
         t_l = geo.ll_shift(mid0[1], mid0[0], x_ext / 2., bearing + 180)[::-1]
         c1 = geo.ll_shift(t_u[1], t_u[0], y_ext / 2., bearing + 90)[::-1]
@@ -303,12 +313,45 @@ while dbi < dbl:
             # this should not happen, bug in GMT
             land1 = 0
 
+        mid0 = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
+        ylen = geo.ll_dist(c4[0], c4[1], c1[0], c1[1])
+        xlen = geo.ll_dist(c4[0], c4[1], c3[0], c3[1])
+    else:
+        bearing = 0
+        mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
+        ylen = geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1])
+        xlen = geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1])
+
+    # assuming hypocentre has been placed at 0.6 * depth
+    zmax = auto_z(faultprop.Mw, float(db[dbi + 6].split()[0]) * 0.6)
+    # round off
+    xlen = round(xlen / hh) * hh
+    ylen = round(ylen / hh) * hh
+    zlen = round(zmax / hh) * hh
+
     # store info
+    with open('out/%s.cfg' % (name), 'w') as vmd:
+        vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
+                'MODEL_VERSION=1.65', \
+                'OUTPUT_DIR=%s' % (name), \
+                'ORIGIN_LAT=%s' % (mid0[1]), \
+                'ORIGIN_LON=%s' % (mid0[0]), \
+                'ORIGIN_ROT=%s' % (bearing), \
+                'EXTENT_X=%s' % (xlen), \
+                'EXTENT_Y=%s' % (ylen), \
+                'EXTENT_ZMAX=%s' % (zlen), \
+                'EXTENT_ZMIN=0.0', \
+                'EXTENT_Z_SPACING=%s' % (hh), \
+                'EXTENT_LATLON_SPACING=%s' % (hh), \
+                'MIN_VS=0.5', \
+                'TOPO_TYPE=BULLDOZED\n']))
     with open(table, 'a') as t:
         if adjusted:
-            t.write('%s,%s,%s,%.0f,%.0f\n' % (name, x_ext, y_ext, land, land1))
+            t.write('%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, \
+                    round(x_ext / hh) * hh, round(y_ext / hh) * hh, \
+                    land, xlen, ylen, land1))
         else:
-            t.write('%s,%s,%s,%.0f,NaN\n' % (name, x_ext, y_ext, land))
+            t.write('%s,%s,%s,%.0f,NaN,NaN,NaN\n' % (name, xlen, ylen, land))
 
     # plot
     p = gmt.GMTPlot('out/%s.ps' % (name))
@@ -338,6 +381,8 @@ while dbi < dbl:
     #p.overlay('out/west.grd', 'hot', dx = '1k', dy = '1k', custom_region = ll_region0)
     p.path('res/rough_land.txt', is_file = True, close = False, colour = 'blue', width = '0.2p')
     p.path('res/centre.txt', is_file = True, close = False, colour = 'red', width = '0.2p')
+    # actual corners
+    #p.points('/home/vap30/ucgmsim/Velocity-Model/AUTO_TEST/Log/VeloModCorners.txt', fill = 'red', line = None, shape = 'c', size = 0.05)
     p.finalise()
     p.png(dpi = 200, clip = True, background = 'white')
 
