@@ -14,11 +14,20 @@ sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
 
 nhm = 'NZ_FLTmodel_2010.txt'
-table = 'vminfo.txt'
+table = 'vminfo.csv'
 pgv_target = 2
 out = os.path.abspath('out')
 centre = 'res/centre.txt'
 hh = 0.4
+
+if len(sys.argv) > 1:
+    target = sys.argv[1]
+else:
+    print('First parameter is name of fault in database.')
+    print('Use "ALL" to loop through all faults.')
+    sys.exit(1)
+if target == 'ALL':
+    target = None
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -229,9 +238,9 @@ with open(nhm, 'r') as nf:
 while dbi < dbl:
     name = db[dbi].strip()
     n_pt = int(db[dbi + 11])
-    #if name != 'WhiteIs02':
-    #    dbi += 13 + n_pt
-    #    continue
+    if target != None and name != target:
+        dbi += 13 + n_pt
+        continue
     faultprop.Mw = float(db[dbi + 10].split()[0])
     faultprop.rake = float(db[dbi + 5])
     faultprop.dip = float(db[dbi + 3].split()[0])
