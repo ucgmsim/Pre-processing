@@ -14,9 +14,7 @@ sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
 
 nhm = 'NZ_FLTmodel_2010.txt'
-table = 'vminfo.csv'
 pgv_target = 2
-out = os.path.abspath('out')
 centre = 'res/centre.txt'
 hh = 0.4
 
@@ -28,6 +26,11 @@ else:
     sys.exit(1)
 if target == 'ALL':
     target = None
+if len(sys.argv) > 2:
+    out = os.path.abspath(sys.argv[2])
+else:
+    out = os.path.abspath('autovm')
+table = '%s/vminfo.csv' % (out)
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -148,11 +151,13 @@ def max_width(a0, a1, b0, b1, m0, m1):
         m2ee = geo.ll_dist(m[0], m[1], a[0], a[1])
         m2we = geo.ll_dist(m[0], m[1], b[0], b[1])
         # gmt spacial is not great-circle path connective
-        geo.path_from_corners(corners = [ap, bp], output = 'tempEXT.tmp', \
+        geo.path_from_corners(corners = [ap, bp], \
+                output = '%s/tempEXT.tmp' % (out), \
                 min_edge_points = 80, close = False)
         isections = gmt.intersections( \
-                ['srf.path', 'res/rough_land.txt', 'tempEXT.tmp'], \
-                containing = 'tempEXT.tmp')
+                ['%s/srf.path' % (out), 'res/rough_land.txt', \
+                '%s/tempEXT.tmp' % (out)], \
+                containing = '%s/tempEXT.tmp' % (out))
         if len(isections) == 0:
             scan_extremes[i] = np.nan
             continue
@@ -274,7 +279,7 @@ while dbi < dbl:
     gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, dx = '1k', dy = '1k', wd = out, outside = 0)
     land = grd_proportion('%s/landmask.grd' % (out))
 
-    with open('srf.path', 'w') as sp:
+    with open('%s/srf.path' % (out), 'w') as sp:
         sp.write('\n'.join([' '.join(map(str, ll)) for ll in pts]))
         sp.write('\n%s %s\n' % (pts[0][0], pts[0][1]))
 
@@ -339,7 +344,7 @@ while dbi < dbl:
     zlen = round(zmax / hh) * hh
 
     # store info
-    with open('out/%s.cfg' % (name), 'w') as vmd:
+    with open('%s/%s.cfg' % (out, name), 'w') as vmd:
         vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
                 'MODEL_VERSION=1.65', \
                 'OUTPUT_DIR=%s' % (name), \
@@ -354,7 +359,7 @@ while dbi < dbl:
                 'EXTENT_LATLON_SPACING=%s' % (hh), \
                 'MIN_VS=0.5', \
                 'TOPO_TYPE=BULLDOZED\n']))
-    with open('out/params_vel.%s.py' % (name), 'w') as pv:
+    with open('%s/%s.py' % (out, name), 'w') as pv:
         pv.write('\n'.join(['mag = "%s"' % (faultprop.Mw), \
                 'centroidDepth = "%s"' % (float(db[dbi + 6].split()[0]) * 0.6), \
                 'MODEL_LAT = "%s"' % (mid0[1]), \
@@ -386,7 +391,7 @@ while dbi < dbl:
             t.write('%s,%s,%s,%.0f,NaN,NaN,NaN\n' % (name, xlen, ylen, land))
 
     # plot
-    p = gmt.GMTPlot('out/%s.ps' % (name))
+    p = gmt.GMTPlot('%s/%s.ps' % (out, name))
     p.spacial('M', ll_region, sizing = 7)
     p.coastlines()
     # filled slip area
@@ -417,6 +422,13 @@ while dbi < dbl:
     #p.points('/home/vap30/ucgmsim/Velocity-Model/AUTO_TEST/Log/VeloModCorners.txt', fill = 'red', line = None, shape = 'c', size = 0.05)
     p.finalise()
     p.png(dpi = 200, clip = True, background = 'white')
+
+    # clean
+    for tmp in ['gmt.conf', 'gmt.history', 'tempEXT.tmp', 'srf.path', \
+            'landmask_AND.grd', 'landmask_vm.grd', 'landmask_vm.path', \
+            'landmask.grd', 'landmask1.grd', '%s.ps' % (name)]:
+        if os.path.exists(os.path.join(out, tmp)):
+            os.remove(os.path.join(out, tmp))
 
     # move to next definition
     dbi += 13 + n_pt
