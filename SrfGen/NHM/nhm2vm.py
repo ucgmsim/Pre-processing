@@ -254,7 +254,7 @@ while dbi < dbl:
     # fault width (along dip), projected width (along dip direction)
     fwid = (float(db[dbi + 6].split()[0]) - float(db[dbi + 7].split()[0])) \
             / math.sin(math.radians(faultprop.dip))
-    pwid = fwid * math.sin(math.radians(faultprop.dip))
+    pwid = fwid * math.cos(math.radians(faultprop.dip))
     dip_dir = float(db[dbi + 4])
 
     # top of fault trace
@@ -388,7 +388,7 @@ while dbi < dbl:
                     round(x_ext / hh) * hh, round(y_ext / hh) * hh, \
                     land, xlen, ylen, land1))
         else:
-            t.write('%s,%s,%s,%.0f,NaN,NaN,NaN\n' % (name, xlen, ylen, land))
+            t.write('%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, xlen, ylen, land, xlen, ylen, land))
 
     # plot
     p = gmt.GMTPlot('%s/%s.ps' % (out, name))
