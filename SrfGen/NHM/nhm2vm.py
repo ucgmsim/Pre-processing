@@ -233,7 +233,9 @@ if not os.path.exists(out):
 
 # clear table file
 with open(table, 'w') as t:
-    t.write('"name","xlen","ylen","land","adjusted xlen","adjusted ylen","adjusted land"\n')
+    t.write('"name","mw","plane depth (km, to bottom)","vm depth (zlen, km)","sim time (s)",'
+            '"xlen (km)","ylen (km)","land (% cover)",'
+            '"adjusted xlen (km)","adjusted ylen (km)","adjusted land (% cover)"\n')
 
 # loop through faults
 with open(nhm, 'r') as nf:
@@ -274,6 +276,9 @@ while dbi < dbl:
     # vm region and plotting region
     ll_region0 = (min_x[0], max_x[0], min_y[1], max_y[1])
     ll_region = (min_x[0] - 1, max_x[0] + 1, min_y[1] - 1, max_y[1] + 1)
+
+    # other
+    sim_time = auto_time(faultprop.Mw)
 
     # proportion in ocean
     gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, dx = '1k', dy = '1k', wd = out, outside = 0)
@@ -376,7 +381,7 @@ while dbi < dbl:
                 'extent_y = "%s"' % (ylen), \
                 'extent_zmax = "%s"' % (zlen), \
                 'extent_zmin = "0.0"', \
-                'sim_duration = "%s"' % (auto_time(faultprop.Mw)), \
+                'sim_duration = "%s"' % (sim_time), \
                 'flo = "1.0"', \
                 'nx = "%s"' % (int(round(xlen / hh))), \
                 'ny = "%s"' % (int(round(ylen / hh))), \
@@ -384,11 +389,13 @@ while dbi < dbl:
                 'suffx = "_rt01-h%.3f"' % (hh)]))
     with open(table, 'a') as t:
         if adjusted:
-            t.write('%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, \
+            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, faultprop.Mw, \
+                    db[dbi + 6].split()[0], zlen, sim_time, \
                     round(x_ext / hh) * hh, round(y_ext / hh) * hh, \
                     land, xlen, ylen, land1))
         else:
-            t.write('%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, xlen, ylen, land, xlen, ylen, land))
+            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, faultprop.Mw, \
+                    db[dbi + 6].split()[0], zlen, sim_time, xlen, ylen, land, xlen, ylen, land))
 
     # plot
     p = gmt.GMTPlot('%s/%s.ps' % (out, name))
