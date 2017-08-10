@@ -12,11 +12,14 @@ import geo
 import gmt
 sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
+from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
 nhm = 'NZ_FLTmodel_2010.txt'
-pgv_target = 2
+pgv_target = 5
 centre = 'res/centre.txt'
 hh = 0.4
+SPACE_LAND = 5
+SPACE_SRF = 15
 
 if len(sys.argv) > 1:
     target = sys.argv[1]
@@ -43,11 +46,15 @@ class siteprop:
     # PGV
     period = -1
     Z1pt0 = math.exp(28.5 - (3.82 / 8.) * math.log(math.pow(V30, 8) + math.pow(378.7, 8)))
+    # for Ds
+    defn = None
 class faultprop:
     Mw = None
     Ztor = 0
     rake = None
     dip = None
+    # for Ds
+    rupture_type = None
 
 # Leonard 2014 Relations
 def leonard(rake, A):
@@ -81,6 +88,27 @@ def auto_z(mag, depth):
 # simulation time based on magnitude
 def auto_time(mag):
     return np.power(10, max(1, 0.5 * mag - 1))
+# other variations
+def auto_time2(xlen, ylen):
+    s_wave_arrival = max(xlen, ylen) / 3.2
+    # alternative if rrup not available
+    siteprop.Rrup = max(xlen / 2.0, ylen / 2.0)
+    # magnitude is in faultprop
+    ds = Afshari_Stewart_2016_Ds(siteprop, faultprop)[0]
+    # 2.0 is ds_multiplier (removed)
+    return s_wave_arrival + ds
+
+# keep dx and dy small enough relative to domain
+def auto_dxy(region):
+    x_diff = region[1] - region[0]
+    y_diff = region[3] - region[2]
+
+    # start off at roughly 1km
+    dxy = 0.01
+    # this formula may not be exact, should actually be more if anything (safe)
+    while math.ceil(x_diff / dxy) * math.ceil(y_diff / dxy) < 16384:
+        dxy *= 0.5
+    return dxy
 
 # proportion of gmt mask file filled (0 -> 1)
 def grd_proportion(grd_file):
@@ -88,6 +116,7 @@ def grd_proportion(grd_file):
         with h5.File(grd_file, 'r') as grd:
             return 100.0 * np.nansum(grd['z'][...]) / float(grd['z'].size)
     except IOError:
+        print('Warning, Invalid GRD')
         return 0.0
 
 # get longitude on NZ centre path at latitude
@@ -154,29 +183,45 @@ def max_width(a0, a1, b0, b1, m0, m1):
         geo.path_from_corners(corners = [ap, bp], \
                 output = '%s/tempEXT.tmp' % (out), \
                 min_edge_points = 80, close = False)
-        isections = gmt.intersections( \
+        isections, icomps = gmt.intersections( \
                 ['%s/srf.path' % (out), 'res/rough_land.txt', \
-                '%s/tempEXT.tmp' % (out)], \
+                '%s/tempEXT.tmp' % (out)], items = True, \
                 containing = '%s/tempEXT.tmp' % (out))
         if len(isections) == 0:
             scan_extremes[i] = np.nan
             continue
-        east = isections[np.argmax(isections, axis = 0)[0]]
-        west = isections[np.argmin(isections, axis = 0)[0]]
-        scan_extremes[i] = east, west
+        # shift different intersections by item-specific padding amount
+        as_east = []
+        as_west = []
+        for c in xrange(len(isections)):
+            if '%s/srf.path' % (out) in icomps[c]:
+                diff = SPACE_SRF
+            elif 'res/rough_land.txt' in icomps[c]:
+                diff = SPACE_LAND
+            # these bearings will be slightly wrong but don't need to be exact
+            as_east.append(geo.ll_shift(isections[c][1], isections[c][0], \
+                    diff, bearing + 90)[::-1])
+            as_west.append(geo.ll_shift(isections[c][1], isections[c][0], \
+                    diff, bearing - 90)[::-1])
+        # find final extremes
+        east = as_east[np.argmax(as_east, axis = 0)[0]]
+        west = as_west[np.argmin(as_west, axis = 0)[0]]
+        # for north/south, use direct/un-shifted points
+        scan_extremes[i] = isections[np.argmax(isections, axis = 0)[0]], \
+                isections[np.argmin(isections, axis = 0)[0]]
 
         #
         m2e = geo.ll_dist(m[0], m[1], east[0], east[1])
         be = geo.ll_bearing(m[0], m[1], east[0], east[1])
         if abs(be - (bearing + 90) % 360) > 90:
             m2e *= -1
-        over_e = max(over_e, m2e - m2ee + 15)
+        over_e = max(over_e, m2e - m2ee)
         #
         m2w = geo.ll_dist(m[0], m[1], west[0], west[1])
         bw = geo.ll_bearing(m[0], m[1], west[0], west[1])
         if abs(bw - (bearing - 90) % 360) > 90:
             m2w *= -1
-        over_w = max(over_w, m2w - m2we + 15)
+        over_w = max(over_w, m2w - m2we)
 
     # shift sides
     if over_e != None and over_e < 0:
@@ -234,7 +279,7 @@ if not os.path.exists(out):
 # clear table file
 with open(table, 'w') as t:
     t.write('"name","mw","plane depth (km, to bottom)","vm depth (zlen, km)","sim time (s)",'
-            '"xlen (km)","ylen (km)","land (% cover)",'
+            '"xlen (km)","ylen (km)","land (% cover)","adjusted sim time (s)",'
             '"adjusted xlen (km)","adjusted ylen (km)","adjusted land (% cover)"\n')
 
 # loop through faults
@@ -279,9 +324,11 @@ while dbi < dbl:
 
     # other
     sim_time = auto_time(faultprop.Mw)
+    sim_time = auto_time2(x_ext, y_ext)
 
     # proportion in ocean
-    gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, dx = '1k', dy = '1k', wd = out, outside = 0)
+    dxy = auto_dxy(corners2region(min_x, max_x, min_y, max_y))
+    gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, dx = dxy, dy = dxy, wd = out, outside = 0)
     land = grd_proportion('%s/landmask.grd' % (out))
 
     with open('%s/srf.path' % (out), 'w') as sp:
@@ -314,32 +361,44 @@ while dbi < dbl:
 
         # proportion in ocean
         ll_region1 = corners2region(c1, c2, c3, c4)
+        dxy = auto_dxy(ll_region1)
         path_vm = '%s/landmask_vm.path' % (out)
         grd_vm = '%s/landmask_vm.grd' % (out)
         grd_land = '%s/landmask1.grd' % (out)
         grd_and = '%s/landmask_AND.grd' % (out)
         corners2path(c1, c2, c3, c4, path_vm)
         gmt.grd_mask('f', grd_land, \
-                region = ll_region1, dx = '1k', dy = '1k', wd = out)
+                region = ll_region1, dx = dxy, dy = dxy, wd = out)
         gmt.grd_mask(path_vm, grd_vm, \
-                region = ll_region1, dx = '1k', dy = '1k', wd = out)
+                region = ll_region1, dx = dxy, dy = dxy, wd = out)
         total_vm = grd_proportion(grd_vm)
         gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_and], \
-                region = ll_region1, dx = '1k', dy = '1k', wd = out)
+                region = ll_region1, dx = dxy, dy = dxy, wd = out)
         try:
             land1 = grd_proportion(grd_and) / total_vm * 100
         except ZeroDivisionError:
             # this should not happen, bug in GMT
+            # auto_dxy should be a workaround
             land1 = 0
 
         mid0 = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
         ylen = geo.ll_dist(c4[0], c4[1], c1[0], c1[1])
         xlen = geo.ll_dist(c4[0], c4[1], c3[0], c3[1])
+        if round(land1) < 1:
+            xlen = 0
+            ylen = 0
     else:
         bearing = 0
         mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
+        # following are just x_ext, y_ext??
         ylen = geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1])
         xlen = geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1])
+        if round(land) < 1:
+            xlen = 0
+            ylen = 0
+
+    # modified sim time
+    sim_time_mod = auto_time2(xlen, ylen)
 
     # assuming hypocentre has been placed at 0.6 * depth
     zmax = auto_z(faultprop.Mw, float(db[dbi + 6].split()[0]) * 0.6)
@@ -389,13 +448,13 @@ while dbi < dbl:
                 'suffx = "_rt01-h%.3f"' % (hh)]))
     with open(table, 'a') as t:
         if adjusted:
-            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, faultprop.Mw, \
+            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
                     db[dbi + 6].split()[0], zlen, sim_time, \
                     round(x_ext / hh) * hh, round(y_ext / hh) * hh, \
-                    land, xlen, ylen, land1))
+                    land, sim_time_mod, xlen, ylen, land1))
         else:
-            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%.0f\n' % (name, faultprop.Mw, \
-                    db[dbi + 6].split()[0], zlen, sim_time, xlen, ylen, land, xlen, ylen, land))
+            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
+                    db[dbi + 6].split()[0], zlen, sim_time, round(x_ext / hh) * hh, round(y_ext / hh) * hh, land, sim_time_mod, xlen, ylen, land))
 
     # plot
     p = gmt.GMTPlot('%s/%s.ps' % (out, name))
@@ -422,7 +481,7 @@ while dbi < dbl:
                 % (land1), align = 'CT', dy = -0.25, \
                 box_fill = 'white@50')
     # for testing, show land mask cover
-    #p.overlay('out/west.grd', 'hot', dx = '1k', dy = '1k', custom_region = ll_region0)
+    #p.overlay('90/landmask.grd', 'hot', dx = '2k', dy = '2k', custom_region = ll_region0)
     p.path('res/rough_land.txt', is_file = True, close = False, colour = 'blue', width = '0.2p')
     p.path('res/centre.txt', is_file = True, close = False, colour = 'red', width = '0.2p')
     # actual corners
