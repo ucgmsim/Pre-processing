@@ -11,6 +11,9 @@ import geo
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 GMT_FILE = 'fault_traces.gmt'
 N_HYPO = 1
+N_SLIP = 1
+SEED_0 = 1234
+SEED_INC = 10
 
 ###
 ### PREPARE
@@ -23,7 +26,8 @@ if len(sys.argv) > 1:
         print('Fault selecion file not found: %s' % (sys.argv[1]))
         exit(1)
     with open(sys.argv[1], 'r') as fn_file:
-        fault_names = map(str.strip, fn_file.readlines())
+        faults = map(str.split, fn_file.readlines())
+    fault_names = [f[0] for f in faults]
 else:
     fault_names = None
 
@@ -52,6 +56,16 @@ while dbi < dbl:
     if fault_names != None and name not in fault_names:
         dbi += n_ln
         continue
+    # wanted parameters to override
+    if fault_names == None:
+        n_hypo = N_HYPO
+        n_slip = n_slip
+    else:
+        fault = faults[fault_names.index(name)]
+        n_hypo = int(fault[1])
+        n_slip = int(fault[2])
+    seeds = xrange(SEED_0, SEED_0 + SEED_INC * (n_slip + 1), SEED_INC)
+
     # load trace
     pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
     # clean points (remove duplicates)
@@ -93,10 +107,9 @@ while dbi < dbl:
         lengths = lengths[::-1]
         strikes = strikes[::-1]
     trace_length = sum(lengths)
-    hyp_step = trace_length / (N_HYPO * 2.)
+    hyp_step = trace_length / (n_hypo * 2.)
 
     # named values
-    seed = 2342
     dt = 0.025
     cases = ['combined']
     nseg = [n_plane]
@@ -125,18 +138,20 @@ while dbi < dbl:
     elat = [[ll[1] for ll in mids]]
     dhypo = [[fwid[0][0] * 0.6] * n_plane]
 
-    for n_shyp in xrange(N_HYPO):
+    for n_shyp in xrange(n_hypo):
         # hypocentre position from far left edge
         shyp_shift = hyp_step * (1 + 2 * n_shyp)
         # NOTE: this shypo is relative to the first combined fault
         # if not adjusted later, must be relative to full length
         shypo = [[shyp_shift - (lengths[0] / 2.)]]
-        prefix = 'Srf/%s_HYP%.2d-%.2d' % (name, n_shyp + 1, N_HYPO)
-        # create SRF from description
-        CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
-                rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
-                elon, elat, shypo, dhypo, dt, seed, prefix, cases, \
-                dip_dir = dip_dir)
+        for seed in seeds:
+            prefix = 'Srf/%s_HYP%.2d-%.2d_S%s' \
+                    % (name, n_shyp + 1, n_hypo, seed)
+            # create SRF from description
+            CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
+                    rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
+                    elon, elat, shypo, dhypo, dt, seed, prefix, cases, \
+                    dip_dir = dip_dir)
 
     # store fault traces
     #with open(GMT_FILE, 'a') as traces:
