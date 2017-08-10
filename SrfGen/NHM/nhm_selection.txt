@@ -1,2 +1,2 @@
-PaValley
-Wairau
+PaValley 1 4
+Wairau 3 2
