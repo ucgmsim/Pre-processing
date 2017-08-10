@@ -59,7 +59,7 @@ while dbi < dbl:
     # wanted parameters to override
     if fault_names == None:
         n_hypo = N_HYPO
-        n_slip = n_slip
+        n_slip = N_SLIP
     else:
         fault = faults[fault_names.index(name)]
         n_hypo = int(fault[1])
