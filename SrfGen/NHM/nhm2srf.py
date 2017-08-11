@@ -151,7 +151,7 @@ while dbi < dbl:
             CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
                     rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
                     elon, elat, shypo, dhypo, dt, seed, prefix, cases, \
-                    dip_dir = dip_dir)
+                    dip_dir = dip_dir, stoch = 'Srf')
 
     # store fault traces
     #with open(GMT_FILE, 'a') as traces:
