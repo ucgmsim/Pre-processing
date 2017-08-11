@@ -89,14 +89,13 @@ def auto_z(mag, depth):
 def auto_time(mag):
     return np.power(10, max(1, 0.5 * mag - 1))
 # other variations
-def auto_time2(xlen, ylen):
+def auto_time2(xlen, ylen, ds_multiplier):
     s_wave_arrival = max(xlen, ylen) / 3.2
     # alternative if rrup not available
     siteprop.Rrup = max(xlen / 2.0, ylen / 2.0)
     # magnitude is in faultprop
     ds = Afshari_Stewart_2016_Ds(siteprop, faultprop)[0]
-    # 2.0 is ds_multiplier (removed)
-    return s_wave_arrival + ds
+    return s_wave_arrival + ds_multiplier * ds
 
 # keep dx and dy small enough relative to domain
 def auto_dxy(region):
@@ -324,7 +323,7 @@ while dbi < dbl:
 
     # other
     sim_time = auto_time(faultprop.Mw)
-    sim_time = auto_time2(x_ext, y_ext)
+    sim_time = auto_time2(x_ext, y_ext, 2)
 
     # proportion in ocean
     dxy = auto_dxy(corners2region(min_x, max_x, min_y, max_y))
@@ -398,7 +397,7 @@ while dbi < dbl:
             ylen = 0
 
     # modified sim time
-    sim_time_mod = auto_time2(xlen, ylen)
+    sim_time_mod = auto_time2(xlen, ylen, 1)
 
     # assuming hypocentre has been placed at 0.6 * depth
     zmax = auto_z(faultprop.Mw, float(db[dbi + 6].split()[0]) * 0.6)
@@ -440,7 +439,7 @@ while dbi < dbl:
                 'extent_y = "%s"' % (ylen), \
                 'extent_zmax = "%s"' % (zlen), \
                 'extent_zmin = "0.0"', \
-                'sim_duration = "%s"' % (sim_time), \
+                'sim_duration = "%s"' % (sim_time * (not adjusted) + sim_time_mod * adjusted), \
                 'flo = "1.0"', \
                 'nx = "%s"' % (int(round(xlen / hh))), \
                 'ny = "%s"' % (int(round(ylen / hh))), \
@@ -448,13 +447,13 @@ while dbi < dbl:
                 'suffx = "_rt01-h%.3f"' % (hh)]))
     with open(table, 'a') as t:
         if adjusted:
-            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
+            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
                     db[dbi + 6].split()[0], zlen, sim_time, \
                     round(x_ext / hh) * hh, round(y_ext / hh) * hh, \
-                    land, sim_time_mod, xlen, ylen, land1))
+                    land, zlen, sim_time_mod, xlen, ylen, land1))
         else:
-            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
-                    db[dbi + 6].split()[0], zlen, sim_time, round(x_ext / hh) * hh, round(y_ext / hh) * hh, land, sim_time_mod, xlen, ylen, land))
+            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
+                    db[dbi + 6].split()[0], zlen, sim_time, round(x_ext / hh) * hh, round(y_ext / hh) * hh, land, zlen, sim_time_mod, xlen, ylen, land))
 
     # plot
     p = gmt.GMTPlot('%s/%s.ps' % (out, name))
