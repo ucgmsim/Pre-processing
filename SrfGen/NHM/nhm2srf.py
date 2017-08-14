@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from math import sin, radians
+from math import sin, radians, log10
 import os
 import sys
 
@@ -10,10 +10,19 @@ import geo
 
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 GMT_FILE = 'fault_traces.gmt'
+LOG_FILE = 'logfile.txt'
 N_HYPO = 1
 N_SLIP = 1
 SEED_0 = 1234
 SEED_INC = 10
+
+# Leonard 2014 Relations
+def leonard(rake, A):
+    # if dip slip else strike slip
+    if round(rake % 360 / 90.) % 2:
+        return 4.19 + log10(A)
+    else:
+        return 4.18 + log10(A)
 
 ###
 ### PREPARE
@@ -43,6 +52,9 @@ with open(NHM_FILE, 'r') as dbr:
     db = map(str.strip, dbr.readlines())
 dbl = len(db)
 
+with open(LOG_FILE, 'w') as log:
+    log.write('filename\tshyp\tdhyp\tseed\n')
+
 ###
 ### PROCESS FAULTS
 ###
@@ -64,7 +76,7 @@ while dbi < dbl:
         fault = faults[fault_names.index(name)]
         n_hypo = int(fault[1])
         n_slip = int(fault[2])
-    seeds = xrange(SEED_0, SEED_0 + SEED_INC * (n_slip + 1), SEED_INC)
+    seed = SEED_0
 
     # load trace
     pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
@@ -132,6 +144,9 @@ while dbi < dbl:
         dlen = [[0.5] * n_plane]
     fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
             / sin(radians(dip[0][0]))] * n_plane]
+    if float(db[dbi + 6].split()[0]) > 12:
+        fwid = [[fwid[0][0] + 3] * n_plane]
+        mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
     dwid = dlen
     stk = [strikes]
     elon = [[ll[0] for ll in mids]]
@@ -144,7 +159,8 @@ while dbi < dbl:
         # NOTE: this shypo is relative to the first combined fault
         # if not adjusted later, must be relative to full length
         shypo = [[shyp_shift - (lengths[0] / 2.)]]
-        for seed in seeds:
+        for _ in xrange(n_slip):
+            seed += SEED_INC
             prefix = 'Srf/%s_HYP%.2d-%.2d_S%s' \
                     % (name, n_shyp + 1, n_hypo, seed)
             # create SRF from description
@@ -152,6 +168,9 @@ while dbi < dbl:
                     rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
                     elon, elat, shypo, dhypo, dt, seed, prefix, cases, \
                     dip_dir = dip_dir, stoch = 'Srf')
+            # store parameters
+            with open(LOG_FILE, 'a') as log:
+                log.write('%s.srf\t%s\t%s\t%s\n' % (prefix, shypo[0][0], dhypo[0][0], seed))
 
     # store fault traces
     #with open(GMT_FILE, 'a') as traces:
