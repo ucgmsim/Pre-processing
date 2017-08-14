@@ -144,8 +144,10 @@ while dbi < dbl:
         dlen = [[0.5] * n_plane]
     fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
             / sin(radians(dip[0][0]))] * n_plane]
-    if float(db[dbi + 6].split()[0]) > 12:
-        fwid = [[fwid[0][0] + 3] * n_plane]
+    # Karim: add 3km to depth if bottom >= 12km
+    if float(db[dbi + 6].split()[0]) >= 12:
+        fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0] + 3) \
+            / sin(radians(dip[0][0]))] * n_plane]
         mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
     dwid = dlen
     stk = [strikes]
@@ -161,8 +163,8 @@ while dbi < dbl:
         shypo = [[shyp_shift - (lengths[0] / 2.)]]
         for _ in xrange(n_slip):
             seed += SEED_INC
-            prefix = 'Srf/%s_HYP%.2d-%.2d_S%s' \
-                    % (name, n_shyp + 1, n_hypo, seed)
+            prefix = 'Srf/%s/%s_HYP%.2d-%.2d_S%s' \
+                    % (name, name, n_shyp + 1, n_hypo, seed)
             # create SRF from description
             CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
                     rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
