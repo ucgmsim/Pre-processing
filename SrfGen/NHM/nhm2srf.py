@@ -169,7 +169,7 @@ while dbi < dbl:
             CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
                     rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
                     elon, elat, shypo, dhypo, dt, seed, prefix, cases, \
-                    dip_dir = dip_dir, stoch = 'Srf')
+                    dip_dir = dip_dir, stoch = 'Srf/%s' % (name))
             # store parameters
             with open(LOG_FILE, 'a') as log:
                 log.write('%s.srf\t%s\t%s\t%s\n' % (prefix, shypo[0][0], dhypo[0][0], seed))
