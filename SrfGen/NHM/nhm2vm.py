@@ -357,6 +357,17 @@ while dbi < dbl:
                 max(c4[0], c1[0], c3[0], c2[0], ll_region[1]), \
                 min(c4[1], c1[1], c3[1], c2[1], ll_region[2]), \
                 max(c4[1], c1[1], c3[1], c2[1], ll_region[3]))
+        with open('/home/vap30/ucgmsim/Velocity-Model/AlpineF2K/Log/VeloModCorners.txt', 'r') as c:
+            c.readline()
+            c.readline()
+            t3 = map(float, c.readline().split())
+            t4 = map(float, c.readline().split())
+            t1 = map(float, c.readline().split())
+            t2 = map(float, c.readline().split())
+        print geo.ll_dist(c1[0], c1[1], c4[0], c4[1]), geo.ll_dist(t1[0], t1[1], t4[0], t4[1])
+        print geo.ll_dist(c2[0], c2[1], c3[0], c3[1]), geo.ll_dist(t2[0], t2[1], t3[0], t3[1])
+        print geo.ll_dist(c1[0], c1[1], c2[0], c2[1]), geo.ll_dist(t1[0], t1[1], t2[0], t2[1])
+        print geo.ll_dist(c3[0], c3[1], c4[0], c4[1]), geo.ll_dist(t3[0], t3[1], t4[0], t4[1])
 
         # proportion in ocean
         ll_region1 = corners2region(c1, c2, c3, c4)
@@ -444,7 +455,7 @@ while dbi < dbl:
                 'nx = "%s"' % (int(round(xlen / hh))), \
                 'ny = "%s"' % (int(round(ylen / hh))), \
                 'nz = "%s"' % (int(round(zlen / hh))), \
-                'suffx = "_rt01-h%.3f"' % (hh)]))
+                'sufx = "_rt01-h%.3f"' % (hh)]))
     with open(table, 'a') as t:
         if adjusted:
             t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
@@ -484,7 +495,7 @@ while dbi < dbl:
     p.path('res/rough_land.txt', is_file = True, close = False, colour = 'blue', width = '0.2p')
     p.path('res/centre.txt', is_file = True, close = False, colour = 'red', width = '0.2p')
     # actual corners
-    #p.points('/home/vap30/ucgmsim/Velocity-Model/AUTO_TEST/Log/VeloModCorners.txt', fill = 'red', line = None, shape = 'c', size = 0.05)
+    p.points('/home/vap30/ucgmsim/Velocity-Model/AlpineF2K/Log/VeloModCorners.txt', fill = 'red', line = None, shape = 'c', size = 0.05)
     p.finalise()
     p.png(dpi = 200, clip = True, background = 'white')
 
