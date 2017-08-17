@@ -2,6 +2,8 @@
 
 import math
 import os
+from shutil import rmtree
+from subprocess import Popen
 import sys
 from time import time
 
@@ -10,30 +12,22 @@ import numpy as np
 
 import geo
 import gmt
+# location containing Bradley_2010_Sa.py and AfshariStewart_2016_Ds.py
 sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
 from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
-nhm = 'NZ_FLTmodel_2010.txt'
-pgv_target = 5
-centre = 'res/centre.txt'
-hh = 0.4
+NHM = 'NZ_FLTmodel_2010.txt'
+# first entry index in NHM file
+NHM_START = 15
+PGV_TARGET = 5
+NZ_CENTRE_LINE = 'res/centre.txt'
+NZ_LAND_OUTLINE = 'res/rough_land.txt'
+HH = 0.4
+DT = 0.005
 SPACE_LAND = 5
 SPACE_SRF = 15
-
-if len(sys.argv) > 1:
-    target = sys.argv[1]
-else:
-    print('First parameter is name of fault in database.')
-    print('Use "ALL" to loop through all faults.')
-    sys.exit(1)
-if target == 'ALL':
-    target = None
-if len(sys.argv) > 2:
-    out = os.path.abspath(sys.argv[2])
-else:
-    out = os.path.abspath('autovm')
-table = '%s/vminfo.csv' % (out)
+NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -45,7 +39,8 @@ class siteprop:
     Rtvz = 0
     # PGV
     period = -1
-    Z1pt0 = math.exp(28.5 - (3.82 / 8.) * math.log(math.pow(V30, 8) + math.pow(378.7, 8)))
+    Z1pt0 = math.exp(28.5 - (3.82 / 8.) * math.log(math.pow(V30, 8) \
+            + math.pow(378.7, 8)))
     # for Ds
     defn = None
 class faultprop:
@@ -56,7 +51,7 @@ class faultprop:
     # for Ds
     rupture_type = None
 
-# Leonard 2014 Relations
+# Leonard 2014 relationship between area and magnitude
 def leonard(rake, A):
     # if dip slip else strike slip
     if round(rake % 360 / 90.) % 2:
@@ -72,9 +67,10 @@ def find_rrup():
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
         pgv = Bradley_2010_Sa(siteprop, faultprop)[0]
-        if pgv_target/pgv - 1 > 0.01:
+        # factor 0.02 is conservative step to avoid infinite looping
+        if PGV_TARGET / pgv - 1 > 0.01:
             rrup -= rrup * 0.02
-        elif pgv_target/pgv - 1 < -0.01:
+        elif PGV_TARGET / pgv - 1 < -0.01:
             rrup += rrup * 0.02
         else:
             break
@@ -85,10 +81,12 @@ def auto_z(mag, depth):
     return round(10 + depth + (10 \
             * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), \
             (0.3))), 0)
+
 # simulation time based on magnitude
 def auto_time(mag):
     return np.power(10, max(1, 0.5 * mag - 1))
-# other variations
+
+# simulation time based on area
 def auto_time2(xlen, ylen, ds_multiplier):
     s_wave_arrival = max(xlen, ylen) / 3.2
     # alternative if rrup not available
@@ -98,30 +96,34 @@ def auto_time2(xlen, ylen, ds_multiplier):
     return s_wave_arrival + ds_multiplier * ds
 
 # keep dx and dy small enough relative to domain
+# h5py will crash when opening grd with less than 2^14 gridpoints
 def auto_dxy(region):
+    # assume not going over earth quadrants
     x_diff = region[1] - region[0]
     y_diff = region[3] - region[2]
 
     # start off at roughly 1km
     dxy = 0.01
-    # this formula may not be exact, should actually be more if anything (safe)
+    # this formula may not be exact, lower value than actual if anything (safe)
     while math.ceil(x_diff / dxy) * math.ceil(y_diff / dxy) < 16384:
         dxy *= 0.5
     return dxy
 
-# proportion of gmt mask file filled (0 -> 1)
+# proportion of gmt mask file filled (1s vs 0s)
+# TODO: should be part of GMT library
 def grd_proportion(grd_file):
     try:
         with h5.File(grd_file, 'r') as grd:
             return 100.0 * np.nansum(grd['z'][...]) / float(grd['z'].size)
     except IOError:
-        print('Warning, Invalid GRD')
-        return 0.0
+        print('INVALID GRD: %s' % (grd_file))
+        # this should no longer happen when auto_dxy is used
+        raise
 
-# get longitude on NZ centre path at latitude
+# get longitude on NZ centre path at given latitude
 def centre_lon(lat_target):
     # find closest points either side
-    with open(centre, 'r') as c:
+    with open(NZ_CENTRE_LINE, 'r') as c:
         for line in c:
             ll = map(float, line.split())
             if ll[1] < lat_target:
@@ -133,33 +135,75 @@ def centre_lon(lat_target):
         # find rough proportion of distance
         lat_ratio = (lat_target - ll_bottom[1]) / (ll_top[1] - ll_bottom[1])
     except (UnboundLocalError, NameError):
-        print('WARNING: VM edge out of lat bounds for centre line.')
+        print('ERROR: VM edge out of lat bounds for centre line.')
         raise
-    # consider same ratio along longitude differenc to be correct
+    # consider same ratio along longitude difference to be correct
     return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
 
-# 
+# return region that just fits 4 points
 def corners2region(c1, c2, c3, c4):
     all_corners = np.array([c1, c2, c3, c4])
     x_min, y_min = np.min(all_corners, axis = 0)
     x_max, y_max = np.max(all_corners, axis = 0)
     return (x_min, x_max, y_min, y_max)
 
-#
+# create (closed) GMT path file from 4 points
 def corners2path(c1, c2, c3, c4, output):
     with open(output, 'w') as o:
         o.write('>corners\n%s %s\n%s %s\n%s %s\n%s %s\n%s %s\n' \
                 % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], \
                 c4[0], c4[1], c1[0], c1[1]))
 
+# get outer corners of a domain
+def build_corners(origin, rot, xlen, ylen):
+    # wanted xlen, ylen is at corners
+    # approach answer at infinity / "I don't know the formula" algorithm
+
+    # amount to shift from middle
+    x_shift = xlen / 2.
+    y_shift = ylen / 2.
+    # x lengths will always be correct
+    target_y = ylen
+
+    # adjust middle ylen such that edge (corner to corner) ylen is correct
+    while True:
+        # upper and lower mid points
+        t_u = geo.ll_shift(origin[1], origin[0], y_shift, rot)[::-1]
+        t_l = geo.ll_shift(origin[1], origin[0], y_shift, rot + 180)[::-1]
+        # bearings have changed at the top and bottom
+        top_bearing = (geo.ll_bearing(t_u[0], t_u[1], origin[0], origin[1]) \
+                + 180) % 360
+        bottom_bearing = (geo.ll_bearing(t_l[0], t_l[1], origin[0], origin[1]))
+        # extend top and bottom middle line to make right edge
+        c1 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing + 90)[::-1]
+        c4 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing + 90)[::-1]
+        # check right edge distance
+        current_y = geo.ll_dist(c1[0], c1[1], c4[0], c4[1])
+        if round(target_y, 10) != round(current_y, 10):
+            y_shift += (target_y - current_y) / 2.
+        else:
+            break
+    # complete for left edge
+    c2 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing - 90)[::-1]
+    c3 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing - 90)[::-1]
+
+    # at this point we have a perfect square (by corner distance)
+    # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
+    # TODO: remove t_l and t_u
+    return c1, c2, c3, c4
+
 # maximum width along lines a and b
-def max_width(a0, a1, b0, b1, m0, m1):
-    len_a = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
-    len_b = geo.ll_dist(b0[0], b0[1], b1[0], b1[1])
-    len_m = geo.ll_dist(m0[0], m0[1], m1[0], m1[1])
+def reduce_domain(a0, a1, b0, b1):
+    # scan line paths follow lines a, b
+    len_ab = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
     bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
-    bearing_m = geo.ll_bearing(m0[0], m0[1], m1[0], m1[1])
+
+    # determine rest of model parameters
+    origin = geo.ll_mid(a0[0], a0[1], b1[0], b1[1])
+    centre_top = geo.ll_mid(a1[0], a1[1], b1[0], b1[1])
+    rot = geo.ll_bearing(origin[0], origin[1], centre_top[0], centre_top[1])
+    xlen = geo.ll_dist(a0[0], a0[1], b0[0], b0[1])
 
     # number of scan lines accross domain (inclusive of edges)
     scanlines = 81
@@ -169,21 +213,22 @@ def max_width(a0, a1, b0, b1, m0, m1):
     # store scan data for 2nd level processing
     scan_extremes = np.zeros((scanlines, 2, 2))
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint = True)):
-        m = geo.ll_shift(m0[1], m0[0], x * len_m, bearing_m)[::-1]
-        a = geo.ll_shift(a0[1], a0[0], x * len_a, bearing_a)[::-1]
-        b = geo.ll_shift(b0[1], b0[0], x * len_b, bearing_b)[::-1]
+        a = geo.ll_shift(a0[1], a0[0], x * len_ab, bearing_a)[::-1]
+        b = geo.ll_shift(b0[1], b0[0], x * len_ab, bearing_b)[::-1]
+        m = geo.ll_mid(a[0], a[1], b[0], b[1])
+        # extend path a -> b, make sure we reach land for intersections
         bearing_p = geo.ll_bearing(m[0], m[1], a[0], a[1])
         ap = geo.ll_shift(m[1], m[0], 600, bearing_p)[::-1]
         bp = geo.ll_shift(m[1], m[0], 600, bearing_p + 180)[::-1]
         # mid to east edge, west edge
         m2ee = geo.ll_dist(m[0], m[1], a[0], a[1])
         m2we = geo.ll_dist(m[0], m[1], b[0], b[1])
-        # gmt spacial is not great-circle path connective
+        # GMT spatial is not great-circle path connective
         geo.path_from_corners(corners = [ap, bp], \
                 output = '%s/tempEXT.tmp' % (out), \
                 min_edge_points = 80, close = False)
         isections, icomps = gmt.intersections( \
-                ['%s/srf.path' % (out), 'res/rough_land.txt', \
+                ['%s/srf.path' % (out), NZ_LAND_OUTLINE, \
                 '%s/tempEXT.tmp' % (out)], items = True, \
                 containing = '%s/tempEXT.tmp' % (out))
         if len(isections) == 0:
@@ -195,53 +240,50 @@ def max_width(a0, a1, b0, b1, m0, m1):
         for c in xrange(len(isections)):
             if '%s/srf.path' % (out) in icomps[c]:
                 diff = SPACE_SRF
-            elif 'res/rough_land.txt' in icomps[c]:
+            elif NZ_LAND_OUTLINE in icomps[c]:
                 diff = SPACE_LAND
             # these bearings will be slightly wrong but don't need to be exact
+            # TODO: adjust to follow same path as ap -> bp
             as_east.append(geo.ll_shift(isections[c][1], isections[c][0], \
-                    diff, bearing + 90)[::-1])
+                    diff, bearing_p)[::-1])
             as_west.append(geo.ll_shift(isections[c][1], isections[c][0], \
-                    diff, bearing - 90)[::-1])
+                    diff, bearing_p + 180)[::-1])
         # find final extremes
         east = as_east[np.argmax(as_east, axis = 0)[0]]
         west = as_west[np.argmin(as_west, axis = 0)[0]]
-        # for north/south, use direct/un-shifted points
+        # for north/south (later on), use direct/un-shifted points
         scan_extremes[i] = isections[np.argmax(isections, axis = 0)[0]], \
                 isections[np.argmin(isections, axis = 0)[0]]
 
-        #
+        # distance beyond east is negative
         m2e = geo.ll_dist(m[0], m[1], east[0], east[1])
         be = geo.ll_bearing(m[0], m[1], east[0], east[1])
-        if abs(be - (bearing + 90) % 360) > 90:
+        if abs(be - (bearing_p) % 360) > 90:
             m2e *= -1
-        over_e = max(over_e, m2e - m2ee)
-        #
+        over_e = max(over_e, math.ceil((m2e - m2ee) / HH) * HH)
+        # distance beyond west is negative
         m2w = geo.ll_dist(m[0], m[1], west[0], west[1])
         bw = geo.ll_bearing(m[0], m[1], west[0], west[1])
-        if abs(bw - (bearing - 90) % 360) > 90:
+        if abs(bw - (bearing_p + 180) % 360) > 90:
             m2w *= -1
-        over_w = max(over_w, m2w - m2we)
+        over_w = max(over_w, math.ceil((m2w - m2we) / HH) * HH)
 
-    # shift sides
-    if over_e != None and over_e < 0:
-        a0 = geo.ll_shift(a0[1], a0[0], over_e, bearing + 90)[::-1]
-        a1 = geo.ll_shift(a1[1], a1[0], over_e, bearing + 90)[::-1]
-    if over_e != None and over_w < 0:
-        b0 = geo.ll_shift(b0[1], b0[0], over_w, bearing - 90)[::-1]
-        b1 = geo.ll_shift(b1[1], b1[0], over_w, bearing - 90)[::-1]
+    # bring in sides
+    xlen2 = xlen + over_e * (over_e < 0) + over_w * (over_w < 0)
+    origin2 = geo.ll_shift(origin[1], origin[0], \
+            xlen2 / 2. - over_w * (over_w < 0) - xlen / 2., rot + 90)[::-1]
+    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab)
 
-    # corners have moved
-    len_a = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
-    len_b = geo.ll_dist(b0[0], b0[1], b1[0], b1[1])
+    # corners may have moved
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
     bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
     # second scan, reduce north and south
-    over_s = None
-    over_n = None
+    over_s = 0
+    over_n = len_ab
     land_discovered = False
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint = True)):
-        a = geo.ll_shift(a0[1], a0[0], x * len_a, bearing_a)[::-1]
-        b = geo.ll_shift(b0[1], b0[0], x * len_b, bearing_b)[::-1]
+        a = geo.ll_shift(a0[1], a0[0], x * len_ab, bearing_a)[::-1]
+        b = geo.ll_shift(b0[1], b0[0], x * len_ab, bearing_b)[::-1]
         # determine if window contains any land by locations of intersections
         isect_inside = False
         isect_east = False
@@ -255,37 +297,59 @@ def max_width(a0, a1, b0, b1, m0, m1):
                 isect_west = True
         # not on land if isect outside zone and either no east or no west isect
         if not isect_inside and (not isect_east or not isect_west):
+            # TODO: invert above if statement gracefully
+            pass
+        else:
             if not land_discovered:
                 # shift bottom edge up
-                over_s = x * len_m - 15
-        else:
+                over_s = math.floor((x * len_ab - 15) / HH) * HH
             land_discovered = True
-            over_n = x * len_m + 15
+            over_n = math.floor((len_ab - x * len_ab - 15) / HH) * HH
 
-    # shift top and bottom edge
-    if over_n != None and over_n < len_a:
-        a1 = geo.ll_shift(a0[1], a0[0], over_n, bearing_a)[::-1]
-        b1 = geo.ll_shift(b0[1], b0[0], over_n, bearing_b)[::-1]
-    if over_s != None and over_s > 0:
-        a0 = geo.ll_shift(a0[1], a0[0], over_s, bearing_a)[::-1]
-        b0 = geo.ll_shift(b0[1], b0[0], over_s, bearing_b)[::-1]
+    # bring in top and bottom edge
+    len_ab2 = len_ab - over_s * (over_s > 0) - over_n * (over_n > 0)
+    origin2 = geo.ll_shift(origin2[1], origin2[0], \
+            len_ab2 / 2. + over_s * (over_s > 0) - len_ab / 2., rot)[::-1]
+    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
     return a0, a1, b0, b1
 
-# make sure output directory exists for images
+###
+### START
+###
+
+# PARAMETER 1: name of nhm entry
+# PARAMETER 2: output folder (optional)
+if len(sys.argv) > 1:
+    target = sys.argv[1]
+else:
+    print('First parameter is name of fault in database.')
+    print('Use "ALL" to loop through all faults.')
+    sys.exit(1)
+if target == 'ALL':
+    target = None
+if len(sys.argv) > 2:
+    out = os.path.abspath(sys.argv[2])
+else:
+    out = os.path.abspath('autovm')
+table = '%s/vminfo.csv' % (out)
+
+# make sure output directory exists
 if not os.path.exists(out):
     os.makedirs(out)
 
-# clear table file
+# initialise table file
 with open(table, 'w') as t:
-    t.write('"name","mw","plane depth (km, to bottom)","vm depth (zlen, km)","sim time (s)",'
-            '"xlen (km)","ylen (km)","land (% cover)","adjusted sim time (s)",'
-            '"adjusted xlen (km)","adjusted ylen (km)","adjusted land (% cover)"\n')
+    t.write('"name","mw","plane depth (km, to bottom)","vm depth (zlen, km)",'
+            '"sim time (s)","xlen (km)","ylen (km)","land (% cover)",'
+            '"adjusted vm depth (zlen, km)","adjusted sim time (s)",'
+            '"adjusted xlen (km)","adjusted ylen (km)",'
+            '"adjusted land (% cover)"\n')
 
 # loop through faults
-with open(nhm, 'r') as nf:
+with open(NHM, 'r') as nf:
     db = nf.readlines()
-    dbi = 15
-    dbl = len(db)
+dbi = NHM_START
+dbl = len(db)
 while dbi < dbl:
     name = db[dbi].strip()
     n_pt = int(db[dbi + 11])
@@ -303,10 +367,11 @@ while dbi < dbl:
     pwid = fwid * math.cos(math.radians(faultprop.dip))
     dip_dir = float(db[dbi + 4])
 
-    # top of fault trace
+    # top edge of fault trace
     pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
-    # bottom of fault trace
-    pts.extend([geo.ll_shift(ll[1], ll[0], pwid, dip_dir)[::-1] for ll in pts[::-1]])
+    # bottom edge of fault trace
+    pts.extend([geo.ll_shift(ll[1], ll[0], pwid, dip_dir)[::-1] \
+            for ll in pts[::-1]])
     # fault ll range (ll points at extremes)
     max_x, max_y = np.argmax(pts, axis = 0)
     min_x, min_y = np.argmin(pts, axis = 0)
@@ -321,53 +386,48 @@ while dbi < dbl:
     ll_region0 = (min_x[0], max_x[0], min_y[1], max_y[1])
     ll_region = (min_x[0] - 1, max_x[0] + 1, min_y[1] - 1, max_y[1] + 1)
 
-    # other
-    sim_time = auto_time(faultprop.Mw)
-    sim_time = auto_time2(x_ext, y_ext, 2)
+    # original domain has a ds_multiplier of 2 when calculating sim time
+    sim_time = (auto_time2(x_ext, y_ext, 2) // DT) * DT
 
-    # proportion in ocean
+    # proportion in ocean for simple domain
     dxy = auto_dxy(corners2region(min_x, max_x, min_y, max_y))
-    gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, dx = dxy, dy = dxy, wd = out, outside = 0)
+    gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, \
+            dx = dxy, dy = dxy, wd = out, outside = 0)
     land = grd_proportion('%s/landmask.grd' % (out))
 
+    # for plotting and calculating VM domain distance
     with open('%s/srf.path' % (out), 'w') as sp:
         sp.write('\n'.join([' '.join(map(str, ll)) for ll in pts]))
         sp.write('\n%s %s\n' % (pts[0][0], pts[0][1]))
 
     # modify if necessary
     adjusted = False
-    if faultprop.Mw >= 6.2 and land < 90:
+    if faultprop.Mw >= 6.2 and land < 99:
         adjusted = True
-        print 'modifying', name
-        # rotate based on centre line bearing
+        print('modifying %s' % (name))
+
+        # rotation based on centre line bearing at this point
         l1 = centre_lon(min_y[1])
         l2 = centre_lon(max_y[1])
         mid = geo.ll_mid(l1, min_y[1], l2, max_y[1])
-        mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
         bearing = round(geo.ll_bearing(mid[0], mid[1], l2, max_y[1]))
-        t_u = geo.ll_shift(mid0[1], mid0[0], x_ext / 2., bearing)[::-1]
-        t_l = geo.ll_shift(mid0[1], mid0[0], x_ext / 2., bearing + 180)[::-1]
-        c1 = geo.ll_shift(t_u[1], t_u[0], y_ext / 2., bearing + 90)[::-1]
-        c2 = geo.ll_shift(t_u[1], t_u[0], y_ext / 2., bearing - 90)[::-1]
-        c3 = geo.ll_shift(t_l[1], t_l[0], y_ext / 2., bearing - 90)[::-1]
-        c4 = geo.ll_shift(t_l[1], t_l[0], y_ext / 2., bearing + 90)[::-1]
-        c4, c1, c3, c2 = max_width(c4, c1, c3, c2, t_l, t_u)
-        # adjust region to fit
+
+        # wanted distance is at corners, not middle top to bottom
+        # approach answer at infinity / "I don't know the formula" algorithm
+        m = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
+        # TODO: recalculate xlen, ylen based on rrup and rotation
+        x = round(x_ext / HH) * HH
+        y = round(y_ext / HH) * HH
+        c1, c2, c3, c4 = build_corners(m, bearing, y, x)
+
+        # cut down ocean areas
+        c4, c1, c3, c2 = reduce_domain(c4, c1, c3, c2)
+
+        # adjust region to fit new corners
         ll_region = (min(c4[0], c1[0], c3[0], c2[0], ll_region[0]), \
                 max(c4[0], c1[0], c3[0], c2[0], ll_region[1]), \
                 min(c4[1], c1[1], c3[1], c2[1], ll_region[2]), \
                 max(c4[1], c1[1], c3[1], c2[1], ll_region[3]))
-        with open('/home/vap30/ucgmsim/Velocity-Model/AlpineF2K/Log/VeloModCorners.txt', 'r') as c:
-            c.readline()
-            c.readline()
-            t3 = map(float, c.readline().split())
-            t4 = map(float, c.readline().split())
-            t1 = map(float, c.readline().split())
-            t2 = map(float, c.readline().split())
-        print geo.ll_dist(c1[0], c1[1], c4[0], c4[1]), geo.ll_dist(t1[0], t1[1], t4[0], t4[1])
-        print geo.ll_dist(c2[0], c2[1], c3[0], c3[1]), geo.ll_dist(t2[0], t2[1], t3[0], t3[1])
-        print geo.ll_dist(c1[0], c1[1], c2[0], c2[1]), geo.ll_dist(t1[0], t1[1], t2[0], t2[1])
-        print geo.ll_dist(c3[0], c3[1], c4[0], c4[1]), geo.ll_dist(t3[0], t3[1], t4[0], t4[1])
 
         # proportion in ocean
         ll_region1 = corners2region(c1, c2, c3, c4)
@@ -387,7 +447,7 @@ while dbi < dbl:
         try:
             land1 = grd_proportion(grd_and) / total_vm * 100
         except ZeroDivisionError:
-            # this should not happen, bug in GMT
+            # this should not happen, bug in h5py or hdf5
             # auto_dxy should be a workaround
             land1 = 0
 
@@ -400,28 +460,31 @@ while dbi < dbl:
     else:
         bearing = 0
         mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
-        # following are just x_ext, y_ext??
-        ylen = geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1])
-        xlen = geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1])
+        ylen = y_ext
+        xlen = x_ext
         if round(land) < 1:
             xlen = 0
             ylen = 0
+        land1 = land
 
     # modified sim time
-    sim_time_mod = auto_time2(xlen, ylen, 1)
+    sim_time_mod = (auto_time2(xlen, ylen, 1) // DT) * DT
 
     # assuming hypocentre has been placed at 0.6 * depth
     zmax = auto_z(faultprop.Mw, float(db[dbi + 6].split()[0]) * 0.6)
     # round off
-    xlen = round(xlen / hh) * hh
-    ylen = round(ylen / hh) * hh
-    zlen = round(zmax / hh) * hh
+    xlen = round(xlen / HH) * HH
+    ylen = round(ylen / HH) * HH
+    zlen = round(zmax / HH) * HH
 
     # store info
-    with open('%s/%s.cfg' % (out, name), 'w') as vmd:
+    vm_out = os.path.join(out, name)
+    nzvm_cfg = os.path.join(out, 'nzvm.cfg')
+    params_vel = os.path.join(out, 'params_vel.py')
+    with open(nzvm_cfg, 'w') as vmd:
         vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
                 'MODEL_VERSION=1.65', \
-                'OUTPUT_DIR=%s' % (name), \
+                'OUTPUT_DIR=%s' % (vm_out), \
                 'ORIGIN_LAT=%s' % (mid0[1]), \
                 'ORIGIN_LON=%s' % (mid0[0]), \
                 'ORIGIN_ROT=%s' % (bearing), \
@@ -429,58 +492,82 @@ while dbi < dbl:
                 'EXTENT_Y=%s' % (ylen), \
                 'EXTENT_ZMAX=%s' % (zlen), \
                 'EXTENT_ZMIN=0.0', \
-                'EXTENT_Z_SPACING=%s' % (hh), \
-                'EXTENT_LATLON_SPACING=%s' % (hh), \
+                'EXTENT_Z_SPACING=%s' % (HH), \
+                'EXTENT_LATLON_SPACING=%s' % (HH), \
                 'MIN_VS=0.5', \
                 'TOPO_TYPE=BULLDOZED\n']))
-    with open('%s/%s.py' % (out, name), 'w') as pv:
+    with open(params_vel, 'w') as pv:
         pv.write('\n'.join(['mag = "%s"' % (faultprop.Mw), \
                 'centroidDepth = "%s"' % (float(db[dbi + 6].split()[0]) * 0.6), \
                 'MODEL_LAT = "%s"' % (mid0[1]), \
                 'MODEL_LON = "%s"' % (mid0[0]), \
                 'MODEL_ROT = "%s"' % (bearing), \
-                'hh = "%s"' % (hh), \
+                'hh = "%s"' % (HH), \
                 'min_vs = "0.5"', \
                 'model_version = "1.65"', \
                 'topo_type = "BULLDOZED"', \
                 'output_directory = "%s"' % (name), \
-                'extracted_slice_parameters_directory = "SliceParametersNZ/SliceParametersExtracted.txt"', \
+                'extracted_slice_parameters_directory'
+                ' = "SliceParametersNZ/SliceParametersExtracted.txt"', \
                 'code = "rt"', \
                 'extent_x = "%s"' % (xlen), \
                 'extent_y = "%s"' % (ylen), \
                 'extent_zmax = "%s"' % (zlen), \
                 'extent_zmin = "0.0"', \
-                'sim_duration = "%s"' % (sim_time * (not adjusted) + sim_time_mod * adjusted), \
+                'sim_duration = "%s"' % (sim_time * (not adjusted) \
+                        + sim_time_mod * adjusted), \
                 'flo = "1.0"', \
-                'nx = "%s"' % (int(round(xlen / hh))), \
-                'ny = "%s"' % (int(round(ylen / hh))), \
-                'nz = "%s"' % (int(round(zlen / hh))), \
-                'sufx = "_rt01-h%.3f"' % (hh)]))
+                'nx = "%s"' % (int(round(xlen / HH))), \
+                'ny = "%s"' % (int(round(ylen / HH))), \
+                'nz = "%s"' % (int(round(zlen / HH))), \
+                'sufx = "_rt01-h%.3f"' % (HH)]))
     with open(table, 'a') as t:
-        if adjusted:
-            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
-                    db[dbi + 6].split()[0], zlen, sim_time, \
-                    round(x_ext / hh) * hh, round(y_ext / hh) * hh, \
-                    land, zlen, sim_time_mod, xlen, ylen, land1))
-        else:
-            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' % (name, faultprop.Mw, \
-                    db[dbi + 6].split()[0], zlen, sim_time, round(x_ext / hh) * hh, round(y_ext / hh) * hh, land, zlen, sim_time_mod, xlen, ylen, land))
+        t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' \
+                % (name, faultprop.Mw, db[dbi + 6].split()[0], zlen, \
+                sim_time, round(x_ext / HH) * HH, round(y_ext / HH) * HH, \
+                land, zlen, sim_time_mod, xlen, ylen, land1))
 
-    # plot
-    p = gmt.GMTPlot('%s/%s.ps' % (out, name))
+    # create VM
+    # limitation of NZVM code - won't run if folder exists
+    if os.path.exists(vm_out):
+        rmtree(vm_out)
+    # limitation of NZVM code - won't find resources if wd is not NZVM dir
+    Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN)).wait()
+    # fix up directory contents
+    os.rename('%s/Velocity_Model/rho3dfile.d' % (vm_out), \
+            '%s/rho3dfile.d' % (vm_out))
+    os.rename('%s/Velocity_Model/vp3dfile.p' % (vm_out), \
+            '%s/vp3dfile.p' % (vm_out))
+    os.rename('%s/Velocity_Model/vs3dfile.s' % (vm_out), \
+            '%s/vs3dfile.s' % (vm_out))
+    os.rename('%s/Log/VeloModCorners.txt' % (vm_out), \
+            '%s/VeloModCorners.txt' % (vm_out))
+    rmtree(os.path.join(vm_out, 'Velocity_Model'))
+    rmtree(os.path.join(vm_out, 'Log'))
+    os.rename(nzvm_cfg, os.path.join(vm_out, os.path.basename(nzvm_cfg)))
+    os.rename(params_vel, os.path.join(vm_out, os.path.basename(params_vel)))
+
+    ###
+    ### PLOT
+    ###
+    p = gmt.GMTPlot(os.path.join(vm_out, 'optimisation.ps'))
     p.spacial('M', ll_region, sizing = 7)
     p.coastlines()
     # filled slip area
-    p.path('\n'.join([' '.join(map(str, ll)) for ll in pts]), is_file = False, close = True, fill = 'yellow', split = '-')
+    p.path('\n'.join([' '.join(map(str, ll)) for ll in pts]), \
+            is_file = False, close = True, fill = 'yellow', split = '-')
     # top edge
-    p.path('\n'.join([' '.join(map(str, ll)) for ll in pts[:len(pts) / 2]]), is_file = False)
-    # vm domain
-    #if not adjusted:
-    p.path('%s %s\n%s %s\n%s %s\n%s %s' % (min_x[0], min_y[1], max_x[0], min_y[1], max_x[0], max_y[1], min_x[0], max_y[1]), is_file = False, close = True, fill = 'black@95')
+    p.path('\n'.join([' '.join(map(str, ll)) for ll in pts[:len(pts) / 2]]), \
+            is_file = False)
+    # vm domain (simple and adjusted)
+    p.path('%s %s\n%s %s\n%s %s\n%s %s' % (min_x[0], min_y[1], \
+            max_x[0], min_y[1], max_x[0], max_y[1], min_x[0], max_y[1]), \
+            is_file = False, close = True, fill = 'black@95')
     if adjusted:
-        p.path('%s %s\n%s %s\n%s %s\n%s %s' % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]), is_file = False, close = True, fill = 'black@95', \
-                split = '-', width = '1.0p')
-    # info text
+        p.path('%s %s\n%s %s\n%s %s\n%s %s' % (c1[0], c1[1], c2[0], c2[1], \
+                c3[0], c3[1], c4[0], c4[1]), is_file = False, close = True, \
+                fill = 'black@95', split = '-', width = '1.0p')
+    # info text for simple and adjusted domains
     p.text((ll_region[0] + ll_region[1]) / 2., ll_region[3], \
             'Mw: %s X: %.0fkm, Y: %.0fkm, land: %.0f%%' \
             % (faultprop.Mw, x_ext, y_ext, land), align = 'CT', dy = -0.1, \
@@ -491,20 +578,30 @@ while dbi < dbl:
                 % (land1), align = 'CT', dy = -0.25, \
                 box_fill = 'white@50')
     # for testing, show land mask cover
-    #p.overlay('90/landmask.grd', 'hot', dx = '2k', dy = '2k', custom_region = ll_region0)
-    p.path('res/rough_land.txt', is_file = True, close = False, colour = 'blue', width = '0.2p')
-    p.path('res/centre.txt', is_file = True, close = False, colour = 'red', width = '0.2p')
-    # actual corners
-    p.points('/home/vap30/ucgmsim/Velocity-Model/AlpineF2K/Log/VeloModCorners.txt', fill = 'red', line = None, shape = 'c', size = 0.05)
+    # land outlines blue, nz centre line (for bearing calculation) red
+    p.path(NZ_LAND_OUTLINE, is_file = True, close = False, \
+            colour = 'blue', width = '0.2p')
+    p.path(NZ_CENTRE_LINE, is_file = True, close = False, \
+            colour = 'red', width = '0.2p')
+    # actual corners retrieved from NZVM output
+    p.points('%s/VeloModCorners.txt' % (vm_out), \
+            fill = 'red', line = None, shape = 'c', size = 0.05)
+    # store PNG, remove PS
     p.finalise()
     p.png(dpi = 200, clip = True, background = 'white')
+    os.remove(p.pspath)
 
-    # clean
-    for tmp in ['gmt.conf', 'gmt.history', 'tempEXT.tmp', 'srf.path', \
-            'landmask_AND.grd', 'landmask_vm.grd', 'landmask_vm.path', \
-            'landmask.grd', 'landmask1.grd', '%s.ps' % (name)]:
-        if os.path.exists(os.path.join(out, tmp)):
-            os.remove(os.path.join(out, tmp))
+    # internal clean
+    for tmp in ['gmt.conf', 'gmt.history']:
+        if os.path.exists(os.path.join(vm_out, tmp)):
+            os.remove(os.path.join(vm_out, tmp))
 
     # move to next definition
     dbi += 13 + n_pt
+
+# external cleanup
+for tmp in ['gmt.conf', 'gmt.history', 'tempEXT.tmp', 'srf.path', \
+        'landmask_AND.grd', 'landmask_vm.grd', 'landmask_vm.path', \
+        'landmask.grd', 'landmask1.grd']:
+    if os.path.exists(os.path.join(out, tmp)):
+        os.remove(os.path.join(out, tmp))
