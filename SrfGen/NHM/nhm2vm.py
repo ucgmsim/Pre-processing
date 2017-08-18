@@ -28,6 +28,8 @@ DT = 0.005
 SPACE_LAND = 5
 SPACE_SRF = 15
 NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
+# call this as a script until the main function has a proper name
+GEN_COORDS = '/nesi/projects/nesi00213/qcore/gen_cords.py'
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -189,7 +191,6 @@ def build_corners(origin, rot, xlen, ylen):
 
     # at this point we have a perfect square (by corner distance)
     # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
-    # TODO: remove t_l and t_u
     return c1, c2, c3, c4
 
 # maximum width along lines a and b
@@ -356,20 +357,32 @@ while dbi < dbl:
     if target != None and name != target:
         dbi += 13 + n_pt
         continue
+    # basic fault properties
     faultprop.Mw = float(db[dbi + 10].split()[0])
     faultprop.rake = float(db[dbi + 5])
     faultprop.dip = float(db[dbi + 3].split()[0])
-    rrup, pga_actual = find_rrup()
-
-    # fault width (along dip), projected width (along dip direction)
-    fwid = (float(db[dbi + 6].split()[0]) - float(db[dbi + 7].split()[0])) \
-            / math.sin(math.radians(faultprop.dip))
-    pwid = fwid * math.cos(math.radians(faultprop.dip))
-    dip_dir = float(db[dbi + 4])
-
+    dtop = float(db[dbi + 7].split()[0])
+    dbottom = float(db[dbi + 6].split()[0])
     # top edge of fault trace
     pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
-    # bottom edge of fault trace
+    # Karim: add 3km to depth if bottom >= 12km
+    extend = dbottom >= 12
+    # fault width (along dip)
+    fwid = (dbottom - dtop + 3 * extend) \
+        / math.sin(math.radians(faultprop.dip))
+    # projected fault width (along dip direction)
+    pwid = fwid * math.cos(math.radians(faultprop.dip))
+    dip_dir = float(db[dbi + 4])
+    # Karim: fwid is different, update Mw
+    if extend:
+        trace_length = sum([geo.ll_dist(pts[plane][0], pts[plane][1], \
+                pts[plane + 1][0], pts[plane + 1][1]) \
+                for plane in xrange(n_pt - 1)])
+        faultprop.Mw = leonard(faultprop.rake, fwid * trace_length)
+    # rrup to reach wanted PGA
+    rrup, pga_actual = find_rrup()
+
+    # bottom edge of fault trace added after trace_length calculated
     pts.extend([geo.ll_shift(ll[1], ll[0], pwid, dip_dir)[::-1] \
             for ll in pts[::-1]])
     # fault ll range (ll points at extremes)
@@ -380,11 +393,17 @@ while dbi < dbl:
     max_x = geo.ll_shift(pts[max_x][1], pts[max_x][0], rrup, 90)[::-1]
     min_y = geo.ll_shift(pts[min_y][1], pts[min_y][0], rrup, 180)[::-1]
     max_y = geo.ll_shift(pts[max_y][1], pts[max_y][0], rrup, 0)[::-1]
-    x_ext = geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1])
-    y_ext = geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1])
+    x_ext = math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) \
+            / HH) * HH
+    y_ext = math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) \
+            / HH) * HH
     # vm region and plotting region
     ll_region0 = (min_x[0], max_x[0], min_y[1], max_y[1])
     ll_region = (min_x[0] - 1, max_x[0] + 1, min_y[1] - 1, max_y[1] + 1)
+    # proper corners with equally sized edges
+    bearing = 0
+    mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
+    o1, o2, o3, o4 = build_corners(mid0, bearing, x_ext, y_ext)
 
     # original domain has a ds_multiplier of 2 when calculating sim time
     sim_time = (auto_time2(x_ext, y_ext, 2) // DT) * DT
@@ -402,7 +421,7 @@ while dbi < dbl:
 
     # modify if necessary
     adjusted = False
-    if faultprop.Mw >= 6.2 and land < 99:
+    if faultprop.Mw >= 6.2 and land < 90:
         adjusted = True
         print('modifying %s' % (name))
 
@@ -452,30 +471,21 @@ while dbi < dbl:
             land1 = 0
 
         mid0 = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
-        ylen = geo.ll_dist(c4[0], c4[1], c1[0], c1[1])
-        xlen = geo.ll_dist(c4[0], c4[1], c3[0], c3[1])
-        if round(land1) < 1:
-            xlen = 0
-            ylen = 0
+        ylen = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) / HH) * HH
+        xlen = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) / HH) * HH
     else:
-        bearing = 0
-        mid0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
         ylen = y_ext
         xlen = x_ext
-        if round(land) < 1:
-            xlen = 0
-            ylen = 0
         land1 = land
+    # not enough land in final domain
+    if math.floor(land1) == 0:
+        xlen = 0
+        ylen = 0
 
     # modified sim time
     sim_time_mod = (auto_time2(xlen, ylen, 1) // DT) * DT
-
     # assuming hypocentre has been placed at 0.6 * depth
-    zmax = auto_z(faultprop.Mw, float(db[dbi + 6].split()[0]) * 0.6)
-    # round off
-    xlen = round(xlen / HH) * HH
-    ylen = round(ylen / HH) * HH
-    zlen = round(zmax / HH) * HH
+    zlen = round(auto_z(faultprop.Mw, (dbottom - dtop) * 0.6 + dtop) / HH) * HH
 
     # store info
     vm_out = os.path.join(out, name)
@@ -546,6 +556,8 @@ while dbi < dbl:
     rmtree(os.path.join(vm_out, 'Log'))
     os.rename(nzvm_cfg, os.path.join(vm_out, os.path.basename(nzvm_cfg)))
     os.rename(params_vel, os.path.join(vm_out, os.path.basename(params_vel)))
+    # create model_coords, model_bounds etc...
+    Popen([GEN_COORDS, vm_out]).wait()
 
     ###
     ### PLOT
@@ -560,9 +572,9 @@ while dbi < dbl:
     p.path('\n'.join([' '.join(map(str, ll)) for ll in pts[:len(pts) / 2]]), \
             is_file = False)
     # vm domain (simple and adjusted)
-    p.path('%s %s\n%s %s\n%s %s\n%s %s' % (min_x[0], min_y[1], \
-            max_x[0], min_y[1], max_x[0], max_y[1], min_x[0], max_y[1]), \
-            is_file = False, close = True, fill = 'black@95')
+    p.path('%s %s\n%s %s\n%s %s\n%s %s' % (o1[0], o1[1], o2[0], o2[1], \
+            o3[0], o3[1], o4[0], o4[1]), is_file = False, close = True, \
+            fill = 'black@95')
     if adjusted:
         p.path('%s %s\n%s %s\n%s %s\n%s %s' % (c1[0], c1[1], c2[0], c2[1], \
                 c3[0], c3[1], c4[0], c4[1]), is_file = False, close = True, \
