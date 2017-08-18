@@ -30,6 +30,8 @@ SPACE_SRF = 15
 NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
 # call this as a script until the main function has a proper name
 GEN_COORDS = '/nesi/projects/nesi00213/qcore/gen_cords.py'
+# used to calculate flo (km / s)
+MIN_VS = 0.5
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -491,7 +493,6 @@ while dbi < dbl:
     vm_out = os.path.join(out, name)
     nzvm_cfg = os.path.join(out, 'nzvm.cfg')
     params_vel = os.path.join(out, 'params_vel.py')
-    flo = 1. / (HH * 10.0)
     with open(nzvm_cfg, 'w') as vmd:
         vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
                 'MODEL_VERSION=1.65', \
@@ -527,7 +528,7 @@ while dbi < dbl:
                 'extent_zmin = "0.0"', \
                 'sim_duration = "%s"' % (sim_time * (not adjusted) \
                         + sim_time_mod * adjusted), \
-                'flo = "%s"' % (flo), \
+                'flo = "%s"' % (MIN_VS / (5.0 * HH)), \
                 'nx = "%s"' % (int(round(xlen / HH))), \
                 'ny = "%s"' % (int(round(ylen / HH))), \
                 'nz = "%s"' % (int(round(zlen / HH))), \
