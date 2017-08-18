@@ -491,6 +491,7 @@ while dbi < dbl:
     vm_out = os.path.join(out, name)
     nzvm_cfg = os.path.join(out, 'nzvm.cfg')
     params_vel = os.path.join(out, 'params_vel.py')
+    flo = 1. / (HH * 10.0)
     with open(nzvm_cfg, 'w') as vmd:
         vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
                 'MODEL_VERSION=1.65', \
@@ -526,7 +527,7 @@ while dbi < dbl:
                 'extent_zmin = "0.0"', \
                 'sim_duration = "%s"' % (sim_time * (not adjusted) \
                         + sim_time_mod * adjusted), \
-                'flo = "1.0"', \
+                'flo = "%s"' % (flo), \
                 'nx = "%s"' % (int(round(xlen / HH))), \
                 'ny = "%s"' % (int(round(ylen / HH))), \
                 'nz = "%s"' % (int(round(zlen / HH))), \
