@@ -39,6 +39,10 @@ if len(sys.argv) > 1:
     fault_names = [f[0] for f in faults]
 else:
     fault_names = None
+if len(sys.argv) > 2:
+    out = os.path.abspath(sys.argv[2])
+else:
+    out = os.path.abspath('Srf')
 
 ###
 ### LOAD FAULTS
@@ -68,15 +72,6 @@ while dbi < dbl:
     if fault_names != None and name not in fault_names:
         dbi += n_ln
         continue
-    # wanted parameters to override
-    if fault_names == None:
-        n_hypo = N_HYPO
-        n_slip = N_SLIP
-    else:
-        fault = faults[fault_names.index(name)]
-        n_hypo = int(fault[1])
-        n_slip = int(fault[2])
-    seed = SEED_0
 
     # load trace
     pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
@@ -119,7 +114,31 @@ while dbi < dbl:
         lengths = lengths[::-1]
         strikes = strikes[::-1]
     trace_length = sum(lengths)
-    hyp_step = trace_length / (n_hypo * 2.)
+
+    # wanted parameters to override
+    t_hypo = 'n'
+    if fault_names == None:
+        n_hypo = N_HYPO
+        n_slip = N_SLIP
+    else:
+        fault = faults[fault_names.index(name)]
+        try:
+            # given as number of hypocentres
+            n_hypo = int(fault[1])
+        except ValueError:
+            # given as hypocentre every x km
+            t_hypo = 'k'
+            hyp_step = float(fault[1][:-1])
+            n_hypo = 1 + int(trace_length // hyp_step)
+            # 0th hypocentre position
+            if n_hypo == 1:
+                z_hypo = trace_length / 2.
+            else:
+                z_hypo = (trace_length % hyp_step) / 2.
+        n_slip = int(fault[2])
+    if t_hypo == 'n':
+        hyp_step = trace_length / (n_hypo * 2.)
+    seed = SEED_0
 
     # named values
     dt = 0.025
@@ -157,19 +176,22 @@ while dbi < dbl:
 
     for n_shyp in xrange(n_hypo):
         # hypocentre position from far left edge
-        shyp_shift = hyp_step * (1 + 2 * n_shyp)
+        if t_hypo == 'n':
+            shyp_shift = hyp_step * (1 + 2 * n_shyp)
+        elif t_hypo == 'k':
+            shyp_shift = z_hypo + hyp_step * n_shyp
         # NOTE: this shypo is relative to the first combined fault
         # if not adjusted later, must be relative to full length
         shypo = [[shyp_shift - (lengths[0] / 2.)]]
         for _ in xrange(n_slip):
             seed += SEED_INC
-            prefix = 'Srf/%s/%s_HYP%.2d-%.2d_S%s' \
-                    % (name, name, n_shyp + 1, n_hypo, seed)
+            prefix = '%s/%s/Srf/%s_HYP%.2d-%.2d_S%s' \
+                    % (out, name, name, n_shyp + 1, n_hypo, seed)
             # create SRF from description
             CreateSRF_multi(nseg, seg_delay, mag, mom, rvfac_seg, gwid, \
                     rup_delay, flen, dlen, fwid, dwid, dtop, stk, rake, dip, \
                     elon, elat, shypo, dhypo, dt, seed, prefix, cases, \
-                    dip_dir = dip_dir, stoch = 'Srf/%s' % (name))
+                    dip_dir = dip_dir, stoch = '%s/%s/Stoch' % (out, name))
             # store parameters
             with open(LOG_FILE, 'a') as log:
                 log.write('%s.srf\t%s\t%s\t%s\n' % (prefix, shypo[0][0], dhypo[0][0], seed))
