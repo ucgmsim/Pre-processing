@@ -5,11 +5,14 @@ import os
 from shutil import rmtree
 from subprocess import Popen
 import sys
+from tempfile import mkdtemp
 from time import time
 
 import h5py as h5
+from mpi4py import MPI
 import numpy as np
 
+# qcore library should already be in path
 import geo
 import gmt
 # location containing Bradley_2010_Sa.py and AfshariStewart_2016_Ds.py
@@ -32,6 +35,8 @@ NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
 GEN_COORDS = '/nesi/projects/nesi00213/qcore/gen_cords.py'
 # used to calculate flo (km / s)
 MIN_VS = 0.5
+# MPI - do not change
+MASTER = 0
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -196,7 +201,7 @@ def build_corners(origin, rot, xlen, ylen):
     return c1, c2, c3, c4
 
 # maximum width along lines a and b
-def reduce_domain(a0, a1, b0, b1):
+def reduce_domain(a0, a1, b0, b1, wd):
     # scan line paths follow lines a, b
     len_ab = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
@@ -228,12 +233,12 @@ def reduce_domain(a0, a1, b0, b1):
         m2we = geo.ll_dist(m[0], m[1], b[0], b[1])
         # GMT spatial is not great-circle path connective
         geo.path_from_corners(corners = [ap, bp], \
-                output = '%s/tempEXT.tmp' % (out), \
+                output = '%s/tempEXT.tmp' % (wd), \
                 min_edge_points = 80, close = False)
         isections, icomps = gmt.intersections( \
-                ['%s/srf.path' % (out), NZ_LAND_OUTLINE, \
-                '%s/tempEXT.tmp' % (out)], items = True, \
-                containing = '%s/tempEXT.tmp' % (out))
+                ['%s/srf.path' % (wd), NZ_LAND_OUTLINE, \
+                '%s/tempEXT.tmp' % (wd)], items = True, \
+                containing = '%s/tempEXT.tmp' % (wd))
         if len(isections) == 0:
             scan_extremes[i] = np.nan
             continue
@@ -241,7 +246,7 @@ def reduce_domain(a0, a1, b0, b1):
         as_east = []
         as_west = []
         for c in xrange(len(isections)):
-            if '%s/srf.path' % (out) in icomps[c]:
+            if '%s/srf.path' % (wd) in icomps[c]:
                 diff = SPACE_SRF
             elif NZ_LAND_OUTLINE in icomps[c]:
                 diff = SPACE_LAND
@@ -316,85 +321,45 @@ def reduce_domain(a0, a1, b0, b1):
     a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
     return a0, a1, b0, b1
 
-###
-### START
-###
+def create_vm(details):
+    # temp directory for current process
+    ptemp = mkdtemp(prefix = '_tmp_', dir = details['out'])
 
-# PARAMETER 1: name of nhm entry
-# PARAMETER 2: output folder (optional)
-if len(sys.argv) > 1:
-    target = sys.argv[1]
-else:
-    print('First parameter is name of fault in database.')
-    print('Use "ALL" to loop through all faults.')
-    sys.exit(1)
-if target == 'ALL':
-    target = None
-if len(sys.argv) > 2:
-    out = os.path.abspath(sys.argv[2])
-else:
-    out = os.path.abspath('autovm')
-table = '%s/vminfo.csv' % (out)
-
-# make sure output directory exists
-if not os.path.exists(out):
-    os.makedirs(out)
-
-# initialise table file
-with open(table, 'w') as t:
-    t.write('"name","mw","plane depth (km, to bottom)","vm depth (zlen, km)",'
-            '"sim time (s)","xlen (km)","ylen (km)","land (% cover)",'
-            '"adjusted vm depth (zlen, km)","adjusted sim time (s)",'
-            '"adjusted xlen (km)","adjusted ylen (km)",'
-            '"adjusted land (% cover)"\n')
-
-# loop through faults
-with open(NHM, 'r') as nf:
-    db = nf.readlines()
-dbi = NHM_START
-dbl = len(db)
-while dbi < dbl:
-    name = db[dbi].strip()
-    n_pt = int(db[dbi + 11])
-    if target != None and name != target:
-        dbi += 13 + n_pt
-        continue
-    # basic fault properties
-    faultprop.Mw = float(db[dbi + 10].split()[0])
-    faultprop.rake = float(db[dbi + 5])
-    faultprop.dip = float(db[dbi + 3].split()[0])
-    dtop = float(db[dbi + 7].split()[0])
-    dbottom = float(db[dbi + 6].split()[0])
-    # top edge of fault trace
-    pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
+    # properties stored in classes (fault of external code)
+    faultprop.Mw = details['mag']
+    faultprop.rake = details['rake']
+    faultprop.dip = details['dip']
     # Karim: add 3km to depth if bottom >= 12km
-    extend = dbottom >= 12
+    extend = details['dbottom'] >= 12
     # fault width (along dip)
-    fwid = (dbottom - dtop + 3 * extend) \
+    fwid = (details['dbottom'] - details['dtop'] + 3 * extend) \
         / math.sin(math.radians(faultprop.dip))
     # projected fault width (along dip direction)
     pwid = fwid * math.cos(math.radians(faultprop.dip))
-    dip_dir = float(db[dbi + 4])
     # Karim: fwid is different, update Mw
     if extend:
-        trace_length = sum([geo.ll_dist(pts[plane][0], pts[plane][1], \
-                pts[plane + 1][0], pts[plane + 1][1]) \
-                for plane in xrange(n_pt - 1)])
+        trace_length = sum([geo.ll_dist(details['points'][plane][0], details['points'][plane][1], \
+                details['points'][plane + 1][0], details['points'][plane + 1][1]) \
+                for plane in xrange(details['n_pt'] - 1)])
         faultprop.Mw = leonard(faultprop.rake, fwid * trace_length)
     # rrup to reach wanted PGA
     rrup, pga_actual = find_rrup()
 
     # bottom edge of fault trace added after trace_length calculated
-    pts.extend([geo.ll_shift(ll[1], ll[0], pwid, dip_dir)[::-1] \
-            for ll in pts[::-1]])
+    details['points'].extend([geo.ll_shift(ll[1], ll[0], pwid, \
+            details['dip_dir'])[::-1] for ll in details['points'][::-1]])
     # fault ll range (ll points at extremes)
-    max_x, max_y = np.argmax(pts, axis = 0)
-    min_x, min_y = np.argmin(pts, axis = 0)
+    max_x, max_y = np.argmax(details['points'], axis = 0)
+    min_x, min_y = np.argmin(details['points'], axis = 0)
     # extend by wanted rrup
-    min_x = geo.ll_shift(pts[min_x][1], pts[min_x][0], rrup, 270)[::-1]
-    max_x = geo.ll_shift(pts[max_x][1], pts[max_x][0], rrup, 90)[::-1]
-    min_y = geo.ll_shift(pts[min_y][1], pts[min_y][0], rrup, 180)[::-1]
-    max_y = geo.ll_shift(pts[max_y][1], pts[max_y][0], rrup, 0)[::-1]
+    min_x = geo.ll_shift(details['points'][min_x][1], \
+            details['points'][min_x][0], rrup, 270)[::-1]
+    max_x = geo.ll_shift(details['points'][max_x][1], \
+            details['points'][max_x][0], rrup, 90)[::-1]
+    min_y = geo.ll_shift(details['points'][min_y][1], \
+            details['points'][min_y][0], rrup, 180)[::-1]
+    max_y = geo.ll_shift(details['points'][max_y][1], \
+            details['points'][max_y][0], rrup, 0)[::-1]
     x_ext = math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) \
             / HH) * HH
     y_ext = math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) \
@@ -412,20 +377,22 @@ while dbi < dbl:
 
     # proportion in ocean for simple domain
     dxy = auto_dxy(corners2region(min_x, max_x, min_y, max_y))
-    gmt.grd_mask('f', '%s/landmask.grd' % (out), region = ll_region0, \
-            dx = dxy, dy = dxy, wd = out, outside = 0)
-    land = grd_proportion('%s/landmask.grd' % (out))
+    gmt.grd_mask('f', '%s/landmask.grd' % (ptemp), region = ll_region0, \
+            dx = dxy, dy = dxy, wd = ptemp, outside = 0)
+    land = grd_proportion('%s/landmask.grd' % (ptemp))
 
     # for plotting and calculating VM domain distance
-    with open('%s/srf.path' % (out), 'w') as sp:
-        sp.write('\n'.join([' '.join(map(str, ll)) for ll in pts]))
-        sp.write('\n%s %s\n' % (pts[0][0], pts[0][1]))
+    with open('%s/srf.path' % (ptemp), 'w') as sp:
+        sp.write('\n'.join([' '.join(map(str, ll)) \
+                for ll in details['points']]))
+        sp.write('\n%s %s\n' \
+                % (details['points'][0][0], details['points'][0][1]))
 
     # modify if necessary
     adjusted = False
-    if faultprop.Mw >= 6.2 and land < 90:
+    if faultprop.Mw >= 6.2 and land < 99:
         adjusted = True
-        print('modifying %s' % (name))
+        print('modifying %s' % (details['name']))
 
         # rotation based on centre line bearing at this point
         l1 = centre_lon(min_y[1])
@@ -437,12 +404,10 @@ while dbi < dbl:
         # approach answer at infinity / "I don't know the formula" algorithm
         m = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
         # TODO: recalculate xlen, ylen based on rrup and rotation
-        x = round(x_ext / HH) * HH
-        y = round(y_ext / HH) * HH
-        c1, c2, c3, c4 = build_corners(m, bearing, y, x)
+        c1, c2, c3, c4 = build_corners(m, bearing, y_ext, x_ext)
 
         # cut down ocean areas
-        c4, c1, c3, c2 = reduce_domain(c4, c1, c3, c2)
+        c4, c1, c3, c2 = reduce_domain(c4, c1, c3, c2, ptemp)
 
         # adjust region to fit new corners
         ll_region = (min(c4[0], c1[0], c3[0], c2[0], ll_region[0]), \
@@ -453,18 +418,18 @@ while dbi < dbl:
         # proportion in ocean
         ll_region1 = corners2region(c1, c2, c3, c4)
         dxy = auto_dxy(ll_region1)
-        path_vm = '%s/landmask_vm.path' % (out)
-        grd_vm = '%s/landmask_vm.grd' % (out)
-        grd_land = '%s/landmask1.grd' % (out)
-        grd_and = '%s/landmask_AND.grd' % (out)
+        path_vm = '%s/landmask_vm.path' % (ptemp)
+        grd_vm = '%s/landmask_vm.grd' % (ptemp)
+        grd_land = '%s/landmask1.grd' % (ptemp)
+        grd_and = '%s/landmask_AND.grd' % (ptemp)
         corners2path(c1, c2, c3, c4, path_vm)
         gmt.grd_mask('f', grd_land, \
-                region = ll_region1, dx = dxy, dy = dxy, wd = out)
+                region = ll_region1, dx = dxy, dy = dxy, wd = ptemp)
         gmt.grd_mask(path_vm, grd_vm, \
-                region = ll_region1, dx = dxy, dy = dxy, wd = out)
+                region = ll_region1, dx = dxy, dy = dxy, wd = ptemp)
         total_vm = grd_proportion(grd_vm)
         gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_and], \
-                region = ll_region1, dx = dxy, dy = dxy, wd = out)
+                region = ll_region1, dx = dxy, dy = dxy, wd = ptemp)
         try:
             land1 = grd_proportion(grd_and) / total_vm * 100
         except ZeroDivisionError:
@@ -476,6 +441,7 @@ while dbi < dbl:
         ylen = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) / HH) * HH
         xlen = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) / HH) * HH
     else:
+        print('not modifying %s' % (details['name']))
         ylen = y_ext
         xlen = x_ext
         land1 = land
@@ -487,12 +453,24 @@ while dbi < dbl:
     # modified sim time
     sim_time_mod = (auto_time2(xlen, ylen, 1) // DT) * DT
     # assuming hypocentre has been placed at 0.6 * depth
-    zlen = round(auto_z(faultprop.Mw, (dbottom - dtop) * 0.6 + dtop) / HH) * HH
+    centroid_depth = (details['dbottom'] - details['dtop']) * 0.6 \
+            + details['dtop']
+    zlen = round(auto_z(faultprop.Mw, centroid_depth) / HH) * HH
+
+    if xlen == 0 or ylen == 0 or zlen == 0:
+        # clean and only return metadata
+        rmtree(ptemp)
+        return {'name':details['name'], 'mag':faultprop.Mw, \
+                'dbottom':details['dbottom'], \
+                'zlen':zlen, 'sim_time':sim_time, \
+                'xlen':x_ext, 'ylen':y_ext, 'land':land, \
+                'zlen_mod':zlen, 'sim_time_mod':sim_time_mod, \
+                'xlen_mod':xlen, 'ylen_mod':ylen, 'land_mod':land1}
 
     # store info
-    vm_out = os.path.join(out, name)
-    nzvm_cfg = os.path.join(out, 'nzvm.cfg')
-    params_vel = os.path.join(out, 'params_vel.py')
+    vm_out = os.path.join(details['out'], details['name'])
+    nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
+    params_vel = os.path.join(ptemp, 'params_vel.py')
     with open(nzvm_cfg, 'w') as vmd:
         vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
                 'MODEL_VERSION=1.65', \
@@ -510,7 +488,7 @@ while dbi < dbl:
                 'TOPO_TYPE=BULLDOZED\n']))
     with open(params_vel, 'w') as pv:
         pv.write('\n'.join(['mag = "%s"' % (faultprop.Mw), \
-                'centroidDepth = "%s"' % (float(db[dbi + 6].split()[0]) * 0.6), \
+                'centroidDepth = "%s"' % (centroid_depth), \
                 'MODEL_LAT = "%s"' % (mid0[1]), \
                 'MODEL_LON = "%s"' % (mid0[0]), \
                 'MODEL_ROT = "%s"' % (bearing), \
@@ -518,7 +496,7 @@ while dbi < dbl:
                 'min_vs = "0.5"', \
                 'model_version = "1.65"', \
                 'topo_type = "BULLDOZED"', \
-                'output_directory = "%s"' % (name), \
+                'output_directory = "%s"' % (details['name']), \
                 'extracted_slice_parameters_directory'
                 ' = "SliceParametersNZ/SliceParametersExtracted.txt"', \
                 'code = "rt"', \
@@ -533,18 +511,16 @@ while dbi < dbl:
                 'ny = "%s"' % (int(round(ylen / HH))), \
                 'nz = "%s"' % (int(round(zlen / HH))), \
                 'sufx = "_rt01-h%.3f"' % (HH)]))
-    with open(table, 'a') as t:
-        t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' \
-                % (name, faultprop.Mw, db[dbi + 6].split()[0], zlen, \
-                sim_time, round(x_ext / HH) * HH, round(y_ext / HH) * HH, \
-                land, zlen, sim_time_mod, xlen, ylen, land1))
 
     # create VM
     # limitation of NZVM code - won't run if folder exists
     if os.path.exists(vm_out):
         rmtree(vm_out)
     # limitation of NZVM code - won't find resources if wd is not NZVM dir
-    Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN)).wait()
+    # progress report is not multiprocess friendly (in stdout)
+    with open('/dev/null', 'a') as sink:
+        Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN), \
+                stdout = sink).wait()
     # fix up directory contents
     os.rename('%s/Velocity_Model/rho3dfile.d' % (vm_out), \
             '%s/rho3dfile.d' % (vm_out))
@@ -559,7 +535,9 @@ while dbi < dbl:
     os.rename(nzvm_cfg, os.path.join(vm_out, os.path.basename(nzvm_cfg)))
     os.rename(params_vel, os.path.join(vm_out, os.path.basename(params_vel)))
     # create model_coords, model_bounds etc...
-    Popen([GEN_COORDS, vm_out]).wait()
+    # debug info unwanted (in stdout instead of stderr)
+    with open('/dev/null', 'a') as sink:
+        Popen([GEN_COORDS, vm_out], stdout = sink).wait()
 
     ###
     ### PLOT
@@ -568,11 +546,11 @@ while dbi < dbl:
     p.spacial('M', ll_region, sizing = 7)
     p.coastlines()
     # filled slip area
-    p.path('\n'.join([' '.join(map(str, ll)) for ll in pts]), \
+    p.path('\n'.join([' '.join(map(str, ll)) for ll in details['points']]), \
             is_file = False, close = True, fill = 'yellow', split = '-')
     # top edge
-    p.path('\n'.join([' '.join(map(str, ll)) for ll in pts[:len(pts) / 2]]), \
-            is_file = False)
+    p.path('\n'.join([' '.join(map(str, ll)) \
+            for ll in details['points'][:len(details['points']) / 2]]), is_file = False)
     # vm domain (simple and adjusted)
     p.path('%s %s\n%s %s\n%s %s\n%s %s' % (o1[0], o1[1], o2[0], o2[1], \
             o3[0], o3[1], o4[0], o4[1]), is_file = False, close = True, \
@@ -583,7 +561,7 @@ while dbi < dbl:
                 fill = 'black@95', split = '-', width = '1.0p')
     # info text for simple and adjusted domains
     p.text((ll_region[0] + ll_region[1]) / 2., ll_region[3], \
-            'Mw: %s X: %.0fkm, Y: %.0fkm, land: %.0f%%' \
+            'Mw: %.2f X: %.0fkm, Y: %.0fkm, land: %.0f%%' \
             % (faultprop.Mw, x_ext, y_ext, land), align = 'CT', dy = -0.1, \
             box_fill = 'white@50')
     if adjusted:
@@ -609,13 +587,158 @@ while dbi < dbl:
     for tmp in ['gmt.conf', 'gmt.history']:
         if os.path.exists(os.path.join(vm_out, tmp)):
             os.remove(os.path.join(vm_out, tmp))
+    # working dir cleanup
+    rmtree(ptemp)
 
-    # move to next definition
-    dbi += 13 + n_pt
+    # return vm info
+    return {'name':details['name'], 'mag':faultprop.Mw, \
+            'dbottom':details['dbottom'], \
+            'zlen':zlen, 'sim_time':sim_time, \
+            'xlen':x_ext, 'ylen':y_ext, 'land':land, \
+            'zlen_mod':zlen, 'sim_time_mod':sim_time_mod, \
+            'xlen_mod':xlen, 'ylen_mod':ylen, 'land_mod':land1}
 
-# external cleanup
-for tmp in ['gmt.conf', 'gmt.history', 'tempEXT.tmp', 'srf.path', \
-        'landmask_AND.grd', 'landmask_vm.grd', 'landmask_vm.path', \
-        'landmask.grd', 'landmask1.grd']:
-    if os.path.exists(os.path.join(out, tmp)):
-        os.remove(os.path.join(out, tmp))
+def load_msgs(targets):
+    msgs = []
+    # PARAMETER 2: output folder (optional)
+    if len(sys.argv) > 2:
+        out = os.path.abspath(sys.argv[2])
+    else:
+        out = os.path.abspath('autovm')
+    # make sure output directory exists
+    if not os.path.exists(out):
+        os.makedirs(out)
+
+    # loop through faults
+    with open(NHM, 'r') as nf:
+        db = nf.readlines()
+    dbi = NHM_START
+    dbl = len(db)
+    while dbi < dbl:
+        name = db[dbi].strip()
+        n_pt = int(db[dbi + 11])
+        if targets != None and name not in targets:
+            dbi += 13 + n_pt
+            continue
+        # retrieve required properties
+        dip = float(db[dbi + 3].split()[0])
+        dip_dir = float(db[dbi + 4])
+        rake = float(db[dbi + 5])
+        dbottom = float(db[dbi + 6].split()[0])
+        dtop = float(db[dbi + 7].split()[0])
+        mag = float(db[dbi + 10].split()[0])
+        pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
+        # dictionary easy to retrieve, even with future changes
+        msgs.append({'name':name, 'dip':dip, 'dip_dir':dip_dir, 'rake':rake, \
+                'dbottom':dbottom, 'dtop':dtop, 'mag':mag, \
+                'n_pt':n_pt, 'points':pts, 'out':out})
+        # next fault
+        dbi += 13 + n_pt
+    return msgs
+
+def store_summary(table, info_store):
+    # initialise table file
+    with open(table, 'w') as t:
+        t.write('"name","mw","plane depth (km, to bottom)",'
+                '"vm depth (zlen, km)","sim time (s)","xlen (km)",'
+                '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
+                '"adjusted sim time (s)","adjusted xlen (km)",'
+                '"adjusted ylen (km)","adjusted land (% cover)"\n')
+
+        for p in info_store:
+            for i in p:
+                t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' \
+                        % (i['name'], i['mag'], i['dbottom'], \
+                        i['zlen'], i['sim_time'], \
+                        i['xlen'], i['ylen'], i['land'], \
+                        i['zlen_mod'], i['sim_time_mod'], \
+                        i['xlen_mod'], i['ylen_mod'], i['land_mod']))
+
+###
+### MASTER
+###
+if len(sys.argv) > 1:
+    # clock start
+    t_start = MPI.Wtime()
+
+    # PARAMETER 1: name of nhm selection file
+    if sys.argv[1] == 'ALL':
+        targets = None
+    else:
+        with open(sys.argv[1], 'r') as select:
+            targets = [s[0] for s in map(str.split, select.readlines())]
+
+    # load wanted fault information
+    msg_list = load_msgs(targets)
+    if len(msg_list) == 0:
+        print('No matches found.')
+        sys.exit(1)
+    out = msg_list[0]['out']
+    table = '%s/vminfo.csv' % (out)
+
+    # do not fully load a machine with many cores
+    nproc_max = int(os.sysconf('SC_NPROCESSORS_ONLN'))
+    if nproc_max > 8:
+        nproc_max = int(round(0.8 * nproc_max))
+    # not more processes than jobs
+    nproc = min(len(msg_list), nproc_max)
+    # spawn slaves
+    comm = MPI.COMM_WORLD.Spawn(
+        sys.executable, args = [sys.argv[0]], maxprocs = nproc)
+    status = MPI.Status()
+    # distribute work to slaves who ask
+    while nproc:
+        # slave asking for work
+        comm.recv(source = MPI.ANY_SOURCE, status = status)
+        slave_id = status.Get_source()
+
+        # no more jobs? kill signal
+        if len(msg_list) == 0:
+            msg_list.append(StopIteration)
+            nproc -= 1
+
+        # next job
+        msg = msg_list[0]
+        del(msg_list[0])
+        comm.send(obj = msg, dest = slave_id)
+
+    # gather, process reports from slaves
+    reports = comm.gather(None, root = MPI.ROOT)
+    store_summary(table, reports)
+    # stop mpi
+    comm.Disconnect()
+
+###
+### SLAVE
+###
+else:
+    # connect to parent
+    try:
+        comm = MPI.Comm.Get_parent()
+        rank = comm.Get_rank()
+    except MPI.Exception:
+        print('First parameter is fault selection file.')
+        print('Use "ALL" to loop through all faults.')
+        print('First parameter not found.')
+        print('Alternatively MPI cannot connect to parent.')
+        sys.exit(1)
+
+    # ask for work until stop sentinel
+    logbook = []
+    for task in iter(lambda: comm.sendrecv(None, dest = MASTER), StopIteration):
+        # task timer
+        t0 = MPI.Wtime()
+        # run
+        try:
+            details = create_vm(task)
+        except:
+            print('FAILED TASK: %s' % (task['name']))
+            continue
+        # store
+        details['time'] = MPI.Wtime() - t0
+        logbook.append(details)
+
+    # reports to master
+    comm.gather(sendobj = logbook, root = MASTER)
+    # shutdown
+    comm.Disconnect()
