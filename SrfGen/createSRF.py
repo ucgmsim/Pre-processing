@@ -298,12 +298,17 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         print('Creating SRF:\n%s' % ' '.join(cmd))
         call(cmd, stdout = srfp)
 
-def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
+def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0, silent = False):
     out_dir = os.path.dirname(stoch_file)
     if out_dir != '' and not os.path.exists(out_dir):
         os.makedirs(out_dir)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
+            if silent:
+                with open('/dev/null', 'a') as sink:
+                    call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
+                            stdin = srfp, stdout = stochp, stderr = sink)
+                return
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
                     stdin = srfp, stdout = stochp)
 
@@ -434,7 +439,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         flen, dlen, fwid, dwid, dtop, stk, rak, dip, elon, elat, \
         shypo, dhypo, dt, seed, prefix0, cases, genslip = '3.3', \
         rvfrac = None, rough = None, slip_cov = None, stoch = None, \
-        dip_dir = None):
+        dip_dir = None, silent = False):
 
     # do not change any pointers
     mag = list(mag0)
@@ -525,10 +530,16 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
                 cmd.append('alpha_rough=%s' % (rough))
             if slip_cov != None:
                 cmd.append('slip_sigma=%s' % (slip_cov))
-            call(cmd, stdout = srfp)
-        #os.remove(gsf_file)
+            if silent:
+                with open('/dev/null', 'a') as sink:
+                    call(cmd, stdout = srfp, stderr = sink)
+            else:
+                call(cmd, stdout = srfp)
+        os.remove(gsf_file)
         # print leonard Mw from A (SCR)
-        print('Leonard 2014 Mw: %s' % (leonard(rak[c][f], fwid[c][f] * flen[c][f])))
+        if not silent:
+            print('Leonard 2014 Mw: %s' \
+                    % (leonard(rak[c][f], fwid[c][f] * flen[c][f])))
 
     # joined filename
     if prefix[-1] == '_':
@@ -544,7 +555,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         os.remove(casefile)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, joined_srf, dx = 2.0, dy = 2.0)
+        gen_stoch(stoch_file, joined_srf, dx = 2.0, dy = 2.0, silent = silent)
 
     # path to resulting SRF
     return joined_srf
