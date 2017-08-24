@@ -468,6 +468,9 @@ def create_vm(details):
                 'xlen_mod':xlen, 'ylen_mod':ylen, 'land_mod':land1}
 
     # store info
+    ###
+    ### XXX: params_vel depends on gen_cords.py
+    ###
     vm_out = os.path.join(details['out'], details['name'])
     nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
     params_vel = os.path.join(ptemp, 'params_vel.py')
