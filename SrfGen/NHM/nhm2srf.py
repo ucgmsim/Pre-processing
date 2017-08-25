@@ -189,7 +189,7 @@ def load_msgs(fault_names, faults, out):
                         'rake':rake, 'dip':dip, 'elon':elon, 'elat':elat, \
                         'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed, \
                         'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
-                        'stoch':'%s/%s/Stoch' % (out, name)})
+                        'stoch':'%s/%s/Stoch' % (out, name), 'name':name})
                 # store parameters
                 with open(out_log, 'a') as log:
                     log.write('%s.srf\t%s\t%s\t%s\n' \
