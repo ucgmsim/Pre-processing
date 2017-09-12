@@ -357,7 +357,11 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
     srf_file = '%s.srf' % (prefix)
     out_dir = os.path.dirname(srf_file)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
 
     flen = float(d_xy)
     fwid = float(d_xy)
@@ -424,7 +428,11 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     srf_file = '%s.srf' % (prefix)
     out_dir = os.path.dirname(srf_file)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
 
     gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny)
     gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
@@ -461,7 +469,11 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         rup_name = 'rupture_delay'
     out_dir = os.path.dirname(prefix)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
 
     casefiles = []
     for c, case in enumerate(cases):
