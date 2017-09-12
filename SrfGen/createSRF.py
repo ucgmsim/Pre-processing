@@ -301,7 +301,11 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
 def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0, silent = False):
     out_dir = os.path.dirname(stoch_file)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
             if silent:
