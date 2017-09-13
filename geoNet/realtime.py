@@ -118,6 +118,62 @@ def event_statsll(fname, loc,
 
     return
 
+def event_genenerate_multiple_profiles(fname_statsll):
+    output_dir="Multiple_Profiles"
+    vm_data="Data"
+    coordinate_testfile="MultipleProfileParameters.txt"
+
+    profile_file="GENERATE_MULTIPLE_PROFILES.txt"
+    with open(profile_file,'w') as f:
+        f.write("CALL_TYPE=GENERATE_MULTIPLE_PROFILES\n")
+        f.write("MODEL_VERSION=1.66\n")
+        f.write("OUTPUT_DIR=%s\n"%output_dir)
+        f.write("PROFILE_MIN_VS=0.500\n")
+        f.write("TOPO_TYPE=SQUASHED_TAPERED\n")
+        f.write("COORDINATES_TEXTFILE=MultipleProfileParameters.txt\n")
+        f.write("SPACING_TYPE=CONSTANT\n")
+        f.write("PROFILE_ZMIN=0\n")
+        f.write("PROFILE_ZMAX=2.00\n")
+        f.write("SPACING_PROFILE=0.01\n")
+    #make a symbolic link to Data
+    if os.path.exists(vm_data):
+        if os.path.islink(vm_data):
+            pass
+        else:
+            print "Error: A directory %s already exists" %vm_data
+            sys.exit()
+    else:
+        prog=sp.Popen(["find_config.sh"],stdout=sp.PIPE,stderr=sp.PIPE,shell=False)
+        out,err=prog.communicate()
+        run_dir=os.path.dirname(out)
+        os.symlink(os.path.join(run_dir,"VM/%s"%vm_data),vm_data)
+
+
+
+    #delete Multiple_Profiles dir
+    if os.path.exists(output_dir):
+        print "Warning: %s exists. Deleting it"%output_dir
+        import shutil
+        shutil.rmtree(output_dir)
+
+    #generate MultipleProfileParameters.txt
+    with open(fname_statsll,'r') as f:
+        lines = f.readlines()
+        num_lines = len(lines)
+        with open(coordinate_testfile,'w') as g:
+            g.write("%d\n" %num_lines)
+            for line in lines:
+                s=' '.join(filter(None,line.split(" "))) #remove unnecessary spaces
+                g.write("%s\n"%s)
+
+    #execute NZVM GENERATE_MULTIPLE_PROFILES.txt
+    prog = sp.Popen(["NZVM", profile_file], stdout=sp.PIPE,stderr=sp.PIPE, shell=False)
+
+    out, err= prog.communicate()
+    print out
+    print err
+
+
 
 def event_statsVs30(fname_statsll, loc=os.getcwd(),
                   dirVs30_prog="/home/ahsan/Documents/Vs30-mapping",
@@ -518,6 +574,9 @@ def run(arg):
     obs_velDir = keyValue['obs_velDir']
     obs_accDir = keyValue['obs_accDir']
 
+    site_specific= True
+
+
     if keyValue.has_key('dirVs30_prog'):
         dirVs30_prog=keyValue['dirVs30_prog']
     else:
@@ -542,6 +601,9 @@ def run(arg):
                     loc=loc_statsll,
                     dirVs30_prog=dirVs30_prog,
                     Vs30_prog=Vs30_prog)
+
+    if site_specific:
+        event_generate_multiple_profiles(fname_statsll)
 
     processData(loc_V1A)
 
