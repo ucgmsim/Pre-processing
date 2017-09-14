@@ -118,10 +118,19 @@ def event_statsll(fname, loc,
 
     return
 
-def event_genenerate_multiple_profiles(fname_statsll):
-    output_dir="Multiple_Profiles"
+def event_generate_multiple_profiles(fname_statsll,loc):
+    work_dir="Multiple_Profiles"
+    output_dir="Output"
     vm_data="Data"
     coordinate_testfile="MultipleProfileParameters.txt"
+
+    curdir=os.path.abspath(os.curdir)
+    work_path=os.path.join(curdir,work_dir)
+#    work_path=os.path.join(loc,work_dir)
+
+    if not os.path.isdir(work_path):
+        os.makedirs(work_path)
+    os.chdir(work_path)
 
     profile_file="GENERATE_MULTIPLE_PROFILES.txt"
     with open(profile_file,'w') as f:
@@ -157,7 +166,7 @@ def event_genenerate_multiple_profiles(fname_statsll):
         shutil.rmtree(output_dir)
 
     #generate MultipleProfileParameters.txt
-    with open(fname_statsll,'r') as f:
+    with open(os.path.join(loc,fname_statsll),'r') as f:
         lines = f.readlines()
         num_lines = len(lines)
         with open(coordinate_testfile,'w') as g:
@@ -172,7 +181,11 @@ def event_genenerate_multiple_profiles(fname_statsll):
     out, err= prog.communicate()
     print out
     print err
+    
+    #All .1d files should be in "loc"/1D folder. Note that .ll, .vs30 etc are in "loc" folder
+    #move 1D to loc folder. 
 
+    os.chdir(curdir)
 
 
 def event_statsVs30(fname_statsll, loc=os.getcwd(),
@@ -603,7 +616,7 @@ def run(arg):
                     Vs30_prog=Vs30_prog)
 
     if site_specific:
-        event_generate_multiple_profiles(fname_statsll)
+        event_generate_multiple_profiles(fname_statsll,loc_statsll)
 
     processData(loc_V1A)
 
@@ -613,14 +626,17 @@ def run(arg):
     plot_psa(loc_V1A, obs_accDir, obs_velDir,
              loc_statsll, fname_statsll)
 
+
+
     IMsOnMap(loc_V1A, obs_accDir, obs_velDir,
              loc_statsll, fname_statsll)
 
     return
 
 if __name__ == "__main__":
-    import argparse                                                                 
+    import argparse
     parser = argparse.ArgumentParser(description='Real-time simulation event_info')
-    parser.add_argument('-f','--fname', help='name of input file is required', required=True)         
+    parser.add_argument('-f','--fname', help='name of input file is required', required=True)
     args = vars(parser.parse_args())
     run(args['fname'])
+
