@@ -323,7 +323,8 @@ def reduce_domain(a0, a1, b0, b1, wd):
 
 def create_vm(details):
     # temp directory for current process
-    ptemp = mkdtemp(prefix = '_tmp_', dir = details['out'])
+    ptemp = mkdtemp(prefix = '_tmp_%s_' % (details['name']), \
+            dir = details['out'])
 
     # properties stored in classes (fault of external code)
     faultprop.Mw = details['mag']

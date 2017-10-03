@@ -59,9 +59,10 @@ def load_msgs(fault_names, faults, out):
         name = db[dbi]
         # points in fault trace
         n_pt = int(db[dbi + 11])
+        skip = 13 + n_pt
         # skip if not wanted
         if fault_names != None and name not in fault_names:
-            dbi += 13 + n_pt
+            dbi += skip
             continue
 
         # load trace
@@ -201,7 +202,7 @@ def load_msgs(fault_names, faults, out):
                     % (name, '\n'.join(db[dbi + 12 : dbi + 12 + n_pt])))
 
         # move to next fault definition
-        dbi += 13 + n_pt
+        dbi += skip
 
     return msgs
 
