@@ -411,7 +411,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
 
     # only given point source parameters? calculate rest using scaling relation
     if flen == None:
-        flen, dlen, fwid, dwid, dtop, elat, elon, shypo, dhypo = \
+        flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = \
                 focal_mechanism_2_finite_fault(lat, lon, depth, \
                         mw, strike, rake, dip, MWSR)[3:]
 
