@@ -177,19 +177,24 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     lonAsList - as a 1D array
     """
 
+    # fixed values
+    DLEN = 0.1
+    DWID = 0.1
+    SHYPO = 0.00
+
     # get the fault geometry (square edge length)
     fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel)
-
-    # determine the number of fault patches needed
-    Lx = 1.0
-    Ly = 1.0
-    Nx = int(round(fault_length / Lx))
-    Ny = int(round(fault_width / Ly))
+    # number of subfaults
+    Nx = int(round(fault_length / DLEN))
+    Ny = int(round(fault_width / DWID))
+    # rounded fault geometry
+    fault_length = Nx * DLEN
+    fault_width = Ny * DWID
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
-    xPos = np.array([(x + Lx / 2.0) * Lx - Nx * Lx / 2.0 for x in xrange(Nx)])
-    yPos = np.array([Ny * Ly / 2.0 - (x + Ly / 2.0) * Ly for x in xrange(Ny)])
+    xPos = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
+    yPos = np.arange(DWID / 2.0, fault_width, DWID)[::-1] - fault_width / 2.0
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
@@ -211,7 +216,7 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     # determine topcenter of the fault plane (top edge, center point along strike)
     # see note at top for V3 changes.  "tcl" means "topcenter location"
     xPos_tcl = 0
-    yPos_tcl = Ny * Ly / 2.0
+    yPos_tcl = fault_width / 2.0
     # convert to NE system
     yPosSurfProj_tcl = yPos_tcl * cos(radians(dip))
     A = np.dot(RotMatrix, [[xPos_tcl], [yPosSurfProj_tcl]])
@@ -223,10 +228,6 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     lon_tcl = Lon + (eastLocRelative_tcl / one_deg_lat) * 1 / cos(radians(Lat))
     depth_tcl = max([Depth + depthLocRelative_tcl, 0])
 
-    # FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO
-    DLEN = 0.1
-    DWID = 0.1
-    SHYPO = 0.00
     DHYPO = fault_width / 2.0
     return lats, lons, depths, \
             fault_length, DLEN, fault_width, DWID, depth_tcl, \
@@ -414,6 +415,16 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
         flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = \
                 focal_mechanism_2_finite_fault(lat, lon, depth, \
                         mw, strike, rake, dip, MWSR)[3:]
+
+    # flen and dlen must be divisible by dlen and dwid
+    flen = round(flen / dlen) * dlen
+    fwid = round(fwid / dwid) * dwid
+    # same for dhypo and shypo
+    assert(dypo >= 0)
+    dhypo = min(int(dhypo / dwid) * dwid, fwid - dwid) + dwid / 2.0
+    assert(shypo >= - flen / 2.0)
+    shypo = min(int((shypo + flen / 2.0) / dlen), flen - dlen) + dlen / 2.0 \
+            - flen / 2.0
 
     # write corners file
     corners = get_corners(lat, lon, flen, fwid, dip, strike)
