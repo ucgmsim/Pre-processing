@@ -423,7 +423,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     assert(dhypo >= 0)
     dhypo = min(int(dhypo / dwid) * dwid, fwid - dwid) + dwid / 2.0
     assert(shypo >= - flen / 2.0)
-    shypo = min(int((shypo + flen / 2.0) / dlen), flen - dlen) + dlen / 2.0 \
+    shypo = min(shypo + flen / 2.0, flen - dlen) + dlen / 2.0 \
             - flen / 2.0
 
     # write corners file
