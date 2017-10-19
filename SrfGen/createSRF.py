@@ -187,9 +187,9 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     # number of subfaults
     Nx = int(round(fault_length / DLEN))
     Ny = int(round(fault_width / DWID))
-    # rounded fault geometry
-    fault_length = Nx * DLEN
-    fault_width = Ny * DWID
+    # rounded subfault spacing
+    DLEN = fault_length / float(Nx)
+    DWID = fault_width / float(Ny)
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
@@ -415,16 +415,6 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
         flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = \
                 focal_mechanism_2_finite_fault(lat, lon, depth, \
                         mw, strike, rake, dip, MWSR)[3:]
-
-    # flen and dlen must be divisible by dlen and dwid
-    flen = round(flen / dlen) * dlen
-    fwid = round(fwid / dwid) * dwid
-    # same for dhypo and shypo
-    assert(dhypo >= 0)
-    dhypo = min(int(dhypo / dwid) * dwid, fwid - dwid) + dwid / 2.0
-    assert(shypo >= - flen / 2.0)
-    shypo = min(shypo + flen / 2.0, flen - dlen) + dlen / 2.0 \
-            - flen / 2.0
 
     # write corners file
     corners = get_corners(lat, lon, flen, fwid, dip, strike)
