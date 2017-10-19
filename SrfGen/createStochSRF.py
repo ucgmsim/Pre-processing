@@ -217,8 +217,9 @@ def CreateSRF_multiStoch():
                 M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
                 M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
                 M_RAK, M_DIP, M_ELON, M_ELAT, m_shypo, \
-                m_dhypo, DT, seed, RVFRAC, ROUGH, SLIP_COV, \
-                output, CASES, genslip = GENSLIP, stoch = STOCH)
+                m_dhypo, DT, seed, output, CASES, rvfrac = RVFRAC, \
+                rough = ROUGH, slip_cov = SLIP_COV, genslip = GENSLIP, \
+                stoch = STOCH)
 
         # append stoch data to info file
         with open(metainfo, 'a') as of:
