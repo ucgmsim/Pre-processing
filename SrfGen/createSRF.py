@@ -177,19 +177,24 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     lonAsList - as a 1D array
     """
 
+    # fixed values
+    DLEN = 0.1
+    DWID = 0.1
+    SHYPO = 0.00
+
     # get the fault geometry (square edge length)
     fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel)
-
-    # determine the number of fault patches needed
-    Lx = 1.0
-    Ly = 1.0
-    Nx = int(round(fault_length / Lx))
-    Ny = int(round(fault_width / Ly))
+    # number of subfaults
+    Nx = int(round(fault_length / DLEN))
+    Ny = int(round(fault_width / DWID))
+    # rounded subfault spacing
+    DLEN = fault_length / float(Nx)
+    DWID = fault_width / float(Ny)
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
-    xPos = np.array([(x + Lx / 2.0) * Lx - Nx * Lx / 2.0 for x in xrange(Nx)])
-    yPos = np.array([Ny * Ly / 2.0 - (x + Ly / 2.0) * Ly for x in xrange(Ny)])
+    xPos = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
+    yPos = np.arange(DWID / 2.0, fault_width, DWID)[::-1] - fault_width / 2.0
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
@@ -211,7 +216,7 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     # determine topcenter of the fault plane (top edge, center point along strike)
     # see note at top for V3 changes.  "tcl" means "topcenter location"
     xPos_tcl = 0
-    yPos_tcl = Ny * Ly / 2.0
+    yPos_tcl = fault_width / 2.0
     # convert to NE system
     yPosSurfProj_tcl = yPos_tcl * cos(radians(dip))
     A = np.dot(RotMatrix, [[xPos_tcl], [yPosSurfProj_tcl]])
@@ -223,10 +228,6 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     lon_tcl = Lon + (eastLocRelative_tcl / one_deg_lat) * 1 / cos(radians(Lat))
     depth_tcl = max([Depth + depthLocRelative_tcl, 0])
 
-    # FLEN, DLEN, FWID, DWID, DTOP, ELAT, ELON, SHYPO, DHYPO
-    DLEN = 0.1
-    DWID = 0.1
-    SHYPO = 0.00
     DHYPO = fault_width / 2.0
     return lats, lons, depths, \
             fault_length, DLEN, fault_width, DWID, depth_tcl, \
@@ -298,12 +299,21 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         print('Creating SRF:\n%s' % ' '.join(cmd))
         call(cmd, stdout = srfp)
 
-def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0):
+def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0, silent = False):
     out_dir = os.path.dirname(stoch_file)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
+            if silent:
+                with open('/dev/null', 'a') as sink:
+                    call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
+                            stdin = srfp, stdout = stochp, stderr = sink)
+                return
             call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
                     stdin = srfp, stdout = stochp)
 
@@ -348,7 +358,11 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
     srf_file = '%s.srf' % (prefix)
     out_dir = os.path.dirname(srf_file)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
 
     flen = float(d_xy)
     fwid = float(d_xy)
@@ -398,7 +412,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
 
     # only given point source parameters? calculate rest using scaling relation
     if flen == None:
-        flen, dlen, fwid, dwid, dtop, elat, elon, shypo, dhypo = \
+        flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = \
                 focal_mechanism_2_finite_fault(lat, lon, depth, \
                         mw, strike, rake, dip, MWSR)[3:]
 
@@ -415,7 +429,11 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     srf_file = '%s.srf' % (prefix)
     out_dir = os.path.dirname(srf_file)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
 
     gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny)
     gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
@@ -434,7 +452,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         flen, dlen, fwid, dwid, dtop, stk, rak, dip, elon, elat, \
         shypo, dhypo, dt, seed, prefix0, cases, genslip = '3.3', \
         rvfrac = None, rough = None, slip_cov = None, stoch = None, \
-        dip_dir = None):
+        dip_dir = None, silent = False):
 
     # do not change any pointers
     mag = list(mag0)
@@ -452,7 +470,11 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         rup_name = 'rupture_delay'
     out_dir = os.path.dirname(prefix)
     if out_dir != '' and not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
 
     casefiles = []
     for c, case in enumerate(cases):
@@ -525,10 +547,16 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
                 cmd.append('alpha_rough=%s' % (rough))
             if slip_cov != None:
                 cmd.append('slip_sigma=%s' % (slip_cov))
-            call(cmd, stdout = srfp)
-        #os.remove(gsf_file)
+            if silent:
+                with open('/dev/null', 'a') as sink:
+                    call(cmd, stdout = srfp, stderr = sink)
+            else:
+                call(cmd, stdout = srfp)
+        os.remove(gsf_file)
         # print leonard Mw from A (SCR)
-        print('Leonard 2014 Mw: %s' % (leonard(rak[c][f], fwid[c][f] * flen[c][f])))
+        if not silent:
+            print('Leonard 2014 Mw: %s' \
+                    % (leonard(rak[c][f], fwid[c][f] * flen[c][f])))
 
     # joined filename
     if prefix[-1] == '_':
@@ -544,7 +572,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         os.remove(casefile)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, joined_srf, dx = 2.0, dy = 2.0)
+        gen_stoch(stoch_file, joined_srf, dx = 2.0, dy = 2.0, silent = silent)
 
     # path to resulting SRF
     return joined_srf
