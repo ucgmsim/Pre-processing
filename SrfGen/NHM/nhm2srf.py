@@ -9,7 +9,7 @@ from mpi4py import MPI
 # .. points to createSRF
 sys.path.append('..')
 from createSRF import CreateSRF_multi
-import geo
+from qcore import geo
 
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 NHM_START = 15
