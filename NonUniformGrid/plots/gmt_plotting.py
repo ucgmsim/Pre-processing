@@ -4,7 +4,7 @@ Script to plot the non-uniform grid with GMT
 """
 
 import qcore_path
-import gmt
+from qcore import gmt
 import sys
 
 # One way of getting the points on a file as they are needed
