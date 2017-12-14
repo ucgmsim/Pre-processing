@@ -32,7 +32,7 @@ SPACE_LAND = 5
 SPACE_SRF = 15
 NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
 # call this as a script until the main function has a proper name
-GEN_COORDS = '/nesi/projects/nesi00213/qcore/gen_cords.py'
+GEN_COORDS = '/nesi/projects/nesi00213/qcore/qcore/gen_cords.py'
 # used to calculate flo (km / s)
 MIN_VS = 0.5
 # MPI - do not change
@@ -429,8 +429,7 @@ def create_vm(details):
         gmt.grd_mask(path_vm, grd_vm, \
                 region = ll_region1, dx = dxy, dy = dxy, wd = ptemp)
         total_vm = grd_proportion(grd_vm)
-        gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_and], \
-                region = ll_region1, dx = dxy, dy = dxy, wd = ptemp)
+        gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_and], wd = ptemp)
         try:
             land1 = grd_proportion(grd_and) / total_vm * 100
         except ZeroDivisionError:
