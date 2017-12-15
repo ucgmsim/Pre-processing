@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-import geo
+from qcore import geo
 
 nhm = 'NZ_FLTmodel_2010.txt'
 with open(nhm, 'r') as nf:

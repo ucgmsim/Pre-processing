@@ -7,8 +7,8 @@ from tempfile import mkstemp
 
 from subprocess import call
 
-import geo
-import gmt
+from qcore import geo
+from qcore import gmt
 
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 NHM_START = 15

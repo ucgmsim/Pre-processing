@@ -2,7 +2,7 @@
 
 import math
 
-import geo
+from qcore import geo
 
 nhm = 'NZ_FLTmodel_2010.txt'
 

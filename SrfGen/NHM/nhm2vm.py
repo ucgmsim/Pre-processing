@@ -13,8 +13,8 @@ from mpi4py import MPI
 import numpy as np
 
 # qcore library should already be in path
-import geo
-import gmt
+from qcore import geo
+from qcore import gmt
 # location containing Bradley_2010_Sa.py and AfshariStewart_2016_Ds.py
 sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
