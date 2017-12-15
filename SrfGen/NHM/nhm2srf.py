@@ -26,9 +26,9 @@ MASTER = 0
 def leonard(rake, A):
     # if dip slip else strike slip
     if round(rake % 360 / 90.) % 2:
-        return 4.19 + log10(A)
+        return 4.00 + log10(A)
     else:
-        return 4.18 + log10(A)
+        return 3.99 + log10(A)
 
 ###
 ### PREPARE TASKS

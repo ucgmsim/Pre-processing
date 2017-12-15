@@ -64,9 +64,9 @@ class faultprop:
 def leonard(rake, A):
     # if dip slip else strike slip
     if round(rake % 360 / 90.) % 2:
-        return 4.19 + math.log10(A)
+        return 4.00 + math.log10(A)
     else:
-        return 4.18 + math.log10(A)
+        return 3.99 + math.log10(A)
 
 # rrup at which pgv is close to target
 def find_rrup():
