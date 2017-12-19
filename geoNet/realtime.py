@@ -155,7 +155,7 @@ def event_generate_multiple_profiles(fname_statsll,loc):
         prog=sp.Popen(["find_config.sh"],stdout=sp.PIPE,stderr=sp.PIPE,shell=False)
         out,err=prog.communicate()
         run_dir=os.path.dirname(out)
-        os.symlink(os.path.join(run_dir,"VM/%s"%vm_data),vm_data)
+        os.symlink(os.path.join(run_dir,"VM/Velocity-Model/%s"%vm_data),vm_data)
 
 
 
