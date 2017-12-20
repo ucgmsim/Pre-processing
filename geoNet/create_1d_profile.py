@@ -1,0 +1,140 @@
+#!/usr/bin/python
+
+"""create 1D profile"""
+import os
+import sys
+import subprocess as sp
+import argparse
+import shutil
+
+WORK_DIR = "Multiple_Profiles"
+OUTPUT_DIR = "Output"
+VM_DATA = "Data"
+COORDINATE_TEXTFILE = "ProfileSites1D.txt"
+DEPTH_PT_TEXTFILE = "ProfileDepthPoints1D.txt"
+PROFILE = "GENERATE_MULTIPLE_PROFILES.txt"
+DEPTH_PTS = [34, 0.025, 0.075, 0.125, 0.175, 0.275, 0.375, 0.575, 0.775, 0.975, 1.175, 1.375, 1.575, 1.775, 1.975,
+             2.175, 2.375, 2.575, 2.775, 2.975, 3.175, 3.375, 3.575, 3.775, 3.975, 4.175, 4.375, 4.575, 4.775, 4.975,
+             7.975, 11.975, 26.975, 38.975, 100.000]
+
+
+def check_dir(curdir):
+    work_path = os.path.join(curdir, WORK_DIR)
+    #    work_path=os.path.join(loc,WORK_DIR)
+
+    if not os.path.isdir(work_path):
+        os.makedirs(work_path)
+    os.chdir(work_path)
+    
+
+def write_profile():
+    """set up the structure of the profile"""
+    with open(PROFILE, 'w') as f:
+        f.write("CALL_TYPE=GENERATE_MULTIPLE_PROFILES\n")
+        f.write("MODEL_VERSION=1.66\n")
+        f.write("OUTPUT_DIR=%s\n" % OUTPUT_DIR)
+        f.write("OUTPUT_TYPE=1D_SITE_RESPONSE\n")
+        f.write("PROFILE_MIN_VS=0.00\n")
+        f.write("TOPO_TYPE=SQUASHED\n")
+        f.write("COORDINATES_TEXTFILE=%s\n" % COORDINATE_TEXTFILE)
+        f.write("SPACING_TYPE=VARIABLE\n")
+        f.write("PROFILE_DEPTHS_TEXTFILE=ProfileDepthPoints1D.txt\n")
+
+
+def make_symbolic_link():
+    """"make a symbolic link to Data"""
+    if os.path.exists(VM_DATA):
+        if os.path.islink(VM_DATA):
+            pass
+        else:
+            print "Error: A directory %s already exists" % VM_DATA
+            sys.exit()
+    else:
+        prog = sp.Popen(["find_config.sh"], stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
+        out, err = prog.communicate()
+        run_dir = os.path.dirname(out)
+        os.symlink(os.path.join(run_dir, "VM/Velocity-Model/%s" % VM_DATA), VM_DATA)
+
+
+def delete_mutilprofile_dir():
+    """delete Multiple_Profiles dir"""
+    if os.path.exists(OUTPUT_DIR):
+        print "Warning: %s exists. Deleting it" % OUTPUT_DIR
+        shutil.rmtree(OUTPUT_DIR)
+
+
+def generate_mutilprofile_txt(ll_file):
+    """generate MultipleProfileParameters.txt"""
+    with open(ll_file, 'r') as f:
+        lines = f.readlines()
+        num_lines = len(lines)
+        with open(COORDINATE_TEXTFILE, 'w') as g:
+            g.write("%d\n" % num_lines)
+            for line in lines:
+                s = ' '.join(filter(None, line.split(" ")))  # remove unnecessary spaces
+                g.write("%s" % s)
+
+
+def write_depth_file():
+    """Write our depth point file"""
+    with open(DEPTH_PT_TEXTFILE, 'w') as g:
+        g.write("%d\n" % DEPTH_PTS[0])
+        for line in DEPTH_PTS[1:]:
+            g.write("%.3f\n" % line)
+
+
+def exe_NZVM():
+    """execute NZVM GENERATE_MULTIPLE_PROFILES.txt"""
+    prog = sp.Popen(["NZVM", PROFILE], stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
+    out, err = prog.communicate()
+    print out
+    print err
+
+
+def event_generate_multiple_profiles(ll_file):
+    """
+        generates 1D profile
+        ll_file: Absolute path to the .ll source file for creating 1D profile
+        eg. home/seb56/20171218_Faketown_m6p3_201712181533/Stat/20171218_Faketown_m6p3/20171218_Faketown_m6p3.ll
+    """
+    curdir = os.path.abspath(os.curdir)  # get current directory
+
+    check_dir(curdir)
+
+    write_profile()
+
+    make_symbolic_link()
+
+    delete_mutilprofile_dir()
+
+    generate_mutilprofile_txt(ll_file)
+
+    write_depth_file()
+
+    exe_NZVM()
+
+    os.chdir(curdir)
+
+
+def check_args(fpath):
+    """check if fname exists"""
+    if not os.path.isfile(fpath):
+        sys.exit("File {} does not exist".format(fpath))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('ll_file', type=str,
+                        help="Absolute path to the .ll source file for creating 1D profile\n eg.home/seb56/20171218_Faketown_m6p3_201712181533/Stat/20171218_Faketown_m6p3/20171218_Faketown_m6p3.ll")
+
+    ll_file= parser.parse_args().ll_file
+
+    check_args(ll_file)
+
+    event_generate_multiple_profiles(ll_file)
+
+
+if __name__ == '__main__':
+    main()
+
+

@@ -20,6 +20,8 @@ from geoNet import utils, putils
 from geoNet.gen_stats_kml import write_stats_kml
 from geoNet.geoNet_file import GeoNet_File
 from geoNet.process import Process, adjust_gf_for_time_delay
+import create_1d_profile
+
 
 def getData(loc, BASE_URL):
     """
@@ -117,75 +119,6 @@ def event_statsll(fname, loc,
     print("Done in {:.1f} secs\n".format(final_time - init_time))
 
     return
-
-def event_generate_multiple_profiles(fname_statsll,loc):
-    work_dir="Multiple_Profiles"
-    output_dir="Output"
-    vm_data="Data"
-    coordinate_testfile="MultipleProfileParameters.txt"
-
-    curdir=os.path.abspath(os.curdir)
-    work_path=os.path.join(curdir,work_dir)
-#    work_path=os.path.join(loc,work_dir)
-
-    if not os.path.isdir(work_path):
-        os.makedirs(work_path)
-    os.chdir(work_path)
-
-    profile_file="GENERATE_MULTIPLE_PROFILES.txt"
-    with open(profile_file,'w') as f:
-        f.write("CALL_TYPE=GENERATE_MULTIPLE_PROFILES\n")
-        f.write("MODEL_VERSION=1.66\n")
-        f.write("OUTPUT_DIR=%s\n"%output_dir)
-        f.write("PROFILE_MIN_VS=0.500\n")
-        f.write("TOPO_TYPE=SQUASHED_TAPERED\n")
-        f.write("COORDINATES_TEXTFILE=MultipleProfileParameters.txt\n")
-        f.write("SPACING_TYPE=CONSTANT\n")
-        f.write("PROFILE_ZMIN=0\n")
-        f.write("PROFILE_ZMAX=2.00\n")
-        f.write("SPACING_PROFILE=0.01\n")
-    #make a symbolic link to Data
-    if os.path.exists(vm_data):
-        if os.path.islink(vm_data):
-            pass
-        else:
-            print "Error: A directory %s already exists" %vm_data
-            sys.exit()
-    else:
-        prog=sp.Popen(["find_config.sh"],stdout=sp.PIPE,stderr=sp.PIPE,shell=False)
-        out,err=prog.communicate()
-        run_dir=os.path.dirname(out)
-        os.symlink(os.path.join(run_dir,"VM/Velocity-Model/%s"%vm_data),vm_data)
-
-
-
-    #delete Multiple_Profiles dir
-    if os.path.exists(output_dir):
-        print "Warning: %s exists. Deleting it"%output_dir
-        import shutil
-        shutil.rmtree(output_dir)
-
-    #generate MultipleProfileParameters.txt
-    with open(os.path.join(loc,fname_statsll),'r') as f:
-        lines = f.readlines()
-        num_lines = len(lines)
-        with open(coordinate_testfile,'w') as g:
-            g.write("%d\n" %num_lines)
-            for line in lines:
-                s=' '.join(filter(None,line.split(" "))) #remove unnecessary spaces
-                g.write("%s\n"%s)
-
-    #execute NZVM GENERATE_MULTIPLE_PROFILES.txt
-    prog = sp.Popen(["NZVM", profile_file], stdout=sp.PIPE,stderr=sp.PIPE, shell=False)
-
-    out, err= prog.communicate()
-    print out
-    print err
-    
-    #All .1d files should be in "loc"/1D folder. Note that .ll, .vs30 etc are in "loc" folder
-    #move 1D to loc folder. 
-
-    os.chdir(curdir)
 
 
 def event_statsVs30(fname_statsll, loc=os.getcwd(),
@@ -616,7 +549,7 @@ def run(arg):
                     Vs30_prog=Vs30_prog)
 
     if site_specific:
-        event_generate_multiple_profiles(fname_statsll,loc_statsll)
+        create_1d_profile.event_generate_multiple_profiles(os.path.join(loc_statsll,fname_statsll))
 
     processData(loc_V1A)
 
