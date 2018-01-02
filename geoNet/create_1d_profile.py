@@ -1,14 +1,16 @@
 #!/usr/bin/python
-
 """create 1D profile"""
 import os
 import sys
 import subprocess as sp
 import argparse
 import shutil
+import glob
 
-WORK_DIR = "Multiple_Profiles"
+WORK_DIR = ".Multiple_Profiles"
 OUTPUT_DIR = "Output"
+OLD_ONED_DIR = "Output/Profiles"
+ONED_DIR = "1D"
 VM_DATA = "Data"
 COORDINATE_TEXTFILE = "ProfileSites1D.txt"
 DEPTH_PT_TEXTFILE = "ProfileDepthPoints1D.txt"
@@ -18,14 +20,16 @@ DEPTH_PTS = [34, 0.025, 0.075, 0.125, 0.175, 0.275, 0.375, 0.575, 0.775, 0.975, 
              7.975, 11.975, 26.975, 38.975, 100.000]
 
 
-def check_dir(curdir):
-    work_path = os.path.join(curdir, WORK_DIR)
+def mk_dir(curdir,mk_dir_name):
+    """make a sub dir inside the current dir and cd to the sub dir"""
+    work_path = os.path.join(curdir, mk_dir_name)
     #    work_path=os.path.join(loc,WORK_DIR)
-
-    if not os.path.isdir(work_path):
-        os.makedirs(work_path)
+    print"make", mk_dir_name
+    if os.path.isdir(work_path):
+        shutil.rmtree(work_path)
+    os.makedirs(work_path)
     os.chdir(work_path)
-    
+
 
 def write_profile():
     """set up the structure of the profile"""
@@ -56,11 +60,11 @@ def make_symbolic_link():
         os.symlink(os.path.join(run_dir, "VM/Velocity-Model/%s" % VM_DATA), VM_DATA)
 
 
-def delete_mutilprofile_dir():
-    """delete Multiple_Profiles dir"""
-    if os.path.exists(OUTPUT_DIR):
-        print "Warning: %s exists. Deleting it" % OUTPUT_DIR
-        shutil.rmtree(OUTPUT_DIR)
+def delete_dir(dir_name):
+    """delete Multiple_Profiles/Output dir"""
+    if os.path.exists(dir_name):
+        print "Warning: %s exists. Deleting it" % dir_name
+        shutil.rmtree(dir_name)
 
 
 def generate_mutilprofile_txt(ll_file):
@@ -91,6 +95,17 @@ def exe_NZVM():
     print err
 
 
+def mv_oned_file(curdir):
+    print "move one d"
+    print "11111",os.getcwd()
+    path = os.path.join(curdir,WORK_DIR,OLD_ONED_DIR)
+    print(path)
+    files = glob.glob1(path,'*.1d')
+    for f in files:
+        filepath = os.path.join(path,f)
+        shutil.move(filepath, '.')
+
+
 def event_generate_multiple_profiles(ll_file):
     """
         generates 1D profile
@@ -99,13 +114,13 @@ def event_generate_multiple_profiles(ll_file):
     """
     curdir = os.path.abspath(os.curdir)  # get current directory
 
-    check_dir(curdir)
+    mk_dir(curdir,WORK_DIR)
 
     write_profile()
 
     make_symbolic_link()
 
-    delete_mutilprofile_dir()
+    delete_dir(OUTPUT_DIR)
 
     generate_mutilprofile_txt(ll_file)
 
@@ -113,7 +128,14 @@ def event_generate_multiple_profiles(ll_file):
 
     exe_NZVM()
 
+    mk_dir(curdir,ONED_DIR)
+
+    mv_oned_file(curdir)
+
     os.chdir(curdir)
+
+    delete_dir(WORK_DIR)
+
 
 
 def check_args(fpath):
@@ -127,7 +149,7 @@ def main():
     parser.add_argument('ll_file', type=str,
                         help="Absolute path to the .ll source file for creating 1D profile\n eg.home/seb56/20171218_Faketown_m6p3_201712181533/Stat/20171218_Faketown_m6p3/20171218_Faketown_m6p3.ll")
 
-    ll_file= parser.parse_args().ll_file
+    ll_file = parser.parse_args().ll_file
 
     check_args(ll_file)
 
@@ -136,5 +158,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
