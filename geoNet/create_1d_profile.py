@@ -19,6 +19,8 @@ DEPTH_PTS = [34, 0.025, 0.075, 0.125, 0.175, 0.275, 0.375, 0.575, 0.775, 0.975, 
              2.175, 2.375, 2.575, 2.775, 2.975, 3.175, 3.375, 3.575, 3.775, 3.975, 4.175, 4.375, 4.575, 4.775, 4.975,
              7.975, 11.975, 26.975, 38.975, 100.000]
 
+nzvm_bin='NZVM'
+VM_DATA_FULL_PATH=''
 
 def mk_dir(curdir,mk_dir_name):
     """make a sub dir inside the current dir and cd to the sub dir"""
@@ -54,10 +56,15 @@ def make_symbolic_link():
             print "Error: A directory %s already exists" % VM_DATA
             sys.exit()
     else:
-        prog = sp.Popen(["find_config.sh"], stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
-        out, err = prog.communicate()
-        run_dir = os.path.dirname(out)
-        os.symlink(os.path.join(run_dir, "VM/Velocity-Model/%s" % VM_DATA), VM_DATA)
+        try:
+            prog = sp.Popen(["find_config.sh"], stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
+        except:
+            print "Using user specified VM_DATA_FULL_PATH: %s" %VM_DATA_FULL_PATH
+            os.symlink(VM_DATA_FULL_PATH,VM_DATA)
+        else:
+            out, err = prog.communicate()
+            run_dir = os.path.dirname(out)
+            os.symlink(os.path.join(run_dir, "VM/Velocity-Model/%s" % VM_DATA), VM_DATA)
 
 
 def delete_dir(dir_name):
@@ -89,7 +96,7 @@ def write_depth_file():
 
 def exe_NZVM():
     """execute NZVM GENERATE_MULTIPLE_PROFILES.txt"""
-    prog = sp.Popen(["NZVM", PROFILE], stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
+    prog = sp.Popen([nzvm_bin, PROFILE], stdout=sp.PIPE, stderr=sp.PIPE, shell=False)
     out, err = prog.communicate()
     print out
     print err
@@ -140,22 +147,32 @@ def event_generate_multiple_profiles(ll_file):
 
 def check_args(fpath):
     """check if fname exists"""
-    if not os.path.isfile(fpath):
-        sys.exit("File {} does not exist".format(fpath))
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('ll_file', type=str,
-                        help="Absolute path to the .ll source file for creating 1D profile\n eg.home/seb56/20171218_Faketown_m6p3_201712181533/Stat/20171218_Faketown_m6p3/20171218_Faketown_m6p3.ll")
-
-    ll_file = parser.parse_args().ll_file
-
-    check_args(ll_file)
-
-    event_generate_multiple_profiles(ll_file)
+    if os.path.isdir(fpath):
+        print "Directory {} is present".format(fpath)
+    elif os.path.isfile(fpath):
+        print "File {} is present".format(fpath)
+    else:
+        sys.exit("File or directory {} does not exist".format(fpath))
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('ll_file', type=str,
+                        help="Absolute path to the .ll source file for creating 1D profile\n eg. /home/seb56/20171218_Faketown_m6p3_201712181533/Stat/20171218_Faketown_m6p3/20171218_Faketown_m6p3.ll")
+    parser.add_argument('NZVM',type=str, help="Full path of the NZVM executable\n eg. /home/seb56/code/vm/NZVM")
+    parser.add_argument('VM_data',type=str, help="Full path to Velocity-Model Data directory. If missing, download https://quakecoresoft.canterbury.ac.nz/seisfinder/private/gmsim/vm_data_latest.tar.gz and extract or git clone https://github.com/ucgmsim/Velocity-Model.git")
+
+    ll_file = parser.parse_args().ll_file
+    nzvm_bin=parser.parse_args().NZVM
+    VM_DATA_FULL_PATH=parser.parse_args().VM_data
+
+    ll_file=os.path.abspath(ll_file)
+    nzvm_bin=os.path.abspath(nzvm_bin)
+    VM_DATA_FULL_PATH=os.path.abspath(VM_DATA_FULL_PATH)
+
+    check_args(ll_file)
+    check_args(nzvm_bin)
+    check_args(VM_DATA_FULL_PATH)
+
+    event_generate_multiple_profiles(ll_file)
 
