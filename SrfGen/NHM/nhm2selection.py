@@ -14,9 +14,20 @@ NHM_FILE = 'NZ_FLTmodel_2010.txt'
 NHM_START = 15
 N_HYPO = '20k'
 N_SLIP = 3
-# 'res/ni_fault_range.txt', 'res/si_fault_range.txt'
-CLIP_POLYGON = 'res/ni_fault_range.txt'
 OUT_FILE = 'nhm_selection_geo.txt'
+
+if len(sys.argv) == 4:
+    selection = 'distance'
+    sel_x = sys.argv[1]
+    sel_y = sys.argv[2]
+    sel_r = sys.argv[3]
+    point_file = mkstemp()[1]
+    with open(point_file, 'w') as p:
+        p.write('%s %s\n' % (sel_x, sel_y))
+else:
+    selection = 'island'
+    # 'res/ni_fault_range.txt', 'res/si_fault_range.txt'
+    CLIP_POLYGON = 'res/ni_fault_range.txt'
 
 out_dir = os.path.dirname(OUT_FILE)
 if out_dir == '':
@@ -62,7 +73,12 @@ while dbi < dbl:
     try:
         with open(trace_file[1], 'w') as tf:
             tf.write('\n'.join([' '.join(map(str, ll)) for ll in pts]))
-        if len(gmt.truncate(trace_file[1], clip = CLIP_POLYGON)):
+        if (selection == 'island' \
+                and len(gmt.truncate(trace_file[1], clip = CLIP_POLYGON))) \
+                or \
+                (selection == 'distance' \
+                and len(gmt.select(point_file, \
+                line_file = trace_file[1], line_dist = sel_r))):
             print('%s %s %s' % (name, N_HYPO, N_SLIP))
             out.write('%s %s %s\n' % (name, N_HYPO, N_SLIP))
     except Exception as e:
@@ -74,4 +90,6 @@ while dbi < dbl:
     # work on next fault
     dbi += 13 + n_pt
 
+if selection == 'distance':
+    os.remove(point_file)
 out.close()
