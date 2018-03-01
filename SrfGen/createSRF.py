@@ -414,7 +414,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     if flen == None:
         flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = \
                 focal_mechanism_2_finite_fault(lat, lon, depth, \
-                        mw, strike, rake, dip, MWSR)[3:]
+                        mw, strike, rake, dip, mwsr)[3:]
 
     # write corners file
     corners = get_corners(lat, lon, flen, fwid, dip, strike)
