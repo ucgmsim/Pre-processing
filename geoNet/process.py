@@ -164,6 +164,7 @@ class Process(object):
                           'order':4, 'ft':1., 'output':None}
 
             SMD_kwargs['fs']= 1./self.delta_t
+            SMD_kwargs['highcut'] = min(0.5 / self.delta_t, 50)
             for key, value in SMD_kwargs.items():
                 kwargs.setdefault(key, value)
             
