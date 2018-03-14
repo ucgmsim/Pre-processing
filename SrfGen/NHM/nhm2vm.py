@@ -32,7 +32,7 @@ SPACE_LAND = 5
 SPACE_SRF = 15
 NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
 # call this as a script until the main function has a proper name
-GEN_COORDS = '/nesi/projects/nesi00213/qcore/qcore/gen_cords.py'
+GEN_COORDS = '/nesi/projects/nesi00213/qcore/qcore/gen_coords.py'
 # used to calculate flo (km / s)
 MIN_VS = 0.5
 # MPI - do not change
@@ -469,7 +469,7 @@ def create_vm(details):
 
     # store info
     ###
-    ### XXX: params_vel depends on gen_cords.py
+    ### XXX: params_vel depends on gen_coords.py
     ###
     vm_out = os.path.join(details['out'], details['name'])
     nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
