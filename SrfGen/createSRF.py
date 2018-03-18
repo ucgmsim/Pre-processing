@@ -299,7 +299,18 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         print('Creating SRF:\n%s' % ' '.join(cmd))
         call(cmd, stdout = srfp)
 
-def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0, silent = False):
+def gen_stoch(stoch_file, srf_file, dx = 0.001, dy = 0.001, silent = False):
+    """
+    TODO: inspect srf file for automatic dx, dy.
+    FINITE FAULT NOTES:
+    dx and dx should match dlen and dwid.
+    Larger values will cause reduction of subfaults.
+    If dx > flen or dy > fwid, file produced is incomplete.
+    POINT SOURCE NOTES:
+    dx and dy must be set, even for point source.
+    Should match srf, lower value gives the same stoch (tested with p sources).
+    Giving 0 will cause an infinite loop until the loop variable is too large.
+    """
     out_dir = os.path.dirname(stoch_file)
     if out_dir != '' and not os.path.exists(out_dir):
         try:
@@ -311,10 +322,10 @@ def gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0, silent = False):
         with open(srf_file, 'r') as srfp:
             if silent:
                 with open('/dev/null', 'a') as sink:
-                    call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
+                    call([STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                             stdin = srfp, stdout = stochp, stderr = sink)
                 return
-            call([STOCH_BIN, 'dx=%f' % (dx), 'dy=%f' % (dy)], \
+            call([STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                     stdin = srfp, stdout = stochp)
 
 def CreateSRF_ps(lat, lon, depth, mw, mom, \
@@ -391,7 +402,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, \
     # CONVERT TO STOCH
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0)
+        gen_stoch(stoch_file, srf_file)
 
     # location of resulting SRF file
     return srf_file
@@ -441,7 +452,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
             rough = rough)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file, dx = 2.0, dy = 2.0)
+        gen_stoch(stoch_file, srf_file, dx = dlen, dy = dwid)
 
     # print leonard Mw from A (SCR)
     print('Leonard 2014 Mw: %s' % (leonard(rake, fwid * flen)))
@@ -572,7 +583,8 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         os.remove(casefile)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, joined_srf, dx = 2.0, dy = 2.0, silent = silent)
+        gen_stoch(stoch_file, joined_srf, dx = dlen[0][0], dy = dwid[0][0], \
+                silent = silent)
 
     # path to resulting SRF
     return joined_srf
