@@ -184,11 +184,11 @@ def load_msgs(fault_names, faults, out):
             # if not adjusted later, must be relative to full length
             shypo = [[shyp_shift - (lengths[0] / 2.)]]
             for _ in xrange(n_slip):
-                seed += SEED_INC
                 for i, d in enumerate(dhypos):
+                    seed += SEED_INC
                     dhypo = [[fwid[0][0] * d] * n_plane]
                     prefix = '%s/%s/Srf/%s_HYP%.2d-%.2d_S%s' \
-                            % (out, name, name, n_shyp + i + 1, \
+                            % (out, name, name, n_shyp * len(dhypos) + i + 1, \
                                n_hypo * len(dhypos), seed)
                     # create SRF from description
                     msgs.append({'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag, \
