@@ -2,6 +2,7 @@
 
 from math import sin, radians, log10
 import os
+from subprocess import call
 import sys
 
 from mpi4py import MPI
@@ -11,12 +12,14 @@ sys.path.append('..')
 from createSRF import CreateSRF_multi
 from qcore import geo
 
+PLOT = True
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 NHM_START = 15
 GMT_FILE = 'fault_traces.gmt'
 LOG_FILE = 'logfile.txt'
 N_HYPO = 1
 N_SLIP = 1
+DHYPOS = [0.6]
 SEED_0 = 1234
 SEED_INC = 10
 # MPI - do not change
@@ -113,6 +116,7 @@ def load_msgs(fault_names, faults, out):
         if fault_names == None:
             n_hypo = N_HYPO
             n_slip = N_SLIP
+            dhypos = DHYPOS
         else:
             fault = faults[fault_names.index(name)]
             try:
@@ -129,6 +133,8 @@ def load_msgs(fault_names, faults, out):
                 else:
                     z_hypo = (trace_length % hyp_step) / 2.
             n_slip = int(fault[2])
+            if len(fault) > 3:
+                dhypos = map(float, fault[3].split(','))
         if t_hypo == 'n':
             hyp_step = trace_length / (n_hypo * 2.)
         seed = SEED_0
@@ -167,7 +173,6 @@ def load_msgs(fault_names, faults, out):
         stk = [strikes]
         elon = [[ll[0] for ll in mids]]
         elat = [[ll[1] for ll in mids]]
-        dhypo = [[fwid[0][0] * 0.6] * n_plane]
 
         for n_shyp in xrange(n_hypo):
             # hypocentre position from far left edge
@@ -180,21 +185,24 @@ def load_msgs(fault_names, faults, out):
             shypo = [[shyp_shift - (lengths[0] / 2.)]]
             for _ in xrange(n_slip):
                 seed += SEED_INC
-                prefix = '%s/%s/Srf/%s_HYP%.2d-%.2d_S%s' \
-                        % (out, name, name, n_shyp + 1, n_hypo, seed)
-                # create SRF from description
-                msgs.append({'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag, \
-                        'mom':mom, 'rvfac_seg':rvfac_seg, 'gwid':gwid, \
-                        'rup_delay':rup_delay, 'flen':flen, 'dlen':dlen, \
-                        'fwid':fwid, 'dwid':dwid, 'dtop':dtop, 'stk':stk, \
-                        'rake':rake, 'dip':dip, 'elon':elon, 'elat':elat, \
-                        'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed, \
-                        'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
-                        'stoch':'%s/%s/Stoch' % (out, name), 'name':name})
-                # store parameters
-                with open(out_log, 'a') as log:
-                    log.write('%s.srf\t%s\t%s\t%s\n' \
-                            % (prefix, shypo[0][0], dhypo[0][0], seed))
+                for i, d in enumerate(dhypos):
+                    dhypo = [[fwid[0][0] * d] * n_plane]
+                    prefix = '%s/%s/Srf/%s_HYP%.2d-%.2d_S%s' \
+                            % (out, name, name, n_shyp + i + 1, \
+                               n_hypo * len(dhypos), seed)
+                    # create SRF from description
+                    msgs.append({'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag, \
+                            'mom':mom, 'rvfac_seg':rvfac_seg, 'gwid':gwid, \
+                            'rup_delay':rup_delay, 'flen':flen, 'dlen':dlen, \
+                            'fwid':fwid, 'dwid':dwid, 'dtop':dtop, 'stk':stk, \
+                            'rake':rake, 'dip':dip, 'elon':elon, 'elat':elat, \
+                            'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed, \
+                            'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
+                            'stoch':'%s/%s/Stoch' % (out, name), 'name':name})
+                    # store parameters
+                    with open(out_log, 'a') as log:
+                        log.write('%s.srf\t%s\t%s\t%s\n' \
+                                % (prefix, shypo[0][0], dhypo[0][0], seed))
 
         # store fault traces
         with open(out_gmt, 'a') as traces:
@@ -214,6 +222,9 @@ def run_create_srf(t):
             t['elon'], t['elat'], t['shypo'], t['dhypo'], t['dt'], t['seed'], \
             t['prefix'], t['cases'], dip_dir = t['dip_dir'], \
             stoch = t['stoch'], silent = True)
+    if PLOT:
+        call(['plot_srf_square.py', '%s.srf' % (t['prefix'])])
+        call(['plot_srf_map.py', '%s.srf' % (t['prefix'])])
 
 ###
 ### MASTER
