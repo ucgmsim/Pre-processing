@@ -281,7 +281,7 @@ def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
 def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
             genslip = '3.3', rvfrac = None, rough = None, slip_cov = None, \
             velocity_model = None):
-    if velocity_model = None:
+    if velocity_model == None:
         velocity_model = srf_config.VELOCITY_MODEL
 
     with open(srf_file, 'w') as srfp:
@@ -460,7 +460,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
     mom = list(mom0)
     prefix = prefix0
 
-    if velocity_model = None:
+    if velocity_model == None:
         velocity_model = srf_config.VELOCITY_MODEL
 
     genslip_bin = '%s-v%s' % (srf_config.FF_SRF_BIN, genslip)
