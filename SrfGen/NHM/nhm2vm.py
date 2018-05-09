@@ -12,6 +12,8 @@ import h5py as h5
 from mpi4py import MPI
 import numpy as np
 
+sys.path.append('..')
+from createSRF import leonard
 # qcore library should already be in path
 from qcore import geo
 from qcore import gmt
@@ -59,14 +61,6 @@ class faultprop:
     dip = None
     # for Ds
     rupture_type = None
-
-# Leonard 2014 relationship between area and magnitude
-def leonard(rake, A):
-    # if dip slip else strike slip
-    if round(rake % 360 / 90.) % 2:
-        return 4.00 + math.log10(A)
-    else:
-        return 3.99 + math.log10(A)
 
 # rrup at which pgv is close to target
 def find_rrup():

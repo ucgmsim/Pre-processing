@@ -9,10 +9,15 @@ import sys
 import numpy as np
 sys.path.append(os.path.abspath(os.curdir)) #if there is a local srf_config, use it to override the default one
 
-from srf_config import *
+import srf_config
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-VELFILE = VELFILE.replace('<REPO>', '%s/' % (script_dir))
+def mkdir_p(out_dir):
+    if out_dir != '' and not os.path.isdir(out_dir):
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            if not os.path.exists(out_dir):
+                raise
 
 def srf_join(in1, in2, out):
     """
@@ -55,12 +60,12 @@ get_fileroot = lambda MAG, FLEN, FWID, seed : \
 get_gsfname = lambda MAG, DLEN, DWID : \
         'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
 # Leonard 2014 Relations
-def leonard(rake, A):
+def leonard(rake, A, ds = 4.00, ss = 3.99):
     # if dip slip else strike slip
     if round(rake % 360 / 90.) % 2:
-        return 4.19 + log10(A)
+        return ds + log10(A)
     else:
-        return 4.18 + log10(A)
+        return ss + log10(A)
 
 # by earth radius
 one_deg_lat = radians(6371.0072)
@@ -267,16 +272,20 @@ def MwScalingRelation(Mw, MwScalingRel):
 
 def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
     with open(gsf_file, 'w') as gsfp:
-        gexec = Popen([GSF_BIN, 'read_slip_vals=0'], \
+        gexec = Popen([srf_config.GSF_BIN, 'read_slip_vals=0'], \
                 stdin = PIPE, stdout = gsfp)
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' \
                 % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny))
         gexec.wait()
 
 def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
-            genslip = '3.3', rvfrac = None, rough = None, slip_cov = None):
+            genslip = '3.3', rvfrac = None, rough = None, slip_cov = None, \
+            velocity_model = None):
+    if velocity_model = None:
+        velocity_model = srf_config.VELOCITY_MODEL
+
     with open(srf_file, 'w') as srfp:
-        genslip_bin = '%s-v%s' % (FF_SRF_BIN, genslip)
+        genslip_bin = '%s-v%s' % (srf_config.FF_SRF_BIN, genslip)
         if int(genslip[0]) < 5:
             xstk = 'nx'
             ydip = 'ny'
@@ -287,7 +296,7 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
                 'write_gsf=0', 'infile=%s' % (gsf_file), \
                 'mag=%f' % (mw), '%s=%s' % (xstk, nx), \
                 '%s=%s' % (ydip, ny), 'ns=1', 'nh=1', 'seed=%d' % (seed), \
-                'velfile=%s' % (VELFILE), 'shypo=%f' % (shypo), \
+                'velfile=%s' % (velocity_model), 'shypo=%f' % (shypo), \
                 'dhypo=%f' % (dhypo), 'dt=%f' % dt, 'plane_header=1', \
                 'srf_version=2.0']
         if rvfrac != None:
@@ -312,94 +321,80 @@ def gen_stoch(stoch_file, srf_file, dx = 0.001, dy = 0.001, silent = False):
     Giving 0 will cause an infinite loop until the loop variable is too large.
     """
     out_dir = os.path.dirname(stoch_file)
-    if out_dir != '' and not os.path.exists(out_dir):
-        try:
-            os.makedirs(out_dir)
-        except OSError:
-            if not os.path.exists(out_dir):
-                raise
+    mkdir_p(out_dir)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
             if silent:
                 with open('/dev/null', 'a') as sink:
-                    call([STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
+                    call([srf_config.STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                             stdin = srfp, stdout = stochp, stderr = sink)
                 return
-            call([STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
+            call([srf_config.STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                     stdin = srfp, stdout = stochp)
 
-def CreateSRF_ps(lat, lon, depth, mw, mom, \
-        strike, rake, dip, dt, prefix = 'source', stoch = None):
+def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
+        prefix = 'source', stoch = None, vs = 3.20, rho = 2.44, \
+        target_area_km = None, target_slip_cm = None, stype = 'cos', \
+        rise_time = 0.5, init_time = 0.0, silent = False):
     """
     Must specify either magnitude or moment (mw, mom).
+    vs: Vs at hypocentre
+    rho: density at hypocentre
+    stype: source time function
+    rise_time: sampling step
+    init_time: time before rupture?
     """
-    # Vs, density at hypocentre
-    VS = 3.20
-    RHO = 2.44
-
-    # source time function, sampling step
-    STYPE = 'cos'
-    RISE_TIME = 0.5
-    DT = 0.005
-
-    # fixed parameters
-    TARGET_AREA_KM = -1
-    TARGET_SLIP_CM = -1
-    RUPT = 0.0
-
+    ###
+    ### generate optional arguments
+    ###
+    # moment from magnitude
     if mom <= 0:
-        # magnitude assumed to be set, calculate moment
         mom = mag2mom(mw)
-
-    if TARGET_AREA_KM > 0:
-        dd = sqrt(TARGET_AREA_KM)
-        ss = (mom * 1.0e-20) / np.product([TARGET_AREA_KM, VS, VS, RHO])
-    elif TARGET_SLIP_CM > 0:
-        dd = sqrt(mom * 1.0e-20) / np.product([TARGET_SLIP_CM, VS, VS, RHO])
-        ss = TARGET_SLIP_CM
+    # size (dd) and slip
+    if target_area_km != None:
+        dd = sqrt(target_area_km)
+        slip = (mom * 1.0e-20) / (target_area_km * vs * vs * rho)
+    elif target_slip_cm != None:
+        dd = sqrt(mom * 1.0e-20) / (target_slip_cm * vs * vs * rho)
+        slip = target_slip_cm
     else:
         aa = exp(2.0 * log(mom) / 3.0 - 14.7 * log(10.0))
         dd = sqrt(aa)
-        ss = (mom * 1.0e-20) / np.product([aa, VS, VS, RHO])
-    d_xy, slip = ('%.5e %.3f' % (dd, ss)).split()
-
-    if prefix[-1] == '_':
-        prefix = '%s%s' % (prefix, ('m%f' % (mw)).replace('.', 'pt'))
-    gsf_file = '%s.gsf' % (prefix)
-    srf_file = '%s.srf' % (prefix)
-    out_dir = os.path.dirname(srf_file)
-    if out_dir != '' and not os.path.exists(out_dir):
-        try:
-            os.makedirs(out_dir)
-        except OSError:
-            if not os.path.exists(out_dir):
-                raise
-
-    flen = float(d_xy)
-    fwid = float(d_xy)
-    print('FLEN: %s FWID: %s' % (flen, fwid))
+        slip = (mom * 1.0e-20) / (aa * vs * vs * rho)
+    print('FLEN/FWID: %s' % (dd))
 
     ###
-    # GENERATE GSF
+    ### file names
+    ###
+    if prefix[-1] == '_':
+        prefix = '%s_%s' % (prefix, ('m%f' % (mw)).replace('.', 'pt'))
+    gsf_file = '%s.gsf' % (prefix)
+    srf_file = '%s.srf' % (prefix)
+    mkdir_p(os.path.dirname(srf_file))
+
+    ###
+    ### create GSF
+    ###
     with open(gsf_file, 'w') as gsfp:
         gsfp.write('# nstk= 1 ndip= 1\n')
-        gsfp.write('# flen= %10.4f fwid= %10.4f\n' % (flen, fwid))
+        gsfp.write('# flen= %10.4f fwid= %10.4f\n' % (dd, dd))
         gsfp.write('# LON  LAT  DEP(km)  SUB_DX  SUB_DY  LOC_STK  LOC_DIP  LOC_RAKE  SLIP(cm)  INIT_TIME  SEG_NO\n')
         gsfp.write('1\n')
         gsfp.write('%11.5f %11.5f %8.4f %8.4f %8.4f %6.1f %6.1f %6.1f %8.2f %8.3f %3d\n' \
-                % (lon, lat, depth, float(d_xy), float(d_xy), \
-                strike, dip, rake, float(slip), RUPT, 0))
+                % (lon, lat, depth, dd, dd, strike, dip, rake, slip, init_time, 0))
 
     ###
-    # GENERATE SRF
-    call([PS_SRF_BIN, 'infile=%s' % (gsf_file), \
+    ### create SRF
+    ###
+    call([srf_config.PS_SRF_BIN, 'infile=%s' % (gsf_file), \
             'outfile=%s' % (srf_file), 'outbin=0', \
-            'stype=%s' % (STYPE), 'dt=%f' % (DT), 'plane_header=1', \
-            'risetime=%f' % (RISE_TIME), \
+            'stype=%s' % (stype), 'dt=%f' % (dt), 'plane_header=1', \
+            'risetime=%f' % (rise_time), \
             'risetimefac=1.0', 'risetimedep=0.0'])
 
     ###
-    # CONVERT TO STOCH
+    ### save STOCH
+    ###
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file)
@@ -439,12 +434,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     gsf_file = '%s.gsf' % (prefix)
     srf_file = '%s.srf' % (prefix)
     out_dir = os.path.dirname(srf_file)
-    if out_dir != '' and not os.path.exists(out_dir):
-        try:
-            os.makedirs(out_dir)
-        except OSError:
-            if not os.path.exists(out_dir):
-                raise
+    mkdir_p(out_dir)
 
     gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny)
     gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
@@ -463,14 +453,17 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         flen, dlen, fwid, dwid, dtop, stk, rak, dip, elon, elat, \
         shypo, dhypo, dt, seed, prefix0, cases, genslip = '3.3', \
         rvfrac = None, rough = None, slip_cov = None, stoch = None, \
-        dip_dir = None, silent = False):
+        dip_dir = None, silent = False, velocity_model = None):
 
     # do not change any pointers
     mag = list(mag0)
     mom = list(mom0)
     prefix = prefix0
 
-    genslip_bin = '%s-v%s' % (FF_SRF_BIN, genslip)
+    if velocity_model = None:
+        velocity_model = srf_config.VELOCITY_MODEL
+
+    genslip_bin = '%s-v%s' % (srf_config.FF_SRF_BIN, genslip)
     if int(genslip[0]) < 5:
         xstk = 'nx'
         ydip = 'ny'
@@ -480,12 +473,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         ydip = 'ndip'
         rup_name = 'rupture_delay'
     out_dir = os.path.dirname(prefix)
-    if out_dir != '' and not os.path.exists(out_dir):
-        try:
-            os.makedirs(out_dir)
-        except OSError:
-            if not os.path.exists(out_dir):
-                raise
+    mkdir_p(out_dir)
 
     casefiles = []
     for c, case in enumerate(cases):
@@ -528,7 +516,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
                         stk[c][f], dip[c][f], rak[c][f], \
                         flen[c][f], fwid[c][f], nx[f], ny[f]))
         # create GSF file
-        cmd = [GSF_BIN, 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
+        cmd = [srf_config.GSF_BIN, 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
                 'outfile=%s' % (gsf_file)]
         if dip_dir != None:
             cmd.append('dipdir=%s' % (dip_dir))
@@ -547,7 +535,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
                     'gwid=%s' % (gwid[c]), 'mag=%f' % (mag[c]), \
                     '%s=%f' % (xstk, nx_tot), '%s=%f' % (ydip, ny[0]), \
                     'ns=1', 'nh=1', 'seed=%d' % (seed), \
-                    'velfile=%s' % (VELFILE), 'shypo=%f' % (shyp_tot), \
+                    'velfile=%s' % (velocity_model), 'shypo=%f' % (shyp_tot), \
                     'dhypo=%f' % (dhypo[c][0]), 'dt=%f' % (dt), \
                     'plane_header=1', 'side_taper=0.02', 'bot_taper=0.02', \
                     'top_taper=0.0', '%s=%s' % (rup_name, rup_delay[c]), \
