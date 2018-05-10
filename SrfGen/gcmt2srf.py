@@ -48,7 +48,7 @@ if len(sys.argv) > 1:
         sys.exit(1)
 
     # load CMT CSV
-    sources = np.rec.array(np.loadtxt(args.csv_file, dtype = [('pid', 'i4'), \
+    sources = np.rec.array(np.loadtxt(args.csv_file, dtype = [('pid', '|S'), \
             ('lat', 'f4'), ('lon', 'f4'), ('depth', 'f4'), ('mag', 'f4'), \
             ('strike', 'f4'), ('dip', 'f4'), ('rake', 'f4')], \
             delimiter = ',', skiprows = 1, usecols = (0, 2, 3, 13, 11, 4, 5, 6)))
