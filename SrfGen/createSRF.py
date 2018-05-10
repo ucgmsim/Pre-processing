@@ -361,7 +361,8 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
         aa = exp(2.0 * log(mom) / 3.0 - 14.7 * log(10.0))
         dd = sqrt(aa)
         slip = (mom * 1.0e-20) / (aa * vs * vs * rho)
-    print('FLEN/FWID: %s' % (dd))
+    if not silent:
+        print('FLEN/FWID: %s' % (dd))
 
     ###
     ### file names
@@ -386,18 +387,22 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
     ###
     ### create SRF
     ###
+    if silent:
+        stderr = PIPE
+    else:
+        stderr = None
     call([srf_config.PS_SRF_BIN, 'infile=%s' % (gsf_file), \
             'outfile=%s' % (srf_file), 'outbin=0', \
             'stype=%s' % (stype), 'dt=%f' % (dt), 'plane_header=1', \
             'risetime=%f' % (rise_time), \
-            'risetimefac=1.0', 'risetimedep=0.0'])
+            'risetimefac=1.0', 'risetimedep=0.0'], stderr = stderr)
 
     ###
     ### save STOCH
     ###
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file)
+        gen_stoch(stoch_file, srf_file, silent = silent)
 
     # location of resulting SRF file
     return srf_file
