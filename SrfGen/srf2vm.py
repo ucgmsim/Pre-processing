@@ -411,16 +411,16 @@ def create_vm(args, srf_meta):
 
     # for plotting and calculating VM domain distance
     with open('%s/srf.path' % (ptemp), 'w') as sp:
-        sp.write('\n'.join([' '.join(map(str, ll)) \
-                for ll in details['points']]))
-        sp.write('\n%s %s\n' \
-                % (details['points'][0][0], details['points'][0][1]))
+        for plane in srf_meta['points']:
+            sp.write('> srf plane\n')
+            np.savetxt(sp, plane, fmt = '%f')
+            sp.write('%f %f\n' % (tuple(plane[0])))
 
-    # modify if necessary
+    # modify VM if necessary
     adjusted = False
     if faultprop.Mw >= 6.2 and land0 < 99:
         adjusted = True
-        print('modifying %s' % (details['name']))
+        print('modifying %s' % (srf_meta['name']))
 
         # rotation based on centre line bearing at this point
         l1 = centre_lon(min_y[1])
@@ -483,7 +483,7 @@ def create_vm(args, srf_meta):
     if xlen1 == 0 or ylen1 == 0 or zlen == 0:
         # clean and only return metadata
         rmtree(ptemp)
-        return {'name':details['name'], 'mag':faultprop.Mw, \
+        return {'name':srf_meta['name'], 'mag':faultprop.Mw, \
                 'dbottom':srf_meta['dbottom'], \
                 'zlen':zlen, 'sim_time':sim_time0, \
                 'xlen':xlen0, 'ylen':ylen0, 'land':land0, \
@@ -497,6 +497,9 @@ def create_vm(args, srf_meta):
     vm_dir = os.path.join(args.out_dir, srf_meta['name'])
     nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
     params_vel = os.path.join(ptemp, 'params_vel.py')
+    # NZVM won't run if folder exists
+    if os.path.exists(vm_dir):
+        rmtree(vm_dir)
     save_vm_config(nzvm_cfg = nzvm_cfg, params_vel = params_vel, \
                    vm_dir = vm_dir, origin = origin1, rot = bearing, \
                    xlen = xlen1, ylen = ylen1, zmax = zlen, hh = args.hh, \
@@ -504,9 +507,6 @@ def create_vm(args, srf_meta):
                    centroid_depth = srf_meta['centroid_depth'], \
                    sim_duration = sim_time0 * (not adjusted) \
                                 + sim_time1 * adjusted)
-    # NZVM won't run if folder exists
-    if os.path.exists(vm_dir):
-        rmtree(vm_dir)
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN), \
           stdout = PIPE).wait()
@@ -525,17 +525,16 @@ def create_vm(args, srf_meta):
     ###
     ### PLOT
     ###
-    # TODO: fix points before continuing
-    return
     p = gmt.GMTPlot(os.path.join(vm_dir, 'optimisation.ps'))
     p.spacial('M', plot_region, sizing = 7)
     p.coastlines()
     # filled slip area
-    p.path('\n'.join([' '.join(map(str, ll)) for ll in details['points']]), \
-            is_file = False, close = True, fill = 'yellow', split = '-')
+    p.path('%s/srf.path' % (ptemp), is_file = True, \
+           fill = 'yellow', split = '-')
     # top edge
-    p.path('\n'.join([' '.join(map(str, ll)) \
-            for ll in details['points'][:len(details['points']) / 2]]), is_file = False)
+    for plane in srf_meta['points']:
+        p.path('\n'.join([' '.join(map(str, ll)) for ll in plane[:2]]), \
+               is_file = False)
     # vm domain (simple and adjusted)
     p.path('%s %s\n%s %s\n%s %s\n%s %s' % (o1[0], o1[1], o2[0], o2[1], \
             o3[0], o3[1], o4[0], o4[1]), is_file = False, close = True, \
@@ -575,8 +574,8 @@ def create_vm(args, srf_meta):
     # working dir cleanup
     rmtree(ptemp)
     # return vm info
-    return {'name':details['name'], 'mag':faultprop.Mw, \
-            'dbottom':details['dbottom'], \
+    return {'name':srf_meta['name'], 'mag':faultprop.Mw, \
+            'dbottom':srf_meta['dbottom'], \
             'zlen':zlen, 'sim_time':sim_time0, \
             'xlen':xlen0, 'ylen':ylen0, 'land':land0, \
             'zlen_mod':zlen, 'sim_time_mod':sim_time1, \
@@ -616,7 +615,6 @@ def load_msgs(args):
     return msgs
 
 def store_summary(table, info_store):
-    return
     # initialise table file
     with open(table, 'w') as t:
         t.write('"name","mw","plane depth (km, to bottom)",'
@@ -654,17 +652,17 @@ if len(sys.argv) > 1:
             default = 'autovm')
     parser.add_argument('-n', '--nproc', help = 'worker processes to spawn', \
             type = int, default = int(os.sysconf('SC_NPROCESSORS_ONLN') - 1))
-    arg('--pgv', help = 'max PGV at velocity model perimiter (estimated)', \
+    arg('--pgv', help = 'max PGV at velocity model perimiter (estimated, cm/s)', \
             type = float, default = 5.0)
-    arg('--hh', help = 'velocity model grid spacing', \
+    arg('--hh', help = 'velocity model grid spacing (km)', \
             type = float, default = 0.4)
-    arg('--dt', help = 'timestep to estimate simulation duration', \
+    arg('--dt', help = 'timestep to estimate simulation duration (s)', \
             type = float, default = 0.005)
-    arg('--space-land', help = 'min space between VM edge and land', \
+    arg('--space-land', help = 'min space between VM edge and land (km)', \
             type = float, default = 5.0)
-    arg('--space-srf', help = 'min space between VM edge and SRF', \
+    arg('--space-srf', help = 'min space between VM edge and SRF (km)', \
             type = float, default = 15.0)
-    arg('--min-vs', help = 'to calculate VM flo. (km / s)', \
+    arg('--min-vs', help = 'for nzvm gen and flo (km/s)', \
             type = float, default = 0.5)
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
@@ -727,13 +725,9 @@ else:
         # task timer
         t0 = MPI.Wtime()
         # run
-        #try:
         details = create_vm(task[0], task[1])
-        #except:
-        #    print('FAILED TASK: %s' % (task['name']))
-        #    continue
         # store
-        #details['time'] = MPI.Wtime() - t0
+        details['time'] = MPI.Wtime() - t0
         logbook.append(details)
 
     # reports to master
