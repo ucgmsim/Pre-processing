@@ -8,7 +8,7 @@ import sys
 from tempfile import mkdtemp
 from time import time
 
-import h5py as h5
+from h5py import File as h5open
 from mpi4py import MPI
 import numpy as np
 
@@ -104,12 +104,33 @@ def auto_dxy(region):
 # TODO: should be part of GMT library
 def grd_proportion(grd_file):
     try:
-        with h5.File(grd_file, 'r') as grd:
+        with h5open(grd_file, 'r') as grd:
             return 100.0 * np.nansum(grd['z'][...]) / float(grd['z'].size)
     except IOError:
         print('INVALID GRD: %s' % (grd_file))
         # this should no longer happen when auto_dxy is used
         raise
+
+def vm_land(c1, c2, c3, c4, wd = '.'):
+    """
+    Proportion of VM on land.
+    """
+    path_vm = '%s/mask_vm.path' % (wd)
+    grd_vm = '%s/mask_vm.grd' % (wd)
+    grd_land = '%s/mask_land.grd' % (wd)
+    grd_vm_land = '%s/mask_vm_land.grd' % (wd)
+
+    geo.path_from_corners([c1, c2, c3, c4], output = path_vm)
+    vm_region = corners2region(c1, c2, c3, c4)
+    dxy = auto_dxy(vm_region)
+
+    gmt.grd_mask('f', grd_land, \
+            region = vm_region, dx = dxy, dy = dxy, wd = wd)
+    gmt.grd_mask(path_vm, grd_vm, \
+            region = vm_region, dx = dxy, dy = dxy, wd = wd)
+    gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_vm_land], wd = wd)
+
+    return grd_proportion(grd_vm_land) / grd_proportion(grd_vm) * 100
 
 # get longitude on NZ centre path at given latitude
 def centre_lon(lat_target):
@@ -131,19 +152,30 @@ def centre_lon(lat_target):
     # consider same ratio along longitude difference to be correct
     return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
 
-# return region that just fits 4 points
-def corners2region(c1, c2, c3, c4):
-    all_corners = np.array([c1, c2, c3, c4])
-    x_min, y_min = np.min(all_corners, axis = 0)
-    x_max, y_max = np.max(all_corners, axis = 0)
-    return (x_min, x_max, y_min, y_max)
+def rrup2xylen(rrup, hh, points, rot = 0, wd = '.'):
+    """
+    rrup: in km
+    """
+    lon_mid, lat_mid, dx_km, dy_km = gmt.region_fit_oblique(points, 90 - rot, \
+                                                            wd = wd)
+    # extend by wanted rrup
+    min_x = geo.ll_shift(lat_mid, lon_mid, rrup + dx_km, 270 - rot)[::-1]
+    max_x = geo.ll_shift(lat_mid, lon_mid, rrup + dx_km, 90 - rot)[::-1]
+    min_y = geo.ll_shift(lat_mid, lon_mid, rrup + dy_km, 180 - rot)[::-1]
+    max_y = geo.ll_shift(lat_mid, lon_mid, rrup + dy_km, 0 - rot)[::-1]
+    # mid, x, y extents
+    return (lon_mid, lat_mid), \
+           math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) \
+                     / hh) * hh, \
+           math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) \
+                     / hh) * hh
 
-# create (closed) GMT path file from 4 points
-def corners2path(c1, c2, c3, c4, output):
-    with open(output, 'w') as o:
-        o.write('>corners\n%s %s\n%s %s\n%s %s\n%s %s\n%s %s\n' \
-                % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], \
-                c4[0], c4[1], c1[0], c1[1]))
+# return region that just fits the path made from 4 points
+def corners2region(c1, c2, c3, c4):
+    perimiter = np.array(geo.path_from_corners([c1, c2, c3, c4], output = None))
+    x_min, y_min = np.min(perimiter, axis = 0)
+    x_max, y_max = np.max(perimiter, axis = 0)
+    return (x_min, x_max, y_min, y_max)
 
 def save_vm_config(nzvm_cfg = None, params_vel = None, vm_dir = None, \
         origin = (170, -40), rot = 0, xlen = 100, ylen = 100, zmax = 40, \
@@ -240,7 +272,7 @@ def build_corners(origin, rot, xlen, ylen):
     return c1, c2, c3, c4
 
 # maximum width along lines a and b
-def reduce_domain(a0, a1, b0, b1, wd):
+def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     # scan line paths follow lines a, b
     len_ab = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
@@ -286,9 +318,9 @@ def reduce_domain(a0, a1, b0, b1, wd):
         as_west = []
         for c in xrange(len(isections)):
             if '%s/srf.path' % (wd) in icomps[c]:
-                diff = SPACE_SRF
+                diff = space_srf
             elif NZ_LAND_OUTLINE in icomps[c]:
-                diff = SPACE_LAND
+                diff = space_land
             # these bearings will be slightly wrong but don't need to be exact
             # TODO: adjust to follow same path as ap -> bp
             as_east.append(geo.ll_shift(isections[c][1], isections[c][0], \
@@ -307,13 +339,13 @@ def reduce_domain(a0, a1, b0, b1, wd):
         be = geo.ll_bearing(m[0], m[1], east[0], east[1])
         if abs(be - (bearing_p) % 360) > 90:
             m2e *= -1
-        over_e = max(over_e, math.ceil((m2e - m2ee) / HH) * HH)
+        over_e = max(over_e, math.ceil((m2e - m2ee) / hh) * hh)
         # distance beyond west is negative
         m2w = geo.ll_dist(m[0], m[1], west[0], west[1])
         bw = geo.ll_bearing(m[0], m[1], west[0], west[1])
         if abs(bw - (bearing_p + 180) % 360) > 90:
             m2w *= -1
-        over_w = max(over_w, math.ceil((m2w - m2we) / HH) * HH)
+        over_w = max(over_w, math.ceil((m2w - m2we) / hh) * hh)
 
     # bring in sides
     xlen2 = xlen + over_e * (over_e < 0) + over_w * (over_w < 0)
@@ -349,9 +381,9 @@ def reduce_domain(a0, a1, b0, b1, wd):
         else:
             if not land_discovered:
                 # shift bottom edge up
-                over_s = math.floor((x * len_ab - 15) / HH) * HH
+                over_s = math.floor((x * len_ab - 15) / hh) * hh
             land_discovered = True
-            over_n = math.floor((len_ab - x * len_ab - 15) / HH) * HH
+            over_n = math.floor((len_ab - x * len_ab - 15) / hh) * hh
 
     # bring in top and bottom edge
     len_ab2 = len_ab - over_s * (over_s > 0) - over_n * (over_n > 0)
@@ -369,49 +401,27 @@ def create_vm(args, srf_meta):
     faultprop.Mw = srf_meta['mag']
     faultprop.rake = srf_meta['rake']
     faultprop.dip = srf_meta['dip']
-    # fault width (along dip)
-    fwid = (srf_meta['dbottom'] - srf_meta['dtop']) \
-        / math.sin(math.radians(faultprop.dip))
     # rrup to reach wanted PGA
     rrup, pga_actual = find_rrup(args.pgv)
 
-    # fault ll range (ll points at extremes)
-    all_corners = srf_meta['points'].reshape((-1, 2))
-    max_x, max_y = all_corners[np.argmax(all_corners, axis = 0)]
-    min_x, min_y = all_corners[np.argmin(all_corners, axis = 0)]
-    # extend by wanted rrup
-    min_x = geo.ll_shift(min_x[1], min_x[0], rrup, 270)[::-1]
-    max_x = geo.ll_shift(max_x[1], max_x[0], rrup, 90)[::-1]
-    min_y = geo.ll_shift(min_y[1], min_y[0], rrup, 180)[::-1]
-    max_y = geo.ll_shift(max_y[1], max_y[0], rrup, 0)[::-1]
-    # x,y extent via edges instead of corners introduces error
-    # can be significant!!! TODO FIX!!
-    xlen0 = math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) \
-            / args.hh) * args.hh
-    ylen0 = math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) \
-            / args.hh) * args.hh
-
-    # original vm region and plotting region
-    vm0_region = (min_x[0], max_x[0], min_y[1], max_y[1])
-    plot_region = (min_x[0] - 1, max_x[0] + 1, min_y[1] - 1, max_y[1] + 1)
-    # proper corners with equally sized edges
+    # original, unrotated vm
     bearing = 0
-    origin0 = geo.ll_mid(min_x[0], min_y[1], max_x[0], max_y[1])
-    o1, o2, o3, o4 = build_corners(origin0, bearing, xlen0, ylen0)
+    origin, xlen0, ylen0 = rrup2xylen(rrup, args.hh, \
+                              srf_meta['corners'].reshape((-1, 2)), \
+                              rot = bearing, wd = ptemp)
+    o1, o2, o3, o4 = build_corners(origin, bearing, xlen0, ylen0)
+    vm0_region = corners2region(o1, o2, o3, o4)
+    plot_region = (vm0_region[0] - 1, vm0_region[1] + 1, \
+                   vm0_region[2] - 1, vm0_region[3] + 1)
 
     # original domain has a ds_multiplier of 2 when calculating sim time
     sim_time0 = (auto_time2(xlen0, ylen0, 2) // args.dt) * args.dt
-
-    # proportion in ocean for simple domain
-    dxy = auto_dxy(corners2region(min_x, max_x, min_y, max_y))
-    # TODO just like in land1 version, crop by great circle perimiter
-    gmt.grd_mask('f', '%s/landmask.grd' % (ptemp), region = vm0_region, \
-            dx = dxy, dy = dxy, wd = ptemp, outside = 0)
-    land0 = grd_proportion('%s/landmask.grd' % (ptemp))
+    # proportion in ocean
+    land0 = vm_land(o1, o2, o3, o4, wd = ptemp)
 
     # for plotting and calculating VM domain distance
     with open('%s/srf.path' % (ptemp), 'w') as sp:
-        for plane in srf_meta['points']:
+        for plane in srf_meta['corners']:
             sp.write('> srf plane\n')
             np.savetxt(sp, plane, fmt = '%f')
             sp.write('%f %f\n' % (tuple(plane[0])))
@@ -423,48 +433,37 @@ def create_vm(args, srf_meta):
         print('modifying %s' % (srf_meta['name']))
 
         # rotation based on centre line bearing at this point
-        l1 = centre_lon(min_y[1])
-        l2 = centre_lon(max_y[1])
-        mid = geo.ll_mid(l1, min_y[1], l2, max_y[1])
-        bearing = round(geo.ll_bearing(mid[0], mid[1], l2, max_y[1]))
+        l1 = centre_lon(vm0_region[2])
+        l2 = centre_lon(vm0_region[3])
+        mid = geo.ll_mid(l1, vm0_region[2], l2, vm0_region[3])
+        bearing = round(geo.ll_bearing(mid[0], mid[1], l2, vm0_region[3]))
 
         # wanted distance is at corners, not middle top to bottom
         # approach answer at infinity / "I don't know the formula" algorithm
-        # TODO: recalculate xlen, ylen based on rrup and rotation
-        c1, c2, c3, c4 = build_corners(origin0, bearing, ylen0, xlen0)
+        xlen1, ylen1 = rrup2xylen(rrup, args.hh, \
+                                  srf_meta['corners'].reshape((-1, 2)), \
+                                  rot = bearing, wd = ptemp)[1:]
+        c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
 
         # cut down ocean areas
-        c4, c1, c3, c2 = reduce_domain(c4, c1, c3, c2, ptemp)
+        c4, c1, c3, c2 = reduce_domain(c4, c1, c3, c2, args.hh, \
+                                       args.space_srf, args.space_land, ptemp)
+        ylen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) \
+                / args.hh) * args.hh
+        xlen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) \
+                / args.hh) * args.hh
+
+        # proportion in ocean
+        land1 = vm_land(c1, c2, c3, c4, wd = ptemp)
 
         # adjust region to fit new corners
         plot_region = (min(c4[0], c1[0], c3[0], c2[0], plot_region[0]), \
                 max(c4[0], c1[0], c3[0], c2[0], plot_region[1]), \
                 min(c4[1], c1[1], c3[1], c2[1], plot_region[2]), \
                 max(c4[1], c1[1], c3[1], c2[1], plot_region[3]))
-
-        # proportion in ocean
-        vm1_region = corners2region(c1, c2, c3, c4)
-        dxy = auto_dxy(vm1_region)
-        path_vm = '%s/landmask_vm.path' % (ptemp)
-        grd_vm = '%s/landmask_vm.grd' % (ptemp)
-        grd_land = '%s/landmask1.grd' % (ptemp)
-        grd_and = '%s/landmask_AND.grd' % (ptemp)
-        corners2path(c1, c2, c3, c4, path_vm)
-        gmt.grd_mask('f', grd_land, \
-                region = vm1_region, dx = dxy, dy = dxy, wd = ptemp)
-        gmt.grd_mask(path_vm, grd_vm, \
-                region = vm1_region, dx = dxy, dy = dxy, wd = ptemp)
-        total_vm = grd_proportion(grd_vm)
-        gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_and], wd = ptemp)
-        land1 = grd_proportion(grd_and) / total_vm * 100
-
-        origin1 = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
-        ylen = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) / HH) * HH
-        xlen = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) / HH) * HH
     else:
         print('not modifying %s' % (srf_meta['name']))
         # store original variables as final versions
-        origin1 = origin0
         ylen1 = ylen0
         xlen1 = xlen0
         land1 = land0
@@ -501,7 +500,7 @@ def create_vm(args, srf_meta):
     if os.path.exists(vm_dir):
         rmtree(vm_dir)
     save_vm_config(nzvm_cfg = nzvm_cfg, params_vel = params_vel, \
-                   vm_dir = vm_dir, origin = origin1, rot = bearing, \
+                   vm_dir = vm_dir, origin = origin, rot = bearing, \
                    xlen = xlen1, ylen = ylen1, zmax = zlen, hh = args.hh, \
                    min_vs = args.min_vs, mag = faultprop.Mw, \
                    centroid_depth = srf_meta['centroid_depth'], \
@@ -532,7 +531,7 @@ def create_vm(args, srf_meta):
     p.path('%s/srf.path' % (ptemp), is_file = True, \
            fill = 'yellow', split = '-')
     # top edge
-    for plane in srf_meta['points']:
+    for plane in srf_meta['corners']:
         p.path('\n'.join([' '.join(map(str, ll)) for ll in plane[:2]]), \
                is_file = False)
     # vm domain (simple and adjusted)
@@ -585,33 +584,27 @@ def load_msgs(args):
     # returns list of appropriate srf metadata
     msgs = []
 
-    # add a message for each srf_file
+    # add task for every info file
     srf_files = glob(args.srf_glob)
-    for srf_file in srf_files:
-        # todo: only unique names
-        name = os.path.splitext(os.path.basename(srf_file))[0].split('_')[0]
-        planes = srf.read_header(srf_file, idx = True)
-        points = np.zeros((len(planes), 4, 2))
-        for i, p in enumerate(planes):
-            # projected fault width (along dip direction)
-            pwid = p['width'] * math.cos(math.radians(p['dip']))
-            points[i, 0] = geo.ll_shift(p['centre'][1], p['centre'][0], \
-                                        p['length'] / 2.0, p['strike'] + 180)[::-1]
-            points[i, 1] = geo.ll_shift(p['centre'][1], p['centre'][0], \
-                                        p['length'] / 2.0, p['strike'])[::-1]
-            points[i, 2] = geo.ll_shift(points[i, 1, 1], points[i, 1, 0], \
-                                        pwid, p['strike'] + 90)[::-1]
-            points[i, 3] = geo.ll_shift(points[i, 0, 1], points[i, 0, 0], \
-                                        pwid, p['strike'] + 90)[::-1]
-        dbottom = planes[0]['dtop'] + \
-                  planes[0]['width'] * math.sin(math.radians(planes[0]['dip']))
-        # assuming hypocentre at 0.6 * depth
-        centroid_depth = (dbottom - planes[0]['dtop']) * 0.6 + planes[0]['dtop']
-        # assuming magnitude and rake
-        msgs.append((args, {'name':name, 'dtop':planes[0]['dtop'], \
-                'dip':planes[0]['dip'], 'rake':45, \
-                'dbottom':dbottom, 'points':points, 'mag':5.0, \
-                'centroid_depth':centroid_depth}))
+    info_files = map(lambda s : '%s.info' % (os.path.splitext(s)[0]), srf_files)
+    for info in info_files:
+        if not os.path.exists(info):
+            print('SRF info file not found: %s' % (info))
+            continue
+
+        with h5open(info) as h:
+            a = h.attrs
+            # todo: only unique names
+            name = os.path.splitext(os.path.basename(info))[0].split('_')[0]
+            try:
+                rake = a['rake'][0]
+            except (TypeError, IndexError):
+                rake = a['rake']
+            # todo: magnitude join for multi segment
+            msgs.append((args, {'name':name, 'dip':a['dip'][0], 'rake':rake, \
+                                'dbottom':a['dbottom'][0], \
+                                'corners':a['corners'], 'mag':a['mag'], \
+                                'centroid_depth':a['cd']}))
     return msgs
 
 def store_summary(table, info_store):

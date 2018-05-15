@@ -1,14 +1,19 @@
 #!/usr/bin/env python2
 
-from math import exp, log, log10, sin, cos, radians, sqrt
+import math
 import os
 from shutil import copyfile
 from subprocess import call, Popen, PIPE
 import sys
 
+from h5py import File as h5open
 import numpy as np
-sys.path.append(os.path.abspath(os.curdir)) #if there is a local srf_config, use it to override the default one
 
+from qcore import geo
+from qcore import srf
+
+# local srf_config has a higher priority
+sys.path.append(os.path.abspath(os.curdir))
 import srf_config
 
 def mkdir_p(out_dir):
@@ -51,8 +56,8 @@ def srf_join(in1, in2, out):
 
     o.close()
 
-mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
-mom2mag = lambda mom : (2 / 3. * log(mom) / log(10.0)) - 10.7
+mag2mom = lambda mw : math.exp(1.5 * (mw + 10.7) * math.log(10.0))
+mom2mag = lambda mom : (2 / 3. * math.log(mom) / math.log(10.0)) - 10.7
 get_nx = lambda FLEN, DLEN : '%.0f' % (FLEN / DLEN)
 get_ny = lambda FWID, DWID : '%.0f' % (FWID / DWID)
 get_fileroot = lambda MAG, FLEN, FWID, seed : \
@@ -63,12 +68,12 @@ get_gsfname = lambda MAG, DLEN, DWID : \
 def leonard(rake, A, ds = 4.00, ss = 3.99):
     # if dip slip else strike slip
     if round(rake % 360 / 90.) % 2:
-        return ds + log10(A)
+        return ds + math.log10(A)
     else:
-        return ss + log10(A)
+        return ss + math.log10(A)
 
 # by earth radius
-one_deg_lat = radians(6371.0072)
+one_deg_lat = math.radians(6371.0072)
 
 # comment placed in corners file (above/below hypocenter)
 # make sure lines end with '\n', especially the last one.
@@ -108,10 +113,10 @@ def get_corners(lat, lon, flen, fwid, dip, strike):
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
-    yPosSurfProj = yPos * cos(radians(dip))
-    azimuth = radians(strike - 90)
-    RotMatrix = np.array([[cos(azimuth), sin(azimuth)], \
-            [-sin(azimuth), cos(azimuth)]])
+    yPosSurfProj = yPos * math.cos(math.radians(dip))
+    azimuth = math.radians(strike - 90)
+    RotMatrix = np.array([[ math.cos(azimuth), math.sin(azimuth)], \
+                          [-math.sin(azimuth), math.cos(azimuth)]])
     eastLocRelative, northLocRelative = \
             np.dot(RotMatrix, [np.tile(xPos, Ny), \
                     yPosSurfProj.repeat(Ny)]).reshape(2, Nx, Ny)
@@ -119,7 +124,7 @@ def get_corners(lat, lon, flen, fwid, dip, strike):
     # now use a coordinate transformation to go from the North East cartesian
     # plane to the spherical earth WGS84 coordinate system
     lats = lat + northLocRelative / one_deg_lat
-    lons = lon + (eastLocRelative / one_deg_lat) * 1 / cos(radians(lat))
+    lons = lon + (eastLocRelative / one_deg_lat) * 1 / math.cos(math.radians(lat))
 
     # joined (lon, lat) pairs
     return np.dstack((lons.flat, lats.flat))[0]
@@ -128,15 +133,15 @@ def get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip):
     """
     Same logic as corners, for a single point.
     """
-    y_pos_surf_proj_hyp = -dhypo * cos(radians(dip))
+    y_pos_surf_proj_hyp = -dhypo * math.cos(math.radians(dip))
 
-    azimuth = radians(strike - 90)
-    rot_matrix = np.array([[cos(azimuth), sin(azimuth)], \
-            [-sin(azimuth), cos(azimuth)]])
+    azimuth = math.radians(strike - 90)
+    rot_matrix = np.array([[ math.cos(azimuth), math.sin(azimuth)], \
+                           [-math.sin(azimuth), math.cos(azimuth)]])
     A = np.dot(rot_matrix, [[shypo], [y_pos_surf_proj_hyp]])
 
     lat_hyp = lat + A[1][0] / one_deg_lat
-    lon_hyp = lon + (A[0][0] / one_deg_lat) * 1.0 / (cos(radians(lat)))
+    lon_hyp = lon + (A[0][0] / one_deg_lat) * 1.0 / (math.cos(math.radians(lat)))
 
     return lon_hyp, lat_hyp
 
@@ -203,19 +208,19 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
-    yPosSurfProj = yPos * cos(radians(dip))
-    rotAngleAzimuth = radians(strike - 90)
-    RotMatrix = np.array([[cos(rotAngleAzimuth), sin(rotAngleAzimuth)], \
-            [-sin(rotAngleAzimuth), cos(rotAngleAzimuth)]])
+    yPosSurfProj = yPos * math.cos(math.radians(dip))
+    rotAngleAzimuth = math.radians(strike - 90)
+    RotMatrix = np.array([[math.cos(rotAngleAzimuth), math.sin(rotAngleAzimuth)], \
+            [-math.sin(rotAngleAzimuth), math.cos(rotAngleAzimuth)]])
     eastLocRelative, northLocRelative = \
             np.dot(RotMatrix, [np.tile(xPos, Ny), \
                     yPosSurfProj.repeat(Ny)]).reshape(2, Nx, Ny)
-    depthLocRelative = (-yPos * sin(radians(dip))).repeat(Ny).reshape((Nx, Ny))
+    depthLocRelative = (-yPos * math.sin(math.radians(dip))).repeat(Ny).reshape((Nx, Ny))
 
     # now use a coordinate transformation to go from the North East cartesian
     # plane to the spherical earth WGS84 coordinate system
     lats = Lat + northLocRelative / one_deg_lat
-    lons = Lon + (eastLocRelative / one_deg_lat) * 1 / cos(radians(Lat))
+    lons = Lon + (eastLocRelative / one_deg_lat) * 1 / math.cos(math.radians(Lat))
     depths = np.maximum(Depth + depthLocRelative, 0)
 
     # determine topcenter of the fault plane (top edge, center point along strike)
@@ -223,14 +228,14 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
     xPos_tcl = 0
     yPos_tcl = fault_width / 2.0
     # convert to NE system
-    yPosSurfProj_tcl = yPos_tcl * cos(radians(dip))
+    yPosSurfProj_tcl = yPos_tcl * math.cos(math.radians(dip))
     A = np.dot(RotMatrix, [[xPos_tcl], [yPosSurfProj_tcl]])
     eastLocRelative_tcl = A[0][0]
     northLocRelative_tcl = A[1][0]
-    depthLocRelative_tcl = -yPos_tcl * sin(radians(dip))
+    depthLocRelative_tcl = -yPos_tcl * math.sin(math.radians(dip))
     # convert to Lat, Lon, depth
     lat_tcl = Lat + northLocRelative_tcl / one_deg_lat
-    lon_tcl = Lon + (eastLocRelative_tcl / one_deg_lat) * 1 / cos(radians(Lat))
+    lon_tcl = Lon + (eastLocRelative_tcl / one_deg_lat) * 1 / math.cos(math.radians(Lat))
     depth_tcl = max([Depth + depthLocRelative_tcl, 0])
 
     DHYPO = fault_width / 2.0
@@ -267,7 +272,7 @@ def MwScalingRelation(Mw, MwScalingRel):
         exit()
 
     # length, width
-    return sqrt(A), sqrt(A)
+    return math.sqrt(A), math.sqrt(A)
 
 
 def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
@@ -332,6 +337,59 @@ def gen_stoch(stoch_file, srf_file, dx = 0.001, dy = 0.001, silent = False):
             call([srf_config.STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                     stdin = srfp, stdout = stochp)
 
+def gen_meta(srf_file, srf_type, lon, lat, mag, mom, \
+            strike, rake, dip, dt, vm = None, vs = None, rho = None, \
+            centroid_depth = None, \
+            flen = None, dlen = None, fwid = None, dwid = None, \
+            shypo = None, dhypo = None):
+    """
+    Stores SRF metadata as hdf5.
+    srf_file: SRF path used as basename for info file and additional metadata
+    """
+    planes = srf.read_header(srf_file, idx = True)
+
+    dbottom = []
+    corners = np.zeros((len(planes), 4, 2))
+    for i, p in enumerate(planes):
+        # projected fault width (along dip direction)
+        pwid = p['width'] * math.cos(math.radians(p['dip']))
+        corners[i, 0] = geo.ll_shift(p['centre'][1], p['centre'][0], \
+                                    p['length'] / 2.0, p['strike'] + 180)[::-1]
+        corners[i, 1] = geo.ll_shift(p['centre'][1], p['centre'][0], \
+                                    p['length'] / 2.0, p['strike'])[::-1]
+        corners[i, 2] = geo.ll_shift(corners[i, 1, 1], corners[i, 1, 0], \
+                                    pwid, p['strike'] + 90)[::-1]
+        corners[i, 3] = geo.ll_shift(corners[i, 0, 1], corners[i, 0, 0], \
+                                    pwid, p['strike'] + 90)[::-1]
+        dbottom.append(p['dtop'] + p['width'] * math.sin(math.radians(p['dip'])))
+
+    with h5open('%s.info' % (os.path.splitext(srf_file)[0]), 'w') as h:
+        a = h.attrs
+        # only taken from given parameters
+        a['type'] = srf_type
+        a['dt'] = dt
+        a['rake'] = rake
+        a['mag'] = mag
+        # srf header data
+        for k in planes[0].keys():
+            a[k] = [p[k] for p in planes]
+        # point source has 1 vs/rho, others are taken from vm
+        if srf_type == 1:
+            a['vs'] = vs
+            a['rho'] = rho
+        else:
+            a['vm'] = np.string_(os.path.basename(vm))
+        # either way should give same result
+        if centroid_depth != None:
+            a['cd'] = centroid_depth
+        else:
+            a['cd'] = planes[0]['dhyp'] \
+                      * math.sin(math.radians(planes[0]['dip'])) \
+                      + planes[0]['dtop']
+        # derived parameters
+        a['corners'] = corners
+        a['dbottom'] = dbottom
+
 def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
         prefix = 'source', stoch = None, vs = 3.20, rho = 2.44, \
         target_area_km = None, target_slip_cm = None, stype = 'cos', \
@@ -352,14 +410,14 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
         mom = mag2mom(mw)
     # size (dd) and slip
     if target_area_km != None:
-        dd = sqrt(target_area_km)
+        dd = math.sqrt(target_area_km)
         slip = (mom * 1.0e-20) / (target_area_km * vs * vs * rho)
     elif target_slip_cm != None:
-        dd = sqrt(mom * 1.0e-20) / (target_slip_cm * vs * vs * rho)
+        dd = math.sqrt(mom * 1.0e-20) / (target_slip_cm * vs * vs * rho)
         slip = target_slip_cm
     else:
-        aa = exp(2.0 * log(mom) / 3.0 - 14.7 * log(10.0))
-        dd = sqrt(aa)
+        aa = math.exp(2.0 * math.log(mom) / 3.0 - 14.7 * math.log(10.0))
+        dd = math.sqrt(aa)
         slip = (mom * 1.0e-20) / (aa * vs * vs * rho)
     if not silent:
         print('FLEN/FWID: %s' % (dd))
@@ -403,6 +461,13 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file, silent = silent)
+
+    ###
+    ### save INFO
+    ###
+    gen_meta(srf_file, 1, lon, lat, mw, mom, \
+            strike, rake, dip, dt, vs = vs, rho = rho, \
+            centroid_depth = depth)
 
     # location of resulting SRF file
     return srf_file
