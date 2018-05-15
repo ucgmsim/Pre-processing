@@ -11,7 +11,12 @@ import numpy as np
 from createSRF import leonard, CreateSRF_ps
 
 # MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 MASTER = 0
+if size < 2:
+    sys.exit('use mpirun with nproc > 1')
 
 def run_create_srf(args, t, vs, rho):
     mom = -1
@@ -26,7 +31,7 @@ def run_create_srf(args, t, vs, rho):
 ###
 ### MASTER
 ###
-if len(sys.argv) > 1:
+if rank == MASTER:
     # load parameters
     parser = ArgumentParser()
     parser.add_argument('csv_file', help = 'path to CMT solutions CSV')
@@ -57,60 +62,29 @@ if len(sys.argv) > 1:
     vmodel = np.rec.array(np.loadtxt(args.velocity_model, \
             skiprows = 1, usecols = (0, 2, 3), \
             dtype = [('depth', 'f8'), ('vs', 'f8'), ('rho', 'f8')]))
-    vmodel.depth = np.cumsum(vmodel.depth)
-    vs = np.interp(sources.depth, vmodel.depth, vmodel.vs)
-    rho = np.interp(sources.depth, vmodel.depth, vmodel.rho)
-
-    # not more processes than jobs
-    args.nproc = min(len(sources), args.nproc)
-    # spawn slaves
-    comm = MPI.COMM_WORLD.Spawn(
-        sys.executable, args = [sys.argv[0]], maxprocs = args.nproc)
-    status = MPI.Status()
+    depth_bins = np.digitize(sources.depth, np.cumsum(vmodel.depth), \
+                             right = True)
+    vs = vmodel.vs[depth_bins]
+    rho = vmodel.rho[depth_bins]
 
     # distribute work to slaves who ask
+    status = MPI.Status()
     for i, s in enumerate(sources):
         # slave asking for work
         comm.recv(source = MPI.ANY_SOURCE, status = status)
         slave_id = status.Get_source()
         comm.send(obj = [args, s, vs[i], rho[i]], dest = slave_id)
     # kill slaves
-    for _ in xrange(args.nproc):
+    for _ in xrange(size - 1):
         comm.recv(source = MPI.ANY_SOURCE, status = status)
         slave_id = status.Get_source()
         # kill signal
         comm.send(obj = StopIteration, dest = slave_id)
 
-    # gather, reports aren't used
-    reports = comm.gather(None, root = MPI.ROOT)
-    # stop mpi
-    comm.Disconnect()
-
 ###
 ### SLAVE
 ###
 else:
-    # connect to parent
-    try:
-        comm = MPI.Comm.Get_parent()
-        rank = comm.Get_rank()
-    except MPI.Exception:
-        print('First parameter is CMT solution CSV.')
-        print('First parameter not found.')
-        print('Alternatively MPI cannot connect to parent.')
-        sys.exit(1)
-
     # ask for work until stop sentinel
-    logbook = []
     for task in iter(lambda: comm.sendrecv(None, dest = MASTER), StopIteration):
-        # task timer
-        t0 = MPI.Wtime()
-        # run
-        details = run_create_srf(task[0], task[1], task[2], task[3])
-        # store
-        #logbook.append(details)
-
-    # reports to master
-    comm.gather(sendobj = logbook, root = MASTER)
-    # shutdown
-    comm.Disconnect()
+        run_create_srf(task[0], task[1], task[2], task[3])
