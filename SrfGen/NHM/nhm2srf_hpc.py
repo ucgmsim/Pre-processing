@@ -6,7 +6,6 @@ import sys
 
 from mpi4py import MPI
 
-# .. points to createSRF
 # PYTHONPATH should include the path including createSRF
 from createSRF import CreateSRF_multi
 from qcore import geo
@@ -224,7 +223,6 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 if rank == MASTER:
-    print("master",rank)
     ###
     ### MASTER
     ###
@@ -258,15 +256,6 @@ if rank == MASTER:
             print('No matches found.')
             sys.exit(1)
 
-#         # do not fully load a machine with many cores
-#         nproc_max = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-#         if nproc_max > 8:
-#             nproc_max = int(round(0.8 * nproc_max))
-#         # not more processes than jobs
-#         nproc = min(len(msg_list), nproc_max)
-#         # spawn slaves
-#         comm = MPI.COMM_WORLD.Spawn(
-#             sys.executable, args = [sys.argv[0]], maxprocs = nproc)
         status = MPI.Status()
 #         # distribute work to slaves who ask
         nproc = size - 1
@@ -285,28 +274,14 @@ if rank == MASTER:
             msg = msg_list[0]
             del(msg_list[0])
             comm.send(obj=msg, dest=slave_id)
-        print("adfafd",MASTER)
+
         # gather, reports aren't used
         reports = comm.gather(None, root=MASTER)
-        # stop mpi
-        #comm.Disconnect()
 
 else:
-    print("slave", rank)
     ###
     ### SLAVE
     ###
-#        # connect to parent
-#        try:
-#            comm = MPI.Comm.Get_parent()
-#            rank = comm.Get_rank()
-#        except MPI.Exception:
-#            print('First parameter is fault selection file.')
-#            print('Use "ALL" to loop through all faults.')
-#            print('First parameter not found.')
-#            print('Alternatively MPI cannot connect to parent.')
-#            sys.exit(1)
-#
     # ask for work until stop sentinel
     logbook = []
     for task in iter(lambda: comm.sendrecv(None, dest=MASTER), StopIteration):
@@ -325,5 +300,3 @@ else:
 
     # reports to master
     comm.gather(sendobj=logbook, root=MASTER)
-    # shutdown
-    # comm.Disconnect()
