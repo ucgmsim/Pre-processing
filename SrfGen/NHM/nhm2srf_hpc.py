@@ -5,11 +5,9 @@ import os
 import sys
 
 from mpi4py import MPI
-from qcore import parallel_executor
 
 # .. points to createSRF
-#sys.path.append('..')
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# PYTHONPATH should include the path including createSRF
 from createSRF import CreateSRF_multi
 from qcore import geo
 
