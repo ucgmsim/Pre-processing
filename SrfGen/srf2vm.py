@@ -448,6 +448,7 @@ def create_vm(args, srf_meta):
         # cut down ocean areas
         c4, c1, c3, c2 = reduce_domain(c4, c1, c3, c2, args.hh, \
                                        args.space_srf, args.space_land, ptemp)
+        origin = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
         ylen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) \
                 / args.hh) * args.hh
         xlen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) \
@@ -597,7 +598,7 @@ def load_msgs(args):
             # todo: only unique names
             name = os.path.splitext(os.path.basename(info))[0].split('_')[0]
             try:
-                rake = a['rake'][0]
+                rake = a['rake'][0][0]
             except (TypeError, IndexError):
                 rake = a['rake']
             # todo: magnitude join for multi segment

@@ -337,9 +337,9 @@ def gen_stoch(stoch_file, srf_file, dx = 0.001, dy = 0.001, silent = False):
             call([srf_config.STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                     stdin = srfp, stdout = stochp)
 
-def gen_meta(srf_file, srf_type, lon, lat, mag, mom, \
+def gen_meta(srf_file, srf_type, mag, mom, \
             strike, rake, dip, dt, vm = None, vs = None, rho = None, \
-            centroid_depth = None, \
+            centroid_depth = None, lon = None, lat = None, \
             flen = None, dlen = None, fwid = None, dwid = None, \
             shypo = None, dhypo = None):
     """
@@ -377,6 +377,8 @@ def gen_meta(srf_file, srf_type, lon, lat, mag, mom, \
         if srf_type == 1:
             a['vs'] = vs
             a['rho'] = rho
+            a['lon'] = lon
+            a['lat'] = lat
         else:
             a['vm'] = np.string_(os.path.basename(vm))
         # either way should give same result
@@ -465,8 +467,8 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
     ###
     ### save INFO
     ###
-    gen_meta(srf_file, 1, lon, lat, mw, mom, \
-            strike, rake, dip, dt, vs = vs, rho = rho, \
+    gen_meta(srf_file, 1, mw, mom, strike, rake, dip, dt, \
+            lon = lon, lat = lat, vs = vs, rho = rho, \
             centroid_depth = depth)
 
     # location of resulting SRF file
@@ -643,6 +645,9 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, joined_srf, dx = dlen[0][0], dy = dwid[0][0], \
                 silent = silent)
+    # save INFO
+    gen_meta(joined_srf, 4, mag[0], mom[0], stk, rak, dip, dt, \
+            vm = velocity_model)
 
     # path to resulting SRF
     return joined_srf
