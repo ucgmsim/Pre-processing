@@ -10,3 +10,5 @@ plot_ts_test/PlotFiles/*
 plot_ts_test/Png/*
 postprocess_test/Vel/*
 postprocess_test/TSFiles/*
+SrfGen/NHM/auto*
+SrfGen/NHM/nhm_selection2*

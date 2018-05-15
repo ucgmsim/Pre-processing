@@ -5,11 +5,11 @@ import os
 import sys
 
 from mpi4py import MPI
-from qcore import parallel_executor
+# from qcore import parallel_executor
 
 # .. points to createSRF
-#sys.path.append('..')
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append('..')
+# sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from createSRF import CreateSRF_multi
 from qcore import geo
 
@@ -287,7 +287,7 @@ if rank == MASTER:
             msg = msg_list[0]
             del(msg_list[0])
             comm.send(obj=msg, dest=slave_id)
-        print("adfafd",MASTER)
+
         # gather, reports aren't used
         reports = comm.gather(None, root=MASTER)
         # stop mpi
