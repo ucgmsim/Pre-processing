@@ -62,10 +62,9 @@ if rank == MASTER:
     vmodel = np.rec.array(np.loadtxt(args.velocity_model, \
             skiprows = 1, usecols = (0, 2, 3), \
             dtype = [('depth', 'f8'), ('vs', 'f8'), ('rho', 'f8')]))
-    vmodel.depth = np.cumsum(vmodel.depth)
-    depth_bins = np.digitize(sources.depth, vmodel.depth, right = True)
+    depth_bins = np.digitize(sources.depth, np.cumsum(vmodel.depth), right = True)
     vs = vmodel.vs[depth_bins]
-    rho = np.interp(sources.depth, vmodel.depth, vmodel.rho)
+    rho = vmodel.rho[depth_bins]
 
     # distribute work to slaves who ask
     status = MPI.Status()
