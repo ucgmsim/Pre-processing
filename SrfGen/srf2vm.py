@@ -1,4 +1,10 @@
 #!/usr/bin/env python2
+"""
+most basic example (set out_dir with -o or --out-dir):
+mpirun -n 3 srfinfo2vm.py "Srf/*.info"
+help:
+./srfinfo2vm -h
+"""
 
 import math
 import os
@@ -12,7 +18,7 @@ from h5py import File as h5open
 from mpi4py import MPI
 import numpy as np
 
-from createSRF import leonard
+from createSRF import leonard, mag2mom, mom2mag
 # qcore library should already be in path
 from qcore import geo
 from qcore import gmt
@@ -22,33 +28,30 @@ sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
 from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
-NZ_CENTRE_LINE = 'NHM/res/centre.txt'
-NZ_LAND_OUTLINE = 'NHM/res/rough_land.txt'
-NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
-# MPI - do not change
+# MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 MASTER = 0
+if size < 2 and not '-h' in sys.argv:
+    sys.exit('use mpirun with nproc > 1')
 
-# Bradley_2010_Sa function requires passing parameters within classes
-class siteprop:
-    Rrup = None
-    V30 = 500
-    V30measured = 0
-    Rx = Rrup
-    Rjb = Rx
-    Rtvz = 0
-    # PGV
-    period = -1
-    Z1pt0 = math.exp(28.5 - (3.82 / 8.) * math.log(math.pow(V30, 8) \
-            + math.pow(378.7, 8)))
-    # for Ds
-    defn = None
-class faultprop:
-    Mw = None
-    Ztor = 0
-    rake = None
-    dip = None
-    # for Ds
-    rupture_type = None
+script_dir = os.path.dirname(os.path.abspath(__file__))
+NZ_CENTRE_LINE = os.path.join(script_dir, 'NHM/res/centre.txt')
+NZ_LAND_OUTLINE = os.path.join(script_dir, 'NHM/res/rough_land.txt')
+NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
+
+# Bradley_2010_Sa and AfshariSteward_2016_Ds require attribute parameters
+siteprop = np.rec.array(np.zeros(1, dtype = [('Rrup', 'f'), ('V30', 'f'), \
+        ('V30measured', 'f'), ('Rx', 'f'), ('Rjb', 'f'), ('Rtvz', 'f'), \
+        ('period', 'f'), ('Z1pt0', 'f'), ('defn', 'i')]))[0]
+siteprop.V30 = 500
+siteprop.period = -1
+siteprop.Z1pt0 = math.exp(28.5 - (3.82 / 8.) \
+                 * math.log(math.pow(siteprop.V30, 8) + math.pow(378.7, 8)))
+siteprop.defn = 1
+faultprop = np.rec.array(np.zeros(1, dtype = [('Mw', 'f'), ('Ztor', 'f'), \
+        ('rake', 'f'), ('dip', 'f'), ('rupture_type', '|S2')]))[0]
 
 # rrup at which pgv is close to target
 def find_rrup(pgv_target):
@@ -135,6 +138,7 @@ def vm_land(c1, c2, c3, c4, wd = '.'):
 # get longitude on NZ centre path at given latitude
 def centre_lon(lat_target):
     # find closest points either side
+    # TODO: use np.interp
     with open(NZ_CENTRE_LINE, 'r') as c:
         for line in c:
             ll = map(float, line.split())
@@ -584,27 +588,34 @@ def create_vm(args, srf_meta):
 def load_msgs(args):
     # returns list of appropriate srf metadata
     msgs = []
+    faults = set()
 
     # add task for every info file
-    srf_files = glob(args.srf_glob)
-    info_files = map(lambda s : '%s.info' % (os.path.splitext(s)[0]), srf_files)
+    info_files = glob(args.info_glob)
     for info in info_files:
         if not os.path.exists(info):
             print('SRF info file not found: %s' % (info))
             continue
 
+        # name is unique and based on basename
+        name = os.path.splitext(os.path.basename(info))[0].split('_')[0]
+        if name in faults:
+            continue
+        faults.add(name)
+
         with h5open(info) as h:
             a = h.attrs
-            # todo: only unique names
-            name = os.path.splitext(os.path.basename(info))[0].split('_')[0]
             try:
                 rake = a['rake'][0][0]
             except (TypeError, IndexError):
                 rake = a['rake']
-            # todo: magnitude join for multi segment
+            try:
+                mag = mom2mag(sum(map(mag2mom, a['mag'])))
+            except TypeError:
+                mag = a['mag']
             msgs.append((args, {'name':name, 'dip':a['dip'][0], 'rake':rake, \
                                 'dbottom':a['dbottom'][0], \
-                                'corners':a['corners'], 'mag':a['mag'], \
+                                'corners':a['corners'], 'mag':mag, \
                                 'centroid_depth':a['cd']}))
     return msgs
 
@@ -629,23 +640,16 @@ def store_summary(table, info_store):
 ###
 ### MASTER
 ###
-if len(sys.argv) > 1:
+if rank == MASTER:
     from argparse import ArgumentParser
     from glob import glob
-
-    from qcore import srf
-
-    # clock start
-    t_start = MPI.Wtime()
 
     # parameters
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg('srf_glob', help = 'SRF file selection expression. eg: Srf/*.srf')
+    arg('info_glob', help = 'info file selection expression. eg: Srf/*.info')
     parser.add_argument('-o', '--out-dir', help = 'directory to place outputs', \
             default = 'autovm')
-    parser.add_argument('-n', '--nproc', help = 'worker processes to spawn', \
-            type = int, default = int(os.sysconf('SC_NPROCESSORS_ONLN') - 1))
     arg('--pgv', help = 'max PGV at velocity model perimiter (estimated, cm/s)', \
             type = float, default = 5.0)
     arg('--hh', help = 'velocity model grid spacing (km)', \
@@ -658,7 +662,11 @@ if len(sys.argv) > 1:
             type = float, default = 15.0)
     arg('--min-vs', help = 'for nzvm gen and flo (km/s)', \
             type = float, default = 0.5)
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        # -h or invalid parameters
+        comm.Abort()
     args.out_dir = os.path.abspath(args.out_dir)
 
     # load wanted fault information
@@ -666,53 +674,29 @@ if len(sys.argv) > 1:
     if len(msg_list) == 0:
         print('Found nothing to do.')
         sys.exit(1)
-    # no more workers than jobs
-    args.nproc = min(len(msg_list), args.nproc)
+    # add stop signals for slaves
+    msg_list.extend([StopIteration] * (size - 1))
 
     # prepare to run
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
 
-    # spawn slaves
-    comm = MPI.COMM_WORLD.Spawn(
-        sys.executable, args = [sys.argv[0]], maxprocs = args.nproc)
-    status = MPI.Status()
     # distribute work to slaves who ask
-    while args.nproc:
-        # slave asking for work
+    status = MPI.Status()
+    # distribute tasks
+    for i, msg in enumerate(msg_list):
         comm.recv(source = MPI.ANY_SOURCE, status = status)
         slave_id = status.Get_source()
-
-        # no more jobs? kill signal
-        if len(msg_list) == 0:
-            msg_list.append(StopIteration)
-            args.nproc -= 1
-
-        # next job
-        msg = msg_list[0]
         comm.send(obj = msg, dest = slave_id)
-        del(msg_list[0])
 
     # gather, process reports from slaves
-    reports = comm.gather(None, root = MPI.ROOT)
+    reports = comm.gather([])
     store_summary(os.path.join(args.out_dir, 'vminfo.csv'), reports)
-    # stop mpi
-    comm.Disconnect()
 
 ###
 ### SLAVE
 ###
 else:
-    # connect to parent
-    try:
-        comm = MPI.Comm.Get_parent()
-        rank = comm.Get_rank()
-    except MPI.Exception:
-        print('First parameter is SRF selection expression.')
-        print('First parameter not found.')
-        print('Alternatively MPI cannot connect to parent.')
-        sys.exit(1)
-
     # ask for work until stop sentinel
     logbook = []
     for task in iter(lambda: comm.sendrecv(None, dest = MASTER), StopIteration):
@@ -725,6 +709,4 @@ else:
         logbook.append(details)
 
     # reports to master
-    comm.gather(sendobj = logbook, root = MASTER)
-    # shutdown
-    comm.Disconnect()
+    comm.gather(sendobj = logbook)
