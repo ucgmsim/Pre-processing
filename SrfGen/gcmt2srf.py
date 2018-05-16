@@ -54,15 +54,16 @@ if rank == MASTER:
 
     # load CMT CSV
     sources = np.rec.array(np.loadtxt(args.csv_file, dtype = [('pid', '|S32'), \
-            ('lat', 'f4'), ('lon', 'f4'), ('depth', 'f4'), ('mag', 'f4'), \
-            ('strike', 'f4'), ('dip', 'f4'), ('rake', 'f4')], \
+            ('lat', 'f8'), ('lon', 'f8'), ('depth', 'f8'), ('mag', 'f8'), \
+            ('strike', 'f8'), ('dip', 'f8'), ('rake', 'f8')], \
             delimiter = ',', skiprows = 1, usecols = (0, 2, 3, 13, 11, 4, 5, 6)))
 
     # load velocity model (vs and rho)
     vmodel = np.rec.array(np.loadtxt(args.velocity_model, \
             skiprows = 1, usecols = (0, 2, 3), \
             dtype = [('depth', 'f8'), ('vs', 'f8'), ('rho', 'f8')]))
-    depth_bins = np.digitize(sources.depth, np.cumsum(vmodel.depth), right = True)
+    depth_bins = np.digitize(np.around(sources.depth, decimals = 5), \
+                             np.around(np.cumsum(vmodel.depth), decimals = 5))
     vs = vmodel.vs[depth_bins]
     rho = vmodel.rho[depth_bins]
 
