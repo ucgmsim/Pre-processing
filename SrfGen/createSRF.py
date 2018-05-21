@@ -313,7 +313,7 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         print('Creating SRF:\n%s' % ' '.join(cmd))
         call(cmd, stdout = srfp)
 
-def gen_stoch(stoch_file, srf_file, dx = 0.001, dy = 0.001, silent = False):
+def gen_stoch(stoch_file, srf_file, silent = False):
     """
     TODO: inspect srf file for automatic dx, dy.
     FINITE FAULT NOTES:
@@ -331,10 +331,10 @@ def gen_stoch(stoch_file, srf_file, dx = 0.001, dy = 0.001, silent = False):
         with open(srf_file, 'r') as srfp:
             if silent:
                 with open('/dev/null', 'a') as sink:
-                    call([srf_config.STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
+                    call([srf_config.STOCH_BIN, 'dx=2.0', 'dy=2.0'], \
                             stdin = srfp, stdout = stochp, stderr = sink)
                 return
-            call([srf_config.STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
+            call([srf_config.STOCH_BIN, 'dx=2.0', 'dy=2.0'], \
                     stdin = srfp, stdout = stochp)
 
 def gen_meta(srf_file, srf_type, mag, mom, \
@@ -514,7 +514,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
             rough = rough)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file, dx = dlen, dy = dwid)
+        gen_stoch(stoch_file, srf_file)
 
     # print leonard Mw from A (SCR)
     print('Leonard 2014 Mw: %s' % (leonard(rake, fwid * flen)))
@@ -643,8 +643,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         os.remove(casefile)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, joined_srf, dx = dlen[0][0], dy = dwid[0][0], \
-                silent = silent)
+        gen_stoch(stoch_file, joined_srf, silent = silent)
     # save INFO
     gen_meta(joined_srf, 4, mag[0], mom[0], stk, rak, dip, dt, \
             vm = velocity_model)
