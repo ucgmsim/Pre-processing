@@ -7,9 +7,8 @@ import sys
 
 from mpi4py import MPI
 
-# .. points to createSRF
 sys.path.append('..')
-from createSRF import CreateSRF_multi
+from createSRF import leonard, CreateSRF_multi
 from qcore import geo
 
 PLOT = True
@@ -24,14 +23,6 @@ SEED_0 = 1234
 SEED_INC = 10
 # MPI - do not change
 MASTER = 0
-
-# Leonard 2014 Relations
-def leonard(rake, A):
-    # if dip slip else strike slip
-    if round(rake % 360 / 90.) % 2:
-        return 4.00 + log10(A)
-    else:
-        return 3.99 + log10(A)
 
 ###
 ### PREPARE TASKS
