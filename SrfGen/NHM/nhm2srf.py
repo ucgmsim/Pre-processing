@@ -11,7 +11,7 @@ sys.path.append('..')
 from createSRF import leonard, CreateSRF_multi
 from qcore import geo
 
-PLOT = True
+PLOT = False
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 NHM_START = 15
 GMT_FILE = 'fault_traces.gmt'
@@ -104,11 +104,10 @@ def load_msgs(fault_names, faults, out):
 
         # wanted parameters to override
         t_hypo = 'n'
-        if fault_names == None:
-            n_hypo = N_HYPO
-            n_slip = N_SLIP
-            dhypos = DHYPOS
-        else:
+        n_hypo = N_HYPO
+        n_slip = N_SLIP
+        dhypos = DHYPOS
+        if fault_names != None:
             fault = faults[fault_names.index(name)]
             try:
                 # given as number of hypocentres
