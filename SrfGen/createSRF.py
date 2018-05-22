@@ -73,6 +73,7 @@ def leonard(rake, A, ds = 4.00, ss = 3.99):
         return ss + math.log10(A)
 
 # by earth radius
+# not really correct for NZ, use proper formulas
 one_deg_lat = math.radians(6371.0072)
 
 # comment placed in corners file (above/below hypocenter)
@@ -337,16 +338,17 @@ def gen_stoch(stoch_file, srf_file, silent = False):
             call([srf_config.STOCH_BIN, 'dx=2.0', 'dy=2.0'], \
                     stdin = srfp, stdout = stochp)
 
-def gen_meta(srf_file, srf_type, mag, mom, \
+def gen_meta(srf_file, srf_type, mag, \
             strike, rake, dip, dt, vm = None, vs = None, rho = None, \
-            centroid_depth = None, lon = None, lat = None, \
+            centroid_depth = None, lon = None, lat = None, mom = None, \
             flen = None, dlen = None, fwid = None, dwid = None, \
-            shypo = None, dhypo = None):
+            shypo = None, dhypo = None, mwsr = None):
     """
     Stores SRF metadata as hdf5.
     srf_file: SRF path used as basename for info file and additional metadata
     """
     planes = srf.read_header(srf_file, idx = True)
+    hlon, hlat, hdepth = srf.get_hypo(srf_file, depth = True)
 
     dbottom = []
     corners = np.zeros((len(planes), 4, 2))
@@ -377,10 +379,13 @@ def gen_meta(srf_file, srf_type, mag, mom, \
         if srf_type == 1:
             a['vs'] = vs
             a['rho'] = rho
-            a['lon'] = lon
-            a['lat'] = lat
+            a['hlon'] = lon
+            a['hlat'] = lat
         else:
             a['vm'] = np.string_(os.path.basename(vm))
+            a['hlon'] = hlon
+            a['hlat'] = hlat
+            a['hdepth'] = hdepth
         # either way should give same result
         if centroid_depth != None:
             a['cd'] = centroid_depth
@@ -388,6 +393,8 @@ def gen_meta(srf_file, srf_type, mag, mom, \
             a['cd'] = planes[0]['dhyp'] \
                       * math.sin(math.radians(planes[0]['dip'])) \
                       + planes[0]['dtop']
+        if mwsr != None:
+            a['mwsr'] = np.string_(mwsr)
         # derived parameters
         a['corners'] = corners
         a['dbottom'] = dbottom
@@ -467,7 +474,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
     ###
     ### save INFO
     ###
-    gen_meta(srf_file, 1, mw, mom, strike, rake, dip, dt, \
+    gen_meta(srf_file, 1, mw, strike, rake, dip, dt, \
             lon = lon, lat = lat, vs = vs, rho = rho, \
             centroid_depth = depth)
 
@@ -489,7 +496,9 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     prefix = prefix0
 
     # only given point source parameters? calculate rest using scaling relation
+    srf_type = 3
     if flen == None:
+        srf_type = 2
         flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = \
                 focal_mechanism_2_finite_fault(lat, lon, depth, \
                         mw, strike, rake, dip, mwsr)[3:]
@@ -516,8 +525,13 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file)
 
-    # print leonard Mw from A (SCR)
-    print('Leonard 2014 Mw: %s' % (leonard(rake, fwid * flen)))
+    # save INFO
+    if srf_type == 2:
+        gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt, \
+                 lon = lon, lat = lat, centroid_depth = depth, mwsr = mwsr)
+    else:
+        gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt)
+
     # location of resulting SRF
     return srf_file
 
@@ -645,7 +659,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, joined_srf, silent = silent)
     # save INFO
-    gen_meta(joined_srf, 4, mag[0], mom[0], stk, rak, dip, dt, \
+    gen_meta(joined_srf, 4, mag[0], stk, rak, dip, dt, \
             vm = velocity_model)
 
     # path to resulting SRF
