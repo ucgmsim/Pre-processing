@@ -152,12 +152,7 @@ def load_msgs(fault_names, faults, out):
         dtop = [[float(db[dbi + 7].split()[0])] * n_plane]
         flen = [lengths]
         # subfault density
-        if trace_length < 50:
-            dlen = [[0.1] * n_plane]
-        elif trace_length < 100:
-            dlen = [[0.2] * n_plane]
-        else:
-            dlen = [[0.5] * n_plane]
+        dlen = [[0.1] * n_plane]
         fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
                 / sin(radians(dip[0][0]))] * n_plane]
         # Karim: add 3km to depth if bottom >= 12km
