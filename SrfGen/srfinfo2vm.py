@@ -524,7 +524,11 @@ def create_vm(args, srf_meta):
     # create model_coords, model_bounds etc...
     gen_coords(outdir = vm_dir)
     # validate
-    success = validate_vm(vm_dir, verbose = True)
+    success, message = validate_vm(vm_dir, verbose = True)
+    if success:
+        sys.stderr.write('VM check OK: %s\n' % (vm_dir))
+    else:
+        sys.stderr.write('VM check BAD: %s\n' % (message))
 
     ###
     ### PLOT
