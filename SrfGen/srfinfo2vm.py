@@ -1,11 +1,17 @@
 #!/usr/bin/env python2
 """
+REQUIREMENTS:
+PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
+PYTHONPATH contains Bradley_2010_Sa and Afshari_Stewart_2016_Ds
+
 most basic example (set out_dir with -o or --out-dir):
 mpirun -n 3 srfinfo2vm.py "Srf/*.info"
-help:
+
+HELP:
 ./srfinfo2vm -h
 """
 
+from distutils.spawn import find_executable
 import math
 import os
 from shutil import rmtree, move
@@ -15,7 +21,6 @@ from tempfile import mkdtemp
 from time import time
 
 from h5py import File as h5open
-from mpi4py import MPI
 import numpy as np
 
 from createSRF import leonard, mag2mom, mom2mag
@@ -23,23 +28,15 @@ from createSRF import leonard, mag2mom, mom2mag
 from qcore import geo
 from qcore import gmt
 from qcore.gen_coords import gen_coords
-# location containing Bradley_2010_Sa.py and AfshariStewart_2016_Ds.py
-sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
+# post-processing computations should be in PYTHON_PATH
 from Bradley_2010_Sa import Bradley_2010_Sa
 from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
-
-# MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-MASTER = 0
-if size < 2 and not '-h' in sys.argv:
-    sys.exit('use mpirun with nproc > 1')
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, 'NHM/res/centre.txt')
 NZ_LAND_OUTLINE = os.path.join(script_dir, 'NHM/res/rough_land.txt')
-NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
+NZVM_BIN = find_executable('NZVM')
+assert(NZVM_BIN is not None)
 
 # Bradley_2010_Sa and AfshariSteward_2016_Ds require attribute parameters
 siteprop = np.rec.array(np.zeros(1, dtype = [('Rrup', 'f'), ('V30', 'f'), \
@@ -628,21 +625,19 @@ def store_summary(table, info_store):
                 '"adjusted sim time (s)","adjusted xlen (km)",'
                 '"adjusted ylen (km)","adjusted land (% cover)"\n')
 
-        for p in info_store:
-            for i in p:
-                t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' \
-                        % (i['name'], i['mag'], i['dbottom'], \
-                        i['zlen'], i['sim_time'], \
-                        i['xlen'], i['ylen'], i['land'], \
-                        i['zlen_mod'], i['sim_time_mod'], \
-                        i['xlen_mod'], i['ylen_mod'], i['land_mod']))
+        for i in info_store:
+            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' \
+                    % (i['name'], i['mag'], i['dbottom'], \
+                    i['zlen'], i['sim_time'], \
+                    i['xlen'], i['ylen'], i['land'], \
+                    i['zlen_mod'], i['sim_time_mod'], \
+                    i['xlen_mod'], i['ylen_mod'], i['land_mod']))
 
-###
-### MASTER
-###
-if rank == MASTER:
+
+if __name__ == '__main__':
     from argparse import ArgumentParser
     from glob import glob
+    from multiprocessing import Pool
 
     # parameters
     parser = ArgumentParser()
@@ -662,11 +657,8 @@ if rank == MASTER:
             type = float, default = 15.0)
     arg('--min-vs', help = 'for nzvm gen and flo (km/s)', \
             type = float, default = 0.5)
-    try:
-        args = parser.parse_args()
-    except SystemExit:
-        # -h or invalid parameters
-        comm.Abort()
+    arg('-n', '--nproc', help = 'number of processes', type = int, default = 1)
+    args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
 
     # load wanted fault information
@@ -674,39 +666,18 @@ if rank == MASTER:
     if len(msg_list) == 0:
         print('Found nothing to do.')
         sys.exit(1)
-    # add stop signals for slaves
-    msg_list.extend([StopIteration] * (size - 1))
 
     # prepare to run
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
 
-    # distribute work to slaves who ask
-    status = MPI.Status()
-    # distribute tasks
-    for i, msg in enumerate(msg_list):
-        comm.recv(source = MPI.ANY_SOURCE, status = status)
-        slave_id = status.Get_source()
-        comm.send(obj = msg, dest = slave_id)
-
-    # gather, process reports from slaves
-    reports = comm.gather([])
+    # alternative to multiprocessing.Pool.starmap only since Python3.3
+    def create_vm_star(args_meta):
+        return create_vm(*args_meta)
+    # distribute work
+    p = Pool(processes = args.nproc)
+    reports = p.map(create_vm_star, msg_list)
+    # debug friendly alternative
+    #reports = [create_vm_star(msg) for msg in msg_list]
+    # store summary
     store_summary(os.path.join(args.out_dir, 'vminfo.csv'), reports)
-
-###
-### SLAVE
-###
-else:
-    # ask for work until stop sentinel
-    logbook = []
-    for task in iter(lambda: comm.sendrecv(None, dest = MASTER), StopIteration):
-        # task timer
-        t0 = MPI.Wtime()
-        # run
-        details = create_vm(task[0], task[1])
-        # store
-        details['time'] = MPI.Wtime() - t0
-        logbook.append(details)
-
-    # reports to master
-    comm.gather(sendobj = logbook)
