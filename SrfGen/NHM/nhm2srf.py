@@ -1,40 +1,30 @@
 #!/usr/bin/env python2
+"""
+REQUIREMENTS:
+PATH contains plot_srf_square.py plot_srf_map.py if using -p (plot results)
+PYTHONPATH contains createSRF and qcore
+"""
 
-from math import sin, radians, log10
+import math
 import os
 from subprocess import call
 import sys
+from time import time
 
-from mpi4py import MPI
-
-sys.path.append('..')
 from createSRF import leonard, CreateSRF_multi
 from qcore import geo
-
-PLOT = False
-NHM_FILE = 'NZ_FLTmodel_2010.txt'
-NHM_START = 15
-GMT_FILE = 'fault_traces.gmt'
-LOG_FILE = 'logfile.txt'
-N_HYPO = 1
-N_SLIP = 1
-DHYPOS = [0.6]
-SEED_0 = 1234
-SEED_INC = 10
-# MPI - do not change
-MASTER = 0
 
 ###
 ### PREPARE TASKS
 ###
 # most work is trivial, only need to run CreateSRF_multi parallel
-def load_msgs(fault_names, faults, out):
+def load_msgs(args, fault_names, faults):
     # adjust outputs
-    out_gmt = os.path.join(out, GMT_FILE)
-    out_log = os.path.join(out, LOG_FILE)
+    out_gmt = os.path.join(args.out_dir, 'fault_traces.gmt')
+    out_log = os.path.join(args.out_dir, 'logfile.txt')
     # prepare file system
-    if not os.path.isdir(out):
-        os.makedirs(out)
+    if not os.path.isdir(args.out_dir):
+        os.makedirs(args.out_dir)
     if os.path.exists(out_gmt):
         os.remove(out_gmt)
     with open(out_log, 'w') as log:
@@ -42,8 +32,8 @@ def load_msgs(fault_names, faults, out):
 
 
     # load db
-    dbi = NHM_START
-    with open(NHM_FILE, 'r') as dbr:
+    dbi = args.nhm_skip
+    with open(args.nhm_file, 'r') as dbr:
         db = map(str.strip, dbr.readlines())
     dbl = len(db)
 
@@ -104,9 +94,9 @@ def load_msgs(fault_names, faults, out):
 
         # wanted parameters to override
         t_hypo = 'n'
-        n_hypo = N_HYPO
-        n_slip = N_SLIP
-        dhypos = DHYPOS
+        n_hypo = args.nhypo
+        n_slip = args.nslip
+        dhypos = args.dhypo
         if fault_names != None:
             fault = faults[fault_names.index(name)]
             try:
@@ -127,7 +117,7 @@ def load_msgs(fault_names, faults, out):
                 dhypos = map(float, fault[3].split(','))
         if t_hypo == 'n':
             hyp_step = trace_length / (n_hypo * 2.)
-        seed = SEED_0
+        seed = args.seed
 
         # fixed values
         dt = 0.025
@@ -148,11 +138,11 @@ def load_msgs(fault_names, faults, out):
         # subfault density
         dlen = [[0.1] * n_plane]
         fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
-                / sin(radians(dip[0][0]))] * n_plane]
+                / math.sin(math.radians(dip[0][0]))] * n_plane]
         # Karim: add 3km to depth if bottom >= 12km
         if float(db[dbi + 6].split()[0]) >= 12:
             fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0] + 3) \
-                / sin(radians(dip[0][0]))] * n_plane]
+                / math.sin(math.radians(dip[0][0]))] * n_plane]
             mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
         dwid = dlen
         stk = [strikes]
@@ -170,10 +160,10 @@ def load_msgs(fault_names, faults, out):
             shypo = [[shyp_shift - (lengths[0] / 2.)]]
             for _ in xrange(n_slip):
                 for i, d in enumerate(dhypos):
-                    seed += SEED_INC
+                    seed += args.seed_inc
                     dhypo = [[fwid[0][0] * d] * n_plane]
                     prefix = '%s/%s/Srf/%s_HYP%.2d-%.2d_S%s' \
-                            % (out, name, name, n_shyp * len(dhypos) + i + 1, \
+                            % (args.out_dir, name, name, n_shyp * len(dhypos) + i + 1, \
                                n_hypo * len(dhypos), seed)
                     # create SRF from description
                     msgs.append({'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag, \
@@ -183,7 +173,8 @@ def load_msgs(fault_names, faults, out):
                             'rake':rake, 'dip':dip, 'elon':elon, 'elat':elat, \
                             'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed, \
                             'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
-                            'stoch':'%s/%s/Stoch' % (out, name), 'name':name})
+                            'stoch':'%s/%s/Stoch' % (args.out_dir, name), \
+                            'name':name, 'plot':args.plot})
                     # store parameters
                     with open(out_log, 'a') as log:
                         log.write('%s.srf\t%s\t%s\t%s\n' \
@@ -200,6 +191,8 @@ def load_msgs(fault_names, faults, out):
     return msgs
 
 def run_create_srf(t):
+    t0 = time()
+    print('creating SRF: %s' % (t['name']))
     # all of the work, rest of the script is complete under 1 second
     CreateSRF_multi(t['nseg'], t['seg_delay'], t['mag'], t['mom'], \
             t['rvfac_seg'], t['gwid'], t['rup_delay'], t['flen'], t['dlen'], \
@@ -207,102 +200,64 @@ def run_create_srf(t):
             t['elon'], t['elat'], t['shypo'], t['dhypo'], t['dt'], t['seed'], \
             t['prefix'], t['cases'], dip_dir = t['dip_dir'], \
             stoch = t['stoch'], silent = True)
-    if PLOT:
+    print('created SRF: %s (%.2fs)' % (t['name'], time() - t0))
+    if t['plot']:
+        t0 = time()
+        print('plotting SRF: %s' % (t['name']))
         call(['plot_srf_square.py', '%s.srf' % (t['prefix'])])
         call(['plot_srf_map.py', '%s.srf' % (t['prefix'])])
+        print('plotted SRF: %s (%.2fs)' % (t['name'], time() - t0))
 
-###
-### MASTER
-###
-if len(sys.argv) > 1:
-    # clock start
-    t_start = MPI.Wtime()
+if __name__ == '__main__':
+    from argparse import ArgumentParser
+    from multiprocessing import Pool
 
-    # PARAMETER 1: name of nhm selection file
-    if sys.argv[1] == 'ALL':
+    # parameters
+    parser = ArgumentParser()
+    arg = parser.add_argument
+    arg('selection_file', help = 'fault selection file')
+    parser.add_argument('-o', '--out-dir', help = 'directory to place outputs', \
+            default = 'autosrf')
+    arg('--nhm-file', help = 'NHM file location', \
+        default = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
+                               'NZ_FLTmodel_2010.txt'))
+    arg('--nhm-skip', help = 'NHM header lines to skip', \
+            type = int, default = 15)
+    arg('--seed', help = 'initial seed', type = int, default = 1234)
+    arg('--seed-inc', help = 'seed increment', type = int, default = 10)
+    arg('--nhypo', default = 1, \
+        help = 'hypocentre number/spacing if not in selection_file')
+    arg('--nslip', type = int, default = 1, \
+        help = 'number of slips if not in selection_file')
+    arg('--dhypo', action = 'append', type = float, \
+        help = 'depth of hypocentre, repeat parameter as needed')
+    arg('-n', '--nproc', help = 'number of processes', type = int, default = 1)
+    arg('-p', '--plot', help = 'plot results', action = 'store_true')
+    args = parser.parse_args()
+    args.out_dir = os.path.abspath(args.out_dir)
+    # selection file or ALL
+    if args.selection_file == 'ALL':
         faults = None
         fault_names = None
-    elif not os.path.exists(sys.argv[1]):
-        print('Fault selecion file not found: %s' % (sys.argv[1]))
+    elif not os.path.exists(args.selection_file):
+        print('Fault selecion file not found: %s' % (args.selection_file))
         sys.exit(1)
     else:
-        with open(sys.argv[1], 'r') as select:
+        with open(args.selection_file, 'r') as select:
             faults = map(str.split, select.readlines())
         fault_names = [f[0] for f in faults]
-    # PARAMETER 2: output folder (optional)
-    if len(sys.argv) > 2:
-        out = os.path.abspath(sys.argv[2])
-    else:
-        out = os.path.abspath('autosrf')
+    # default value
+    if args.dhypo is None:
+        args.dhypo = [0.6]
 
     # load wanted fault information
-    msg_list = load_msgs(fault_names, faults, out)
+    msg_list = load_msgs(args, fault_names, faults)
     if len(msg_list) == 0:
         print('No matches found.')
         sys.exit(1)
 
-    # do not fully load a machine with many cores
-    nproc_max = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-    if nproc_max > 8:
-        nproc_max = int(round(0.8 * nproc_max))
-    # not more processes than jobs
-    nproc = min(len(msg_list), nproc_max)
-    nproc = 12
-    # spawn slaves
-    comm = MPI.COMM_WORLD.Spawn(
-        sys.executable, args = [sys.argv[0]], maxprocs = nproc)
-    status = MPI.Status()
-    # distribute work to slaves who ask
-    while nproc:
-        # slave asking for work
-        comm.recv(source = MPI.ANY_SOURCE, status = status)
-        slave_id = status.Get_source()
-
-        # no more jobs? kill signal
-        if len(msg_list) == 0:
-            msg_list.append(StopIteration)
-            nproc -= 1
-
-        # next job
-        msg = msg_list[0]
-        del(msg_list[0])
-        comm.send(obj = msg, dest = slave_id)
-
-    # gather, reports aren't used
-    reports = comm.gather(None, root = MPI.ROOT)
-    # stop mpi
-    comm.Disconnect()
-
-###
-### SLAVE
-###
-else:
-    # connect to parent
-    try:
-        comm = MPI.Comm.Get_parent()
-        rank = comm.Get_rank()
-    except MPI.Exception:
-        print('First parameter is fault selection file.')
-        print('Use "ALL" to loop through all faults.')
-        print('First parameter not found.')
-        print('Alternatively MPI cannot connect to parent.')
-        sys.exit(1)
-
-    # ask for work until stop sentinel
-    logbook = []
-    for task in iter(lambda: comm.sendrecv(None, dest = MASTER), StopIteration):
-        # task timer
-        t0 = MPI.Wtime()
-        # run
-        try:
-            details = run_create_srf(task)
-        except:
-            print('FAILED TASK: %s' % (task['name']))
-            continue
-        # store
-        logbook.append(details)
-
-    # reports to master
-    comm.gather(sendobj = logbook, root = MASTER)
-    # shutdown
-    comm.Disconnect()
+    # distribute work
+    p = Pool(args.nproc)
+    p.map(run_create_srf, msg_list)
+    # debug friendly alternative
+    #[create_vm_star(msg) for msg in msg_list]
