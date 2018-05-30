@@ -218,7 +218,9 @@ if __name__ == '__main__':
     arg('selection_file', help = 'fault selection file')
     parser.add_argument('-o', '--out-dir', help = 'directory to place outputs', \
             default = 'autosrf')
-    arg('--nhm-file', help = 'NHM file location', default = 'NZ_FLTmodel_2010.txt')
+    arg('--nhm-file', help = 'NHM file location', \
+        default = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
+                               'NZ_FLTmodel_2010.txt'))
     arg('--nhm-skip', help = 'NHM header lines to skip', \
             type = int, default = 15)
     arg('--seed', help = 'initial seed', type = int, default = 1234)
