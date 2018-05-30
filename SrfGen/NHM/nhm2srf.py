@@ -9,6 +9,7 @@ import math
 import os
 from subprocess import call
 import sys
+from time import time
 
 from createSRF import leonard, CreateSRF_multi
 from qcore import geo
@@ -190,6 +191,8 @@ def load_msgs(args, fault_names, faults):
     return msgs
 
 def run_create_srf(t):
+    t0 = time()
+    print('creating SRF: %s' % (t['name']))
     # all of the work, rest of the script is complete under 1 second
     CreateSRF_multi(t['nseg'], t['seg_delay'], t['mag'], t['mom'], \
             t['rvfac_seg'], t['gwid'], t['rup_delay'], t['flen'], t['dlen'], \
@@ -197,9 +200,13 @@ def run_create_srf(t):
             t['elon'], t['elat'], t['shypo'], t['dhypo'], t['dt'], t['seed'], \
             t['prefix'], t['cases'], dip_dir = t['dip_dir'], \
             stoch = t['stoch'], silent = True)
+    print('created SRF: %s (%.2fs)' % (t['name'], time() - t0))
     if t['plot']:
+        t0 = time()
+        print('plotting SRF: %s' % (t['name']))
         call(['plot_srf_square.py', '%s.srf' % (t['prefix'])])
         call(['plot_srf_map.py', '%s.srf' % (t['prefix'])])
+        print('plotted SRF: %s (%.2fs)' % (t['name'], time() - t0))
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
