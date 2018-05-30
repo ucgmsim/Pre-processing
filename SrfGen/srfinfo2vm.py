@@ -2,7 +2,7 @@
 """
 REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
-PYTHON_PATH contains Bradley_2010_Sa and Afshari_Stewart_2016_Ds
+PYTHONPATH contains Bradley_2010_Sa and Afshari_Stewart_2016_Ds
 
 most basic example (set out_dir with -o or --out-dir):
 mpirun -n 3 srfinfo2vm.py "Srf/*.info"
