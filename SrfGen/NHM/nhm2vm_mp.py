@@ -9,34 +9,34 @@ from tempfile import mkdtemp
 from time import time
 
 import h5py as h5
-from mpi4py import MPI
+from multiprocessing import Pool
 import numpy as np
 
 # qcore library should already be in path
 from qcore import geo
 from qcore import gmt
 # location containing Bradley_2010_Sa.py and AfshariStewart_2016_Ds.py
-sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
+#sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
 from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
-NHM = 'NZ_FLTmodel_2010.txt'
 # first entry index in NHM file
 NHM_START = 15
 PGV_TARGET = 5
-NZ_CENTRE_LINE = 'res/centre.txt'
-NZ_LAND_OUTLINE = 'res/rough_land.txt'
+
+this_file_path= os.path.dirname(os.path.abspath(__file__))
+NHM = os.path.join(this_file_path,'NZ_FLTmodel_2010.txt')
+NZ_CENTRE_LINE = os.path.join(this_file_path,'res/centre.txt')
+NZ_LAND_OUTLINE =os.path.join(this_file_path,'res/rough_land.txt')
 HH = 0.4
 DT = 0.005
 SPACE_LAND = 5
 SPACE_SRF = 15
-NZVM_BIN = '/home/vap30/ucgmsim/Velocity-Model/NZVM'
+NZVM_BIN = '/nesi/nobackup/nesi00213/tmp/Velocity-Model/NZVM'
 # call this as a script until the main function has a proper name
-GEN_COORDS = '/nesi/projects/nesi00213/qcore/qcore/gen_coords.py'
+GEN_COORDS = '/nesi/nobackup/nesi00213/tmp/qcore/qcore/gen_coords.py'
 # used to calculate flo (km / s)
 MIN_VS = 0.5
-# MPI - do not change
-MASTER = 0
 
 # Bradley_2010_Sa function requires passing parameters within classes
 class siteprop:
@@ -235,10 +235,9 @@ def reduce_domain(a0, a1, b0, b1, wd):
         geo.path_from_corners(corners = [ap, bp], \
                 output = '%s/tempEXT.tmp' % (wd), \
                 min_edge_points = 80, close = False)
-        isections, icomps = gmt.intersections( \
-                ['%s/srf.path' % (wd), NZ_LAND_OUTLINE, \
-                '%s/tempEXT.tmp' % (wd)], items = True, \
-                containing = '%s/tempEXT.tmp' % (wd))
+
+        intsecinput = ['%s/srf.path' % (wd), NZ_LAND_OUTLINE,'%s/tempEXT.tmp' % (wd)]
+        isections, icomps = gmt.intersections(intsecinput, items = True, containing = '%s/tempEXT.tmp' % (wd))
         if len(isections) == 0:
             scan_extremes[i] = np.nan
             continue
@@ -275,6 +274,7 @@ def reduce_domain(a0, a1, b0, b1, wd):
         if abs(bw - (bearing_p + 180) % 360) > 90:
             m2w *= -1
         over_w = max(over_w, math.ceil((m2w - m2we) / HH) * HH)
+
 
     # bring in sides
     xlen2 = xlen + over_e * (over_e < 0) + over_w * (over_w < 0)
@@ -656,99 +656,36 @@ def store_summary(table, info_store):
                         i['xlen'], i['ylen'], i['land'], \
                         i['zlen_mod'], i['sim_time_mod'], \
                         i['xlen_mod'], i['ylen_mod'], i['land_mod']))
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
 
-if rank == MASTER:
-    print("master", rank)
-###
-### MASTER
-###
-    if len(sys.argv) > 1:
-        # clock start
-        t_start = MPI.Wtime()
+if len(sys.argv) > 1:
+    # clock start
 
-        # PARAMETER 1: name of nhm selection file
-        if sys.argv[1] == 'ALL':
-            targets = None
-        else:
-            with open(sys.argv[1], 'r') as select:
-                targets = [s[0] for s in map(str.split, select.readlines())]
+    # PARAMETER 1: name of nhm selection file
+    if sys.argv[1] == 'ALL':
+        targets = None
+    else:
+        with open(sys.argv[1], 'r') as select:
+            targets = [s[0] for s in map(str.split, select.readlines())]
 
-        # load wanted fault information
-        msg_list = load_msgs(targets)
-        if len(msg_list) == 0:
-            print('No matches found.')
-            sys.exit(1)
-        out = msg_list[0]['out']
-        table = '%s/vminfo.csv' % (out)
-        nproc = size - 1
-        # # do not fully load a machine with many cores
-        # nproc_max = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-        # if nproc_max > 8:
-        #     nproc_max = int(round(0.8 * nproc_max))
-        # # not more processes than jobs
-        # nproc = min(len(msg_list), nproc_max)
-        # # spawn slaves
-        # comm = MPI.COMM_WORLD.Spawn(
-        #     sys.executable, args = [sys.argv[0]], maxprocs = nproc)
-        status = MPI.Status()
-        # distribute work to slaves who ask
-        while nproc:
-            # slave asking for work
-            comm.recv(source = MPI.ANY_SOURCE, status = status)
-            slave_id = status.Get_source()
+    # load wanted fault information
+    msg_list = load_msgs(targets)
+    if len(msg_list) == 0:
+        print('No matches found.')
+        sys.exit(1)
+    out = msg_list[0]['out']
+    table = '%s/vminfo.csv' % (out)
 
-            # no more jobs? kill signal
-            if len(msg_list) == 0:
-                msg_list.append(StopIteration)
-                nproc -= 1
+    # distribute work to slaves who ask
+#    nproc = min(len(msg_list),40)
+    nproc = 40
 
-            # next job
-            msg = msg_list[0]
-            del(msg_list[0])
-            comm.send(obj = msg, dest = slave_id)
+    p = Pool(nproc)
+    p.map(create_vm, msg_list)
 
-        # gather, process reports from slaves
-        reports = comm.gather([],root = MASTER)
-        # print("reports",reports)
-        store_summary(table, reports)
-        # stop mpi
-        # comm.Disconnect()
+# for debug, comment out above and use the following for loop instead
+#    for msg in msg_list:
+#        create_vm(msg)
 
-###
-### SLAVE
-###
-else:
-    print("slave", rank)
-    # connect to parent
-    # try:
-    #     comm = MPI.Comm.Get_parent()
-    #     rank = comm.Get_rank()
-    # except MPI.Exception:
-    #     print('First parameter is fault selection file.')
-    #     print('Use "ALL" to loop through all faults.')
-    #     print('First parameter not found.')
-    #     print('Alternatively MPI cannot connect to parent.')
-    #     sys.exit(1)
+    print "Done"
 
-    # ask for work until stop sentinel
-    logbook = []
-    for task in iter(lambda: comm.sendrecv(None, dest = MASTER), StopIteration):
-        # task timer
-        t0 = MPI.Wtime()
-        # run
-        # try:
-        details = create_vm(task)
-        # except:
-        #     print('FAILED TASK: %s' % (task['name']))
-        #     continue
-        # store
-        details['time'] = MPI.Wtime() - t0
-        logbook.append(details)
 
-    # reports to master
-    comm.gather(sendobj = logbook, root = MASTER)
-    # shutdown
-    # comm.Disconnect()
