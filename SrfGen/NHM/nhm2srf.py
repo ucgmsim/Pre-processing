@@ -7,12 +7,11 @@ import sys
 
 from mpi4py import MPI
 
-# .. points to createSRF
 sys.path.append('..')
-from createSRF import CreateSRF_multi
+from createSRF import leonard, CreateSRF_multi
 from qcore import geo
 
-PLOT = True
+PLOT = False
 NHM_FILE = 'NZ_FLTmodel_2010.txt'
 NHM_START = 15
 GMT_FILE = 'fault_traces.gmt'
@@ -24,14 +23,6 @@ SEED_0 = 1234
 SEED_INC = 10
 # MPI - do not change
 MASTER = 0
-
-# Leonard 2014 Relations
-def leonard(rake, A):
-    # if dip slip else strike slip
-    if round(rake % 360 / 90.) % 2:
-        return 4.00 + log10(A)
-    else:
-        return 3.99 + log10(A)
 
 ###
 ### PREPARE TASKS
@@ -113,11 +104,10 @@ def load_msgs(fault_names, faults, out):
 
         # wanted parameters to override
         t_hypo = 'n'
-        if fault_names == None:
-            n_hypo = N_HYPO
-            n_slip = N_SLIP
-            dhypos = DHYPOS
-        else:
+        n_hypo = N_HYPO
+        n_slip = N_SLIP
+        dhypos = DHYPOS
+        if fault_names != None:
             fault = faults[fault_names.index(name)]
             try:
                 # given as number of hypocentres
@@ -156,12 +146,7 @@ def load_msgs(fault_names, faults, out):
         dtop = [[float(db[dbi + 7].split()[0])] * n_plane]
         flen = [lengths]
         # subfault density
-        if trace_length < 50:
-            dlen = [[0.1] * n_plane]
-        elif trace_length < 100:
-            dlen = [[0.2] * n_plane]
-        else:
-            dlen = [[0.5] * n_plane]
+        dlen = [[0.1] * n_plane]
         fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
                 / sin(radians(dip[0][0]))] * n_plane]
         # Karim: add 3km to depth if bottom >= 12km
@@ -262,6 +247,7 @@ if len(sys.argv) > 1:
         nproc_max = int(round(0.8 * nproc_max))
     # not more processes than jobs
     nproc = min(len(msg_list), nproc_max)
+    nproc = 12
     # spawn slaves
     comm = MPI.COMM_WORLD.Spawn(
         sys.executable, args = [sys.argv[0]], maxprocs = nproc)
