@@ -28,6 +28,7 @@ from createSRF import leonard, mag2mom, mom2mag
 from qcore import geo
 from qcore import gmt
 from qcore.gen_coords import gen_coords
+from qcore.validate_vm import validate_vm
 # post-processing computations should be in PYTHON_PATH
 from Bradley_2010_Sa import Bradley_2010_Sa
 from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
@@ -522,6 +523,8 @@ def create_vm(args, srf_meta):
     move(params_vel, vm_dir)
     # create model_coords, model_bounds etc...
     gen_coords(outdir = vm_dir)
+    # validate
+    success = validate_vm(vm_dir, verbose = True)
 
     ###
     ### PLOT
