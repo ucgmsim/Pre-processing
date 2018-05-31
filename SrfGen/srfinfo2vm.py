@@ -681,11 +681,13 @@ if __name__ == '__main__':
     # alternative to multiprocessing.Pool.starmap only since Python3.3
     def create_vm_star(args_meta):
         return create_vm(*args_meta)
-    # distribute work
-    print msg_list
-    p = Pool(processes = args.nproc)
-    reports = p.map(create_vm_star, msg_list)
-    # debug friendly alternative
-    #reports = [create_vm_star(msg) for msg in msg_list]
+    debug = False
+    if debug:
+        # debug friendly
+        reports = [create_vm_star(msg) for msg in msg_list]
+    else:
+        # distribute work
+        p = Pool(processes = args.nproc)
+        reports = p.map(create_vm_star, msg_list)
     # store summary
     store_summary(os.path.join(args.out_dir, 'vminfo.csv'), reports)
