@@ -524,7 +524,7 @@ def create_vm(args, srf_meta):
     # create model_coords, model_bounds etc...
     gen_coords(outdir = vm_dir)
     # validate
-    success, message = validate_vm(vm_dir, verbose = True)
+    success, message = validate_vm(vm_dir)
     if success:
         sys.stderr.write('VM check OK: %s\n' % (vm_dir))
     else:
@@ -682,6 +682,7 @@ if __name__ == '__main__':
     def create_vm_star(args_meta):
         return create_vm(*args_meta)
     # distribute work
+    print msg_list
     p = Pool(processes = args.nproc)
     reports = p.map(create_vm_star, msg_list)
     # debug friendly alternative

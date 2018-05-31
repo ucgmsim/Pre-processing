@@ -192,6 +192,7 @@ def load_msgs(args, fault_names, faults):
 
 def run_create_srf(t):
     t0 = time()
+#    sys.stdout = open(str(os.getpid())+".out","w")
     print('creating SRF: %s' % (t['name']))
     # all of the work, rest of the script is complete under 1 second
     CreateSRF_multi(t['nseg'], t['seg_delay'], t['mag'], t['mom'], \
@@ -207,6 +208,7 @@ def run_create_srf(t):
         call(['plot_srf_square.py', '%s.srf' % (t['prefix'])])
         call(['plot_srf_map.py', '%s.srf' % (t['prefix'])])
         print('plotted SRF: %s (%.2fs)' % (t['name'], time() - t0))
+ #   sys.stdout.close()
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -255,6 +257,8 @@ if __name__ == '__main__':
     if len(msg_list) == 0:
         print('No matches found.')
         sys.exit(1)
+
+    print __file__
 
     # distribute work
     p = Pool(args.nproc)

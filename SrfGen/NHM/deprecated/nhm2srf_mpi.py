@@ -11,7 +11,9 @@ from createSRF import CreateSRF_multi
 from qcore import geo
 
 PLOT = True
-NHM_FILE = 'NZ_FLTmodel_2010.txt'
+
+this_file_path= os.path.dirname(os.path.abspath(__file__))
+NHM_FILE = os.path.join(this_file_path,'NZ_FLTmodel_2010.txt')
 NHM_START = 15
 GMT_FILE = 'fault_traces.gmt'
 LOG_FILE = 'logfile.txt'
