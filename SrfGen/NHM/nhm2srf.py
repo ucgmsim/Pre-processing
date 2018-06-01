@@ -258,8 +258,6 @@ if __name__ == '__main__':
         print('No matches found.')
         sys.exit(1)
 
-    print __file__
-
     # distribute work
     p = Pool(args.nproc)
     p.map(run_create_srf, msg_list)

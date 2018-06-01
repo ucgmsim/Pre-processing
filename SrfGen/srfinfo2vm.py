@@ -682,7 +682,7 @@ if __name__ == '__main__':
     def create_vm_star(args_meta):
         return create_vm(*args_meta)
     # distribute work
-    print msg_list
+    #print msg_list
     p = Pool(processes = args.nproc)
     reports = p.map(create_vm_star, msg_list)
     # debug friendly alternative
