@@ -12,10 +12,11 @@ from createSRF import leonard, CreateSRF_ps
 
 def run_create_srf(args, t, vs, rho):
     mom = -1
-    prefix = os.path.join(args.out_dir, str(t.pid))
+    prefix = os.path.join(args.out_dir, str(t.pid), 'Srf', str(t.pid))
+    stoch = os.path.join(args.out_dir, str(t.pid), 'Stoch')
     CreateSRF_ps(t.lat, t.lon, t.depth, t.mag, \
             mom, t.strike, t.rake, t.dip, dt = args.dt, \
-            prefix = prefix, stoch = args.out_dir, \
+            prefix = prefix, stoch = stoch, \
             vs = vs, rho = rho, silent = True)
     if args.plot:
         call(['plot_srf_map.py', '%s.srf' % (prefix)])
