@@ -12,6 +12,7 @@ HELP:
 """
 
 from distutils.spawn import find_executable
+import json
 import math
 import os
 from shutil import rmtree, move
@@ -211,7 +212,7 @@ def save_vm_config(nzvm_cfg = None, params_vel = None, vm_dir = None, \
                     'MIN_VS=%s' % (min_vs), \
                     'TOPO_TYPE=%s\n' % (topo_type)]))
     if params_vel != None:
-        with open(params_vel, 'w') as pv:
+        with open('%s.py' % (params_vel), 'w') as pv:
             pv.write('\n'.join(['mag = "%s"' % (mag), \
                     'centroidDepth = "%s"' % (centroid_depth), \
                     'MODEL_LAT = "%s"' % (origin[1]), \
@@ -235,6 +236,22 @@ def save_vm_config(nzvm_cfg = None, params_vel = None, vm_dir = None, \
                     'ny = "%s"' % (int(round(float(ylen) / hh))), \
                     'nz = "%s"' % (int(round(float(zmax - zmin) / hh))), \
                     'sufx = "_%s01-h%.3f"' % (code, hh)]))
+        with open('%s.json' % (params_vel), 'w') as pv:
+            # must also convert mag from np.float to float
+            json.dump({'mag':float(mag), 'centroidDepth':centroid_depth, \
+                       'MODEL_LAT':origin[1], 'MODEL_LON':origin[0], \
+                       'MODEL_ROT':rot, 'hh':hh, 'min_vs':min_vs, \
+                       'model_version':model_version, 'topo_type':topo_type, \
+                       'output_directory':os.path.basename(vm_dir), \
+                       'extracted_slice_parameters_directory':\
+                           'SliceParametersNZ/SliceParametersExtracted.txt', \
+                       'code':code, 'extent_x':xlen, 'extent_y':ylen, \
+                       'extent_zmax':zmax, 'extent_zmin':zmin, \
+                       'sim_duration':sim_duration, 'flo':min_vs / (5.0 * hh), \
+                       'nx':int(round(float(xlen) / hh)), \
+                       'ny':int(round(float(ylen) / hh)), \
+                       'nz':int(round(float(zmax - zmin) / hh)), \
+                       'sufx':'_%s01-h%.3f' % (code, hh)}, pv)
 
 # get outer corners of a domain
 def build_corners(origin, rot, xlen, ylen):
@@ -498,7 +515,7 @@ def create_vm(args, srf_meta):
     # store configs
     vm_dir = os.path.join(args.out_dir, srf_meta['name'])
     nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
-    params_vel = os.path.join(ptemp, 'params_vel.py')
+    params_vel = os.path.join(ptemp, 'params_vel')
     # NZVM won't run if folder exists
     if os.path.exists(vm_dir):
         rmtree(vm_dir)
@@ -520,9 +537,10 @@ def create_vm(args, srf_meta):
     rmtree(os.path.join(vm_dir, 'Velocity_Model'))
     rmtree(os.path.join(vm_dir, 'Log'))
     move(nzvm_cfg, vm_dir)
-    move(params_vel, vm_dir)
+    move('%s.py' % (params_vel), vm_dir)
+    move('%s.json' % (params_vel), vm_dir)
     # create model_coords, model_bounds etc...
-    gen_coords(outdir = vm_dir)
+    gen_coords(vm_dir = vm_dir)
     # validate
     success, message = validate_vm(vm_dir)
     if success:
