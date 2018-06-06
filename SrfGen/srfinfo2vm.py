@@ -28,8 +28,8 @@ from createSRF import leonard, mag2mom, mom2mag
 # qcore library should already be in path
 from qcore import geo
 from qcore import gmt
-from qcore.gen_coords2 import gen_coords
-from qcore.validate_vm2 import validate_vm
+from qcore.gen_coords import gen_coords
+from qcore.validate_vm import validate_vm
 # post-processing computations should be in PYTHON_PATH
 from Bradley_2010_Sa import Bradley_2010_Sa
 from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
