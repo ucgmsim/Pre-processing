@@ -11,8 +11,28 @@ from subprocess import call
 import sys
 from time import time
 
+import numpy as np
+
 from createSRF import leonard, CreateSRF_multi
 from qcore import geo
+
+def rand_shyp_dhyp(length = 1.0, width = 1.0):
+    # normal distribution
+    shyp_mu = 0.5
+    shyp_sigma = 0.25
+    # weibel distribution
+    dhyp_scale = 0.612
+    dhyp_shape = 3.353
+
+    shyp = -1
+    dhyp = 2
+
+    # within range 0 -> 1 (exclusive)
+    while shyp <= 0 or shyp >= 1:
+        shyp = np.random.normal(shyp_mu, shyp_sigma)
+    while dhyp >= 1:
+        dhyp = np.random.weibull(dhyp_shape) * dhyp_scale
+    return shyp * length, dhyp * width
 
 ###
 ### PREPARE TASKS
@@ -97,23 +117,32 @@ def load_msgs(args, fault_names, faults):
         n_hypo = args.nhypo
         n_slip = args.nslip
         dhypos = args.dhypo
-        if fault_names != None:
+        if faults != None:
             fault = faults[fault_names.index(name)]
-            try:
-                # given as number of hypocentres
-                n_hypo = int(fault[1])
-            except ValueError:
+            if len(fault) >= 2:
                 # given as hypocentre every x km
-                t_hypo = 'k'
-                hyp_step = float(fault[1][:-1])
-                n_hypo = 1 + int(trace_length // hyp_step)
-                # 0th hypocentre position
-                if n_hypo == 1:
-                    z_hypo = trace_length / 2.
+                if fault[1][-1] == 'k':
+                    t_hypo = 'k'
+                    hyp_step = float(fault[1][:-1])
+                    n_hypo = 1 + int(trace_length // hyp_step)
+                    # 0th hypocentre position
+                    if n_hypo == 1:
+                        z_hypo = trace_length / 2.
+                    else:
+                        z_hypo = (trace_length % hyp_step) / 2.
+
+                # given as number of randomly placed hypocentres
+                elif fault[1][-1] == 'r':
+                    t_hypo = 'r'
+                    n_hypo = int(fault[1][:-1])
+
+                # given as number of hypocentres
                 else:
-                    z_hypo = (trace_length % hyp_step) / 2.
-            n_slip = int(fault[2])
-            if len(fault) > 3:
+                    n_hypo = int(fault[1])
+
+            if len(fault) >= 3:
+                n_slip = int(fault[2])
+            if len(fault) >= 4:
                 dhypos = map(float, fault[3].split(','))
         if t_hypo == 'n':
             hyp_step = trace_length / (n_hypo * 2.)
@@ -155,13 +184,18 @@ def load_msgs(args, fault_names, faults):
                 shyp_shift = hyp_step * (1 + 2 * n_shyp)
             elif t_hypo == 'k':
                 shyp_shift = z_hypo + hyp_step * n_shyp
+            elif t_hypo == 'r':
+                shyp_shift, dhyp_shift = rand_shyp_dhyp(trace_length, fwid[0][0])
             # NOTE: this shypo is relative to the first combined fault
             # if not adjusted later, must be relative to full length
             shypo = [[shyp_shift - (lengths[0] / 2.)]]
             for _ in xrange(n_slip):
                 for i, d in enumerate(dhypos):
                     seed += args.seed_inc
-                    dhypo = [[fwid[0][0] * d] * n_plane]
+                    if t_hypo == 'r':
+                        dhypo = [[dhyp_shift] * n_plane]
+                    else:
+                        dhypo = [[fwid[0][0] * d] * n_plane]
                     prefix = '%s/%s/Srf/%s_HYP%.2d-%.2d_S%s' \
                             % (args.out_dir, name, name, n_shyp * len(dhypos) + i + 1, \
                                n_hypo * len(dhypos), seed)
@@ -262,4 +296,4 @@ if __name__ == '__main__':
     p = Pool(args.nproc)
     p.map(run_create_srf, msg_list)
     # debug friendly alternative
-    #[create_vm_star(msg) for msg in msg_list]
+    #[run_create_srf(msg) for msg in msg_list]
