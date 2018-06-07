@@ -386,6 +386,8 @@ def gen_meta(srf_file, srf_type, mag, \
             a['hlon'] = hlon
             a['hlat'] = hlat
             a['hdepth'] = hdepth
+            a['shypo'] = shypo
+            a['dhypo'] = dhypo
         # either way should give same result
         if centroid_depth != None:
             a['cd'] = centroid_depth
@@ -528,9 +530,11 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     # save INFO
     if srf_type == 2:
         gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt, \
-                 lon = lon, lat = lat, centroid_depth = depth, mwsr = mwsr)
+                 lon = lon, lat = lat, centroid_depth = depth, mwsr = mwsr, \
+                 shypo = shypo + 0.5 * flen, dhypo = dhypo)
     else:
-        gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt)
+        gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt, \
+                 shypo = shypo + 0.5 * flen, dhypo = dhypo)
 
     # location of resulting SRF
     return srf_file
@@ -660,7 +664,9 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         gen_stoch(stoch_file, joined_srf, silent = silent)
     # save INFO
     gen_meta(joined_srf, 4, mag[0], stk, rak, dip, dt, \
-            vm = velocity_model)
+            vm = velocity_model, \
+            shypo = [s[0] + 0.5 * flen[c][0] for s in shypo], \
+            dhypo = [d[0] for d in dhypo])
 
     # path to resulting SRF
     return joined_srf
