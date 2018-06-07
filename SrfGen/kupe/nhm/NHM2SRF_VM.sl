@@ -22,7 +22,7 @@ source machine_env.sh
 export NUMPROCS=40
 export SELECTION_FILE=`pwd`/nhm_selection_geo_si.txt #nhm_selection_sample2.txt #
 # important paths
-export SRFGENPATH=/nesi/nobackup/nesi00213/Pre-processing/SrfGen
+export SRFGENPATH=/nesi/nobackup/nesi00213/tmp/Pre-processing/SrfGen
 export QCOREPATH=/nesi/nobackup/nesi00213/tmp/qcore
 export GMPEMODELSPATH=/nesi/nobackup/nesi00213/tmp/post-processing/im_processing/computations/GMPE_models
 
