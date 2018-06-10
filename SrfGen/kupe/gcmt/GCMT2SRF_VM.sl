@@ -43,3 +43,4 @@ srun python2 $SRFGENPATH/srfinfo2vm.py "autosrf/*.info" -n $NUMPROCS
 date
 echo "VM generation completed"
 
+## Only one VM is generated 3631755 as the other one (2122842) is in the ocean 
