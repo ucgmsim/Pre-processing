@@ -39,7 +39,8 @@ python2 $SRFGENPATH/gcmt2srf.py $GCMT_FILE $SRFGENPATH/lp_generic1d-gp01_v1.vmod
 echo "SRF generation completed"
 date
 echo "VM generation starts"
-srun python2 $SRFGENPATH/srfinfo2vm.py "autosrf/*.info" -n $NUMPROCS
+srun python2 $SRFGENPATH/srfinfo2vm.py "autosrf/*/Srf/*.info" -n $NUMPROCS
 date
 echo "VM generation completed"
 
+## Only one VM is generated 3631755 as the other one (2122842) is in the ocean 
