@@ -1,8 +1,6 @@
 import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# hypocentre
-#tools = '/nesi/projects/nesi00213/tools'
 # kupe
 tools = '/nesi/transit/nesi00213/tools'
 
