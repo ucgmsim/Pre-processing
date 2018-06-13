@@ -386,8 +386,8 @@ def gen_meta(srf_file, srf_type, mag, \
             a['hlon'] = hlon
             a['hlat'] = hlat
             a['hdepth'] = hdepth
-            a['shypo'] = shypo
-            a['dhypo'] = dhypo
+            a['shyp0'] = shypo
+            a['dhyp0'] = dhypo
         if centroid_depth != None:
             a['cd'] = centroid_depth
         if mwsr != None:
