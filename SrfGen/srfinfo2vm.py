@@ -69,7 +69,7 @@ def find_rrup(pgv_target):
             break
     return rrup, pgv
 
-# z extent based on magnitude, centroid depth
+# z extent based on magnitude, hypocentre depth
 def auto_z(mag, depth):
     return round(10 + depth + (10 \
             * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), \
@@ -493,7 +493,7 @@ def create_vm(args, srf_meta):
         ylen1 = 0
 
     # zlen is independent from xlen and ylen
-    zlen = round(auto_z(faultprop.Mw, srf_meta['centroid_depth']) \
+    zlen = round(auto_z(faultprop.Mw, srf_meta['hdepth']) \
             / args.hh) * args.hh
     # modified sim time
     sim_time1 = (auto_time2(xlen1, ylen1, 1) // args.dt) * args.dt
@@ -523,7 +523,7 @@ def create_vm(args, srf_meta):
                    vm_dir = vm_dir, origin = origin, rot = bearing, \
                    xlen = xlen1, ylen = ylen1, zmax = zlen, hh = args.hh, \
                    min_vs = args.min_vs, mag = faultprop.Mw, \
-                   centroid_depth = srf_meta['centroid_depth'], \
+                   centroid_depth = srf_meta['hdepth'], \
                    sim_duration = sim_time0 * (not adjusted) \
                                 + sim_time1 * adjusted)
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
@@ -638,7 +638,7 @@ def load_msgs(args):
             msgs.append((args, {'name':name, 'dip':a['dip'][0], 'rake':rake, \
                                 'dbottom':a['dbottom'][0], \
                                 'corners':a['corners'], 'mag':mag, \
-                                'centroid_depth':a['cd']}))
+                                'hdepth':a['hdepth']}))
     return msgs
 
 def store_summary(table, info_store):
