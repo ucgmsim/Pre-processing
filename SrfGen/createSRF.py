@@ -388,13 +388,8 @@ def gen_meta(srf_file, srf_type, mag, \
             a['hdepth'] = hdepth
             a['shypo'] = shypo
             a['dhypo'] = dhypo
-        # either way should give same result
         if centroid_depth != None:
             a['cd'] = centroid_depth
-        else:
-            a['cd'] = planes[0]['dhyp'] \
-                      * math.sin(math.radians(planes[0]['dip'])) \
-                      + planes[0]['dtop']
         if mwsr != None:
             a['mwsr'] = np.string_(mwsr)
         # derived parameters
