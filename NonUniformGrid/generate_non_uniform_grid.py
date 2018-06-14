@@ -8,7 +8,7 @@ import point_sorting
 import ConfigParser
 from StringIO import StringIO
 
-usage = "%s [params_file] [centroids_file.csv] [vs500.csv] [minimal_resolution in km]" % (sys.argv[0])
+usage = "%s [params_file] [centroids_file.csv] [vs30.csv] [minimal_resolution in km]" % (sys.argv[0])
 # Read all necessary csv files
 if len(sys.argv) < 4:
     print sys.argv
@@ -57,19 +57,19 @@ parameters["ny"] = ny
 parameters["dist"] = maximal_distance
 
 population_information = {}
-vs500_information = {}
+vs30_information = {}
 
 population_information = tools.convert_csv_to_grid_points(sys.argv[2], parameters)
-vs500_information = tools.convert_csv_to_grid_points(sys.argv[3], parameters, ordered=False)
+vs30_information = tools.convert_csv_to_grid_points(sys.argv[3], parameters, ordered=False)
 vs_500_points = []
-for coords, value in vs500_information.iteritems():
+for coords, value in vs30_information.iteritems():
     vs_500_points.append([coords[0], coords[1], value])
-vs500_sorted_grid = point_sorting.SortedPointGrid(initial_domain)
-vs500_sorted_grid.subdivide(4)
+vs30_sorted_grid = point_sorting.SortedPointGrid(initial_domain)
+vs30_sorted_grid.subdivide(4)
 # insert points
-vs500_sorted_grid.insert_points(vs_500_points)
+vs30_sorted_grid.insert_points(vs_500_points)
 
-finest_regions = vs500_sorted_grid.return_finest_regions()
+finest_regions = vs30_sorted_grid.return_finest_regions()
 print len(finest_regions)
 final_point_list = []
 for region in finest_regions:
@@ -80,12 +80,12 @@ for region in finest_regions:
 non_uniform_mesh = generate_mesh.NonUniformGrid(dx, minimal_distance, initial_grid, initial_domain)
 print "Done Creating Grids"
 
-weight_population = 0.55
-weight_vs500 = 0.45
-score_threshold = 0.5
+weight_population = 0.5
+weight_vs30 = 0.5
+score_threshold = 0.7
 
-f = lambda domain: mixed_criteria(domain, population_information, vs500_sorted_grid, weight_pop=weight_population,
-                                  weight_vs=weight_vs500, threshold=score_threshold)
+f = lambda domain: mixed_criteria(domain, population_information, vs30_sorted_grid, weight_pop=weight_population,
+                                  weight_vs=weight_vs30, threshold=score_threshold)
 
 while non_uniform_mesh.refine(f):
     continue

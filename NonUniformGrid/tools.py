@@ -27,21 +27,21 @@ def dump_csv_from_point_list(csv_file_name, points, header=None):
 
 
 # Uses population csv and vs_500 csv
-def mixed_criteria(domain, population_hash, vs500_sorted_grid, min_population_acceptable=10.0, weight_pop=0.5,
+def mixed_criteria(domain, population_hash, vs30_sorted_grid, min_population_acceptable=10.0, weight_pop=0.5,
                    weight_vs=0.5, threshold=0.5):
     interest_points_population = {}
-    interest_points_vs500 = {}
+    interest_points_vs30 = {}
     # TODO: change to use sorted points
     for coords, value in population_hash.iteritems():
         if point_in_rectangle(coords[0], coords[1], domain):
             interest_points_population[coords] = value
 
-    regions = vs500_sorted_grid.regions_around_domain(domain)
+    regions = vs30_sorted_grid.regions_around_domain(domain)
     for region in regions:
         points = region.points
         for point in points:
             if point_in_rectangle(point[0], point[1], domain):
-                interest_points_vs500[coords] = point[2]
+                interest_points_vs30[coords] = point[2]
 
     # analyze all the points attributing score
     population_value = 0.0
@@ -51,16 +51,16 @@ def mixed_criteria(domain, population_hash, vs500_sorted_grid, min_population_ac
         if population_value < value:
             population_value = value
 
-    vs500_value = 100.0
+    vs30_value = 100.0
     # vs_500: min value in the domain
-    for point, value in interest_points_vs500.iteritems():
-        if value < vs500_value:
-            vs500_value = value
+    for point, value in interest_points_vs30.iteritems():
+        if value < vs30_value:
+            vs30_value = value
 
     # vs_500: finest grid if 0.5 and coarsest if 2.0
     # population: finest grid if population > 2*min_population, coarsest if < min_population
-    vs500_max_acceptable = 2.0
-    vs500_min_acceptable = 0.5
+    vs30_max_acceptable = 600
+    vs30_min_acceptable = 200
 
     max_population_acceptable = 3.0 * min_population_acceptable
     if population_value > max_population_acceptable:
@@ -71,14 +71,14 @@ def mixed_criteria(domain, population_hash, vs500_sorted_grid, min_population_ac
         score_population = 1.0 - (
             (max_population_acceptable - population_value) / (max_population_acceptable - min_population_acceptable))
 
-    if vs500_value > vs500_max_acceptable:
-        score_vs500 = 0.0
-    elif vs500_value < vs500_min_acceptable:
-        score_vs500 = 1.0
+    if vs30_value > vs30_max_acceptable:
+        score_vs30 = 0.0
+    elif vs30_value < vs30_min_acceptable:
+        score_vs30 = 1.0
     else:
-        score_vs500 = (vs500_max_acceptable - vs500_value) / (vs500_max_acceptable - vs500_min_acceptable)
+        score_vs30 = (vs30_max_acceptable - vs30_value) / (vs30_max_acceptable - vs30_min_acceptable)
 
-    total_score = weight_pop * score_population + weight_vs * score_vs500
+    total_score = weight_pop * score_population + weight_vs * score_vs30
     assert (total_score <= 1.0)
 
     if total_score >= threshold:
