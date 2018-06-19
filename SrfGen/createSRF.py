@@ -342,7 +342,7 @@ def gen_meta(srf_file, srf_type, mag, \
             strike, rake, dip, dt, vm = None, vs = None, rho = None, \
             centroid_depth = None, lon = None, lat = None, mom = None, \
             flen = None, dlen = None, fwid = None, dwid = None, \
-            shypo = None, dhypo = None, mwsr = None):
+            shypo = None, dhypo = None, mwsr = None, tect_type = None):
     """
     Stores SRF metadata as hdf5.
     srf_file: SRF path used as basename for info file and additional metadata
@@ -388,10 +388,12 @@ def gen_meta(srf_file, srf_type, mag, \
             a['hdepth'] = hdepth
             a['shyp0'] = shypo
             a['dhyp0'] = dhypo
-        if centroid_depth != None:
+        if centroid_depth is not None:
             a['cd'] = centroid_depth
-        if mwsr != None:
+        if mwsr is not None:
             a['mwsr'] = np.string_(mwsr)
+        if tect_type is not None:
+            a['tect_type'] = tect_type
         # derived parameters
         a['corners'] = corners
         a['dbottom'] = dbottom
@@ -482,7 +484,8 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
         flen = None, dlen = None, fwid = None, dwid = None, \
         dtop = None, shypo = None, dhypo = None, stoch = None, depth = None, \
         mwsr = None, corners = True, corners_file = 'cnrs.txt', \
-        genslip = '3.3', rvfrac = None, rough = None, slip_cov = None):
+        genslip = '3.3', rvfrac = None, rough = None, slip_cov = None, \
+        tect_type = None):
     """
     Create a Finite Fault SRF.
     Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
@@ -529,7 +532,8 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
                  shypo = shypo + 0.5 * flen, dhypo = dhypo)
     else:
         gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt, \
-                 shypo = shypo + 0.5 * flen, dhypo = dhypo)
+                 shypo = shypo + 0.5 * flen, dhypo = dhypo, \
+                 tect_type = tect_type)
 
     # location of resulting SRF
     return srf_file
@@ -538,7 +542,8 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         flen, dlen, fwid, dwid, dtop, stk, rak, dip, elon, elat, \
         shypo, dhypo, dt, seed, prefix0, cases, genslip = '3.3', \
         rvfrac = None, rough = None, slip_cov = None, stoch = None, \
-        dip_dir = None, silent = False, velocity_model = None):
+        dip_dir = None, silent = False, velocity_model = None, \
+        tect_type = None):
 
     # do not change any pointers
     mag = list(mag0)
@@ -661,7 +666,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
     gen_meta(joined_srf, 4, mag[0], stk, rak, dip, dt, \
             vm = velocity_model, \
             shypo = [s[0] + 0.5 * flen[c][0] for s in shypo], \
-            dhypo = [d[0] for d in dhypo])
+            dhypo = [d[0] for d in dhypo], tect_type = tect_type)
 
     # path to resulting SRF
     return joined_srf
