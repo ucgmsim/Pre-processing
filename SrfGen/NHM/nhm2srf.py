@@ -208,7 +208,8 @@ def load_msgs(args, fault_names, faults):
                             'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed, \
                             'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
                             'stoch':'%s/%s/Stoch' % (args.out_dir, name), \
-                            'name':name, 'plot':args.plot})
+                            'name':name, 'tect_type':db[dbi + 1].split()[0], \
+                            'plot':args.plot})
                     # store parameters
                     with open(out_log, 'a') as log:
                         log.write('%s.srf\t%s\t%s\t%s\n' \
@@ -234,7 +235,7 @@ def run_create_srf(t):
             t['fwid'], t['dwid'], t['dtop'], t['stk'], t['rake'], t['dip'], \
             t['elon'], t['elat'], t['shypo'], t['dhypo'], t['dt'], t['seed'], \
             t['prefix'], t['cases'], dip_dir = t['dip_dir'], \
-            stoch = t['stoch'], silent = True)
+            stoch = t['stoch'], tect_type = t['tect_type'], silent = True)
     print('created SRF: %s (%.2fs)' % (t['name'], time() - t0))
     if t['plot']:
         t0 = time()
