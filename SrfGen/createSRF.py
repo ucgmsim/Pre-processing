@@ -316,27 +316,20 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
 
 def gen_stoch(stoch_file, srf_file, silent = False):
     """
-    TODO: inspect srf file for automatic dx, dy.
-    FINITE FAULT NOTES:
-    dx and dx should match dlen and dwid.
-    Larger values will cause reduction of subfaults.
-    If dx > flen or dy > fwid, file produced is incomplete.
-    POINT SOURCE NOTES:
-    dx and dy must be set, even for point source.
-    Should match srf, lower value gives the same stoch (tested with p sources).
-    Giving 0 will cause an infinite loop until the loop variable is too large.
+    Creates stoch file from srf file.
     """
     out_dir = os.path.dirname(stoch_file)
     mkdir_p(out_dir)
+    stderr = None
+    if silent:
+        stderr = PIPE
+    dx, dy = 2.0, 2.0
+    if not srf.is_ff(srf_file):
+        dx, dy = srf.srf_dxy(srf_file)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
-            if silent:
-                with open('/dev/null', 'a') as sink:
-                    call([srf_config.STOCH_BIN, 'dx=2.0', 'dy=2.0'], \
-                            stdin = srfp, stdout = stochp, stderr = sink)
-                return
-            call([srf_config.STOCH_BIN, 'dx=2.0', 'dy=2.0'], \
-                    stdin = srfp, stdout = stochp)
+            call([srf_config.STOCH_BIN, 'dx=%s' % (dx), 'dy=%s' % (dy)], \
+                 stdin = srfp, stdout = stochp)
 
 def gen_meta(srf_file, srf_type, mag, \
             strike, rake, dip, dt, vm = None, vs = None, rho = None, \
