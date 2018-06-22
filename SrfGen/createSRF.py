@@ -374,6 +374,7 @@ def gen_meta(srf_file, srf_type, mag, \
             a['rho'] = rho
             a['hlon'] = lon
             a['hlat'] = lat
+            a['hdepth'] = centroid_depth
         else:
             a['vm'] = np.string_(os.path.basename(vm))
             a['hlon'] = hlon
@@ -381,8 +382,6 @@ def gen_meta(srf_file, srf_type, mag, \
             a['hdepth'] = hdepth
             a['shyp0'] = shypo
             a['dhyp0'] = dhypo
-        if centroid_depth is not None:
-            a['cd'] = centroid_depth
         if mwsr is not None:
             a['mwsr'] = np.string_(mwsr)
         if tect_type is not None:
