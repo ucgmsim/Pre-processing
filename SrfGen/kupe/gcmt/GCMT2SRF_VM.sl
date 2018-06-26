@@ -13,7 +13,8 @@
 ###SBATCH --mail-user=test@test.com
 ###SBATCH --mem-per-cpu=16G
 ###SBATCH -C avx
-#SBATCH --hint=nomultithread
+# OpenMP+Hyperthreading works well for VM
+###SBATCH --hint=nomultithread
 
 ## END HEADER
 source machine_env.sh
