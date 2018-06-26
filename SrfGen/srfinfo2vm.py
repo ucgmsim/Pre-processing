@@ -527,8 +527,13 @@ def create_vm(args, srf_meta):
                    sim_duration = sim_time0 * (not adjusted) \
                                 + sim_time1 * adjusted)
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
-    Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN), \
-          stdout = PIPE).wait()
+#    Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN), \
+#          stdout = PIPE).wait()
+    with open(os.path.join(ptemp,'NZVM.out'),'w') as logfile:
+        nzvm_exe=Popen(" ".join([NZVM_BIN, nzvm_cfg]), cwd = os.path.dirname(NZVM_BIN), \
+              stdout=logfile,shell=True)
+        nzvm_exe.communicate()
+
     # fix up directory contents
     move(os.path.join(vm_dir, 'Velocity_Model', 'rho3dfile.d'), vm_dir)
     move(os.path.join(vm_dir, 'Velocity_Model', 'vp3dfile.p'), vm_dir)
