@@ -30,7 +30,6 @@ export GCMT_FILE=`pwd`/GeoNet_CMT_solutions.csv
 export SRFGENPATH=/nesi/nobackup/nesi00213/tmp/Pre-processing/SrfGen
 export QCOREPATH=/nesi/nobackup/nesi00213/tmp/qcore
 export GMPEMODELSPATH=/nesi/nobackup/nesi00213/tmp/post-processing/im_processing/computations/GMPE_models
-export PATH=$PATH:/nesi/nobackup/nesi00213/tmp/Velocity-Model
 
  #leave these alone
 export PYTHONPATH=$QCOREPATH:$PYTHONPATH:$SRFGENPATH:$GMPEMODELSPATH

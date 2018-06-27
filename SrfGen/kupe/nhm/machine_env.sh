@@ -18,4 +18,4 @@ module rm HDF/4.2.13-CrayGNU-2017.06
 module swap Anaconda2/4.2.0-CrayGNU-2017.06 Anaconda2/5.0.1-CrayGNU-2017.06
 #module add cray-hdf5-parallel/1.10.1.1
 export BINPROCESS=/nesi/transit/nesi00213/workflow/scripts
-export PATH=$PATH:/nesi/nobackup/nesi00213/gmt/gmt-stable/bin:/nesi/transit/nesi00213/tools
+export PATH=$PATH:/nesi/nobackup/nesi00213/gmt/gmt-stable/bin:/nesi/transit/nesi00213/tools:/nesi/transit/nesi00213/tools/Velocity-Model
