@@ -29,7 +29,6 @@ export SELECTION_FILE=`pwd`/nhm_selection_geo_si.txt #nhm_selection_sample2.txt 
 export SRFGENPATH=/nesi/nobackup/nesi00213/tmp/Pre-processing/SrfGen
 export QCOREPATH=/nesi/nobackup/nesi00213/tmp/qcore
 export GMPEMODELSPATH=/nesi/nobackup/nesi00213/tmp/post-processing/im_processing/computations/GMPE_models
-export PATH=$PATH:/nesi/nobackup/nesi00213/tmp/Velocity-Model
 
 # leave these alone
 export PYTHONPATH=$QCOREPATH:$PYTHONPATH:$SRFGENPATH:$GMPEMODELSPATH
