@@ -593,8 +593,9 @@ def create_vm(args, srf_meta):
             fill = 'red', line = None, shape = 'c', size = 0.05)
     # store PNG, remove PS
     p.finalise()
-    #p.png(dpi = 200, clip = True, background = 'white') # Skipping ps->png generation on Kupe due to missing gv
-    #os.remove(p.pspath)
+    p.png(dpi = 200, clip = True, background = 'white')
+    if os.path.isfile('%s.png' % (os.path.splitext(p.pspath)[0])):
+        os.remove(p.pspath)
     # plotting temp files
     for tmp in map(os.path.join, [vm_dir, vm_dir], ['gmt.conf', 'gmt.history']):
         if os.path.exists(tmp):
