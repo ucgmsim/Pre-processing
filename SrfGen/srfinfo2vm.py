@@ -180,11 +180,11 @@ def corners2region(c1, c2, c3, c4):
     x_max, y_max = np.max(perimiter, axis = 0)
     return (x_min, x_max, y_min, y_max)
 
-def save_vm_config(nzvm_cfg = None, params_vel = None, vm_dir = None, \
-        origin = (170, -40), rot = 0, xlen = 100, ylen = 100, zmax = 40, \
-        zmin = 0, hh = 0.4, min_vs = 0.5, mag = 5.5, centroid_depth = 7, \
-        sim_duration = 100, code = 'rt', model_version = '1.65', \
-        topo_type = 'BULLDOZED'):
+def save_vm_config(nzvm_cfg=None, params_vel=None, vm_dir=None, \
+        origin=(170, -40), rot=0, xlen=100, ylen=100, zmax=40, \
+        zmin=0, hh=0.4, min_vs=0.5, mag=5.5, centroid_depth=7, \
+        sim_duration=100, code='rt', model_version='1.65', \
+        topo_type='BULLDOZED'):
     """
     Store VM config for NZVM generator and params_vel metadata store.
     nzvm_cfg: path to NZVM cfg file
@@ -519,13 +519,14 @@ def create_vm(args, srf_meta):
     # NZVM won't run if folder exists
     if os.path.exists(vm_dir):
         rmtree(vm_dir)
-    save_vm_config(nzvm_cfg = nzvm_cfg, params_vel = params_vel, \
-                   vm_dir = vm_dir, origin = origin, rot = bearing, \
-                   xlen = xlen1, ylen = ylen1, zmax = zlen, hh = args.hh, \
-                   min_vs = args.min_vs, mag = faultprop.Mw, \
-                   centroid_depth = srf_meta['hdepth'], \
-                   sim_duration = sim_time0 * (not adjusted) \
-                                + sim_time1 * adjusted)
+    save_vm_config(nzvm_cfg=nzvm_cfg, params_vel=params_vel, \
+                   vm_dir=vm_dir, origin=origin, rot=bearing, \
+                   xlen=xlen1, ylen=ylen1, zmax=zlen, hh=args.hh, \
+                   min_vs=args.min_vs, mag=faultprop.Mw, \
+                   centroid_depth=srf_meta['hdepth'], \
+                   sim_duration=sim_time0 * (not adjusted) \
+                                + sim_time1 * adjusted, \
+                   topo_type=args.vm_topo, model_version=args.vm_version)
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     with open(os.path.join(ptemp,'NZVM.out'),'w') as logfile:
         nzvm_exe=Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN), \
@@ -671,22 +672,26 @@ if __name__ == '__main__':
     # parameters
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg('info_glob', help = 'info file selection expression. eg: Srf/*.info')
-    parser.add_argument('-o', '--out-dir', help = 'directory to place outputs', \
-            default = 'autovm')
-    arg('--pgv', help = 'max PGV at velocity model perimiter (estimated, cm/s)', \
-            type = float, default = 5.0)
-    arg('--hh', help = 'velocity model grid spacing (km)', \
-            type = float, default = 0.4)
-    arg('--dt', help = 'timestep to estimate simulation duration (s)', \
-            type = float, default = 0.005)
-    arg('--space-land', help = 'min space between VM edge and land (km)', \
-            type = float, default = 5.0)
-    arg('--space-srf', help = 'min space between VM edge and SRF (km)', \
-            type = float, default = 15.0)
-    arg('--min-vs', help = 'for nzvm gen and flo (km/s)', \
-            type = float, default = 0.5)
-    arg('-n', '--nproc', help = 'number of processes', type = int, default = 1)
+    arg('info_glob', help='info file selection expression. eg: Srf/*.info')
+    parser.add_argument('-o', '--out-dir', help='directory to place outputs', \
+            default='autovm')
+    arg('--pgv', help='max PGV at velocity model perimiter (estimated, cm/s)', \
+            type=float, default=5.0)
+    arg('--hh', help='velocity model grid spacing (km)', \
+            type=float, default=0.4)
+    arg('--dt', help='timestep to estimate simulation duration (s)', \
+            type=float, default=0.005)
+    arg('--space-land', help='min space between VM edge and land (km)', \
+            type=float, default=5.0)
+    arg('--space-srf', help='min space between VM edge and SRF (km)', \
+            type=float, default=15.0)
+    arg('--min-vs', help='for nzvm gen and flo (km/s)', \
+            type=float, default=0.5)
+    arg('-n', '--nproc', help = 'number of processes', type=int, default=1)
+    arg('--vm-version', help='velocity model version to generate', \
+        default='1.65')
+    arg('--vm-topo', help='topo_type parameter for velocity model generation', \
+        default='BULLDOZED')
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
 
