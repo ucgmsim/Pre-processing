@@ -172,7 +172,7 @@ def load_msgs(args, fault_names, faults):
         if float(db[dbi + 6].split()[0]) >= 12:
             fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0] + 3) \
                 / math.sin(math.radians(dip[0][0]))] * n_plane]
-            mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
+        mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
         dwid = dlen
         stk = [strikes]
         elon = [[ll[0] for ll in mids]]
