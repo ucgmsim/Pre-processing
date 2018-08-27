@@ -52,6 +52,11 @@ siteprop.defn = 1
 faultprop = np.rec.array(np.zeros(1, dtype = [('Mw', 'f'), ('Ztor', 'f'), \
         ('rake', 'f'), ('dip', 'f'), ('rupture_type', '|S2')]))[0]
 
+# default scaling relationship
+def mag2pgv(mag):
+    return np.interp(mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], \
+                          [0.02, 0.05, 0.1, 0.2, 0.5, 1.0])
+
 # rrup at which pgv is close to target
 def find_rrup(pgv_target):
     rrup = 50.0
@@ -420,8 +425,10 @@ def create_vm(args, srf_meta):
     faultprop.Mw = srf_meta['mag']
     faultprop.rake = srf_meta['rake']
     faultprop.dip = srf_meta['dip']
-    # rrup to reach wanted PGA
-    rrup, pga_actual = find_rrup(args.pgv)
+    # rrup to reach wanted PGV
+    if args.pgv == -1.0:
+        args.pgv = mag2pgv(faultprop.Mw)
+    rrup, pgv_actual = find_rrup(args.pgv)
 
     # original, unrotated vm
     bearing = 0
