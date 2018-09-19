@@ -54,6 +54,20 @@ def test_mw_vs_area(srf_infos):
     plt.show()
     plt.close()
 
+    # part 2 : mw cs vs mw leonard
+    fig = plt.figure(figsize = (8, 5), dpi = 150)
+    plt.plot(y, y, label='Target')
+    if len(ds_mw):
+        plt.plot(ds_mw, 4 + np.log10(ds_area), label='Actual (dip slip)', marker='x', linestyle='None')
+    if len(ss_mw):
+        plt.plot(ss_mw, 3.99 + np.log10(ss_area), label='Actual (strike slip)', marker='x', linestyle='None')
+    plt.legend(loc='best')
+    plt.title('Mw SRF vs Mw Leonard')
+    plt.xlabel('Mw SRF')
+    plt.ylabel('Mw Leonard')
+    plt.show()
+    plt.close()
+
 def test_mw_vs_nrup(srf_dirs):
     nrup = []
     mw = []
