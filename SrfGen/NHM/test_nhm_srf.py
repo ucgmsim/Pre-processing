@@ -97,8 +97,49 @@ def test_mw_vs_nrup(srf_dirs):
     plt.show()
     plt.close()
 
+def test_seismogenic_depth(srf_dirs, nhm_file):
+    srf_depths = []
+    fault_names = []
+    nhm_depths = []
+    for d in srf_dirs:
+        info = glob(os.path.join(d, '*.info'))[0]
+        with h5open(info, 'r') as i:
+            srf_depths.append(np.average(i.attrs['dbottom']))
+        fault_names.append(os.path.basename(os.path.dirname(d)))
+    # grab depths from nhm
+    nhm_depths = np.zeros(len(fault_names))
+    with open(nhm_file, 'r') as n:
+        for _ in range(15):
+            n.readline()
+        nhm = n.readlines()
+        n_i = 0
+        while min(nhm_depths) <= 0:
+            name = nhm[n_i].strip()
+            if name in fault_names:
+                nhm_depths[fault_names.index(name)] = float(nhm[n_i + 6].split()[0])
+                print name, '%.2f' % (srf_depths[fault_names.index(name)] - nhm_depths[fault_names.index(name)])
+            elif name == '':
+                print('Could not find all SRFs in NHM.')
+                return
+            n_i += 13 + int(nhm[n_i + 11])
+
+    # plot
+    fig = plt.figure(figsize = (8, 5), dpi = 150)
+    max_x = max(max(srf_depths), max(nhm_depths))
+    plt.plot([0, max_x], [0, max_x], label="SRF = NHM")
+    plt.plot([0, max_x], [3, max_x + 3], label="SRF = NHM + 3")
+    plt.plot(nhm_depths, np.array(srf_depths), label='SRF Depths', marker='x', linestyle='None')
+
+    plt.legend(loc='best')
+    plt.title('Seismogenic Depth from NHM and SRF')
+    plt.ylabel('SRF Depth (km)')
+    plt.xlabel('NHM Depth (km)')
+    plt.show()
+    plt.close()
+
 parser = ArgumentParser()
 parser.add_argument("nhm_srf_dir", help="NHM SRF directory to test")
+parser.add_argument("--nhm_file", help="NHM fault list file", default=os.path.join(os.path.dirname(__file__), 'NZ_FLTmodel_2010.txt'))
 args = parser.parse_args()
 
 assert os.path.isdir(args.nhm_srf_dir)
@@ -107,3 +148,4 @@ srf_dirs = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf'))
 info_files = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf', '*.info'))
 test_mw_vs_area(info_files)
 test_mw_vs_nrup(srf_dirs)
+test_seismogenic_depth(srf_dirs, args.nhm_file)
