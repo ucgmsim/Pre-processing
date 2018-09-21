@@ -3,12 +3,16 @@
 from argparse import ArgumentParser
 from glob import glob
 import os
+from shutil import copy, rmtree
+from subprocess import call
+from tempfile import mkdtemp
 
 from h5py import File as h5open
 import matplotlib.pyplot as plt
 import numpy as np
 
 from createSRF import leonard
+from qcore import gmt
 
 def test_mw_vs_area(srf_infos):
     # load mw and areas from srf infos
@@ -51,7 +55,7 @@ def test_mw_vs_area(srf_infos):
     plt.title('Area vs Magnitude')
     plt.ylabel('Magnitude')
     plt.xlabel('Area (sq. km)')
-    plt.show()
+    #plt.show()
     plt.close()
 
     # part 2 : mw cs vs mw leonard
@@ -65,7 +69,7 @@ def test_mw_vs_area(srf_infos):
     plt.title('Mw SRF vs Mw Leonard')
     plt.xlabel('Mw SRF')
     plt.ylabel('Mw Leonard')
-    plt.show()
+    #plt.show()
     plt.close()
 
 def test_mw_vs_nrup(srf_dirs):
@@ -94,7 +98,7 @@ def test_mw_vs_nrup(srf_dirs):
     plt.title('Magnitude vs Number of Realizations')
     plt.ylabel('Number of Realizations')
     plt.xlabel('Magnitude')
-    plt.show()
+    #plt.show()
     plt.close()
 
 def test_seismogenic_depth(srf_dirs, nhm_file):
@@ -117,7 +121,6 @@ def test_seismogenic_depth(srf_dirs, nhm_file):
             name = nhm[n_i].strip()
             if name in fault_names:
                 nhm_depths[fault_names.index(name)] = float(nhm[n_i + 6].split()[0])
-                print name, '%.2f' % (srf_depths[fault_names.index(name)] - nhm_depths[fault_names.index(name)])
             elif name == '':
                 print('Could not find all SRFs in NHM.')
                 return
@@ -134,8 +137,68 @@ def test_seismogenic_depth(srf_dirs, nhm_file):
     plt.title('Seismogenic Depth from NHM and SRF')
     plt.ylabel('SRF Depth (km)')
     plt.xlabel('NHM Depth (km)')
-    plt.show()
+    #plt.show()
     plt.close()
+
+def nhm2corners(nhm_file, names):
+    corners = []
+    with open(nhm_file, 'r') as n:
+        for _ in range(15):
+            n.readline()
+        nhm = n.readlines()
+    n_i = 0
+    while n_i < len(nhm):
+        n = nhm[n_i].strip()
+        n_pt = int(nhm[n_i + 11])
+        if n not in names:
+            corners.append(''.join(nhm[n_i + 12:n_i + 12 + n_pt]))
+        n_i += 13 + n_pt
+
+    return '\n>\n'.join(corners)
+
+def test_spacial_srf(srf_dirs, nhm_file):
+    tmp = mkdtemp()
+
+    p = gmt.GMTPlot(os.path.join(tmp, 'srfs.ps'))
+    p.spacial('M', region=gmt.nz_region, sizing=10, x_shift=1, y_shift=1)
+    p.basemap(topo=None, road=None, highway=None, land='lightgray', res='f')
+    p.ticks()
+    p.leave()
+    copy(p.psf.name, os.path.join(tmp, 'srfs_ex.ps'))
+    q = gmt.GMTPlot(os.path.join(tmp, 'srfs_ex.ps'), append=True, reset=False)
+    p.enter()
+    title = 'SRF (yellow) vs NHM rest (blue)'
+    for x in p, q:
+        x.text((sum(gmt.nz_region[:2]) / 2.0), gmt.nz_region[3], \
+               title, size='26p', dy=0.3)
+        title = 'NHM rest'
+
+    def corners2gmt(corners):
+        return '\n>\n'.join(['\n'.join([' '.join(map(str, ll)) for ll in plane]) for plane in corners])
+
+    # nhm faults
+    faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
+    nhm_corners = nhm2corners(nhm_file, faults)
+    for x in p, q:
+        x.path(nhm_corners, is_file=False, colour='blue')
+
+    # srf files
+    for d in srf_dirs:
+        i = glob(os.path.join(d, "*.info"))[0]
+        with h5open(i, 'r') as h:
+            corners = h.attrs['corners']
+        # slower alternative if corners are bad
+        #p.fault(glob(os.path.join(d, "*.srf"))[0], is_srf=True)
+        p.path(corners2gmt(corners), is_file=False, close=True, split='-', fill='yellow@80', width='0.2p')
+        p.path(corners2gmt(corners[:, :2]), is_file=False)
+
+    for x in p, q:
+        x.finalise()
+        x.png(dpi=300, background='white')
+        call(['xdg-open', '%s.png' % (os.path.splitext(x.psf.name)[0])])
+    raw_input('press return to continue...')
+    rmtree(tmp)
+
 
 parser = ArgumentParser()
 parser.add_argument("nhm_srf_dir", help="NHM SRF directory to test")
@@ -149,3 +212,4 @@ info_files = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf', '*
 test_mw_vs_area(info_files)
 test_mw_vs_nrup(srf_dirs)
 test_seismogenic_depth(srf_dirs, args.nhm_file)
+test_spacial_srf(srf_dirs, args.nhm_file)
