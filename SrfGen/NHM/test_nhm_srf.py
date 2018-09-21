@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from glob import glob
+import math
 import os
 from shutil import copy, rmtree
 from subprocess import call
@@ -12,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from createSRF import leonard
+from qcore.geo import ll_shift, ll_bearing
 from qcore import gmt
 
 def test_mw_vs_area(srf_infos):
@@ -55,7 +57,7 @@ def test_mw_vs_area(srf_infos):
     plt.title('Area vs Magnitude')
     plt.ylabel('Magnitude')
     plt.xlabel('Area (sq. km)')
-    #plt.show()
+    plt.show()
     plt.close()
 
     # part 2 : mw cs vs mw leonard
@@ -69,7 +71,7 @@ def test_mw_vs_area(srf_infos):
     plt.title('Mw SRF vs Mw Leonard')
     plt.xlabel('Mw SRF')
     plt.ylabel('Mw Leonard')
-    #plt.show()
+    plt.show()
     plt.close()
 
 def test_mw_vs_nrup(srf_dirs):
@@ -98,7 +100,7 @@ def test_mw_vs_nrup(srf_dirs):
     plt.title('Magnitude vs Number of Realizations')
     plt.ylabel('Number of Realizations')
     plt.xlabel('Magnitude')
-    #plt.show()
+    plt.show()
     plt.close()
 
 def test_seismogenic_depth(srf_dirs, nhm_file):
@@ -137,11 +139,13 @@ def test_seismogenic_depth(srf_dirs, nhm_file):
     plt.title('Seismogenic Depth from NHM and SRF')
     plt.ylabel('SRF Depth (km)')
     plt.xlabel('NHM Depth (km)')
-    #plt.show()
+    plt.show()
     plt.close()
 
 def nhm2corners(nhm_file, names):
-    corners = []
+    corners_sub = []
+    corners_shal = []
+    ftypes = {}
     with open(nhm_file, 'r') as n:
         for _ in range(15):
             n.readline()
@@ -150,46 +154,100 @@ def nhm2corners(nhm_file, names):
     while n_i < len(nhm):
         n = nhm[n_i].strip()
         n_pt = int(nhm[n_i + 11])
+        ftype = 2 + int(not nhm[n_i + 1].startswith('SUBDUCTION'))
+        dbottom = float(nhm[n_i + 6].split()[0])
+        dtop = float(nhm[n_i + 7].split()[0])
         if n not in names:
-            corners.append(''.join(nhm[n_i + 12:n_i + 12 + n_pt]))
+            pwid = (dbottom - dtop + 3 * (dbottom >= 12)) \
+                   / math.tan(math.radians(float(nhm[n_i + 3].split()[0])))
+            ftype -= 2
+            corners = np.zeros((n_pt - 1, 4, 2))
+            trace = nhm[n_i + 12:n_i + 12 + n_pt]
+            trace = [map(float, pair) for pair in map(str.split, trace)]
+            dip_dir = float(nhm[n_i + 4])
+            for i in range(len(corners)):
+                corners[i, :2] = trace[i:i+2]
+                corners[i, 2] = ll_shift(corners[i, 1, 1], corners[i, 1, 0], \
+                                         pwid, dip_dir)[::-1]
+                corners[i, 3] = ll_shift(corners[i, 0, 1], corners[i, 0, 0], \
+                                         pwid, dip_dir)[::-1]
+            if ftype % 2:
+                corners_shal.append(corners)
+            else:
+                corners_sub.append(corners)
+        ftypes[n] = ftype
         n_i += 13 + n_pt
 
-    return '\n>\n'.join(corners)
+    return ftypes, corners_shal, corners_sub
 
 def test_spacial_srf(srf_dirs, nhm_file):
     tmp = mkdtemp()
+    cpt = os.path.join(tmp, 'types.cpt')
+    cpt_labels = {'0':';NHM Subduction\n', \
+                  '1':';NHM Shallow\n', \
+                  '2':';SRF Subduction\n', \
+                  '3':';SRF Shallow\n'}
+    gmt.makecpt('rainbow', cpt, 0, 4, inc=1, continuous=False)
+    cpt_colours = []
+    with open(cpt, 'r') as c:
+        cpt_lines = c.readlines()
+    for i in range(len(cpt_lines)):
+        start = cpt_lines[i].split()[0]
+        if start in cpt_labels:
+            cpt_colours.append(cpt_lines[i].split()[1])
+            cpt_lines[i] = '%s%s' % (cpt_lines[i].strip(), cpt_labels[start])
+    with open(cpt, 'w') as c:
+        c.write(''.join(cpt_lines))
 
     p = gmt.GMTPlot(os.path.join(tmp, 'srfs.ps'))
     p.spacial('M', region=gmt.nz_region, sizing=10, x_shift=1, y_shift=1)
-    p.basemap(topo=None, road=None, highway=None, land='lightgray', res='f')
-    p.ticks()
+    p.basemap(topo=None, road=None, highway=None, land='lightgray', water='white', res='f')
+    p.ticks(major='2d')
     p.leave()
     copy(p.psf.name, os.path.join(tmp, 'srfs_ex.ps'))
     q = gmt.GMTPlot(os.path.join(tmp, 'srfs_ex.ps'), append=True, reset=False)
     p.enter()
-    title = 'SRF (yellow) vs NHM rest (blue)'
+
+    title = 'SRF and rest of NHM faults'
+    zmax = 'NaN'
+    length = 8 * 0.3
     for x in p, q:
-        x.text((sum(gmt.nz_region[:2]) / 2.0), gmt.nz_region[3], \
+        x.text(sum(gmt.nz_region[:2]) / 2.0, gmt.nz_region[3], \
                title, size='26p', dy=0.3)
-        title = 'NHM rest'
+        x.cpt_scale('C', 'R', cpt, pos='rel_out', horiz=False, arrow_f=False, \
+                length=length, thickness=0.3, dx=0.3, categorical=True, gap='0.3', \
+                zmax=zmax)
+        title = 'Rest of NHM faults'
+        zmax = 2
+        length = 4 * 0.3
 
     def corners2gmt(corners):
         return '\n>\n'.join(['\n'.join([' '.join(map(str, ll)) for ll in plane]) for plane in corners])
 
     # nhm faults
     faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
-    nhm_corners = nhm2corners(nhm_file, faults)
+    ftypes, nhm_cnrs_shal, nhm_cnrs_sub = nhm2corners(nhm_file, faults)
     for x in p, q:
-        x.path(nhm_corners, is_file=False, colour='blue')
+        x.path('\n>\n'.join(map(corners2gmt, nhm_cnrs_shal)), is_file=False, \
+               colour='40/40/40', split='-', fill='%s@80' % (cpt_colours[1]), \
+               close=True, width='0.2p')
+        x.path('\n>\n'.join(map(corners2gmt, nhm_cnrs_sub)), is_file=False, \
+               colour='40/40/40', split='-', fill='%s@80' % (cpt_colours[0]), \
+               close=True, width='0.2p')
+        x.path('\n>\n'.join([corners2gmt(c[:, :2]) for c in nhm_cnrs_shal]), \
+               is_file=False, colour='40/40/40')
+        x.path('\n>\n'.join([corners2gmt(c[:, :2]) for c in nhm_cnrs_sub]), \
+               is_file=False, colour='40/40/40')
 
     # srf files
-    for d in srf_dirs:
-        i = glob(os.path.join(d, "*.info"))[0]
-        with h5open(i, 'r') as h:
+    for i, d in enumerate(srf_dirs):
+        name = faults[i]
+        f = glob(os.path.join(d, "*.info"))[0]
+        with h5open(f, 'r') as h:
             corners = h.attrs['corners']
         # slower alternative if corners are bad
         #p.fault(glob(os.path.join(d, "*.srf"))[0], is_srf=True)
-        p.path(corners2gmt(corners), is_file=False, close=True, split='-', fill='yellow@80', width='0.2p')
+        p.path(corners2gmt(corners), is_file=False, close=True, split='-', fill='%s@80' % (cpt_colours[ftypes[name]]), width='0.2p')
         p.path(corners2gmt(corners[:, :2]), is_file=False)
 
     for x in p, q:
@@ -209,7 +267,8 @@ assert os.path.isdir(args.nhm_srf_dir)
 
 srf_dirs = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf'))
 info_files = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf', '*.info'))
-test_mw_vs_area(info_files)
-test_mw_vs_nrup(srf_dirs)
-test_seismogenic_depth(srf_dirs, args.nhm_file)
+
+#test_mw_vs_area(info_files)
+#test_mw_vs_nrup(srf_dirs)
+#test_seismogenic_depth(srf_dirs, args.nhm_file)
 test_spacial_srf(srf_dirs, args.nhm_file)
