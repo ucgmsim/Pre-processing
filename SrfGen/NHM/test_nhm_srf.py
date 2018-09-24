@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 from glob import glob
 import math
+from multiprocessing import Pool
 import os
 from shutil import copy, rmtree
 from subprocess import call
@@ -10,6 +11,7 @@ from tempfile import mkdtemp
 
 from h5py import File as h5open
 import matplotlib.pyplot as plt
+from scipy.stats import norm
 import numpy as np
 
 from createSRF import leonard
@@ -131,8 +133,8 @@ def test_seismogenic_depth(srf_dirs, nhm_file):
     # plot
     fig = plt.figure(figsize = (8, 5), dpi = 150)
     max_x = max(max(srf_depths), max(nhm_depths))
-    plt.plot([0, max_x], [0, max_x], label="SRF = NHM")
-    plt.plot([0, max_x], [3, max_x + 3], label="SRF = NHM + 3")
+    plt.plot([0, max_x], [0, max_x], label="NHM")
+    plt.plot([0, max_x], [3, max_x + 3], label="NHM + 3")
     plt.plot(nhm_depths, np.array(srf_depths), label='SRF Depths', marker='x', linestyle='None')
 
     plt.legend(loc='best')
@@ -258,17 +260,73 @@ def test_spacial_srf(srf_dirs, nhm_file):
     rmtree(tmp)
 
 
+def test_hypo_distribution(srf_dirs, out_dir):
+    if os.path.isdir(out_dir):
+        rmtree(out_dir)
+    os.makedirs(out_dir)
+
+    # normal distribution
+    n_x = np.linspace(0, 1, 100)
+    n_y = norm.cdf(n_x, 0.5, 0.25)
+    # weibel distribution
+    w_x = np.random.weibull(3.353, size=100000) * 0.612
+    w_x.sort()
+    w_y = np.arange(w_x.size) / (w_x.size - 1.0)
+
+    for d in srf_dirs:
+        n = os.path.basename(os.path.dirname(d))
+        r = glob(os.path.join(d, '*.info'))
+        shypo = np.zeros(len(r) + 2)
+        dhypo = np.zeros(len(r) + 2)
+        shypo[-1] = 1
+        dhypo[-1] = 1
+        for i, f in enumerate(r):
+            with h5open(f, 'r') as h:
+                shypo[i + 1] = h.attrs['shypo'][0] / sum(h.attrs['length'])
+                dhypo[i + 1] = h.attrs['dhypo'][0] / h.attrs['width'][0]
+        shypo.sort()
+        dhypo.sort()
+        y = np.arange(shypo.size) / (shypo.size - 1.0)
+
+        fig = plt.figure(figsize = (8, 5), dpi = 150)
+        plt.plot(n_x, n_y, label="Theoretical (along strike)")
+        plt.plot(w_x, w_y, label="Theoretical (along dip)")
+        # where = 'pre' or 'post'
+        plt.step(shypo, y, label="Realizations (along strike)")
+        plt.step(dhypo, y, label="Realizations (along dip)")
+        plt.plot(dhypo[1:-1], y[1:-1], marker='.', markersize=2, linestyle='None')
+        plt.plot(shypo[1:-1], y[1:-1], marker='.', markersize=2, linestyle='None')
+
+        plt.legend(loc='best')
+        plt.title('%s Hypocentre Location Distribution' % (n))
+        plt.ylabel('CDF')
+        plt.xlabel('along fault')
+        plt.gca().set_ylim([0, 1])
+        plt.gca().set_xlim([0, 1])
+        plt.savefig(os.path.join(out_dir, n))
+        plt.close()
+
+
 parser = ArgumentParser()
 parser.add_argument("nhm_srf_dir", help="NHM SRF directory to test")
-parser.add_argument("--nhm_file", help="NHM fault list file", default=os.path.join(os.path.dirname(__file__), 'NZ_FLTmodel_2010.txt'))
+parser.add_argument("--nhm-file", help="NHM fault list file", default=os.path.join(os.path.dirname(__file__), 'NZ_FLTmodel_2010.txt'))
+parser.add_argument("--out-dir", help="Folder to place outputs in", default='./cstests')
+parser.add_argument("-n", "--nproc", help="number of processes to use", type=int, default=1)
 args = parser.parse_args()
 
 assert os.path.isdir(args.nhm_srf_dir)
+if not os.path.isdir(args.out_dir):
+    os.makedirs(args.out_dir)
 
 srf_dirs = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf'))
-info_files = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf', '*.info'))
+#info_files = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf', '*.info'))
 
 #test_mw_vs_area(info_files)
 #test_mw_vs_nrup(srf_dirs)
 #test_seismogenic_depth(srf_dirs, args.nhm_file)
-test_spacial_srf(srf_dirs, args.nhm_file)
+#test_spacial_srf(srf_dirs, args.nhm_file)
+if args.nproc == 1:
+    test_hypo_distribution(srf_dirs, os.path.join(args.out_dir, 'distributions'))
+else:
+    p = Pool(args.nproc)
+    #p.map(test_hypo_distribution, srf_dirs)
