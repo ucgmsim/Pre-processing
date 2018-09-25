@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from glob import glob
+import json
 import math
 from multiprocessing import Pool
 import os
@@ -18,7 +19,7 @@ from createSRF import leonard
 from qcore.geo import ll_shift, ll_bearing
 from qcore import gmt
 
-def test_mw_vs_area(srf_infos):
+def test_mw_vs_area(srf_infos, out_dir):
     # load mw and areas from srf infos
     ds_mw = []
     ds_area = []
@@ -59,7 +60,7 @@ def test_mw_vs_area(srf_infos):
     plt.title('Area vs Magnitude')
     plt.ylabel('Magnitude')
     plt.xlabel('Area (sq. km)')
-    plt.show()
+    plt.savefig(os.path.join(out_dir, 'mw_vs_area'))
     plt.close()
 
     # part 2 : mw cs vs mw leonard
@@ -73,10 +74,10 @@ def test_mw_vs_area(srf_infos):
     plt.title('Mw SRF vs Mw Leonard')
     plt.xlabel('Mw SRF')
     plt.ylabel('Mw Leonard')
-    plt.show()
+    plt.savefig(os.path.join(out_dir, 'mw_vs_leonard'))
     plt.close()
 
-def test_mw_vs_nrup(srf_dirs):
+def test_mw_vs_nrup(srf_dirs, out_dir):
     nrup = []
     mw = []
     for d in srf_dirs:
@@ -102,10 +103,10 @@ def test_mw_vs_nrup(srf_dirs):
     plt.title('Magnitude vs Number of Realizations')
     plt.ylabel('Number of Realizations')
     plt.xlabel('Magnitude')
-    plt.show()
+    plt.savefig(os.path.join(out_dir, 'mw_vs_nrup'))
     plt.close()
 
-def test_seismogenic_depth(srf_dirs, nhm_file):
+def test_seismogenic_depth(srf_dirs, nhm_file, out_dir):
     srf_depths = []
     fault_names = []
     nhm_depths = []
@@ -141,7 +142,7 @@ def test_seismogenic_depth(srf_dirs, nhm_file):
     plt.title('Seismogenic Depth from NHM and SRF')
     plt.ylabel('SRF Depth (km)')
     plt.xlabel('NHM Depth (km)')
-    plt.show()
+    plt.savefig(os.path.join(out_dir, 'seismogenic_depth'))
     plt.close()
 
 def nhm2corners(nhm_file, names):
@@ -182,7 +183,7 @@ def nhm2corners(nhm_file, names):
 
     return ftypes, corners_shal, corners_sub
 
-def test_spacial_srf(srf_dirs, nhm_file):
+def test_spacial_srf(srf_dirs, nhm_file, out_dir):
     tmp = mkdtemp()
     cpt = os.path.join(tmp, 'types.cpt')
     cpt_labels = {'0':';NHM Subduction\n', \
@@ -254,9 +255,7 @@ def test_spacial_srf(srf_dirs, nhm_file):
 
     for x in p, q:
         x.finalise()
-        x.png(dpi=300, background='white')
-        call(['xdg-open', '%s.png' % (os.path.splitext(x.psf.name)[0])])
-    raw_input('press return to continue...')
+        x.png(dpi=300, background='white', out_dir=out_dir)
     rmtree(tmp)
 
 
@@ -289,16 +288,19 @@ def test_hypo_distribution(srf_dirs, out_dir):
         y = np.arange(shypo.size) / (shypo.size - 1.0)
 
         fig = plt.figure(figsize = (8, 5), dpi = 150)
-        plt.plot(n_x, n_y, label="Theoretical (along strike)")
-        plt.plot(w_x, w_y, label="Theoretical (along dip)")
-        # where = 'pre' or 'post'
-        plt.step(shypo, y, label="Realizations (along strike)")
-        plt.step(dhypo, y, label="Realizations (along dip)")
-        plt.plot(dhypo[1:-1], y[1:-1], marker='.', markersize=2, linestyle='None')
-        plt.plot(shypo[1:-1], y[1:-1], marker='.', markersize=2, linestyle='None')
+        plt.plot(n_x, n_y, label="Theoretical (along strike)", color='blue', \
+                 linestyle='dashed')
+        plt.step(shypo, y, label="Realizations (along strike)", color='blue')
+        plt.plot(w_x, w_y, label="Theoretical (along dip)", color='red', \
+                 linestyle='dashed')
+        plt.step(dhypo, y, label="Realizations (along dip)", color='red')
+        plt.plot(dhypo[1:-1], y[1:-1], marker='.', markersize=2, \
+                 linestyle='None', color='orange')
+        plt.plot(shypo[1:-1], y[1:-1], marker='.', markersize=2, \
+                 linestyle='None', color='green')
 
         plt.legend(loc='best')
-        plt.title('%s Hypocentre Location Distribution' % (n))
+        plt.title('%s Hypocentre Location Distribution (%d realizations)' % (n, shypo.size))
         plt.ylabel('CDF')
         plt.xlabel('along fault')
         plt.gca().set_ylim([0, 1])
@@ -306,27 +308,129 @@ def test_hypo_distribution(srf_dirs, out_dir):
         plt.savefig(os.path.join(out_dir, n))
         plt.close()
 
+def test_selection(selection_file, names, versus):
+    with open(selection_file, 'r') as s:
+        for line in s:
+            n = line.split()[0]
+            if n not in names:
+                print('[%s] fault not found in %s' % (n, versus))
+
+def test_spacial_vm(vm_dirs, out_dir):
+    # load vm corners
+    vm_corners = [os.path.join(d, 'VeloModCorners.txt') for d in vm_dirs]
+    vm_corners = '\n>\n'.join(['\n'.join([' '.join(map(str, v)) for v in \
+                    np.loadtxt(c, skiprows = 2, dtype = np.float32).tolist()]) \
+                    for c in vm_corners])
+
+    tmp = mkdtemp()
+    p = gmt.GMTPlot(os.path.join(tmp, 'corners.ps'))
+    p.spacial('M', region=gmt.nz_region, sizing=10, x_shift=1, y_shift=1)
+    p.basemap(topo=None, road=None, highway=None, land='lightgray', water='white', res='f')
+    p.ticks(major='2d')
+    p.text(sum(gmt.nz_region[:2]) / 2.0, gmt.nz_region[3], \
+            'VM Corners', size='26p', dy=0.3)
+
+    # plot velocity model corners
+    p.path(vm_corners, is_file=False, close=True, width='0.5p', split='-')
+
+    p.finalise()
+    p.png(dpi=300, background='white', out_dir=out_dir)
+    rmtree(tmp)
+
+def test_duration_vs_magnitude(jsons, out_dir):
+    durations = []
+    magnitudes = []
+    for j in jsons:
+        with open(j, 'r') as jo:
+            d = json.load(jo)
+        magnitudes.append(d['mag'])
+        durations.append(d['sim_duration'])
+
+    fig = plt.figure(figsize = (8, 5), dpi = 150)
+    plt.plot(magnitudes, durations, label="Velocity Models", marker='x', \
+             linestyle='None')
+
+    plt.legend(loc='best')
+    plt.title('Magnitude vs Simulation Duration')
+    plt.ylabel('Simulation Duration (s)')
+    plt.xlabel('Magnitude')
+    plt.savefig(os.path.join(out_dir, 'mag_vs_duration'))
+    plt.close()
+
+def test_binary_vs_magnitude(vm_dirs, out_dir):
+    sizes = []
+    magnitudes = []
+    for d in vm_dirs:
+        sizes.append(os.stat(os.path.join(d, 'vs3dfile.s')).st_size / 1000000.0)
+        with open(os.path.join(d, 'params_vel.json'), 'r') as jo:
+            magnitudes.append(json.load(jo)['mag'])
+
+    fig = plt.figure(figsize = (8, 5), dpi = 150)
+    plt.plot(magnitudes, sizes, label="Velocity Model Components", marker='x', \
+             linestyle='None')
+
+    plt.legend(loc='best')
+    plt.title('Magnitude vs VM File Sizes')
+    plt.ylabel('File Sizes (megabytes)')
+    plt.xlabel('Magnitude')
+    plt.savefig(os.path.join(out_dir, 'mag_vs_size'))
+    plt.close()
+
+def test_vm_parameters(jsons, out_dir):
+    params = { 'hh':[], 'flo':[]}
+    for j in jsons:
+        with open(j, 'r') as jo:
+            d = json.load(jo)
+            params['hh'].append(d['hh'])
+            params['flo'].append(d['flo'])
+    x = np.arange(len(jsons))
+
+    for parameter in params:
+        fig = plt.figure(figsize = (8, 5), dpi = 150)
+        plt.plot(x, params[parameter], label=parameter, marker='x', \
+                linestyle='None')
+        plt.legend(loc='best')
+        plt.title('VM Parameter (%s)' % (parameter))
+        plt.ylabel(parameter)
+        plt.gca().get_xaxis().set_visible(False)
+        plt.savefig(os.path.join(out_dir, 'vm_%s' % (parameter)))
+        plt.close()
 
 parser = ArgumentParser()
-parser.add_argument("nhm_srf_dir", help="NHM SRF directory to test")
+parser.add_argument("--srf_dir", help="NHM SRF directory to test")
+parser.add_argument("--vm_dir", help="NHM VM directory to test")
 parser.add_argument("--nhm-file", help="NHM fault list file", default=os.path.join(os.path.dirname(__file__), 'NZ_FLTmodel_2010.txt'))
+parser.add_argument("--selection-file", help="NHM selection file containing wanted faults")
 parser.add_argument("--out-dir", help="Folder to place outputs in", default='./cstests')
 parser.add_argument("-n", "--nproc", help="number of processes to use", type=int, default=1)
 args = parser.parse_args()
 
-assert os.path.isdir(args.nhm_srf_dir)
 if not os.path.isdir(args.out_dir):
     os.makedirs(args.out_dir)
 
-srf_dirs = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf'))
-#info_files = glob(os.path.join(os.path.abspath(args.nhm_srf_dir), '*', 'Srf', '*.info'))
+if args.srf_dir is not None:
+    srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf'))
+    srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
+    info_files = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf', '*.info'))
 
-#test_mw_vs_area(info_files)
-#test_mw_vs_nrup(srf_dirs)
-#test_seismogenic_depth(srf_dirs, args.nhm_file)
-#test_spacial_srf(srf_dirs, args.nhm_file)
-if args.nproc == 1:
+    test_mw_vs_area(info_files, args.out_dir)
+    test_mw_vs_nrup(srf_dirs, args.out_dir)
+    test_seismogenic_depth(srf_dirs, args.nhm_file, args.out_dir)
+    test_spacial_srf(srf_dirs, args.nhm_file, args.out_dir)
+    #if args.nproc == 1:
     test_hypo_distribution(srf_dirs, os.path.join(args.out_dir, 'distributions'))
-else:
-    p = Pool(args.nproc)
-    #p.map(test_hypo_distribution, srf_dirs)
+    #else:
+    #    p = Pool(args.nproc)
+    #    p.map(test_hypo_distribution, srf_dirs)
+    if args.selection_file is not None:
+        test_selection(args.selection_file, names, 'SRF')
+if args.vm_dir is not None:
+    vm_json = glob(os.path.join(args.vm_dir, '*', 'params_vel.json'))
+    vm_dirs = map(os.path.dirname, vm_json)
+    names = map(os.path.basename, vm_dirs)
+    test_spacial_vm(vm_dirs, args.out_dir)
+    test_duration_vs_magnitude(vm_json, args.out_dir)
+    test_binary_vs_magnitude(vm_dirs, args.out_dir)
+    test_vm_parameters(vm_json, args.out_dir)
+    if args.selection_file is not None:
+        test_selection(args.selection_file, names, 'VM')
