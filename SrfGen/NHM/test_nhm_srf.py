@@ -12,7 +12,7 @@ from tempfile import mkdtemp
 
 from h5py import File as h5open
 import matplotlib.pyplot as plt
-from scipy.stats import norm
+from scipy.stats import norm, kstest
 import numpy as np
 
 from createSRF import leonard
@@ -260,6 +260,7 @@ def test_spacial_srf(srf_dirs, nhm_file, out_dir):
 
 
 def test_hypo_distribution(srf_dirs, out_dir):
+    srf_dirs=srf_dirs[:20]
     if os.path.isdir(out_dir):
         rmtree(out_dir)
     os.makedirs(out_dir)
@@ -267,11 +268,17 @@ def test_hypo_distribution(srf_dirs, out_dir):
     # normal distribution
     n_x = np.linspace(0, 1, 100)
     n_y = norm.cdf(n_x, 0.5, 0.25)
-    # weibel distribution
+    n_call = lambda x : norm.cdf(x, 0.5, 0.25)
+    # weibull distribution
     w_x = np.random.weibull(3.353, size=100000) * 0.612
     w_x.sort()
     w_y = np.arange(w_x.size) / (w_x.size - 1.0)
+    w_call = lambda x : w_y[[np.argmin(np.abs(v-w_x)) for v in x]]
 
+    # kstest
+    mw = []
+    p_s = []
+    p_d = []
     for d in srf_dirs:
         n = os.path.basename(os.path.dirname(d))
         r = glob(os.path.join(d, '*.info'))
@@ -283,9 +290,18 @@ def test_hypo_distribution(srf_dirs, out_dir):
             with h5open(f, 'r') as h:
                 shypo[i + 1] = h.attrs['shypo'][0] / sum(h.attrs['length'])
                 dhypo[i + 1] = h.attrs['dhypo'][0] / h.attrs['width'][0]
+                if not i:
+                    mw.append(h.attrs['mag'])
         shypo.sort()
         dhypo.sort()
         y = np.arange(shypo.size) / (shypo.size - 1.0)
+
+        # kstest
+        #print shypo
+        #print n_call(shypo)
+        p_s.append(kstest(shypo, n_call).pvalue)
+        #print kstest(shypo, n_call)
+        p_d.append(kstest(dhypo, w_call).pvalue)
 
         fig = plt.figure(figsize = (8, 5), dpi = 150)
         plt.plot(n_x, n_y, label="Theoretical (along strike)", color='blue', \
@@ -307,6 +323,19 @@ def test_hypo_distribution(srf_dirs, out_dir):
         plt.gca().set_xlim([0, 1])
         plt.savefig(os.path.join(out_dir, n))
         plt.close()
+
+    # overall plot
+    fig = plt.figure(figsize = (8, 5), dpi = 150)
+    plt.plot(mw, p_s, label="p (along strike)", marker='x', linestyle='None')
+    plt.plot(mw, p_d, label="p (along dip)", marker='x', linestyle='None')
+
+    plt.legend(loc='best')
+    plt.title('Hypocentre Location Distribution (%d simulations)' % (len(mw)))
+    plt.ylabel('p')
+    plt.xlabel('magnitude')
+    plt.gca().set_ylim([0, 1])
+    plt.savefig(os.path.join(out_dir, 'all'))
+    plt.close()
 
 def test_selection(selection_file, names, versus):
     with open(selection_file, 'r') as s:
@@ -410,21 +439,21 @@ if not os.path.isdir(args.out_dir):
 
 if args.srf_dir is not None:
     srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf'))
-    srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
-    info_files = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf', '*.info'))
+    #srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
+    #info_files = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf', '*.info'))
 
-    test_mw_vs_area(info_files, args.out_dir)
-    test_mw_vs_nrup(srf_dirs, args.out_dir)
-    test_seismogenic_depth(srf_dirs, args.nhm_file, args.out_dir)
-    test_spacial_srf(srf_dirs, args.nhm_file, args.out_dir)
+    #test_mw_vs_area(info_files, args.out_dir)
+    #test_mw_vs_nrup(srf_dirs, args.out_dir)
+    #test_seismogenic_depth(srf_dirs, args.nhm_file, args.out_dir)
+    #test_spacial_srf(srf_dirs, args.nhm_file, args.out_dir)
     #if args.nproc == 1:
     test_hypo_distribution(srf_dirs, os.path.join(args.out_dir, 'distributions'))
     #else:
     #    p = Pool(args.nproc)
     #    p.map(test_hypo_distribution, srf_dirs)
-    if args.selection_file is not None:
-        test_selection(args.selection_file, names, 'SRF')
-if args.vm_dir is not None:
+    #if args.selection_file is not None:
+    #    test_selection(args.selection_file, names, 'SRF')
+if args.vm_dir is not None and False:
     vm_json = glob(os.path.join(args.vm_dir, '*', 'params_vel.json'))
     vm_dirs = map(os.path.dirname, vm_json)
     names = map(os.path.basename, vm_dirs)
