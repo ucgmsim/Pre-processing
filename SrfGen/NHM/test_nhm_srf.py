@@ -58,23 +58,60 @@ def test_mw_vs_area(srf_infos, out_dir):
     plt.legend(loc='best')
     plt.gca().set_xscale('log')
     plt.title('Area vs Magnitude')
-    plt.ylabel('Magnitude')
+    plt.ylabel('Magnitude from SRF info')
     plt.xlabel('Area (sq. km)')
     plt.savefig(os.path.join(out_dir, 'mw_vs_area'))
     plt.close()
 
     # part 2 : mw cs vs mw leonard
     fig = plt.figure(figsize = (8, 5), dpi = 150)
-    plt.plot(y, y, label='Target')
+    plt.plot(10**(y-4), y, label='Target (dip slip)')
+    plt.plot(10**(y-3.99), y, label='Target (strike slip)')
     if len(ds_mw):
         plt.plot(ds_mw, 4 + np.log10(ds_area), label='Actual (dip slip)', marker='x', linestyle='None')
     if len(ss_mw):
         plt.plot(ss_mw, 3.99 + np.log10(ss_area), label='Actual (strike slip)', marker='x', linestyle='None')
     plt.legend(loc='best')
     plt.title('Mw SRF vs Mw Leonard')
-    plt.xlabel('Mw SRF')
-    plt.ylabel('Mw Leonard')
+    plt.xlabel('Mw from SRF info')
+    plt.ylabel('Mw based on area, based on Leonard')
     plt.savefig(os.path.join(out_dir, 'mw_vs_leonard'))
+    plt.close()
+
+def test_mw_vs_nhm(srf_dirs, nhm_file, out_dir):
+    # part 3 : mw cs vs mw nhm
+    mw_srf_info = []
+    fault_names = []
+    for d in srf_dirs:
+        info = glob(os.path.join(d, '*.info'))[0]
+        with h5open(info, 'r') as i:
+            mw_srf_info.append(i.attrs['mag'])
+        fault_names.append(os.path.basename(os.path.dirname(d)))
+
+    # grab mw from nhm
+    mw_nhm = np.zeros(len(fault_names))
+    with open(nhm_file, 'r') as n:
+        for _ in range(15):
+            n.readline()
+        nhm = n.readlines()
+        n_i = 0
+        while min(mw_nhm) <= 0:
+            name = nhm[n_i].strip()
+            if name in fault_names:
+                mw_nhm[fault_names.index(name)] = float(nhm[n_i + 10].split()[0])
+            elif name == '':
+                print('Could not find all SRFs in NHM.')
+                return
+            n_i += 13 + int(nhm[n_i + 11])
+
+    # plot
+    fig = plt.figure(figsize = (8, 5), dpi = 150)
+    plt.plot(mw_nhm, mw_srf_info)
+    plt.legend(loc='best')
+    plt.title('Mw NHM vs Mw SRF info')
+    plt.xlabel('Mw from NHM')
+    plt.ylabel('Mw from SRF info')
+    plt.savefig(os.path.join(out_dir, 'mw_vs_nhm'))
     plt.close()
 
 def test_mw_vs_nrup(srf_dirs, out_dir):
@@ -186,10 +223,10 @@ def nhm2corners(nhm_file, names):
 def test_spacial_srf(srf_dirs, nhm_file, out_dir):
     tmp = mkdtemp()
     cpt = os.path.join(tmp, 'types.cpt')
-    cpt_labels = {'0':';NHM Subduction\n', \
-                  '1':';NHM Shallow\n', \
-                  '2':';SRF Subduction\n', \
-                  '3':';SRF Shallow\n'}
+    cpt_labels = {'0':';subduction excluded\n', \
+                  '1':';shallow excluded\n', \
+                  '2':';subduction included\n', \
+                  '3':';shallow included\n'}
     gmt.makecpt('rainbow', cpt, 0, 4, inc=1, continuous=False)
     cpt_colours = []
     with open(cpt, 'r') as c:
@@ -439,20 +476,21 @@ if not os.path.isdir(args.out_dir):
 
 if args.srf_dir is not None:
     srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf'))
-    #srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
-    #info_files = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf', '*.info'))
+    srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
+    info_files = glob(os.path.join(os.path.abspath(args.srf_dir), '*', 'Srf', '*.info'))
 
-    #test_mw_vs_area(info_files, args.out_dir)
-    #test_mw_vs_nrup(srf_dirs, args.out_dir)
-    #test_seismogenic_depth(srf_dirs, args.nhm_file, args.out_dir)
-    #test_spacial_srf(srf_dirs, args.nhm_file, args.out_dir)
+    test_mw_vs_area(info_files, args.out_dir)
+    test_mw_vs_nhm(srf_dirs, nhm_file, out_dir)
+    test_mw_vs_nrup(srf_dirs, args.out_dir)
+    test_seismogenic_depth(srf_dirs, args.nhm_file, args.out_dir)
+    test_spacial_srf(srf_dirs, args.nhm_file, args.out_dir)
     #if args.nproc == 1:
     test_hypo_distribution(srf_dirs, os.path.join(args.out_dir, 'distributions'))
     #else:
     #    p = Pool(args.nproc)
     #    p.map(test_hypo_distribution, srf_dirs)
-    #if args.selection_file is not None:
-    #    test_selection(args.selection_file, names, 'SRF')
+    if args.selection_file is not None:
+        test_selection(args.selection_file, names, 'SRF')
 if args.vm_dir is not None and False:
     vm_json = glob(os.path.join(args.vm_dir, '*', 'params_vel.json'))
     vm_dirs = map(os.path.dirname, vm_json)
