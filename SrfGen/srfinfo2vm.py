@@ -2,7 +2,7 @@
 """
 REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
-PYTHONPATH contains Bradley_2010_Sa and Afshari_Stewart_2016_Ds
+PYTHONPATH contains Bradley_2013_Sa and Afshari_Stewart_2016_Ds
 
 most basic example (set out_dir with -o or --out-dir):
 mpirun -n 3 srfinfo2vm.py "Srf/*.info"
@@ -31,7 +31,7 @@ from qcore import gmt
 from qcore.gen_coords import gen_coords
 from qcore.validate_vm import validate_vm
 # post-processing computations should be in PYTHON_PATH
-from Bradley_2010_Sa import Bradley_2010_Sa
+from Bradley_2013_Sa import Bradley_2013_Sa
 from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,16 +40,16 @@ NZ_LAND_OUTLINE = os.path.join(script_dir, 'NHM/res/rough_land.txt')
 NZVM_BIN = find_executable('NZVM')
 assert(NZVM_BIN is not None)
 
-# Bradley_2010_Sa and AfshariSteward_2016_Ds require attribute parameters
-siteprop = np.rec.array(np.zeros(1, dtype = [('Rrup', 'f'), ('V30', 'f'), \
-        ('V30measured', 'f'), ('Rx', 'f'), ('Rjb', 'f'), ('Rtvz', 'f'), \
-        ('period', 'f'), ('Z1pt0', 'f'), ('defn', 'i')]))[0]
-siteprop.V30 = 500
+# Bradley_2013_Sa and AfshariSteward_2016_Ds require attribute parameters
+siteprop = np.rec.array(np.zeros(1, dtype = [('Rrup', 'f'), ('vs30', 'f'), \
+        ('vs30measured', 'f'), ('Rx', 'f'), ('Rjb', 'f'), ('Rtvz', 'f'), \
+        ('period', 'f'), ('z1p0', 'f'), ('defn', 'i')]))[0]
+siteprop.vs30 = 500
 siteprop.period = -1
-siteprop.Z1pt0 = math.exp(28.5 - (3.82 / 8.) \
-                 * math.log(math.pow(siteprop.V30, 8) + math.pow(378.7, 8)))
+siteprop.z1p0 = math.exp(28.5 - (3.82 / 8.) \
+                 * math.log(math.pow(siteprop.vs30, 8) + math.pow(378.7, 8)))
 siteprop.defn = 1
-faultprop = np.rec.array(np.zeros(1, dtype = [('Mw', 'f'), ('Ztor', 'f'), \
+faultprop = np.rec.array(np.zeros(1, dtype = [('Mw', 'f'), ('ztor', 'f'), \
         ('rake', 'f'), ('dip', 'f'), ('rupture_type', '|S2')]))[0]
 
 # default scaling relationship
@@ -64,7 +64,7 @@ def find_rrup(pgv_target):
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
-        pgv = Bradley_2010_Sa(siteprop, faultprop)[0]
+        pgv = Bradley_2013_Sa(siteprop, faultprop, 'PGV')[0]
         # factor 0.02 is conservative step to avoid infinite looping
         if pgv_target / pgv - 1 > 0.01:
             rrup -= rrup * 0.02
@@ -72,6 +72,7 @@ def find_rrup(pgv_target):
             rrup += rrup * 0.02
         else:
             break
+    print('rrup, pgv, pgv_target',rrup,pgv,pgv_target)
     return rrup, pgv
 
 # z extent based on magnitude, hypocentre depth
@@ -90,7 +91,7 @@ def auto_time2(xlen, ylen, ds_multiplier):
     # alternative if rrup not available
     siteprop.Rrup = max(xlen / 2.0, ylen / 2.0)
     # magnitude is in faultprop
-    ds = Afshari_Stewart_2016_Ds(siteprop, faultprop)[0]
+    ds = Afshari_Stewart_2016_Ds(siteprop, faultprop, 'Ds595')[0]
     return s_wave_arrival + ds_multiplier * ds
 
 # keep dx and dy small enough relative to domain
@@ -426,10 +427,11 @@ def create_vm(args, srf_meta):
     faultprop.rake = srf_meta['rake']
     faultprop.dip = srf_meta['dip']
     # rrup to reach wanted PGV
+    print("args.ogv before",args.pgv)
     if args.pgv == -1.0:
         args.pgv = mag2pgv(faultprop.Mw)
     rrup, pgv_actual = find_rrup(args.pgv)
-
+    print("faultprop.Mw,rrup,pgv_actual",faultprop.Mw,rrup,pgv_actual)
     # original, unrotated vm
     bearing = 0
     origin, xlen0, ylen0 = rrup2xylen(rrup, args.hh, \
@@ -718,8 +720,8 @@ if __name__ == '__main__':
     # distribute work
     #print msg_list
     p = Pool(processes = args.nproc)
-    reports = p.map(create_vm_star, msg_list)
+   # reports = p.map(create_vm_star, msg_list)
     # debug friendly alternative
-    #reports = [create_vm_star(msg) for msg in msg_list]
+    reports = [create_vm_star(msg) for msg in msg_list]
     # store summary
     store_summary(os.path.join(args.out_dir, 'vminfo.csv'), reports)
