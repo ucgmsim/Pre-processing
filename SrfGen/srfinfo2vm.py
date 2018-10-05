@@ -31,8 +31,10 @@ from qcore import gmt
 from qcore.gen_coords import gen_coords
 from qcore.validate_vm import validate_vm
 # post-processing computations should be in PYTHON_PATH
-from Bradley_2013_Sa import Bradley_2013_Sa
-from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
+from GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
+from GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
+from GMM_models.classdef import GMM, Site, Fault
+from empirical_factory import compute_gmm
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, 'NHM/res/centre.txt')
@@ -40,17 +42,12 @@ NZ_LAND_OUTLINE = os.path.join(script_dir, 'NHM/res/rough_land.txt')
 NZVM_BIN = find_executable('NZVM')
 assert(NZVM_BIN is not None)
 
-# Bradley_2013_Sa and AfshariSteward_2016_Ds require attribute parameters
-siteprop = np.rec.array(np.zeros(1, dtype = [('Rrup', 'f'), ('vs30', 'f'), \
-        ('vs30measured', 'f'), ('Rx', 'f'), ('Rjb', 'f'), ('Rtvz', 'f'), \
-        ('period', 'f'), ('z1p0', 'f'), ('defn', 'i')]))[0]
+siteprop = Site()
 siteprop.vs30 = 500
-siteprop.period = -1
-siteprop.z1p0 = math.exp(28.5 - (3.82 / 8.) \
-                 * math.log(math.pow(siteprop.vs30, 8) + math.pow(378.7, 8)))
-siteprop.defn = 1
-faultprop = np.rec.array(np.zeros(1, dtype = [('Mw', 'f'), ('ztor', 'f'), \
-        ('rake', 'f'), ('dip', 'f'), ('rupture_type', '|S2')]))[0]
+
+faultprop = Fault()
+#TODO ztor should be read from srfinfo file
+faultprop.ztor = 0.
 
 # default scaling relationship
 def mag2pgv(mag):
@@ -64,7 +61,10 @@ def find_rrup(pgv_target):
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
-        pgv = Bradley_2013_Sa(siteprop, faultprop, 'PGV')[0]
+        #pgv = Bradley_2013_Sa(siteprop, faultprop, 'PGV')[0]
+        print("siteprop", siteprop)
+        print("faultprop",faultprop)
+        pgv = compute_gmm(faultprop,siteprop,GMM.Br_13,'PGV')[0]
         # factor 0.02 is conservative step to avoid infinite looping
         if pgv_target / pgv - 1 > 0.01:
             rrup -= rrup * 0.02
@@ -91,7 +91,9 @@ def auto_time2(xlen, ylen, ds_multiplier):
     # alternative if rrup not available
     siteprop.Rrup = max(xlen / 2.0, ylen / 2.0)
     # magnitude is in faultprop
-    ds = Afshari_Stewart_2016_Ds(siteprop, faultprop, 'Ds595')[0]
+   # ds = Afshari_Stewart_2016_Ds(siteprop, faultprop, 'Ds595')[0]
+    ds = compute_gmm(faultprop,siteprop, GMM.AS_16, 'Ds595')[0]
+    print(ds)
     return s_wave_arrival + ds_multiplier * ds
 
 # keep dx and dy small enough relative to domain
@@ -418,6 +420,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     return a0, a1, b0, b1
 
 def create_vm(args, srf_meta):
+    print("srf_meta",srf_meta)
     # temp directory for current process
     ptemp = mkdtemp(prefix = '_tmp_%s_' % (srf_meta['name']), \
                     dir = args.out_dir)
