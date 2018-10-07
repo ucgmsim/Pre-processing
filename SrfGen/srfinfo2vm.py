@@ -61,10 +61,7 @@ def find_rrup(pgv_target):
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
-        #pgv = Bradley_2013_Sa(siteprop, faultprop, 'PGV')[0]
-        print("siteprop", siteprop)
-        print("faultprop",faultprop)
-        pgv = compute_gmm(faultprop,siteprop,GMM.Br_13,'PGV')[0]
+        pgv = compute_gmm(faultprop, siteprop, GMM.Br_13, 'PGV')[0]
         # factor 0.02 is conservative step to avoid infinite looping
         if pgv_target / pgv - 1 > 0.01:
             rrup -= rrup * 0.02
@@ -72,7 +69,6 @@ def find_rrup(pgv_target):
             rrup += rrup * 0.02
         else:
             break
-    print('rrup, pgv, pgv_target',rrup,pgv,pgv_target)
     return rrup, pgv
 
 # z extent based on magnitude, hypocentre depth
@@ -91,9 +87,7 @@ def auto_time2(xlen, ylen, ds_multiplier):
     # alternative if rrup not available
     siteprop.Rrup = max(xlen / 2.0, ylen / 2.0)
     # magnitude is in faultprop
-   # ds = Afshari_Stewart_2016_Ds(siteprop, faultprop, 'Ds595')[0]
-    ds = compute_gmm(faultprop,siteprop, GMM.AS_16, 'Ds595')[0]
-    print(ds)
+    ds = compute_gmm(faultprop, siteprop, GMM.AS_16, 'Ds595')[0]
     return s_wave_arrival + ds_multiplier * ds
 
 # keep dx and dy small enough relative to domain
@@ -420,7 +414,6 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     return a0, a1, b0, b1
 
 def create_vm(args, srf_meta):
-    print("srf_meta",srf_meta)
     # temp directory for current process
     ptemp = mkdtemp(prefix = '_tmp_%s_' % (srf_meta['name']), \
                     dir = args.out_dir)
@@ -430,11 +423,9 @@ def create_vm(args, srf_meta):
     faultprop.rake = srf_meta['rake']
     faultprop.dip = srf_meta['dip']
     # rrup to reach wanted PGV
-    print("args.ogv before",args.pgv)
     if args.pgv == -1.0:
         args.pgv = mag2pgv(faultprop.Mw)
     rrup, pgv_actual = find_rrup(args.pgv)
-    print("faultprop.Mw,rrup,pgv_actual",faultprop.Mw,rrup,pgv_actual)
     # original, unrotated vm
     bearing = 0
     origin, xlen0, ylen0 = rrup2xylen(rrup, args.hh, \
@@ -721,7 +712,6 @@ if __name__ == '__main__':
     def create_vm_star(args_meta):
         return create_vm(*args_meta)
     # distribute work
-    #print msg_list
     p = Pool(processes = args.nproc)
    # reports = p.map(create_vm_star, msg_list)
     # debug friendly alternative
