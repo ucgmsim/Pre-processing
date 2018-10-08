@@ -23,7 +23,11 @@ from qcore import gmt
 def fig_init():
     return plt.figure(figsize=(8, 5), dpi=150)
 
-def test_mw_vs_area(srf_infos, out_dir):
+###
+### SRF PLOTS
+###
+
+def plot_area_mag(srf_infos, out_dir):
     # load mw and areas from srf infos
     ds_mw = []
     ds_area = []
@@ -66,7 +70,7 @@ def test_mw_vs_area(srf_infos, out_dir):
     plt.title("Area vs Magnitude")
     plt.ylabel("Magnitude from SRF info")
     plt.xlabel("Area (sq. km)")
-    plt.savefig(os.path.join(out_dir, "mw_vs_area"))
+    plt.savefig(os.path.join(out_dir, "area_vs_mag"))
     plt.close()
 
     # part 2 : mw cs vs mw leonard
@@ -92,11 +96,11 @@ def test_mw_vs_area(srf_infos, out_dir):
     plt.title("Mw SRF vs Mw Leonard")
     plt.xlabel("Mw from SRF info")
     plt.ylabel("Mw based on area, based on Leonard")
-    plt.savefig(os.path.join(out_dir, "mw_vs_leonard"))
+    plt.savefig(os.path.join(out_dir, "mag_vs_leonard"))
     plt.close()
 
 
-def test_area_vs_nhm(srf_dirs, nhm_file, out_dir):
+def plot_area_nhm(srf_dirs, nhm_file, out_dir):
     area_srf_info = []
     fault_names = []
     for d in srf_dirs:
@@ -166,7 +170,7 @@ def test_area_vs_nhm(srf_dirs, nhm_file, out_dir):
             t.write("%s %s %s\n" % (fault_names[i], area_nhm[i], area_srf_info[i]))
 
 
-def test_mw_vs_nhm(srf_dirs, nhm_file, out_dir):
+def plot_mag_nhm(srf_dirs, nhm_file, out_dir):
     # part 3 : mw cs vs mw nhm
     mw_srf_info = []
     fault_names = []
@@ -200,11 +204,11 @@ def test_mw_vs_nhm(srf_dirs, nhm_file, out_dir):
     plt.title("Mw NHM vs Mw SRF info")
     plt.xlabel("Mw from NHM")
     plt.ylabel("Mw from SRF info")
-    plt.savefig(os.path.join(out_dir, "mw_vs_nhm"))
+    plt.savefig(os.path.join(out_dir, "mag_vs_nhm"))
     plt.close()
 
 
-def test_mw_vs_nrup(srf_dirs, out_dir):
+def plot_mag_nrup(srf_dirs, out_dir):
     nrup = []
     mw = []
     for d in srf_dirs:
@@ -232,11 +236,11 @@ def test_mw_vs_nrup(srf_dirs, out_dir):
     plt.title("Magnitude vs Number of Realizations")
     plt.ylabel("Number of Realizations")
     plt.xlabel("Magnitude")
-    plt.savefig(os.path.join(out_dir, "mw_vs_nrup"))
+    plt.savefig(os.path.join(out_dir, "mag_vs_nrup"))
     plt.close()
 
 
-def test_seismogenic_depth(srf_dirs, nhm_file, out_dir):
+def plot_dbottom(srf_dirs, nhm_file, out_dir):
     srf_depths = []
     fault_names = []
     nhm_depths = []
@@ -278,7 +282,7 @@ def test_seismogenic_depth(srf_dirs, nhm_file, out_dir):
     plt.title("Seismogenic Depth from NHM and SRF")
     plt.ylabel("SRF Depth (km)")
     plt.xlabel("NHM Depth (km)")
-    plt.savefig(os.path.join(out_dir, "seismogenic_depth"))
+    plt.savefig(os.path.join(out_dir, "dbottom"))
     plt.close()
 
 
@@ -326,7 +330,7 @@ def nhm2corners(nhm_file, names):
     return ftypes, corners_shal, corners_sub, ex_names
 
 
-def test_spacial_srf(srf_dirs, nhm_file, out_dir):
+def plot_srf_nhm(srf_dirs, nhm_file, out_dir):
     tmp = mkdtemp()
     cpt = os.path.join(tmp, "types.cpt")
     cpt_labels = {
@@ -448,7 +452,7 @@ def test_spacial_srf(srf_dirs, nhm_file, out_dir):
         e.write("\n")
 
 
-def test_hypo_distribution(srf_dirs, out_dir):
+def plot_hypo_dist(srf_dirs, out_dir):
     if os.path.isdir(out_dir):
         rmtree(out_dir)
     os.makedirs(out_dir)
@@ -542,7 +546,7 @@ def test_hypo_distribution(srf_dirs, out_dir):
     plt.xlabel("magnitude")
     plt.gca().set_yscale("log")
     # plt.gca().set_ylim([0, 1])
-    plt.savefig(os.path.join(out_dir, "..", "distributions"))
+    plt.savefig(os.path.join(out_dir, "..", "hypo_dist"))
     plt.close()
 
     # overall histogram strike
@@ -555,7 +559,7 @@ def test_hypo_distribution(srf_dirs, out_dir):
     )
     plt.ylabel("n")
     plt.xlabel("probability of fitting normal distribution")
-    plt.savefig(os.path.join(out_dir, "..", "distributions_strike"))
+    plt.savefig(os.path.join(out_dir, "..", "hypo_dist_strike"))
     plt.close()
     # overall histogram dip
     fig_init()
@@ -567,25 +571,33 @@ def test_hypo_distribution(srf_dirs, out_dir):
     )
     plt.ylabel("n")
     plt.xlabel("probability of fitting weibull distribution")
-    plt.savefig(os.path.join(out_dir, "..", "distributions_dip"))
+    plt.savefig(os.path.join(out_dir, "..", "hypo_dist_dip"))
     plt.close()
 
     # as text
-    with open(os.path.join(out_dir, "..", "distributions.txt"), "w") as d:
+    with open(os.path.join(out_dir, "..", "hypo_dist.txt"), "w") as d:
         d.write("name strike-p dip-p mw\n")
         for i in range(len(names)):
             d.write("%s %s %s %s\n" % (names[i], p_s[i], p_d[i], mw[i]))
 
+###
+### COMBINED PLOTS
+###
 
-def test_selection(selection_file, names, versus):
-    with open(selection_file, "r") as s:
-        for line in s:
-            n = line.split()[0]
-            if n not in names:
-                print("[%s] fault not found in %s" % (n, versus))
+def test_selection(selection_file, names, versus, out_dir):
+    with open(os.path.join(out_dir, 'not_found_%s.txt' % (versus)), 'w') as o:
+        with open(selection_file, "r") as s:
+            for line in s:
+                n = line.split()[0]
+                if n not in names:
+                    o.write("%s fault not found" % (n))
+
+###
+### VM PLOTS
+###
 
 
-def test_spacial_vm(vm_dirs, out_dir):
+def plot_vm(vm_dirs, out_dir):
     # load vm corners
     vm_corners = [os.path.join(d, "VeloModCorners.txt") for d in vm_dirs]
     vm_corners = "\n>\n".join(
@@ -619,7 +631,7 @@ def test_spacial_vm(vm_dirs, out_dir):
     rmtree(tmp)
 
 
-def test_duration_vs_magnitude(jsons, out_dir):
+def plot_duration_mag(jsons, out_dir):
     durations = []
     magnitudes = []
     for j in jsons:
@@ -641,7 +653,7 @@ def test_duration_vs_magnitude(jsons, out_dir):
     plt.close()
 
 
-def test_binary_vs_magnitude(vm_dirs, out_dir):
+def plot_size_mag(vm_dirs, out_dir):
     sizes = []
     magnitudes = []
     for d in vm_dirs:
@@ -666,7 +678,7 @@ def test_binary_vs_magnitude(vm_dirs, out_dir):
     plt.close()
 
 
-def test_vm_parameters(jsons, out_dir):
+def plot_vm_params(jsons, out_dir):
     params = {"hh": [], "flo": []}
     for j in jsons:
         with open(j, "r") as jo:
@@ -685,46 +697,50 @@ def test_vm_parameters(jsons, out_dir):
         plt.savefig(os.path.join(out_dir, "vm_%s" % (parameter)))
         plt.close()
 
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument("--srf_dir", help="NHM SRF directory to test")
+    parser.add_argument("--vm_dir", help="NHM VM directory to test")
+    parser.add_argument(
+        "--nhm-file",
+        help="NHM fault list file",
+        default=os.path.join(os.path.dirname(__file__), "NZ_FLTmodel_2010.txt"),
+    )
+    parser.add_argument(
+        "--selection-file", help="NHM selection file containing wanted faults"
+    )
+    parser.add_argument("--out-dir", help="Folder to place outputs in", default="./cstests")
+    args = parser.parse_args()
 
-parser = ArgumentParser()
-parser.add_argument("--srf_dir", help="NHM SRF directory to test")
-parser.add_argument("--vm_dir", help="NHM VM directory to test")
-parser.add_argument(
-    "--nhm-file",
-    help="NHM fault list file",
-    default=os.path.join(os.path.dirname(__file__), "NZ_FLTmodel_2010.txt"),
-)
-parser.add_argument(
-    "--selection-file", help="NHM selection file containing wanted faults"
-)
-parser.add_argument("--out-dir", help="Folder to place outputs in", default="./cstests")
-args = parser.parse_args()
+    if not os.path.isdir(args.out_dir):
+        os.makedirs(args.out_dir)
 
-if not os.path.isdir(args.out_dir):
-    os.makedirs(args.out_dir)
+    # run SRF plots and checks
+    if args.srf_dir is not None:
+        srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
+        srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
+        info_files = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info"))
+        names = map(os.path.basename, map(os.path.dirname, srf_dirs))
 
-if args.srf_dir is not None:
-    srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
-    srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
-    info_files = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info"))
-    names = map(os.path.basename, map(os.path.dirname, srf_dirs))
+        plot_area_mag(info_files, args.out_dir)
+        plot_area_nhm(srf_dirs, args.nhm_file, args.out_dir)
+        plot_mag_nhm(srf_dirs, args.nhm_file, args.out_dir)
+        plot_mag_nrup(srf_dirs, args.out_dir)
+        plot_dbottom(srf_dirs, args.nhm_file, args.out_dir)
+        plot_srf_nhm(srf_dirs, args.nhm_file, args.out_dir)
+        plot_hypo_dist(srf_dirs, os.path.join(args.out_dir, "hypo_dist"))
+        if args.selection_file is not None:
+            test_selection(args.selection_file, names, "SRF", args.out_dir)
 
-    test_mw_vs_area(info_files, args.out_dir)
-    test_area_vs_nhm(srf_dirs, args.nhm_file, args.out_dir)
-    test_mw_vs_nhm(srf_dirs, args.nhm_file, args.out_dir)
-    test_mw_vs_nrup(srf_dirs, args.out_dir)
-    test_seismogenic_depth(srf_dirs, args.nhm_file, args.out_dir)
-    test_spacial_srf(srf_dirs, args.nhm_file, args.out_dir)
-    test_hypo_distribution(srf_dirs, os.path.join(args.out_dir, "distributions"))
-    if args.selection_file is not None:
-        test_selection(args.selection_file, names, "SRF")
-if args.vm_dir is not None:
-    vm_json = glob(os.path.join(args.vm_dir, "*", "params_vel.json"))
-    vm_dirs = map(os.path.dirname, vm_json)
-    names = map(os.path.basename, vm_dirs)
-    test_spacial_vm(vm_dirs, args.out_dir)
-    test_duration_vs_magnitude(vm_json, args.out_dir)
-    # test_binary_vs_magnitude(vm_dirs, args.out_dir)
-    test_vm_parameters(vm_json, args.out_dir)
-    if args.selection_file is not None:
-        test_selection(args.selection_file, names, "VM")
+    # run VM plots and checks
+    if args.vm_dir is not None:
+        vm_json = glob(os.path.join(args.vm_dir, "*", "params_vel.json"))
+        vm_dirs = map(os.path.dirname, vm_json)
+        names = map(os.path.basename, vm_dirs)
+
+        plot_vm(vm_dirs, args.out_dir)
+        plot_duration_mag(vm_json, args.out_dir)
+        plot_size_mag(vm_dirs, args.out_dir)
+        plot_vm_params(vm_json, args.out_dir)
+        if args.selection_file is not None:
+            test_selection(args.selection_file, names, "VM", args.out_dir)
