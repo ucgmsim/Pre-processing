@@ -706,9 +706,6 @@ if __name__ == '__main__':
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
 
-    # alternative to multiprocessing.Pool.starmap only since Python3.3
-    def create_vm_star(args_meta):
-        return create_vm(*args_meta)
     # distribute work
     p = Pool(processes = args.nproc)
     reports = p.map(create_vm, msg_list)
