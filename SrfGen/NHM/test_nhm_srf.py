@@ -10,6 +10,8 @@ from subprocess import call
 from tempfile import mkdtemp
 
 from h5py import File as h5open
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.stats import norm, kstest
 import numpy as np
@@ -18,6 +20,8 @@ from createSRF import leonard
 from qcore.geo import ll_shift, ll_bearing, ll_dist
 from qcore import gmt
 
+def fig_init():
+    return plt.figure(figsize=(8, 5), dpi=150)
 
 def test_mw_vs_area(srf_infos, out_dir):
     # load mw and areas from srf infos
@@ -37,7 +41,7 @@ def test_mw_vs_area(srf_infos, out_dir):
                 ss_area.append(area)
 
     # plot
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     min_y = 10
     max_y = 0
     if len(ds_mw):
@@ -66,7 +70,7 @@ def test_mw_vs_area(srf_infos, out_dir):
     plt.close()
 
     # part 2 : mw cs vs mw leonard
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     plt.plot(y, y, label="Target")
     if len(ds_mw):
         plt.plot(
@@ -143,7 +147,7 @@ def test_area_vs_nhm(srf_dirs, nhm_file, out_dir):
             n_i += 13 + n_pt
 
     # plot
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     plt.plot(
         [min(area_nhm), max(area_nhm)], [min(area_nhm), max(area_nhm)], label="Target"
     )
@@ -189,7 +193,7 @@ def test_mw_vs_nhm(srf_dirs, nhm_file, out_dir):
             n_i += 13 + int(nhm[n_i + 11])
 
     # plot
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     plt.plot([min(mw_nhm), max(mw_nhm)], [min(mw_nhm), max(mw_nhm)], label="Target")
     plt.plot(mw_nhm, mw_srf_info, label="Actual", marker="x", linestyle="None")
     plt.legend(loc="best")
@@ -218,7 +222,7 @@ def test_mw_vs_nrup(srf_dirs, out_dir):
     if x[0] < 8 < x[-1]:
         x.insert(-1, 8)
 
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     plt.plot(
         x, np.maximum(np.minimum((np.array(x) * 20 - 110), 50), 10), label="Target"
     )
@@ -258,7 +262,7 @@ def test_seismogenic_depth(srf_dirs, nhm_file, out_dir):
             n_i += 13 + int(nhm[n_i + 11])
 
     # plot
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     max_x = max(max(srf_depths), max(nhm_depths))
     plt.plot([0, max_x], [0, max_x], label="NHM")
     plt.plot([0, max_x], [3, max_x + 3], label="NHM + 3")
@@ -486,7 +490,7 @@ def test_hypo_distribution(srf_dirs, out_dir):
         p_s.append(kstest(shypo, n_call).pvalue)
         p_d.append(kstest(dhypo, w_call).pvalue)
 
-        fig = plt.figure(figsize=(8, 5), dpi=150)
+        fig_init()
         plt.plot(
             n_x,
             n_y,
@@ -528,7 +532,7 @@ def test_hypo_distribution(srf_dirs, out_dir):
         plt.close()
 
     # overall plot
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     plt.plot([min(mw), max(mw)], [0.05, 0.05])
     plt.plot(mw, p_s, label="p (along strike)", marker="x", linestyle="None")
     plt.plot(mw, p_d, label="p (along dip)", marker="x", linestyle="None")
@@ -541,18 +545,29 @@ def test_hypo_distribution(srf_dirs, out_dir):
     plt.savefig(os.path.join(out_dir, "..", "distributions"))
     plt.close()
 
-    # overall histogram
-    fig = plt.figure(figsize=(8, 5), dpi=150)
-    plt.hist(p_s, bins=min(len(p_s), 50), alpha=0.7, label="along strike")
-    plt.hist(p_d, bins=min(len(p_s), 50), alpha=0.7, label="along dip")
+    # overall histogram strike
+    fig_init()
+    plt.hist(p_s, bins=min(len(p_s), 50), label="along strike")
     plt.legend(loc="best")
     plt.title(
-        "Hypocentre Location Distribution Probability of Fit (%d simulations)"
+        "Hypocentre along Strike Distribution Probability of Fit (%d simulations)"
         % (len(mw))
     )
     plt.ylabel("n")
-    plt.xlabel("probability of fitting wanted distribution")
-    plt.savefig(os.path.join(out_dir, "..", "distributions_hist"))
+    plt.xlabel("probability of fitting normal distribution")
+    plt.savefig(os.path.join(out_dir, "..", "distributions_strike"))
+    plt.close()
+    # overall histogram dip
+    fig_init()
+    plt.hist(p_d, bins=min(len(p_s), 50), label="along dip")
+    plt.legend(loc="best")
+    plt.title(
+        "Hypocentre along Dip Distribution Probability of Fit (%d simulations)"
+        % (len(mw))
+    )
+    plt.ylabel("n")
+    plt.xlabel("probability of fitting weibull distribution")
+    plt.savefig(os.path.join(out_dir, "..", "distributions_dip"))
     plt.close()
 
     # as text
@@ -613,7 +628,7 @@ def test_duration_vs_magnitude(jsons, out_dir):
         magnitudes.append(d["mag"])
         durations.append(d["sim_duration"])
 
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     plt.plot(
         magnitudes, durations, label="Velocity Models", marker="x", linestyle="None"
     )
@@ -634,7 +649,7 @@ def test_binary_vs_magnitude(vm_dirs, out_dir):
         with open(os.path.join(d, "params_vel.json"), "r") as jo:
             magnitudes.append(json.load(jo)["mag"])
 
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig_init()
     plt.plot(
         magnitudes,
         sizes,
@@ -661,7 +676,7 @@ def test_vm_parameters(jsons, out_dir):
     x = np.arange(len(jsons))
 
     for parameter in params:
-        fig = plt.figure(figsize=(8, 5), dpi=150)
+        fig_init()
         plt.plot(x, params[parameter], label=parameter, marker="x", linestyle="None")
         plt.legend(loc="best")
         plt.title("VM Parameter (%s)" % (parameter))
