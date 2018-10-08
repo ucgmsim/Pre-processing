@@ -11,7 +11,8 @@ from tempfile import mkdtemp
 
 from h5py import File as h5open
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.stats import norm, kstest
 import numpy as np
@@ -20,12 +21,15 @@ from createSRF import leonard
 from qcore.geo import ll_shift, ll_bearing, ll_dist
 from qcore import gmt
 
+
 def fig_init():
     return plt.figure(figsize=(8, 5), dpi=150)
+
 
 ###
 ### SRF PLOTS
 ###
+
 
 def plot_area_mag(srf_infos, out_dir):
     # load mw and areas from srf infos
@@ -580,17 +584,20 @@ def plot_hypo_dist(srf_dirs, out_dir):
         for i in range(len(names)):
             d.write("%s %s %s %s\n" % (names[i], p_s[i], p_d[i], mw[i]))
 
+
 ###
 ### COMBINED PLOTS
 ###
 
+
 def test_selection(selection_file, names, versus, out_dir):
-    with open(os.path.join(out_dir, 'not_found_%s.txt' % (versus)), 'w') as o:
+    with open(os.path.join(out_dir, "not_found_%s.txt" % (versus)), "w") as o:
         with open(selection_file, "r") as s:
             for line in s:
                 n = line.split()[0]
                 if n not in names:
                     o.write("%s fault not found" % (n))
+
 
 ###
 ### VM PLOTS
@@ -697,7 +704,8 @@ def plot_vm_params(jsons, out_dir):
         plt.savefig(os.path.join(out_dir, "vm_%s" % (parameter)))
         plt.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--srf_dir", help="NHM SRF directory to test")
     parser.add_argument("--vm_dir", help="NHM VM directory to test")
@@ -709,7 +717,9 @@ if __name__ == '__main__':
     parser.add_argument(
         "--selection-file", help="NHM selection file containing wanted faults"
     )
-    parser.add_argument("--out-dir", help="Folder to place outputs in", default="./cstests")
+    parser.add_argument(
+        "--out-dir", help="Folder to place outputs in", default="./cstests"
+    )
     args = parser.parse_args()
 
     if not os.path.isdir(args.out_dir):
@@ -719,7 +729,9 @@ if __name__ == '__main__':
     if args.srf_dir is not None:
         srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
         srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
-        info_files = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info"))
+        info_files = glob(
+            os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info")
+        )
         names = map(os.path.basename, map(os.path.dirname, srf_dirs))
 
         plot_area_mag(info_files, args.out_dir)
