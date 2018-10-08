@@ -543,8 +543,8 @@ def test_hypo_distribution(srf_dirs, out_dir):
 
     # overall histogram
     fig = plt.figure(figsize=(8, 5), dpi=150)
-    plt.hist(p_s, bins=min(len(p_s), 20), alpha=0.7, label="along strike")
-    plt.hist(p_d, bins=min(len(p_s), 20), alpha=0.7, label="along dip")
+    plt.hist(p_s, bins=min(len(p_s), 50), alpha=0.7, label="along strike")
+    plt.hist(p_d, bins=min(len(p_s), 50), alpha=0.7, label="along dip")
     plt.legend(loc="best")
     plt.title(
         "Hypocentre Location Distribution Probability of Fit (%d simulations)"
