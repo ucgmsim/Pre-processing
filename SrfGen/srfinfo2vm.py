@@ -30,9 +30,7 @@ from qcore import geo
 from qcore import gmt
 from qcore.gen_coords import gen_coords
 from qcore.validate_vm import validate_vm
-# post-processing computations should be in PYTHON_PATH
-from GMM_models.Bradley_2013_Sa import Bradley_2013_Sa
-from GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
+# Empirical_Engine should be in PYTHON_PATH
 from GMM_models.classdef import GMM, Site, Fault
 from empirical_factory import compute_gmm
 
@@ -413,7 +411,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
     return a0, a1, b0, b1
 
-def create_vm(args, srf_meta):
+def create_vm((args, srf_meta)):
     # temp directory for current process
     ptemp = mkdtemp(prefix = '_tmp_%s_' % (srf_meta['name']), \
                     dir = args.out_dir)
@@ -713,8 +711,8 @@ if __name__ == '__main__':
         return create_vm(*args_meta)
     # distribute work
     p = Pool(processes = args.nproc)
-   # reports = p.map(create_vm_star, msg_list)
+    reports = p.map(create_vm, msg_list)
     # debug friendly alternative
-    reports = [create_vm_star(msg) for msg in msg_list]
+    # reports = [create_vm_star(msg) for msg in msg_list]
     # store summary
     store_summary(os.path.join(args.out_dir, 'vminfo.csv'), reports)
