@@ -486,8 +486,16 @@ def plot_hypo_dist(srf_dirs, out_dir):
         dhypo[-1] = 1
         for i, f in enumerate(r):
             with h5open(f, "r") as h:
-                shypo[i + 1] = h.attrs["shypo"][0] / sum(h.attrs["length"])
-                dhypo[i + 1] = h.attrs["dhypo"][0] / h.attrs["width"][0]
+                try:
+                    strike = "shyp0"
+                    dip = "dhyp0"
+                    h.attrs[strike]
+                except AttributeError:
+                    # older versions had "o"
+                    strike = "shypo"
+                    dip = "dhypo"
+                shypo[i + 1] = h.attrs[strike][0] / sum(h.attrs["length"])
+                dhypo[i + 1] = h.attrs[dip][0] / h.attrs["width"][0]
                 if not i:
                     mw.append(h.attrs["mag"])
         shypo.sort()
