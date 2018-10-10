@@ -550,8 +550,20 @@ def plot_hypo_dist(srf_dirs, out_dir):
     # overall plot
     fig_init()
     plt.plot([min(mw), max(mw)], [0.05, 0.05])
-    plt.plot(mw, p_s, label="p (along strike)", marker="x", linestyle="None")
-    plt.plot(mw, p_d, label="p (along dip)", marker="x", linestyle="None")
+    plt.plot(
+        mw,
+        p_s,
+        label="Num p (along strike) > 0.05 = %d" % (sum(np.array(p_s) > 0.05)),
+        marker="x",
+        linestyle="None",
+    )
+    plt.plot(
+        mw,
+        p_d,
+        label="Num p (along dip) > 0.05 = %d" % (sum(np.array(p_d) > 0.05)),
+        marker="x",
+        linestyle="None",
+    )
     plt.legend(loc="best")
     plt.title("Hypocentre Location Distribution (%d simulations)" % (len(mw)))
     plt.ylabel("p")
