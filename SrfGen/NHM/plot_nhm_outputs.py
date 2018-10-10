@@ -575,7 +575,7 @@ def plot_hypo_dist(srf_dirs, out_dir):
 
     # overall histogram strike
     fig_init()
-    plt.hist(p_s, bins=min(len(p_s), 50), label="along strike")
+    plt.hist(p_s, bins=max(p_s) / 0.05, label="along strike")
     plt.legend(loc="best")
     plt.title(
         "Hypocentre along Strike Distribution Probability of Fit (%d simulations)"
@@ -587,7 +587,7 @@ def plot_hypo_dist(srf_dirs, out_dir):
     plt.close()
     # overall histogram dip
     fig_init()
-    plt.hist(p_d, bins=min(len(p_s), 50), label="along dip")
+    plt.hist(p_d, bins=max(p_d) / 0.05, label="along dip")
     plt.legend(loc="best")
     plt.title(
         "Hypocentre along Dip Distribution Probability of Fit (%d simulations)"
