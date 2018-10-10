@@ -593,6 +593,32 @@ def plot_hypo_dist(srf_dirs, out_dir):
             d.write("%s %s %s %s\n" % (names[i], p_s[i], p_d[i], mw[i]))
 
 
+def plot_srf_error(srf_dirs, out_dir):
+    # strike and dip error assuming 0.1km subfault spacing
+    error_s = []
+    error_d = []
+    for d in srf_dirs:
+        i = glob(os.path.join(d, "*.info"))[0]
+        with h5open(i, "r") as h:
+            error_s.append((sum(h.attrs["length"]) * 0.1) / sum(h.attrs["nstrike"]))
+            error_d.append((h.attrs["width"][0] * 0.1) / h.attrs["ndip"][0])
+
+    fig_init()
+    plt.plot(np.arange(len(error_s)), error_s, label="", marker="x", linestyle="None")
+    plt.title("Difference in Length / Length (nstrike * 0.1km)")
+    plt.ylabel("SRF length / length difference")
+    plt.xlabel("sources")
+    plt.savefig(os.path.join(out_dir, "srf_hh_length"))
+    plt.close()
+    #
+    fig_init()
+    plt.plot(np.arange(len(error_d)), error_d, label="", marker="x", linestyle="None")
+    plt.title("Difference in Width / Width (ndip * 0.1km)")
+    plt.ylabel("SRF width / width difference")
+    plt.xlabel("sources")
+    plt.savefig(os.path.join(out_dir, "srf_hh_width"))
+    plt.close()
+
 ###
 ### COMBINED PLOTS
 ###
@@ -732,7 +758,9 @@ if __name__ == "__main__":
 
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
-
+    srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
+    plot_srf_error(srf_dirs, args.out_dir)
+    exit()
     # run SRF plots and checks
     if args.srf_dir is not None:
         srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
@@ -749,6 +777,7 @@ if __name__ == "__main__":
         plot_dbottom(srf_dirs, args.nhm_file, args.out_dir)
         plot_srf_nhm(srf_dirs, args.nhm_file, args.out_dir)
         plot_hypo_dist(srf_dirs, os.path.join(args.out_dir, "hypo_dist"))
+        plot_srf_error(srf_dirs, args.out_dir)
         if args.selection_file is not None:
             test_selection(args.selection_file, names, "SRF", args.out_dir)
 
