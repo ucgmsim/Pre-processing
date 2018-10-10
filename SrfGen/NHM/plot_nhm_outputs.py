@@ -764,9 +764,7 @@ if __name__ == "__main__":
 
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
-    srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
-    plot_srf_error(srf_dirs, args.out_dir)
-    exit()
+
     # run SRF plots and checks
     if args.srf_dir is not None:
         srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
