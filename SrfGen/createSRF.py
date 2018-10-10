@@ -335,7 +335,8 @@ def gen_meta(srf_file, srf_type, mag, \
             strike, rake, dip, dt, vm = None, vs = None, rho = None, \
             centroid_depth = None, lon = None, lat = None, mom = None, \
             flen = None, dlen = None, fwid = None, dwid = None, \
-            shypo = None, dhypo = None, mwsr = None, tect_type = None):
+            shypo = None, dhypo = None, mwsr = None, tect_type = None, \
+            dip_dir = None):
     """
     Stores SRF metadata as hdf5.
     srf_file: SRF path used as basename for info file and additional metadata
@@ -346,6 +347,11 @@ def gen_meta(srf_file, srf_type, mag, \
     dbottom = []
     corners = np.zeros((len(planes), 4, 2))
     for i, p in enumerate(planes):
+        # currently only support single dip dir value
+        if dip_dir is not None:
+            dip_deg = dip_dir
+        else:
+            dip_deg = p['strike'] + 90
         # projected fault width (along dip direction)
         pwid = p['width'] * math.cos(math.radians(p['dip']))
         corners[i, 0] = geo.ll_shift(p['centre'][1], p['centre'][0], \
@@ -353,9 +359,9 @@ def gen_meta(srf_file, srf_type, mag, \
         corners[i, 1] = geo.ll_shift(p['centre'][1], p['centre'][0], \
                                     p['length'] / 2.0, p['strike'])[::-1]
         corners[i, 2] = geo.ll_shift(corners[i, 1, 1], corners[i, 1, 0], \
-                                    pwid, p['strike'] + 90)[::-1]
+                                    pwid, dip_deg)[::-1]
         corners[i, 3] = geo.ll_shift(corners[i, 0, 1], corners[i, 0, 0], \
-                                    pwid, p['strike'] + 90)[::-1]
+                                    pwid, dip_deg)[::-1]
         dbottom.append(p['dtop'] + p['width'] * math.sin(math.radians(p['dip'])))
 
     with h5open('%s.info' % (os.path.splitext(srf_file)[0]), 'w') as h:
@@ -656,7 +662,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         gen_stoch(stoch_file, joined_srf, silent = silent)
     # save INFO
     gen_meta(joined_srf, 4, mag[0], stk, rak, dip, dt, \
-            vm = velocity_model, \
+            vm = velocity_model, dip_dir = dip_dir, \
             shypo = [s[0] + 0.5 * flen[c][0] for s in shypo], \
             dhypo = [d[0] for d in dhypo], tect_type = tect_type)
 

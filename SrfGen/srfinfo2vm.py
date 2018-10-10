@@ -422,8 +422,11 @@ def create_vm((args, srf_meta)):
     faultprop.dip = srf_meta['dip']
     # rrup to reach wanted PGV
     if args.pgv == -1.0:
-        args.pgv = mag2pgv(faultprop.Mw)
-    rrup, pgv_actual = find_rrup(args.pgv)
+        pgv = mag2pgv(faultprop.Mw)
+    else:
+        pgv = args.pgv
+    rrup, pgv_actual = find_rrup(pgv)
+
     # original, unrotated vm
     bearing = 0
     origin, xlen0, ylen0 = rrup2xylen(rrup, args.hh, \
