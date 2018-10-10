@@ -490,7 +490,7 @@ def plot_hypo_dist(srf_dirs, out_dir):
                     strike = "shyp0"
                     dip = "dhyp0"
                     h.attrs[strike]
-                except AttributeError:
+                except (AttributeError, KeyError):
                     # older versions had "o"
                     strike = "shypo"
                     dip = "dhypo"
