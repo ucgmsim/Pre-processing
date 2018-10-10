@@ -600,8 +600,13 @@ def plot_srf_error(srf_dirs, out_dir):
     for d in srf_dirs:
         i = glob(os.path.join(d, "*.info"))[0]
         with h5open(i, "r") as h:
-            error_s.append((sum(h.attrs["nstrike"]) * 0.1) - sum(h.attrs["length"]))
-            error_d.append((h.attrs["ndip"][0] * 0.1) - h.attrs["width"][0])
+            error_s.append(
+                (sum(h.attrs["nstrike"]) * 0.1 - sum(h.attrs["length"]))
+                / sum(h.attrs["length"])
+            )
+            error_d.append(
+                (h.attrs["ndip"][0] * 0.1 - h.attrs["width"][0]) / h.attrs["width"][0]
+            )
 
     fig_init()
     plt.plot(np.arange(len(error_s)), error_s, label="", marker="x", linestyle="None")
@@ -618,6 +623,7 @@ def plot_srf_error(srf_dirs, out_dir):
     plt.xlabel("sources")
     plt.savefig(os.path.join(out_dir, "srf_hh_width"))
     plt.close()
+
 
 ###
 ### COMBINED PLOTS
