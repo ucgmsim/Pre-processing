@@ -38,7 +38,6 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, 'NHM/res/centre.txt')
 NZ_LAND_OUTLINE = os.path.join(script_dir, 'NHM/res/rough_land.txt')
 NZVM_BIN = find_executable('NZVM')
-assert(NZVM_BIN is not None)
 
 siteprop = Site()
 siteprop.vs30 = 500
@@ -531,6 +530,21 @@ def create_vm((args, srf_meta)):
                    sim_duration=sim_time0 * (not adjusted) \
                                 + sim_time1 * adjusted, \
                    topo_type=args.vm_topo, model_version=args.vm_version)
+    if args.novm:
+        # save important files
+        os.makedirs(vm_dir)
+        move('%s.py' % (params_vel), vm_dir)
+        move('%s.json' % (params_vel), vm_dir)
+        # working dir cleanup
+        rmtree(ptemp)
+        # return vm info
+        return {'name':srf_meta['name'], 'mag':faultprop.Mw, \
+            'dbottom':srf_meta['dbottom'], \
+            'zlen':zlen, 'sim_time':sim_time0, \
+            'xlen':xlen0, 'ylen':ylen0, 'land':land0, \
+            'zlen_mod':zlen, 'sim_time_mod':sim_time1, \
+            'xlen_mod':xlen1, 'ylen_mod':ylen1, 'land_mod':land1}
+
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     with open(os.path.join(ptemp,'NZVM.out'),'w') as logfile:
         nzvm_exe=Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN), \
@@ -692,12 +706,15 @@ if __name__ == '__main__':
     arg('--min-vs', help='for nzvm gen and flo (km/s)', \
             type=float, default=0.5)
     arg('-n', '--nproc', help = 'number of processes', type=int, default=1)
+    arg('--novm', help='only generate parameters', action='store_true')
     arg('--vm-version', help='velocity model version to generate', \
         default='1.65')
     arg('--vm-topo', help='topo_type parameter for velocity model generation', \
         default='BULLDOZED')
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
+    if not args.novm:
+        assert(NZVM_BIN is not None)
 
     # load wanted fault information
     msg_list = load_msgs(args)
