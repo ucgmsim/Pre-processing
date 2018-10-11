@@ -808,11 +808,17 @@ def load_msgs_nhm(args):
     return msgs
 
 
-def store_nhm_selection(selection_file, reports):
-    with open(selection_file, "w") as sf:
-        for r in reports:
-            if r["xlen_mod"] != 0 and r["ylen_mod"] != 0 and r["zlen"] != 0:
-                sf.write("%s %dr\n" % (r["name"], min(max(r["mag"] * 20 - 110, 10), 50)))
+def store_nhm_selection(out_dir, reports):
+    selected = os.path.join(out_dir, "nhm_selection.txt")
+    excluded = os.path.join(out_dir, "excluded.txt")
+    with open(selected, "w") as sf:
+        with open(excluded, "w") as ef:
+            for r in reports:
+                if r["xlen_mod"] == 0 or r["ylen_mod"] == 0 or r["zlen"] == 0:
+                    ef.write("%s\n" % (r["name"]))
+                else:
+                    sf.write("%s %dr\n" % (r["name"], \
+                                           min(max(r["mag"] * 20 - 110, 10), 50)))
 
 
 def store_summary(table, info_store):
@@ -927,6 +933,6 @@ if __name__ == "__main__":
         # debug friendly alternative
         reports = [create_vm(msg) for msg in msg_list]
     if args.selection:
-        store_nhm_selection(os.path.join(args.out_dir, "nhm_selection.txt"), reports)
+        store_nhm_selection(args.out_dir, reports)
     # store summary
     store_summary(os.path.join(args.out_dir, "vminfo.csv"), reports)
