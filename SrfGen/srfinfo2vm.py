@@ -811,7 +811,8 @@ def load_msgs_nhm(args):
 def store_nhm_selection(selection_file, reports):
     with open(selection_file, "w") as sf:
         for r in reports:
-            sf.write("%s %dr\n" % (r["name"], min(max(r["mag"] * 20 - 110, 10), 50)))
+            if r["xlen_mod"] != 0 and r["ylen_mod"] != 0 and r["zlen"] != 0:
+                sf.write("%s %dr\n" % (r["name"], min(max(r["mag"] * 20 - 110, 10), 50)))
 
 
 def store_summary(table, info_store):
