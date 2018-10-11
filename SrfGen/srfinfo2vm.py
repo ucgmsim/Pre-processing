@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 """
 REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
@@ -25,31 +25,35 @@ from h5py import File as h5open
 import numpy as np
 
 from createSRF import leonard, mag2mom, mom2mag
+
 # qcore library should already be in path
 from qcore import geo
 from qcore import gmt
 from qcore.gen_coords import gen_coords
 from qcore.validate_vm import validate_vm
+
 # Empirical_Engine should be in PYTHON_PATH
 from GMM_models.classdef import GMM, Site, Fault
 from empirical_factory import compute_gmm
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-NZ_CENTRE_LINE = os.path.join(script_dir, 'NHM/res/centre.txt')
-NZ_LAND_OUTLINE = os.path.join(script_dir, 'NHM/res/rough_land.txt')
-NZVM_BIN = find_executable('NZVM')
+NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
+NZ_LAND_OUTLINE = os.path.join(script_dir, "NHM/res/rough_land.txt")
+NZVM_BIN = find_executable("NZVM")
 
 siteprop = Site()
 siteprop.vs30 = 500
 
 faultprop = Fault()
-#TODO ztor should be read from srfinfo file
-faultprop.ztor = 0.
+# TODO ztor should be read from srfinfo file
+faultprop.ztor = 0.0
 
 # default scaling relationship
 def mag2pgv(mag):
-    return np.interp(mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], \
-                          [0.02, 0.05, 0.1, 0.2, 0.5, 1.0])
+    return np.interp(
+        mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], [0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
+    )
+
 
 # rrup at which pgv is close to target
 def find_rrup(pgv_target):
@@ -58,7 +62,7 @@ def find_rrup(pgv_target):
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
-        pgv = compute_gmm(faultprop, siteprop, GMM.Br_13, 'PGV')[0]
+        pgv = compute_gmm(faultprop, siteprop, GMM.Br_13, "PGV")[0]
         # factor 0.02 is conservative step to avoid infinite looping
         if pgv_target / pgv - 1 > 0.01:
             rrup -= rrup * 0.02
@@ -68,15 +72,21 @@ def find_rrup(pgv_target):
             break
     return rrup, pgv
 
+
 # z extent based on magnitude, hypocentre depth
 def auto_z(mag, depth):
-    return round(10 + depth + (10 \
-            * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), \
-            (0.3))), 0)
+    return round(
+        10
+        + depth
+        + (10 * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), (0.3))),
+        0,
+    )
+
 
 # simulation time based on magnitude
 def auto_time(mag):
     return np.power(10, max(1, 0.5 * mag - 1))
+
 
 # simulation time based on area
 def auto_time2(xlen, ylen, ds_multiplier):
@@ -84,8 +94,9 @@ def auto_time2(xlen, ylen, ds_multiplier):
     # alternative if rrup not available
     siteprop.Rrup = max(xlen / 2.0, ylen / 2.0)
     # magnitude is in faultprop
-    ds = compute_gmm(faultprop, siteprop, GMM.AS_16, 'Ds595')[0]
+    ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
     return s_wave_arrival + ds_multiplier * ds
+
 
 # keep dx and dy small enough relative to domain
 # h5py will crash when opening grd with less than 2^14 gridpoints
@@ -101,43 +112,44 @@ def auto_dxy(region):
         dxy *= 0.5
     return dxy
 
+
 # proportion of gmt mask file filled (1s vs 0s)
 # TODO: should be part of GMT library
 def grd_proportion(grd_file):
     try:
-        with h5open(grd_file, 'r') as grd:
-            return 100.0 * np.nansum(grd['z'][...]) / float(grd['z'].size)
+        with h5open(grd_file, "r") as grd:
+            return 100.0 * np.nansum(grd["z"][...]) / float(grd["z"].size)
     except IOError:
-        print('INVALID GRD: %s' % (grd_file))
+        print("INVALID GRD: %s" % (grd_file))
         # this should no longer happen when auto_dxy is used
         raise
 
-def vm_land(c1, c2, c3, c4, wd = '.'):
+
+def vm_land(c1, c2, c3, c4, wd="."):
     """
     Proportion of VM on land.
     """
-    path_vm = '%s/mask_vm.path' % (wd)
-    grd_vm = '%s/mask_vm.grd' % (wd)
-    grd_land = '%s/mask_land.grd' % (wd)
-    grd_vm_land = '%s/mask_vm_land.grd' % (wd)
+    path_vm = "%s/mask_vm.path" % (wd)
+    grd_vm = "%s/mask_vm.grd" % (wd)
+    grd_land = "%s/mask_land.grd" % (wd)
+    grd_vm_land = "%s/mask_vm_land.grd" % (wd)
 
-    geo.path_from_corners([c1, c2, c3, c4], output = path_vm)
+    geo.path_from_corners([c1, c2, c3, c4], output=path_vm)
     vm_region = corners2region(c1, c2, c3, c4)
     dxy = auto_dxy(vm_region)
 
-    gmt.grd_mask('f', grd_land, \
-            region = vm_region, dx = dxy, dy = dxy, wd = wd)
-    gmt.grd_mask(path_vm, grd_vm, \
-            region = vm_region, dx = dxy, dy = dxy, wd = wd)
-    gmt.grdmath([grd_land, grd_vm, 'BITAND', '=', grd_vm_land], wd = wd)
+    gmt.grd_mask("f", grd_land, region=vm_region, dx=dxy, dy=dxy, wd=wd)
+    gmt.grd_mask(path_vm, grd_vm, region=vm_region, dx=dxy, dy=dxy, wd=wd)
+    gmt.grdmath([grd_land, grd_vm, "BITAND", "=", grd_vm_land], wd=wd)
 
     return grd_proportion(grd_vm_land) / grd_proportion(grd_vm) * 100
+
 
 # get longitude on NZ centre path at given latitude
 def centre_lon(lat_target):
     # find closest points either side
     # TODO: use np.interp
-    with open(NZ_CENTRE_LINE, 'r') as c:
+    with open(NZ_CENTRE_LINE, "r") as c:
         for line in c:
             ll = map(float, line.split())
             if ll[1] < lat_target:
@@ -149,41 +161,57 @@ def centre_lon(lat_target):
         # find rough proportion of distance
         lat_ratio = (lat_target - ll_bottom[1]) / (ll_top[1] - ll_bottom[1])
     except (UnboundLocalError, NameError):
-        print('ERROR: VM edge out of lat bounds for centre line.')
+        print("ERROR: VM edge out of lat bounds for centre line.")
         raise
     # consider same ratio along longitude difference to be correct
     return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
 
-def rrup2xylen(rrup, hh, points, rot = 0, wd = '.'):
+
+def rrup2xylen(rrup, hh, points, rot=0, wd="."):
     """
     rrup: in km
     """
-    lon_mid, lat_mid, dx_km, dy_km = gmt.region_fit_oblique(points, 90 - rot, \
-                                                            wd = wd)
+    lon_mid, lat_mid, dx_km, dy_km = gmt.region_fit_oblique(points, 90 - rot, wd=wd)
     # extend by wanted rrup
     min_x = geo.ll_shift(lat_mid, lon_mid, rrup + dx_km, 270 - rot)[::-1]
     max_x = geo.ll_shift(lat_mid, lon_mid, rrup + dx_km, 90 - rot)[::-1]
     min_y = geo.ll_shift(lat_mid, lon_mid, rrup + dy_km, 180 - rot)[::-1]
     max_y = geo.ll_shift(lat_mid, lon_mid, rrup + dy_km, 0 - rot)[::-1]
     # mid, x, y extents
-    return (lon_mid, lat_mid), \
-           math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) \
-                     / hh) * hh, \
-           math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) \
-                     / hh) * hh
+    return (
+        (lon_mid, lat_mid),
+        math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) / hh) * hh,
+        math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) / hh) * hh,
+    )
+
 
 # return region that just fits the path made from 4 points
 def corners2region(c1, c2, c3, c4):
-    perimiter = np.array(geo.path_from_corners([c1, c2, c3, c4], output = None))
-    x_min, y_min = np.min(perimiter, axis = 0)
-    x_max, y_max = np.max(perimiter, axis = 0)
+    perimiter = np.array(geo.path_from_corners([c1, c2, c3, c4], output=None))
+    x_min, y_min = np.min(perimiter, axis=0)
+    x_max, y_max = np.max(perimiter, axis=0)
     return (x_min, x_max, y_min, y_max)
 
-def save_vm_config(nzvm_cfg=None, params_vel=None, vm_dir=None, \
-        origin=(170, -40), rot=0, xlen=100, ylen=100, zmax=40, \
-        zmin=0, hh=0.4, min_vs=0.5, mag=5.5, centroid_depth=7, \
-        sim_duration=100, code='rt', model_version='1.65', \
-        topo_type='BULLDOZED'):
+
+def save_vm_config(
+    nzvm_cfg=None,
+    params_vel=None,
+    vm_dir=None,
+    origin=(170, -40),
+    rot=0,
+    xlen=100,
+    ylen=100,
+    zmax=40,
+    zmin=0,
+    hh=0.4,
+    min_vs=0.5,
+    mag=5.5,
+    centroid_depth=7,
+    sim_duration=100,
+    code="rt",
+    model_version="1.65",
+    topo_type="BULLDOZED",
+):
     """
     Store VM config for NZVM generator and params_vel metadata store.
     nzvm_cfg: path to NZVM cfg file
@@ -192,65 +220,91 @@ def save_vm_config(nzvm_cfg=None, params_vel=None, vm_dir=None, \
     origin: model origin (longitude, latitude)
     rot: model rotation
     """
-    assert(vm_dir != None)
+    assert vm_dir != None
     if nzvm_cfg != None:
-        assert(not os.path.exists(vm_dir))
-        with open(nzvm_cfg, 'w') as vmd:
-            vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
-                    'MODEL_VERSION=%s' % (model_version), \
-                    'OUTPUT_DIR=%s' % (vm_dir), \
-                    'ORIGIN_LAT=%s' % (origin[1]), \
-                    'ORIGIN_LON=%s' % (origin[0]), \
-                    'ORIGIN_ROT=%s' % (rot), \
-                    'EXTENT_X=%s' % (xlen), \
-                    'EXTENT_Y=%s' % (ylen), \
-                    'EXTENT_ZMAX=%s' % (zmax), \
-                    'EXTENT_ZMIN=%s' % (zmin), \
-                    'EXTENT_Z_SPACING=%s' % (hh), \
-                    'EXTENT_LATLON_SPACING=%s' % (hh), \
-                    'MIN_VS=%s' % (min_vs), \
-                    'TOPO_TYPE=%s\n' % (topo_type)]))
+        assert not os.path.exists(vm_dir)
+        with open(nzvm_cfg, "w") as vmd:
+            vmd.write(
+                "\n".join(
+                    [
+                        "CALL_TYPE=GENERATE_VELOCITY_MOD",
+                        "MODEL_VERSION=%s" % (model_version),
+                        "OUTPUT_DIR=%s" % (vm_dir),
+                        "ORIGIN_LAT=%s" % (origin[1]),
+                        "ORIGIN_LON=%s" % (origin[0]),
+                        "ORIGIN_ROT=%s" % (rot),
+                        "EXTENT_X=%s" % (xlen),
+                        "EXTENT_Y=%s" % (ylen),
+                        "EXTENT_ZMAX=%s" % (zmax),
+                        "EXTENT_ZMIN=%s" % (zmin),
+                        "EXTENT_Z_SPACING=%s" % (hh),
+                        "EXTENT_LATLON_SPACING=%s" % (hh),
+                        "MIN_VS=%s" % (min_vs),
+                        "TOPO_TYPE=%s\n" % (topo_type),
+                    ]
+                )
+            )
     if params_vel != None:
-        with open('%s.py' % (params_vel), 'w') as pv:
-            pv.write('\n'.join(['mag = "%s"' % (mag), \
-                    'centroidDepth = "%s"' % (centroid_depth), \
-                    'MODEL_LAT = "%s"' % (origin[1]), \
-                    'MODEL_LON = "%s"' % (origin[0]), \
-                    'MODEL_ROT = "%s"' % (rot), \
-                    'hh = "%s"' % (hh), \
-                    'min_vs = "%s"' % (min_vs), \
-                    'model_version = "%s"' % (model_version), \
-                    'topo_type = "%s"' % (topo_type), \
-                    'output_directory = "%s"' % (os.path.basename(vm_dir)), \
-                    'extracted_slice_parameters_directory'
-                    ' = "SliceParametersNZ/SliceParametersExtracted.txt"', \
-                    'code = "%s"' % (code), \
-                    'extent_x = "%s"' % (xlen), \
-                    'extent_y = "%s"' % (ylen), \
-                    'extent_zmax = "%s"' % (zmax), \
-                    'extent_zmin = "%s"' % (zmin), \
-                    'sim_duration = "%s"' % (sim_duration), \
-                    'flo = "%s"' % (min_vs / (5.0 * hh)), \
-                    'nx = "%s"' % (int(round(float(xlen) / hh))), \
-                    'ny = "%s"' % (int(round(float(ylen) / hh))), \
-                    'nz = "%s"' % (int(round(float(zmax - zmin) / hh))), \
-                    'sufx = "_%s01-h%.3f"' % (code, hh)]))
-        with open('%s.json' % (params_vel), 'w') as pv:
+        with open("%s.py" % (params_vel), "w") as pv:
+            pv.write(
+                "\n".join(
+                    [
+                        'mag = "%s"' % (mag),
+                        'centroidDepth = "%s"' % (centroid_depth),
+                        'MODEL_LAT = "%s"' % (origin[1]),
+                        'MODEL_LON = "%s"' % (origin[0]),
+                        'MODEL_ROT = "%s"' % (rot),
+                        'hh = "%s"' % (hh),
+                        'min_vs = "%s"' % (min_vs),
+                        'model_version = "%s"' % (model_version),
+                        'topo_type = "%s"' % (topo_type),
+                        'output_directory = "%s"' % (os.path.basename(vm_dir)),
+                        "extracted_slice_parameters_directory"
+                        ' = "SliceParametersNZ/SliceParametersExtracted.txt"',
+                        'code = "%s"' % (code),
+                        'extent_x = "%s"' % (xlen),
+                        'extent_y = "%s"' % (ylen),
+                        'extent_zmax = "%s"' % (zmax),
+                        'extent_zmin = "%s"' % (zmin),
+                        'sim_duration = "%s"' % (sim_duration),
+                        'flo = "%s"' % (min_vs / (5.0 * hh)),
+                        'nx = "%s"' % (int(round(float(xlen) / hh))),
+                        'ny = "%s"' % (int(round(float(ylen) / hh))),
+                        'nz = "%s"' % (int(round(float(zmax - zmin) / hh))),
+                        'sufx = "_%s01-h%.3f"' % (code, hh),
+                    ]
+                )
+            )
+        with open("%s.json" % (params_vel), "w") as pv:
             # must also convert mag from np.float to float
-            json.dump({'mag':float(mag), 'centroidDepth':centroid_depth, \
-                       'MODEL_LAT':origin[1], 'MODEL_LON':origin[0], \
-                       'MODEL_ROT':rot, 'hh':hh, 'min_vs':min_vs, \
-                       'model_version':model_version, 'topo_type':topo_type, \
-                       'output_directory':os.path.basename(vm_dir), \
-                       'extracted_slice_parameters_directory':\
-                           'SliceParametersNZ/SliceParametersExtracted.txt', \
-                       'code':code, 'extent_x':xlen, 'extent_y':ylen, \
-                       'extent_zmax':zmax, 'extent_zmin':zmin, \
-                       'sim_duration':sim_duration, 'flo':min_vs / (5.0 * hh), \
-                       'nx':int(round(float(xlen) / hh)), \
-                       'ny':int(round(float(ylen) / hh)), \
-                       'nz':int(round(float(zmax - zmin) / hh)), \
-                       'sufx':'_%s01-h%.3f' % (code, hh)}, pv)
+            json.dump(
+                {
+                    "mag": float(mag),
+                    "centroidDepth": centroid_depth,
+                    "MODEL_LAT": origin[1],
+                    "MODEL_LON": origin[0],
+                    "MODEL_ROT": rot,
+                    "hh": hh,
+                    "min_vs": min_vs,
+                    "model_version": model_version,
+                    "topo_type": topo_type,
+                    "output_directory": os.path.basename(vm_dir),
+                    "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
+                    "code": code,
+                    "extent_x": xlen,
+                    "extent_y": ylen,
+                    "extent_zmax": zmax,
+                    "extent_zmin": zmin,
+                    "sim_duration": sim_duration,
+                    "flo": min_vs / (5.0 * hh),
+                    "nx": int(round(float(xlen) / hh)),
+                    "ny": int(round(float(ylen) / hh)),
+                    "nz": int(round(float(zmax - zmin) / hh)),
+                    "sufx": "_%s01-h%.3f" % (code, hh),
+                },
+                pv,
+            )
+
 
 # get outer corners of a domain
 def build_corners(origin, rot, xlen, ylen):
@@ -258,8 +312,8 @@ def build_corners(origin, rot, xlen, ylen):
     # approach answer at infinity / "I don't know the formula" algorithm
 
     # amount to shift from middle
-    x_shift = xlen / 2.
-    y_shift = ylen / 2.
+    x_shift = xlen / 2.0
+    y_shift = ylen / 2.0
     # x lengths will always be correct
     target_y = ylen
 
@@ -269,16 +323,15 @@ def build_corners(origin, rot, xlen, ylen):
         t_u = geo.ll_shift(origin[1], origin[0], y_shift, rot)[::-1]
         t_l = geo.ll_shift(origin[1], origin[0], y_shift, rot + 180)[::-1]
         # bearings have changed at the top and bottom
-        top_bearing = (geo.ll_bearing(t_u[0], t_u[1], origin[0], origin[1]) \
-                + 180) % 360
-        bottom_bearing = (geo.ll_bearing(t_l[0], t_l[1], origin[0], origin[1]))
+        top_bearing = (geo.ll_bearing(t_u[0], t_u[1], origin[0], origin[1]) + 180) % 360
+        bottom_bearing = geo.ll_bearing(t_l[0], t_l[1], origin[0], origin[1])
         # extend top and bottom middle line to make right edge
         c1 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing + 90)[::-1]
         c4 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing + 90)[::-1]
         # check right edge distance
         current_y = geo.ll_dist(c1[0], c1[1], c4[0], c4[1])
         if round(target_y, 10) != round(current_y, 10):
-            y_shift += (target_y - current_y) / 2.
+            y_shift += (target_y - current_y) / 2.0
         else:
             break
     # complete for left edge
@@ -288,6 +341,7 @@ def build_corners(origin, rot, xlen, ylen):
     # at this point we have a perfect square (by corner distance)
     # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
     return c1, c2, c3, c4
+
 
 # maximum width along lines a and b
 def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
@@ -309,7 +363,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     over_w = None
     # store scan data for 2nd level processing
     scan_extremes = np.zeros((scanlines, 2, 2))
-    for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint = True)):
+    for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
         a = geo.ll_shift(a0[1], a0[0], x * len_ab, bearing_a)[::-1]
         b = geo.ll_shift(b0[1], b0[0], x * len_ab, bearing_b)[::-1]
         m = geo.ll_mid(a[0], a[1], b[0], b[1])
@@ -321,36 +375,46 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         m2ee = geo.ll_dist(m[0], m[1], a[0], a[1])
         m2we = geo.ll_dist(m[0], m[1], b[0], b[1])
         # GMT spatial is not great-circle path connective
-        geo.path_from_corners(corners = [ap, bp], \
-                output = '%s/tempEXT.tmp' % (wd), \
-                min_edge_points = 80, close = False)
-        isections, icomps = gmt.intersections( \
-                ['%s/srf.path' % (wd), NZ_LAND_OUTLINE, \
-                '%s/tempEXT.tmp' % (wd)], items = True, \
-                containing = '%s/tempEXT.tmp' % (wd))
+        geo.path_from_corners(
+            corners=[ap, bp],
+            output="%s/tempEXT.tmp" % (wd),
+            min_edge_points=80,
+            close=False,
+        )
+        isections, icomps = gmt.intersections(
+            ["%s/srf.path" % (wd), NZ_LAND_OUTLINE, "%s/tempEXT.tmp" % (wd)],
+            items=True,
+            containing="%s/tempEXT.tmp" % (wd),
+        )
         if len(isections) == 0:
             scan_extremes[i] = np.nan
             continue
         # shift different intersections by item-specific padding amount
         as_east = []
         as_west = []
-        for c in xrange(len(isections)):
-            if '%s/srf.path' % (wd) in icomps[c]:
+        for c in range(len(isections)):
+            if "%s/srf.path" % (wd) in icomps[c]:
                 diff = space_srf
             elif NZ_LAND_OUTLINE in icomps[c]:
                 diff = space_land
             # these bearings will be slightly wrong but don't need to be exact
             # TODO: adjust to follow same path as ap -> bp
-            as_east.append(geo.ll_shift(isections[c][1], isections[c][0], \
-                    diff, bearing_p)[::-1])
-            as_west.append(geo.ll_shift(isections[c][1], isections[c][0], \
-                    diff, bearing_p + 180)[::-1])
+            as_east.append(
+                geo.ll_shift(isections[c][1], isections[c][0], diff, bearing_p)[::-1]
+            )
+            as_west.append(
+                geo.ll_shift(isections[c][1], isections[c][0], diff, bearing_p + 180)[
+                    ::-1
+                ]
+            )
         # find final extremes
-        east = as_east[np.argmax(as_east, axis = 0)[0]]
-        west = as_west[np.argmin(as_west, axis = 0)[0]]
+        east = as_east[np.argmax(as_east, axis=0)[0]]
+        west = as_west[np.argmin(as_west, axis=0)[0]]
         # for north/south (later on), use direct/un-shifted points
-        scan_extremes[i] = isections[np.argmax(isections, axis = 0)[0]], \
-                isections[np.argmin(isections, axis = 0)[0]]
+        scan_extremes[i] = (
+            isections[np.argmax(isections, axis=0)[0]],
+            isections[np.argmin(isections, axis=0)[0]],
+        )
 
         # distance beyond east is negative
         m2e = geo.ll_dist(m[0], m[1], east[0], east[1])
@@ -367,8 +431,9 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
 
     # bring in sides
     xlen2 = xlen + over_e * (over_e < 0) + over_w * (over_w < 0)
-    origin2 = geo.ll_shift(origin[1], origin[0], \
-            xlen2 / 2. - over_w * (over_w < 0) - xlen / 2., rot + 90)[::-1]
+    origin2 = geo.ll_shift(
+        origin[1], origin[0], xlen2 / 2.0 - over_w * (over_w < 0) - xlen / 2.0, rot + 90
+    )[::-1]
     a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab)
 
     # corners may have moved
@@ -378,7 +443,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     over_s = 0
     over_n = len_ab
     land_discovered = False
-    for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint = True)):
+    for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
         a = geo.ll_shift(a0[1], a0[0], x * len_ab, bearing_a)[::-1]
         b = geo.ll_shift(b0[1], b0[0], x * len_ab, bearing_b)[::-1]
         # determine if window contains any land by locations of intersections
@@ -405,10 +470,15 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
 
     # bring in top and bottom edge
     len_ab2 = len_ab - over_s * (over_s > 0) - over_n * (over_n > 0)
-    origin2 = geo.ll_shift(origin2[1], origin2[0], \
-            len_ab2 / 2. + over_s * (over_s > 0) - len_ab / 2., rot)[::-1]
+    origin2 = geo.ll_shift(
+        origin2[1],
+        origin2[0],
+        len_ab2 / 2.0 + over_s * (over_s > 0) - len_ab / 2.0,
+        rot,
+    )[::-1]
     a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
     return a0, a1, b0, b1
+
 
 def create_vm((args, srf_meta)):
     # temp directory for current process
@@ -631,6 +701,7 @@ def create_vm((args, srf_meta)):
             'zlen_mod':zlen, 'sim_time_mod':sim_time1, \
             'xlen_mod':xlen1, 'ylen_mod':ylen1, 'land_mod':land1}
 
+
 def load_msgs(args):
     # returns list of appropriate srf metadata
     msgs = []
@@ -640,11 +711,11 @@ def load_msgs(args):
     info_files = glob(args.info_glob)
     for info in info_files:
         if not os.path.exists(info):
-            print('SRF info file not found: %s' % (info))
+            print("SRF info file not found: %s" % (info))
             continue
 
         # name is unique and based on basename
-        name = os.path.splitext(os.path.basename(info))[0].split('_')[0]
+        name = os.path.splitext(os.path.basename(info))[0].split("_")[0]
         if name in faults:
             continue
         faults.add(name)
@@ -652,18 +723,29 @@ def load_msgs(args):
         with h5open(info) as h:
             a = h.attrs
             try:
-                rake = a['rake'][0][0]
+                rake = a["rake"][0][0]
             except (TypeError, IndexError):
-                rake = a['rake']
+                rake = a["rake"]
             try:
-                mag = mom2mag(sum(map(mag2mom, a['mag'])))
+                mag = mom2mag(sum(map(mag2mom, a["mag"])))
             except TypeError:
-                mag = a['mag']
-            msgs.append((args, {'name':name, 'dip':a['dip'][0], 'rake':rake, \
-                                'dbottom':a['dbottom'][0], \
-                                'corners':a['corners'], 'mag':mag, \
-                                'hdepth':a['hdepth']}))
+                mag = a["mag"]
+            msgs.append(
+                (
+                    args,
+                    {
+                        "name": name,
+                        "dip": a["dip"][0],
+                        "rake": rake,
+                        "dbottom": a["dbottom"][0],
+                        "corners": a["corners"],
+                        "mag": mag,
+                        "hdepth": a["hdepth"],
+                    },
+                )
+            )
     return msgs
+
 
 def load_msgs_nhm(args):
     msgs = []
@@ -688,8 +770,12 @@ def load_msgs_nhm(args):
         dbottom += 3 * (dbottom >= 12)
         pwid = (dbottom - dtop) / math.tan(math.radians(dip))
         fwid = (dbottom - dtop) / math.sin(math.radians(dip))
-        trace_length = sum([geo.ll_dist(trace[i][0], trace[i][1], trace[i + 1][0], trace[i + 1][1]) \
-                            for i in range(n_pt - 1)])
+        trace_length = sum(
+            [
+                geo.ll_dist(trace[i][0], trace[i][1], trace[i + 1][0], trace[i + 1][1])
+                for i in range(n_pt - 1)
+            ]
+        )
         corners = np.zeros((n_pt - 1, 4, 2))
         for i in range(len(corners)):
             corners[i, :2] = trace[i : i + 2]
@@ -704,38 +790,63 @@ def load_msgs_nhm(args):
         n_i += 13 + n_pt
 
         mag = leonard(rake, fwid * trace_length)
-        msgs.append((args, {'name':n, 'dip':dip, 'rake':rake, \
-                            'dbottom':dbottom, \
-                            'corners':corners, 'mag':mag, \
-                            'hdepth':dtop + 0.5 * (dbottom - dtop)}))
+        msgs.append(
+            (
+                args,
+                {
+                    "name": n,
+                    "dip": dip,
+                    "rake": rake,
+                    "dbottom": dbottom,
+                    "corners": corners,
+                    "mag": mag,
+                    "hdepth": dtop + 0.5 * (dbottom - dtop),
+                },
+            )
+        )
 
     return msgs
 
+
 def store_nhm_selection(selection_file, reports):
-    with open(selection_file, 'w') as sf:
+    with open(selection_file, "w") as sf:
         for r in reports:
-            sf.write('%s %dr\n' % (r['name'], min(max(r['mag'] * 20 - 110, 10), 50)))
+            sf.write("%s %dr\n" % (r["name"], min(max(r["mag"] * 20 - 110, 10), 50)))
 
 
 def store_summary(table, info_store):
     # initialise table file
-    with open(table, 'w') as t:
-        t.write('"name","mw","plane depth (km, to bottom)",'
-                '"vm depth (zlen, km)","sim time (s)","xlen (km)",'
-                '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
-                '"adjusted sim time (s)","adjusted xlen (km)",'
-                '"adjusted ylen (km)","adjusted land (% cover)"\n')
+    with open(table, "w") as t:
+        t.write(
+            '"name","mw","plane depth (km, to bottom)",'
+            '"vm depth (zlen, km)","sim time (s)","xlen (km)",'
+            '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
+            '"adjusted sim time (s)","adjusted xlen (km)",'
+            '"adjusted ylen (km)","adjusted land (% cover)"\n'
+        )
 
         for i in info_store:
-            t.write('%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n' \
-                    % (i['name'], i['mag'], i['dbottom'], \
-                    i['zlen'], i['sim_time'], \
-                    i['xlen'], i['ylen'], i['land'], \
-                    i['zlen_mod'], i['sim_time_mod'], \
-                    i['xlen_mod'], i['ylen_mod'], i['land_mod']))
+            t.write(
+                "%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n"
+                % (
+                    i["name"],
+                    i["mag"],
+                    i["dbottom"],
+                    i["zlen"],
+                    i["sim_time"],
+                    i["xlen"],
+                    i["ylen"],
+                    i["land"],
+                    i["zlen_mod"],
+                    i["sim_time_mod"],
+                    i["xlen_mod"],
+                    i["ylen_mod"],
+                    i["land_mod"],
+                )
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from argparse import ArgumentParser
     from glob import glob
     from multiprocessing import Pool
@@ -743,42 +854,64 @@ if __name__ == '__main__':
     # parameters
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg('info_glob', help='info file selection expression. eg: Srf/*.info')
-    arg('--nhm-file', help='path to NHM if using info_glob == \'NHM\'', \
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'NHM', 'NZ_FLTmodel_2010.txt'))
-    parser.add_argument('-o', '--out-dir', help='directory to place outputs', \
-            default='autovm')
-    arg('--pgv', help='max PGV at velocity model perimiter (estimated, cm/s)', \
-            type=float, default=5.0)
-    arg('--hh', help='velocity model grid spacing (km)', \
-            type=float, default=0.4)
-    arg('--dt', help='timestep to estimate simulation duration (s)', \
-            type=float, default=0.005)
-    arg('--space-land', help='min space between VM edge and land (km)', \
-            type=float, default=5.0)
-    arg('--space-srf', help='min space between VM edge and SRF (km)', \
-            type=float, default=15.0)
-    arg('--min-vs', help='for nzvm gen and flo (km/s)', \
-            type=float, default=0.5)
-    arg('-n', '--nproc', help = 'number of processes', type=int, default=1)
-    arg('--novm', help='only generate parameters', action='store_true')
-    arg('--vm-version', help='velocity model version to generate', \
-        default='1.65')
-    arg('--vm-topo', help='topo_type parameter for velocity model generation', \
-        default='BULLDOZED')
-    arg('--selection', help='also generate NHM selection file', action='store_true')
+    arg("info_glob", help="info file selection expression. eg: Srf/*.info")
+    arg(
+        "--nhm-file",
+        help="path to NHM if using info_glob == 'NHM'",
+        default=os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "NHM", "NZ_FLTmodel_2010.txt"
+        ),
+    )
+    parser.add_argument(
+        "-o", "--out-dir", help="directory to place outputs", default="autovm"
+    )
+    arg(
+        "--pgv",
+        help="max PGV at velocity model perimiter (estimated, cm/s)",
+        type=float,
+        default=5.0,
+    )
+    arg("--hh", help="velocity model grid spacing (km)", type=float, default=0.4)
+    arg(
+        "--dt",
+        help="timestep to estimate simulation duration (s)",
+        type=float,
+        default=0.005,
+    )
+    arg(
+        "--space-land",
+        help="min space between VM edge and land (km)",
+        type=float,
+        default=5.0,
+    )
+    arg(
+        "--space-srf",
+        help="min space between VM edge and SRF (km)",
+        type=float,
+        default=15.0,
+    )
+    arg("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
+    arg("-n", "--nproc", help="number of processes", type=int, default=1)
+    arg("--novm", help="only generate parameters", action="store_true")
+    arg("--vm-version", help="velocity model version to generate", default="1.65")
+    arg(
+        "--vm-topo",
+        help="topo_type parameter for velocity model generation",
+        default="BULLDOZED",
+    )
+    arg("--selection", help="also generate NHM selection file", action="store_true")
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
     if not args.novm:
-        assert(NZVM_BIN is not None)
+        assert NZVM_BIN is not None
 
     # load wanted fault information
-    if args.info_glob == 'NHM':
+    if args.info_glob == "NHM":
         msg_list = load_msgs_nhm(args)
     else:
         msg_list = load_msgs(args)
     if len(msg_list) == 0:
-        print('Found nothing to do.')
+        print("Found nothing to do.")
         sys.exit(1)
 
     # prepare to run
@@ -787,12 +920,12 @@ if __name__ == '__main__':
 
     # distribute work
     if args.nproc > 1:
-        p = Pool(processes = args.nproc)
+        p = Pool(processes=args.nproc)
         reports = p.map(create_vm, msg_list)
     else:
         # debug friendly alternative
         reports = [create_vm(msg) for msg in msg_list]
     if args.selection:
-        store_nhm_selection(os.path.join(args.out_dir, 'nhm_selection.txt'), reports)
+        store_nhm_selection(os.path.join(args.out_dir, "nhm_selection.txt"), reports)
     # store summary
-    store_summary(os.path.join(args.out_dir, 'vminfo.csv'), reports)
+    store_summary(os.path.join(args.out_dir, "vminfo.csv"), reports)
