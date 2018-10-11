@@ -533,6 +533,7 @@ def create_vm((args, srf_meta)):
     if args.novm:
         # save important files
         os.makedirs(vm_dir)
+        move(nzvm_cfg, vm_dir)
         move('%s.py' % (params_vel), vm_dir)
         move('%s.json' % (params_vel), vm_dir)
         # working dir cleanup
@@ -664,6 +665,13 @@ def load_msgs(args):
                                 'hdepth':a['hdepth']}))
     return msgs
 
+
+def store_nhm_selection(selection_file, reports):
+    with open(selection_file, 'w') as sf:
+        for r in reports:
+            sf.write('%s %dr\n' % (r['name'], min(max(r['mag'] * 20 - 110, 10), 50)))
+
+
 def store_summary(table, info_store):
     # initialise table file
     with open(table, 'w') as t:
@@ -711,6 +719,7 @@ if __name__ == '__main__':
         default='1.65')
     arg('--vm-topo', help='topo_type parameter for velocity model generation', \
         default='BULLDOZED')
+    arg('--selection', help='also generate NHM selection file', action='store_true')
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
     if not args.novm:
@@ -733,5 +742,7 @@ if __name__ == '__main__':
     else:
         # debug friendly alternative
         reports = [create_vm(msg) for msg in msg_list]
+    if args.selection:
+        store_nhm_selection(os.path.join(args.out_dir, 'nhm_selection.txt'), reports)
     # store summary
     store_summary(os.path.join(args.out_dir, 'vminfo.csv'), reports)
