@@ -665,6 +665,51 @@ def load_msgs(args):
                                 'hdepth':a['hdepth']}))
     return msgs
 
+def load_msgs_nhm(args):
+    msgs = []
+
+    with open(args.nhm_file, "r") as n:
+        for _ in range(15):
+            n.readline()
+        nhm = n.readlines()
+    n_i = 0
+    while n_i < len(nhm):
+        n = nhm[n_i].strip()
+        dip = float(nhm[n_i + 3].split()[0])
+        dip_dir = float(nhm[n_i + 4])
+        rake = float(nhm[n_i + 5])
+        dbottom = float(nhm[n_i + 6].split()[0])
+        dtop = float(nhm[n_i + 7].split()[0])
+        n_pt = int(nhm[n_i + 11])
+        trace = nhm[n_i + 12 : n_i + 12 + n_pt]
+        trace = [map(float, pair) for pair in map(str.split, trace)]
+
+        # derived properties
+        dbottom += 3 * (dbottom >= 12)
+        pwid = (dbottom - dtop) / math.tan(math.radians(dip))
+        fwid = (dbottom - dtop) / math.sin(math.radians(dip))
+        trace_length = sum([geo.ll_dist(trace[i][0], trace[i][1], trace[i + 1][0], trace[i + 1][1]) \
+                            for i in range(n_pt - 1)])
+        corners = np.zeros((n_pt - 1, 4, 2))
+        for i in range(len(corners)):
+            corners[i, :2] = trace[i : i + 2]
+            corners[i, 2] = geo.ll_shift(
+                corners[i, 1, 1], corners[i, 1, 0], pwid, dip_dir
+            )[::-1]
+            corners[i, 3] = geo.ll_shift(
+                corners[i, 0, 1], corners[i, 0, 0], pwid, dip_dir
+            )[::-1]
+
+        # move to next fault
+        n_i += 13 + n_pt
+
+        mag = leonard(rake, fwid * trace_length)
+        msgs.append((args, {'name':n, 'dip':dip, 'rake':rake, \
+                            'dbottom':dbottom, \
+                            'corners':corners, 'mag':mag, \
+                            'hdepth':dtop + 0.5 * (dbottom - dtop)}))
+
+    return msgs
 
 def store_nhm_selection(selection_file, reports):
     with open(selection_file, 'w') as sf:
@@ -699,6 +744,8 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     arg = parser.add_argument
     arg('info_glob', help='info file selection expression. eg: Srf/*.info')
+    arg('--nhm-file', help='path to NHM if using info_glob == \'NHM\'', \
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'NHM', 'NZ_FLTmodel_2010.txt'))
     parser.add_argument('-o', '--out-dir', help='directory to place outputs', \
             default='autovm')
     arg('--pgv', help='max PGV at velocity model perimiter (estimated, cm/s)', \
@@ -726,7 +773,10 @@ if __name__ == '__main__':
         assert(NZVM_BIN is not None)
 
     # load wanted fault information
-    msg_list = load_msgs(args)
+    if args.info_glob == 'NHM':
+        msg_list = load_msgs_nhm(args)
+    else:
+        msg_list = load_msgs(args)
     if len(msg_list) == 0:
         print('Found nothing to do.')
         sys.exit(1)
