@@ -594,18 +594,39 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
     # land outlines blue, nz centre line (for bearing calculation) red
     p.path(NZ_LAND_OUTLINE, is_file=True, close=False, colour="blue", width="0.2p")
     p.path(NZ_CENTRE_LINE, is_file=True, close=False, colour="red", width="0.2p")
+
     # actual corners retrieved from NZVM output or generated if args.novm
-    p.points(
-        "%s/VeloModCorners.txt" % (vm_params["vm_dir"]),
-        fill="red",
-        line=None,
-        shape="c",
-        size=0.05,
-    )
+    # not available if VM was skipped
+    vm_exists = "vm_dir" in vm_params
+    if vm_exists:
+        p.points(
+            "%s/VeloModCorners.txt" % (vm_params["vm_dir"]),
+            fill="red",
+            line=None,
+            shape="c",
+            size=0.05,
+        )
+    else:
+        p.points(
+            vm_params["path_mod"],
+            is_file=False,
+            fill="red",
+            line=None,
+            shape="c",
+            size="0.05",
+        )
 
     # store PNG
     p.finalise()
-    p.png(dpi=200, clip=True, background="white", out_dir=vm_params["vm_dir"])
+    if vm_exists:
+        p.png(dpi=200, clip=True, background="white", out_dir=vm_params["vm_dir"])
+    else:
+        p.png(
+            dpi=200,
+            clip=True,
+            background="white",
+            out_name=os.path.abspath(os.path.join(ptemp, os.pardir, vm_params["name"])),
+        )
 
 
 def create_vm(args, srf_meta):
@@ -734,8 +755,8 @@ def create_vm(args, srf_meta):
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
         # run the actual generation
         gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp)
-        # plot results
-        plot_vm(vm_params, srf_meta["corners"], faultprop.Mw, ptemp)
+    # plot results
+    plot_vm(vm_params, srf_meta["corners"], faultprop.Mw, ptemp)
 
     # working dir cleanup, return info about VM
     rmtree(ptemp)
