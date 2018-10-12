@@ -11,9 +11,12 @@ HELP:
 ./srfinfo2vm -h
 """
 
+from argparse import ArgumentParser
 from distutils.spawn import find_executable
+from glob import glob
 import json
 import math
+from multiprocessing import Pool
 import os
 from shutil import rmtree, move
 from subprocess import Popen, PIPE
@@ -480,15 +483,139 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     return a0, a1, b0, b1
 
 
-def create_vm((args, srf_meta)):
+def gen_vm(args, srf_meta, vm_params, mag, ptemp):
+    # store configs
+    vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+    vm_params["vm_dir"] = vm_dir
+    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
+    params_vel = os.path.join(ptemp, "params_vel")
+    # NZVM won't run if folder exists
+    if os.path.exists(vm_dir):
+        rmtree(vm_dir)
+    save_vm_config(
+        nzvm_cfg=nzvm_cfg,
+        params_vel=params_vel,
+        vm_dir=vm_dir,
+        origin=vm_params["origin"],
+        rot=vm_params["bearing"],
+        xlen=vm_params["xlen_mod"],
+        ylen=vm_params["ylen_mod"],
+        zmax=vm_params["zlen_mod"],
+        hh=args.hh,
+        min_vs=args.min_vs,
+        mag=mag,
+        centroid_depth=srf_meta["hdepth"],
+        sim_duration=vm_params["sim_time_mod"],
+        topo_type=args.vm_topo,
+        model_version=args.vm_version,
+    )
+    if args.novm:
+        # save important files
+        os.makedirs(vm_dir)
+        move(nzvm_cfg, vm_dir)
+        move("%s.py" % (params_vel), vm_dir)
+        move("%s.json" % (params_vel), vm_dir)
+        # generate a corners like NZVM would have
+        with open("%s/VeloModCorners.txt" % (vm_params["vm_dir"]), "w") as c:
+            c.write("> VM corners (python generated)\n")
+            c.write(vm_params["path_mod"])
+        return
+
+    # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
+    with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
+        nzvm_exe = Popen(
+            [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile
+        )
+        nzvm_exe.communicate()
+
+    # fix up directory contents
+    move(os.path.join(vm_dir, "Velocity_Model", "rho3dfile.d"), vm_dir)
+    move(os.path.join(vm_dir, "Velocity_Model", "vp3dfile.p"), vm_dir)
+    move(os.path.join(vm_dir, "Velocity_Model", "vs3dfile.s"), vm_dir)
+    move(os.path.join(vm_dir, "Log", "VeloModCorners.txt"), vm_dir)
+    rmtree(os.path.join(vm_dir, "Velocity_Model"))
+    rmtree(os.path.join(vm_dir, "Log"))
+    move(nzvm_cfg, vm_dir)
+    move("%s.py" % (params_vel), vm_dir)
+    move("%s.json" % (params_vel), vm_dir)
+    # create model_coords, model_bounds etc...
+    gen_coords(vm_dir=vm_dir)
+    # validate
+    success, message = validate_vm(vm_dir)
+    if success:
+        sys.stderr.write("VM check OK: %s\n" % (vm_dir))
+    else:
+        sys.stderr.write("VM check BAD: %s\n" % (message))
+
+
+def plot_vm(vm_params, srf_corners, mag, ptemp):
+    p = gmt.GMTPlot(os.path.join(ptemp, "optimisation.ps"))
+    p.spacial("M", vm_params["plot_region"], sizing=7)
+    p.coastlines()
+
+    # filled slip area
+    p.path("%s/srf.path" % (ptemp), is_file=True, fill="yellow", split="-")
+    # top edge
+    for plane in srf_corners:
+        p.path("\n".join([" ".join(map(str, ll)) for ll in plane[:2]]), is_file=False)
+
+    # vm domain (simple and adjusted)
+    p.path(vm_params["path"], is_file=False, close=True, fill="black@95")
+    if vm_params["adjusted"]:
+        p.path(
+            vm_params["path_mod"],
+            is_file=False,
+            close=True,
+            fill="black@95",
+            split="-",
+            width="1.0p",
+        )
+
+    # info text for simple and adjusted domains
+    p.text(
+        sum(vm_params["plot_region"][0:2]) / 2.0,
+        vm_params["plot_region"][3],
+        "Mw: %.2f X: %.0fkm, Y: %.0fkm, land: %.0f%%"
+        % (mag, vm_params["xlen"], vm_params["ylen"], vm_params["land"]),
+        align="CT",
+        dy=-0.1,
+        box_fill="white@50",
+    )
+    if vm_params["adjusted"]:
+        p.text(
+            sum(vm_params["plot_region"][0:2]) / 2.0,
+            vm_params["plot_region"][3],
+            "MODIFIED land: %.0f%%" % (vm_params["land_mod"]),
+            align="CT",
+            dy=-0.25,
+            box_fill="white@50",
+        )
+
+    # land outlines blue, nz centre line (for bearing calculation) red
+    p.path(NZ_LAND_OUTLINE, is_file=True, close=False, colour="blue", width="0.2p")
+    p.path(NZ_CENTRE_LINE, is_file=True, close=False, colour="red", width="0.2p")
+    # actual corners retrieved from NZVM output or generated if args.novm
+    p.points(
+        "%s/VeloModCorners.txt" % (vm_params["vm_dir"]),
+        fill="red",
+        line=None,
+        shape="c",
+        size=0.05,
+    )
+
+    # store PNG
+    p.finalise()
+    p.png(dpi=200, clip=True, background="white", out_dir=vm_params["vm_dir"])
+
+
+def create_vm(args, srf_meta):
     # temp directory for current process
-    ptemp = mkdtemp(prefix = '_tmp_%s_' % (srf_meta['name']), \
-                    dir = args.out_dir)
+    ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
 
     # properties stored in classes (fault of external code)
-    faultprop.Mw = srf_meta['mag']
-    faultprop.rake = srf_meta['rake']
-    faultprop.dip = srf_meta['dip']
+    faultprop.Mw = srf_meta["mag"]
+    faultprop.rake = srf_meta["rake"]
+    faultprop.dip = srf_meta["dip"]
     # rrup to reach wanted PGV
     if args.pgv == -1.0:
         pgv = mag2pgv(faultprop.Mw)
@@ -498,31 +625,35 @@ def create_vm((args, srf_meta)):
 
     # original, unrotated vm
     bearing = 0
-    origin, xlen0, ylen0 = rrup2xylen(rrup, args.hh, \
-                              srf_meta['corners'].reshape((-1, 2)), \
-                              rot = bearing, wd = ptemp)
+    origin, xlen0, ylen0 = rrup2xylen(
+        rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+    )
     o1, o2, o3, o4 = build_corners(origin, bearing, xlen0, ylen0)
     vm0_region = corners2region(o1, o2, o3, o4)
-    plot_region = (vm0_region[0] - 1, vm0_region[1] + 1, \
-                   vm0_region[2] - 1, vm0_region[3] + 1)
+    plot_region = (
+        vm0_region[0] - 1,
+        vm0_region[1] + 1,
+        vm0_region[2] - 1,
+        vm0_region[3] + 1,
+    )
 
     # original domain has a ds_multiplier of 2 when calculating sim time
     sim_time0 = (auto_time2(xlen0, ylen0, 2) // args.dt) * args.dt
     # proportion in ocean
-    land0 = vm_land(o1, o2, o3, o4, wd = ptemp)
+    land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
 
     # for plotting and calculating VM domain distance
-    with open('%s/srf.path' % (ptemp), 'w') as sp:
-        for plane in srf_meta['corners']:
-            sp.write('> srf plane\n')
-            np.savetxt(sp, plane, fmt = '%f')
-            sp.write('%f %f\n' % (tuple(plane[0])))
+    with open("%s/srf.path" % (ptemp), "w") as sp:
+        for plane in srf_meta["corners"]:
+            sp.write("> srf plane\n")
+            np.savetxt(sp, plane, fmt="%f")
+            sp.write("%f %f\n" % (tuple(plane[0])))
 
     # modify VM if necessary
     adjusted = False
     if faultprop.Mw >= 6.2 and land0 < 99:
         adjusted = True
-        print('modifying %s' % (srf_meta['name']))
+        print("modifying %s" % (srf_meta["name"]))
 
         # rotation based on centre line bearing at this point
         l1 = centre_lon(vm0_region[2])
@@ -532,30 +663,31 @@ def create_vm((args, srf_meta)):
 
         # wanted distance is at corners, not middle top to bottom
         # approach answer at infinity / "I don't know the formula" algorithm
-        xlen1, ylen1 = rrup2xylen(rrup, args.hh, \
-                                  srf_meta['corners'].reshape((-1, 2)), \
-                                  rot = bearing, wd = ptemp)[1:]
+        xlen1, ylen1 = rrup2xylen(
+            rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+        )[1:]
         c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
 
         # cut down ocean areas
-        c4, c1, c3, c2 = reduce_domain(c4, c1, c3, c2, args.hh, \
-                                       args.space_srf, args.space_land, ptemp)
+        c4, c1, c3, c2 = reduce_domain(
+            c4, c1, c3, c2, args.hh, args.space_srf, args.space_land, ptemp
+        )
         origin = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
-        ylen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) \
-                / args.hh) * args.hh
-        xlen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) \
-                / args.hh) * args.hh
+        ylen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) / args.hh) * args.hh
+        xlen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) / args.hh) * args.hh
 
         # proportion in ocean
-        land1 = vm_land(c1, c2, c3, c4, wd = ptemp)
+        land1 = vm_land(c1, c2, c3, c4, wd=ptemp)
 
         # adjust region to fit new corners
-        plot_region = (min(c4[0], c1[0], c3[0], c2[0], plot_region[0]), \
-                max(c4[0], c1[0], c3[0], c2[0], plot_region[1]), \
-                min(c4[1], c1[1], c3[1], c2[1], plot_region[2]), \
-                max(c4[1], c1[1], c3[1], c2[1], plot_region[3]))
+        plot_region = (
+            min(c4[0], c1[0], c3[0], c2[0], plot_region[0]),
+            max(c4[0], c1[0], c3[0], c2[0], plot_region[1]),
+            min(c4[1], c1[1], c3[1], c2[1], plot_region[2]),
+            max(c4[1], c1[1], c3[1], c2[1], plot_region[3]),
+        )
     else:
-        print('not modifying %s' % (srf_meta['name']))
+        print("not modifying %s" % (srf_meta["name"]))
         # store original variables as final versions
         ylen1 = ylen0
         xlen1 = xlen0
@@ -566,140 +698,48 @@ def create_vm((args, srf_meta)):
         ylen1 = 0
 
     # zlen is independent from xlen and ylen
-    zlen = round(auto_z(faultprop.Mw, srf_meta['hdepth']) \
-            / args.hh) * args.hh
+    zlen = round(auto_z(faultprop.Mw, srf_meta["hdepth"]) / args.hh) * args.hh
     # modified sim time
     sim_time1 = (auto_time2(xlen1, ylen1, 1) // args.dt) * args.dt
+    if not adjusted:
+        sim_time1 = sim_time0
+        c1, c2, c3, c4 = o1, o2, o3, o4
 
-    # will not create VM as it is entirely in the ocean
-    if xlen1 == 0 or ylen1 == 0 or zlen == 0:
-        # clean and only return metadata
-        rmtree(ptemp)
-        return {'name':srf_meta['name'], 'mag':faultprop.Mw, \
-                'dbottom':srf_meta['dbottom'], \
-                'zlen':zlen, 'sim_time':sim_time0, \
-                'xlen':xlen0, 'ylen':ylen0, 'land':land0, \
-                'zlen_mod':zlen, 'sim_time_mod':sim_time1, \
-                'xlen_mod':xlen1, 'ylen_mod':ylen1, 'land_mod':land1}
+    # optimisation results
+    vm_params = {
+        "name": srf_meta["name"],
+        "mag": faultprop.Mw,
+        "dbottom": srf_meta["dbottom"],
+        "zlen": zlen,
+        "sim_time": sim_time0,
+        "xlen": xlen0,
+        "ylen": ylen0,
+        "land": land0,
+        "zlen_mod": zlen,
+        "sim_time_mod": sim_time1,
+        "xlen_mod": xlen1,
+        "ylen_mod": ylen1,
+        "land_mod": land1,
+        "origin": origin,
+        "bearing": bearing,
+        "adjusted": adjusted,
+        "plot_region": plot_region,
+        "path": "%s %s\n%s %s\n%s %s\n%s %s\n"
+        % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
+        "path_mod": "%s %s\n%s %s\n%s %s\n%s %s\n"
+        % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
+    }
 
-    ###
-    ### CREATE VM
-    ###
-    # store configs
-    vm_dir = os.path.join(args.out_dir, srf_meta['name'])
-    nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
-    params_vel = os.path.join(ptemp, 'params_vel')
-    # NZVM won't run if folder exists
-    if os.path.exists(vm_dir):
-        rmtree(vm_dir)
-    save_vm_config(nzvm_cfg=nzvm_cfg, params_vel=params_vel, \
-                   vm_dir=vm_dir, origin=origin, rot=bearing, \
-                   xlen=xlen1, ylen=ylen1, zmax=zlen, hh=args.hh, \
-                   min_vs=args.min_vs, mag=faultprop.Mw, \
-                   centroid_depth=srf_meta['hdepth'], \
-                   sim_duration=sim_time0 * (not adjusted) \
-                                + sim_time1 * adjusted, \
-                   topo_type=args.vm_topo, model_version=args.vm_version)
-    if args.novm:
-        # save important files
-        os.makedirs(vm_dir)
-        move(nzvm_cfg, vm_dir)
-        move('%s.py' % (params_vel), vm_dir)
-        move('%s.json' % (params_vel), vm_dir)
-        # working dir cleanup
-        rmtree(ptemp)
-        # return vm info
-        return {'name':srf_meta['name'], 'mag':faultprop.Mw, \
-            'dbottom':srf_meta['dbottom'], \
-            'zlen':zlen, 'sim_time':sim_time0, \
-            'xlen':xlen0, 'ylen':ylen0, 'land':land0, \
-            'zlen_mod':zlen, 'sim_time_mod':sim_time1, \
-            'xlen_mod':xlen1, 'ylen_mod':ylen1, 'land_mod':land1}
+    # will not create VM if it is entirely in the ocean
+    if xlen1 != 0 and ylen1 != 0 and zlen != 0:
+        # run the actual generation
+        gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp)
+        # plot results
+        plot_vm(vm_params, srf_meta["corners"], faultprop.Mw, ptemp)
 
-    # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
-    with open(os.path.join(ptemp,'NZVM.out'),'w') as logfile:
-        nzvm_exe=Popen([NZVM_BIN, nzvm_cfg], cwd = os.path.dirname(NZVM_BIN), \
-              stdout=logfile)
-        nzvm_exe.communicate()
-
-    # fix up directory contents
-    move(os.path.join(vm_dir, 'Velocity_Model', 'rho3dfile.d'), vm_dir)
-    move(os.path.join(vm_dir, 'Velocity_Model', 'vp3dfile.p'), vm_dir)
-    move(os.path.join(vm_dir, 'Velocity_Model', 'vs3dfile.s'), vm_dir)
-    move(os.path.join(vm_dir, 'Log', 'VeloModCorners.txt'), vm_dir)
-    rmtree(os.path.join(vm_dir, 'Velocity_Model'))
-    rmtree(os.path.join(vm_dir, 'Log'))
-    move(nzvm_cfg, vm_dir)
-    move('%s.py' % (params_vel), vm_dir)
-    move('%s.json' % (params_vel), vm_dir)
-    # create model_coords, model_bounds etc...
-    gen_coords(vm_dir = vm_dir)
-    # validate
-    success, message = validate_vm(vm_dir)
-    if success:
-        sys.stderr.write('VM check OK: %s\n' % (vm_dir))
-    else:
-        sys.stderr.write('VM check BAD: %s\n' % (message))
-
-    ###
-    ### PLOT
-    ###
-    p = gmt.GMTPlot(os.path.join(vm_dir, 'optimisation.ps'))
-    p.spacial('M', plot_region, sizing = 7)
-    p.coastlines()
-    # filled slip area
-    p.path('%s/srf.path' % (ptemp), is_file = True, \
-           fill = 'yellow', split = '-')
-    # top edge
-    for plane in srf_meta['corners']:
-        p.path('\n'.join([' '.join(map(str, ll)) for ll in plane[:2]]), \
-               is_file = False)
-    # vm domain (simple and adjusted)
-    p.path('%s %s\n%s %s\n%s %s\n%s %s' % (o1[0], o1[1], o2[0], o2[1], \
-            o3[0], o3[1], o4[0], o4[1]), is_file = False, close = True, \
-            fill = 'black@95')
-    if adjusted:
-        p.path('%s %s\n%s %s\n%s %s\n%s %s' % (c1[0], c1[1], c2[0], c2[1], \
-                c3[0], c3[1], c4[0], c4[1]), is_file = False, close = True, \
-                fill = 'black@95', split = '-', width = '1.0p')
-    # info text for simple and adjusted domains
-    p.text((plot_region[0] + plot_region[1]) / 2., plot_region[3], \
-            'Mw: %.2f X: %.0fkm, Y: %.0fkm, land: %.0f%%' \
-            % (faultprop.Mw, xlen0, ylen0, land0), align = 'CT', dy = -0.1, \
-            box_fill = 'white@50')
-    if adjusted:
-        p.text((plot_region[0] + plot_region[1]) / 2., plot_region[3], \
-                'MODIFIED land: %.0f%%' \
-                % (land1), align = 'CT', dy = -0.25, \
-                box_fill = 'white@50')
-    # for testing, show land mask cover
-    # land outlines blue, nz centre line (for bearing calculation) red
-    p.path(NZ_LAND_OUTLINE, is_file = True, close = False, \
-            colour = 'blue', width = '0.2p')
-    p.path(NZ_CENTRE_LINE, is_file = True, close = False, \
-            colour = 'red', width = '0.2p')
-    # actual corners retrieved from NZVM output
-    p.points('%s/VeloModCorners.txt' % (vm_dir), \
-            fill = 'red', line = None, shape = 'c', size = 0.05)
-    # store PNG, remove PS
-    p.finalise()
-    p.png(dpi = 200, clip = True, background = 'white')
-    if os.path.isfile('%s.png' % (os.path.splitext(p.pspath)[0])):
-        os.remove(p.pspath)
-    # plotting temp files
-    for tmp in map(os.path.join, [vm_dir, vm_dir], ['gmt.conf', 'gmt.history']):
-        if os.path.exists(tmp):
-            os.remove(tmp)
-
-    # working dir cleanup
+    # working dir cleanup, return info about VM
     rmtree(ptemp)
-    # return vm info
-    return {'name':srf_meta['name'], 'mag':faultprop.Mw, \
-            'dbottom':srf_meta['dbottom'], \
-            'zlen':zlen, 'sim_time':sim_time0, \
-            'xlen':xlen0, 'ylen':ylen0, 'land':land0, \
-            'zlen_mod':zlen, 'sim_time_mod':sim_time1, \
-            'xlen_mod':xlen1, 'ylen_mod':ylen1, 'land_mod':land1}
+    return vm_params
 
 
 def load_msgs(args):
@@ -808,11 +848,18 @@ def load_msgs_nhm(args):
     return msgs
 
 
-def store_nhm_selection(selection_file, reports):
-    with open(selection_file, "w") as sf:
-        for r in reports:
-            if r["xlen_mod"] != 0 and r["ylen_mod"] != 0 and r["zlen"] != 0:
-                sf.write("%s %dr\n" % (r["name"], min(max(r["mag"] * 20 - 110, 10), 50)))
+def store_nhm_selection(out_dir, reports):
+    selected = os.path.join(out_dir, "nhm_selection.txt")
+    excluded = os.path.join(out_dir, "excluded.txt")
+    with open(selected, "w") as sf:
+        with open(excluded, "w") as ef:
+            for r in reports:
+                if r["xlen_mod"] == 0 or r["ylen_mod"] == 0 or r["zlen"] == 0:
+                    ef.write("%s\n" % (r["name"]))
+                else:
+                    sf.write(
+                        "%s %dr\n" % (r["name"], min(max(r["mag"] * 20 - 110, 10), 50))
+                    )
 
 
 def store_summary(table, info_store):
@@ -847,12 +894,7 @@ def store_summary(table, info_store):
             )
 
 
-if __name__ == "__main__":
-    from argparse import ArgumentParser
-    from glob import glob
-    from multiprocessing import Pool
-
-    # parameters
+def load_args():
     parser = ArgumentParser()
     arg = parser.add_argument
     arg("info_glob", help="info file selection expression. eg: Srf/*.info")
@@ -906,27 +948,38 @@ if __name__ == "__main__":
     if not args.novm:
         assert NZVM_BIN is not None
 
+    return args
+
+
+if __name__ == "__main__":
+    args = load_args()
+
     # load wanted fault information
     if args.info_glob == "NHM":
         msg_list = load_msgs_nhm(args)
     else:
         msg_list = load_msgs(args)
     if len(msg_list) == 0:
-        print("Found nothing to do.")
-        sys.exit(1)
+        sys.exit("Found nothing to do.")
 
     # prepare to run
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
 
+    # proxy function for mapping
+    def create_vm_star(args_meta):
+        return create_vm(*args_meta)
+
     # distribute work
     if args.nproc > 1:
         p = Pool(processes=args.nproc)
-        reports = p.map(create_vm, msg_list)
+        reports = p.map(create_vm_star, msg_list)
     else:
         # debug friendly alternative
-        reports = [create_vm(msg) for msg in msg_list]
+        reports = [create_vm_star(msg) for msg in msg_list]
+
+    # nhm selection formatted file and list of excluded VMs
     if args.selection:
-        store_nhm_selection(os.path.join(args.out_dir, "nhm_selection.txt"), reports)
+        store_nhm_selection(args.out_dir, reports)
     # store summary
     store_summary(os.path.join(args.out_dir, "vminfo.csv"), reports)

@@ -648,7 +648,7 @@ def test_selection(selection_file, names, versus, out_dir):
             for line in s:
                 n = line.split()[0]
                 if n not in names:
-                    o.write("%s fault not found" % (n))
+                    o.write("%s fault not found\n" % (n))
 
 
 ###
