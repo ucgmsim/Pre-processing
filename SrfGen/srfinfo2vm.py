@@ -530,7 +530,7 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
         sys.stderr.write('VM check BAD: %s\n' % (message))
 
 
-def create_vm((args, srf_meta)):
+def create_vm(args, srf_meta):
     # temp directory for current process
     ptemp = mkdtemp(prefix = '_tmp_%s_' % (srf_meta['name']), \
                     dir = args.out_dir)
@@ -914,13 +914,16 @@ if __name__ == "__main__":
     if not os.path.isdir(args.out_dir):
         os.makedirs(args.out_dir)
 
+    def create_vm_star(args_meta):
+        return create_vm(*args_meta)
+
     # distribute work
     if args.nproc > 1:
         p = Pool(processes=args.nproc)
-        reports = p.map(create_vm, msg_list)
+        reports = p.map(create_vm_star, msg_list)
     else:
         # debug friendly alternative
-        reports = [create_vm(msg) for msg in msg_list]
+        reports = [create_vm_star(msg) for msg in msg_list]
     if args.selection:
         store_nhm_selection(args.out_dir, reports)
     # store summary
