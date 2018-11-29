@@ -30,14 +30,28 @@ import numpy as np
 from createSRF import leonard, mag2mom, mom2mag
 
 # qcore library should already be in path
-from qcore import geo
-from qcore import gmt
-from qcore.gen_coords import gen_coords
-from qcore.validate_vm import validate_vm
+try:
+    from qcore import geo
+    from qcore import gmt
+    from qcore.gen_coords import gen_coords
+    from qcore.validate_vm import validate_vm
+except ImportError:
+    sys.exit("""
+qcore library has not been installed or is an old version.
+you can install it using setup.py or add qcore/qcore to the PYTHONPATH like:
+$ export PYTHONPATH=$PYTHONPATH:/location/to/qcore/qcore
+qcore is available at https://github.com/ucgmsim/qcore""")
 
 # Empirical_Engine should be in PYTHON_PATH
-from GMM_models.classdef import GMM, Site, Fault
-from empirical_factory import compute_gmm
+try:
+    from GMM_models.classdef import GMM, Site, Fault
+    from empirical_factory import compute_gmm
+except ImportError:
+    sys.exit("""
+Empirical_Engine not in $PYTHONPATH
+you can add it by running the below before running this script:
+$ export PYTHONPATH=$PYTHONPATH:/location/to/Empirical_Engine
+Empirical_Engine is available at https://github.com/ucgmsim/Empirical_Engine""")
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
@@ -967,7 +981,13 @@ def load_args():
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
     if not args.novm:
-        assert NZVM_BIN is not None
+        if NZVM_BIN is None:
+            sys.exit("""NZVM binary not in PATH
+You can compile it from here: https://github.com/ucgmsim/Velocity-Model
+Then add it to the PATH by either:
+sudo cp /location/to/Velocity-Model/NZVM /usr/bin/
+or:
+export PATH=$PATH:/location/to/Velocity-Model""")
 
     return args
 
