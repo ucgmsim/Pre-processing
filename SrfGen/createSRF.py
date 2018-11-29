@@ -527,11 +527,11 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     if srf_type == 2:
         gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt, \
                  lon = lon, lat = lat, centroid_depth = depth, mwsr = mwsr, \
-                 shypo = shypo + 0.5 * flen, dhypo = dhypo)
+                 shypo = shypo + 0.5 * flen, dhypo = dhypo, vm=srf_config.VELOCITY_MODEL)
     else:
         gen_meta(srf_file, srf_type, mw, strike, rake, dip, dt, \
                  shypo = shypo + 0.5 * flen, dhypo = dhypo, \
-                 tect_type = tect_type)
+                 tect_type = tect_type, vm=srf_config.VELOCITY_MODEL)
 
     # location of resulting SRF
     return srf_file
