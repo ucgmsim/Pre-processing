@@ -2,11 +2,15 @@
 
 from math import exp, log
 import os
-from random import uniform, randint
+from random import uniform, randint, normalvariate
 from time import time
+import yaml
 
-from setSrfParams import *
-from createSRF import CreateSRF_ff, CreateSRF_multi
+import argparse
+from qcore import simulation_structure
+
+#from setSrfParams import *
+from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3. * log(mom) / log(10.0)) - 10.7
@@ -100,6 +104,113 @@ def CreateSRF_ffdStoch():
             of.write('%s\t' % param_as_string(m_fwid))
             # end of line / end of this srf file
             of.write('\n')
+
+
+def CreateSRF_psStoch(cs_root, fault_name, lat, lon, depth, mw_mean, mom, strike, rake, dip, n_realisations, additional_options={},
+                      dt=0.005, srf_path='source', stoch_path="Stoch", vs=3.20, rho=2.44, target_area_km=None,
+                      target_slip_cm=None, stype='cos', rise_time=0.5, init_time=0.0, silent=False):
+    """
+    Creates SRF files using random variables.
+    Nominal values are to be passed in, while the probability characteristics are to be found in a yaml file that
+    declares the distribution and probability characteristics for that distribution.
+    Any values that are not to be passed to the CreateSRF function are to be passed in as a dict of additional_options
+    and will be saved as a json file. If the keys of the additional_options are present in the yaml file they will also
+    be perturbed with each realisation and saved as such
+    :param lat:
+    :param lon:
+    :param depth:
+    :param mw_mean:
+    :param mom:
+    :param strike:
+    :param rake:
+    :param dip:
+    :param additional_options: A dictionary containing
+    :param n_realisations:
+    :param dt:
+    :param srf_path:
+    :param stoch_path:
+    :param vs:
+    :param rho:
+    :param target_area_km:
+    :param target_slip_cm:
+    :param stype:
+    :param rise_time:
+    :param init_time:
+    :param silent:
+    """
+
+    # Read yaml settings file
+    with open("./source_uncertainty.yaml") as yaml_file:
+        yaml_settings = yaml.load(yaml_file)
+
+    run_id = str(time())[2:9]
+
+    # Generate standard options dictionary
+
+    standard_options = {'depth': depth,
+                        'mw': mw_mean,
+                        'mom': mom,
+                        'strike': strike,
+                        'rake': rake,
+                        'dip': dip,
+                        'vs': vs,
+                        'rho': rho,
+                        'rise_time': rise_time}
+
+    perturbed_standard_options = dict(standard_options)
+    perturbed_additional_options = dict(additional_options)
+
+    for ns in xrange(n_realisations):
+
+        realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
+        realisation_srf_path = simulation_structure.get_srf_path(cs_root, realisation_name)
+        realisation_stoch_path = simulation_structure.get_stoch_path(cs_root, realisation_name)
+
+        realisation_stoch_path = '/'+os.path.join(*realisation_stoch_path.split('/')[:-1])
+        print(realisation_stoch_path)
+
+        for key in yaml_settings.keys():
+
+            # Load the correct dictionaries to be read from/written to
+            if key in standard_options.keys():
+                dict_to_read_from = standard_options
+                dict_to_update = perturbed_standard_options
+            elif key in additional_options.keys():
+                dict_to_read_from = additional_options
+                dict_to_update = perturbed_additional_options
+            else:
+                continue
+
+            # Do this after checking the key will be used
+            random_type = yaml_settings[key].keys()[0]
+            random_value = yaml_settings[key][random_type]
+
+            # Apply the random variable
+            if random_type == 'uniform':
+                dict_to_update[key] = uniform(dict_to_read_from[key] - random_value['halfrange'],
+                                              dict_to_read_from[key] + random_value['halfrange'])
+            elif random_type == 'normal':
+                dict_to_update[key] = normalvariate(dict_to_read_from[key], random_value['std_dev'])
+            elif random_type == 'uniform_relative':
+                dict_to_update[key] = uniform(dict_to_read_from[key]*(1-random_value['scalefactor']),
+                                              dict_to_read_from[key]*(1+random_value['scalefactor']))
+
+        # Save the extra args to a json file
+        additional_args_fname = simulation_structure.get_source_params_path(cs_root, realisation_name)
+        with open(additional_args_fname, 'w') as yamlf:
+            yaml.dump(perturbed_additional_options, yamlf)
+
+        #print("Making srf with standard dict:")
+        #print(perturbed_standard_options)
+        #print("and additional dict:")
+        #print(perturbed_additional_options)
+
+        CreateSRF_ps(lat, lon, perturbed_standard_options['depth'], perturbed_standard_options['mw'], perturbed_standard_options['mom'], perturbed_standard_options['strike'],
+                     perturbed_standard_options['rake'], perturbed_standard_options['dip'], dt=dt, prefix=realisation_srf_path[:-4], stoch=realisation_stoch_path,
+                     vs=perturbed_standard_options['vs'], rho=perturbed_standard_options['rho'], target_area_km=target_area_km,
+                     target_slip_cm=target_slip_cm, stype=stype, rise_time=perturbed_standard_options['rise_time'],
+                     init_time=init_time, silent=silent)
+
 
 def randomise_rupdelay(delay, var, deps):
     """
@@ -241,7 +352,23 @@ def CreateSRF_multiStoch():
             of.write('\n')
 
 if __name__ == '__main__':
-    if TYPE == 3:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("type", help="Type of earthquake to create SRF for")
+    parser.add_argument("lat", help="latitude")
+    parser.add_argument("lon", help="longitude")
+    parser.add_argument("depth", help="depth")
+    parser.add_argument("mw_mean", help="Mean magnitude")
+    parser.add_argument("mom", help="Moment of quake. Will use mw_mean if <0")
+    parser.add_argument("strike", help="Strike to be simulated")
+    parser.add_argument("rake", help="Rake to be simulated")
+    parser.add_argument("dip", help="Dip to be simulated")
+    parser.add_argument("n_realisations", help="The number of realisations to generate SRFs for")
+    args = parser.parse_args()
+
+    if args.type == 1:
+        CreateSRF_psStoch(args.lat, args.lon, args.depth, args.mw_mean, args.mom, args.strike, args.rake, args.dip,
+                          args.n_realisations)
+    elif args.type == 3:
         CreateSRF_ffdStoch()
-    elif TYPE == 4:
+    elif args.type == 4:
         CreateSRF_multiStoch()
