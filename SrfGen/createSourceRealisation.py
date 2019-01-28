@@ -7,11 +7,11 @@ from time import time
 import yaml
 
 import argparse
-from qcore import simulation_structure
+from qcore import simulation_structure, utils
 
 # Uncomment if ffdStoch or multiStoch are needed, otherwise will break when enabled and attempting to use psStoch
 #from setSrfParams import *
-from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps, mkdir_p
+from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3. * log(mom) / log(10.0)) - 10.7
@@ -164,7 +164,7 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
     perturbed_standard_options = dict(standard_options)
     perturbed_additional_options = dict(additional_options)
 
-    for ns in xrange(n_realisations):
+    for ns in xrange(1, n_realisations+1):
 
         realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
         realisation_srf_path = os.path.join(out_dir, simulation_structure.get_srf_location(realisation_name))
@@ -200,7 +200,7 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
 
         # Save the extra args to a json file
         additional_args_fname = os.path.join(out_dir, simulation_structure.get_source_params_location(realisation_name))
-        mkdir_p(os.path.dirname(additional_args_fname))
+        utils.setup_dir(os.path.dirname(additional_args_fname))
         with open(additional_args_fname, 'w') as yamlf:
             yaml.dump(perturbed_additional_options, yamlf)
 
