@@ -9,6 +9,7 @@ import yaml
 import argparse
 from qcore import simulation_structure
 
+# Uncomment if ffdStoch or multiStoch are needed, otherwise will break when enabled and attempting to use psStoch
 #from setSrfParams import *
 from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
@@ -106,9 +107,9 @@ def CreateSRF_ffdStoch():
             of.write('\n')
 
 
-def CreateSRF_psStoch(cs_root, fault_name, lat, lon, depth, mw_mean, mom, strike, rake, dip, n_realisations, additional_options={},
-                      dt=0.005, srf_path='source', stoch_path="Stoch", vs=3.20, rho=2.44, target_area_km=None,
-                      target_slip_cm=None, stype='cos', rise_time=0.5, init_time=0.0, silent=False):
+def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, strike, rake, dip,
+                          uncertainty_file, n_realisations=50, additional_options={}, dt=0.005, vs=3.20, rho=2.44, target_area_km=None,
+                          target_slip_cm=None, stype='cos', rise_time=0.5, init_time=0.0, silent=False):
     """
     Creates SRF files using random variables.
     Nominal values are to be passed in, while the probability characteristics are to be found in a yaml file that
@@ -140,10 +141,8 @@ def CreateSRF_psStoch(cs_root, fault_name, lat, lon, depth, mw_mean, mom, strike
     """
 
     # Read yaml settings file
-    with open("./source_uncertainty.yaml") as yaml_file:
+    with open(uncertainty_file) as yaml_file:
         yaml_settings = yaml.load(yaml_file)
-
-    run_id = str(time())[2:9]
 
     # Generate standard options dictionary
 
@@ -157,17 +156,21 @@ def CreateSRF_psStoch(cs_root, fault_name, lat, lon, depth, mw_mean, mom, strike
                         'rho': rho,
                         'rise_time': rise_time}
 
+    for setting in yaml_settings:
+        key = yaml_settings[setting].keys()[0]
+        if 'mean' in yaml_settings[setting][key]:
+            additional_options.update({setting: yaml_settings[setting][key]['mean']})
+
     perturbed_standard_options = dict(standard_options)
     perturbed_additional_options = dict(additional_options)
 
     for ns in xrange(n_realisations):
 
         realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
-        realisation_srf_path = simulation_structure.get_srf_path(cs_root, realisation_name)
-        realisation_stoch_path = simulation_structure.get_stoch_path(cs_root, realisation_name)
+        realisation_srf_path = os.path.join(out_dir, simulation_structure.get_srf_location(realisation_name))
+        realisation_stoch_path = os.path.join(out_dir, simulation_structure.get_stoch_location(realisation_name))
 
         realisation_stoch_path = '/'+os.path.join(*realisation_stoch_path.split('/')[:-1])
-        print(realisation_stoch_path)
 
         for key in yaml_settings.keys():
 
@@ -196,7 +199,7 @@ def CreateSRF_psStoch(cs_root, fault_name, lat, lon, depth, mw_mean, mom, strike
                                               dict_to_read_from[key]*(1+random_value['scalefactor']))
 
         # Save the extra args to a json file
-        additional_args_fname = simulation_structure.get_source_params_path(cs_root, realisation_name)
+        additional_args_fname = os.path.join(out_dir, simulation_structure.get_source_params_location(realisation_name))
         with open(additional_args_fname, 'w') as yamlf:
             yaml.dump(perturbed_additional_options, yamlf)
 
@@ -366,8 +369,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.type == 1:
-        CreateSRF_psStoch(args.lat, args.lon, args.depth, args.mw_mean, args.mom, args.strike, args.rake, args.dip,
-                          args.n_realisations)
+        create_ps_realisation(args.lat, args.lon, args.depth, args.mw_mean, args.mom, args.strike, args.rake, args.dip,
+                              args.n_realisations)
     elif args.type == 3:
         CreateSRF_ffdStoch()
     elif args.type == 4:

@@ -8,4 +8,5 @@ RVFrac:
 
 sdrop:
     uniform:
+        mean: 50
         halfrange: 5
