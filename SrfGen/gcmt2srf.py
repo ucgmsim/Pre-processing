@@ -15,16 +15,12 @@ from createSourceRealisation import create_ps_realisation
 
 
 def run_create_srf(args, t, vs, rho, n_sims):
-    print (args, t, vs, rho, n_sims)
     mom = -1
     prefix = os.path.join(args.out_dir, str(t.pid), 'Srf', str(t.pid))
     if args.uncertainty_file:
         with open(args.add_opts_file) as ao_f:
             add_opts = yaml.load(ao_f)
-        print ('', str(t.pid), t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
-                              args.uncertainty_file, n_sims, add_opts,
-                              args.dt, vs, rho, True)
-        create_ps_realisation('./', str(t.pid), t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
+        create_ps_realisation(args.out_dir, str(t.pid), t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               args.uncertainty_file, n_realisations=n_sims, additional_options=add_opts,
                               dt=args.dt, vs=vs, rho=rho, silent=True)
     else:
@@ -77,22 +73,18 @@ sources = np.rec.array(np.loadtxt(args.csv_file, dtype = [('pid', '|S32'), \
 if all_opts:
     # Sort the array by pid to match the pandas array
     sources = np.sort(sources, order='pid')
-    print sources
 
     with open(args.cs_file) as cs_f:
         cs_file_pd = pd.read_csv(cs_f, sep=' ', header=None, names=['pid', 'N_Rels'])
 
-    print cs_file_pd['N_Rels'][0].endswith('r')
     # Apply the identity function to the PublicID column and a filter function to the second column
     cs_file_pd = cs_file_pd.transform({'pid': lambda x: x,
                                        'N_Rels': lambda x: int(x[:-1]) if x.endswith('r') else 0})
 
     # Remove all values that failed the filter function
     cs_file_pd = cs_file_pd[cs_file_pd.N_Rels != 0]
-    print cs_file_pd
 
     n_sims = list(cs_file_pd.sort_values('pid')['N_Rels'])
-    print n_sims
 else:
     n_sims = [1]*len(sources)
 
