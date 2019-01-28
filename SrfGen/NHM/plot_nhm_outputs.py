@@ -334,6 +334,61 @@ def nhm2corners(nhm_file, names):
     return ftypes, corners_shal, corners_sub, ex_names
 
 
+def plot_srf_trace_dbottom(srf_dirs, out_dir):
+
+    def trace2gmt(trace, depth):
+        return "> -Z%s\n" % (depth) + "\n".join([" ".join(map(str, ll)) for ll in trace])
+
+    tmp = mkdtemp()
+    cpt = os.path.join(tmp, 'cpt.cpt')
+    depth_min = 5
+    depth_max = 30
+    gmt.makecpt("rainbow", cpt, depth_min, depth_max, inc=(depth_max - depth_min) / 5.0, continuous=False)
+
+    p = gmt.GMTPlot(os.path.join(tmp, "trace.ps"))
+    p.spacial("M", region=gmt.nz_region, sizing=10, x_shift=1, y_shift=1)
+    p.basemap(
+        topo=None, road=None, highway=None, land="white", water="white", res="f"
+    )
+    p.ticks(major="2d")
+    p.text(
+        sum(gmt.nz_region[:2]) / 2.0, gmt.nz_region[3], "Fault Depths", size="26p", dy=0.3
+    )
+
+    # fault traces, colour based on bottom depth
+    for d in srf_dirs:
+        with h5open(glob(os.path.join(d, "*.info"))[0], "r") as h:
+            corners = h.attrs["corners"]
+            dbottom = h.attrs["dbottom"]
+            p.path(
+                "\n".join([trace2gmt(corners[i, :2], depth=dbottom[i]) for i in range(len(corners))]),
+                is_file=False,
+                colour="40/40/40",
+                cpt=cpt,
+                width="1.2p"
+            )
+
+    p.cpt_scale(
+        "C",
+        "R",
+        cpt,
+        label="depth to bottom (km)",
+        pos="rel_out",
+        horiz=False,
+        arrow_f=False,
+        length=5,
+        thickness=0.3,
+        dx=0.3,
+        categorical=True,
+        intervals=True,
+        gap="0.3",
+        zmax=depth_max,
+    )
+
+    p.finalise()
+    p.png(dpi=300, background="white", out_dir=out_dir)
+
+
 def plot_srf_nhm(srf_dirs, nhm_file, out_dir):
     tmp = mkdtemp()
     cpt = os.path.join(tmp, "types.cpt")
@@ -780,7 +835,6 @@ if __name__ == "__main__":
     # run SRF plots and checks
     if args.srf_dir is not None:
         srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
-        srf_faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
         info_files = glob(
             os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info")
         )
@@ -791,6 +845,7 @@ if __name__ == "__main__":
         plot_mag_nhm(srf_dirs, args.nhm_file, args.out_dir)
         plot_mag_nrup(srf_dirs, args.out_dir)
         plot_dbottom(srf_dirs, args.nhm_file, args.out_dir)
+        plot_srf_trace_dbottom(srf_dirs, args.out_dir)
         plot_srf_nhm(srf_dirs, args.nhm_file, args.out_dir)
         plot_hypo_dist(srf_dirs, os.path.join(args.out_dir, "hypo_dist"))
         plot_srf_error(srf_dirs, args.out_dir)
