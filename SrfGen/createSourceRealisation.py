@@ -1,5 +1,18 @@
 #!/usr/bin/env python2
 
+"""
+Creates SRF files with perturbed variables.
+Call from the command line specifying a type.
+Type 1 is point source (create_ps_realisation)
+Type 2 is not currently available
+Type 3 is a finite fault
+Type 4 is multiple segment finite fault
+
+If run from the command line type 1 requires all arguments to be passed as cli arguments, while type 3 and type 4
+require the file setSrfParams.py to be present
+Alternatively create_ps_realisation can be imported and used from another python2 file
+"""
+
 from math import exp, log
 import os
 from random import uniform, randint, normalvariate
@@ -9,8 +22,6 @@ import yaml
 import argparse
 from qcore import simulation_structure, utils
 
-# Uncomment if ffdStoch or multiStoch are needed, otherwise will break when enabled and attempting to use psStoch
-#from setSrfParams import *
 from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
@@ -28,6 +39,7 @@ def param_as_string(param):
             for x in xrange(len(param))])
 
 def CreateSRF_ffdStoch():
+    from setSrfParams import *
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
@@ -107,8 +119,8 @@ def CreateSRF_ffdStoch():
             of.write('\n')
 
 
-def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, strike, rake, dip,
-                          uncertainty_file, n_realisations=50, additional_options={}, dt=0.005, vs=3.20, rho=2.44, target_area_km=None,
+def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, strike, rake, dip,uncertainty_file,
+                          n_realisations=50, additional_options={}, dt=0.005, vs=3.20, rho=2.44, target_area_km=None,
                           target_slip_cm=None, stype='cos', rise_time=0.5, init_time=0.0, silent=False):
     """
     Creates SRF files using random variables.
@@ -117,27 +129,8 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
     Any values that are not to be passed to the CreateSRF function are to be passed in as a dict of additional_options
     and will be saved as a json file. If the keys of the additional_options are present in the yaml file they will also
     be perturbed with each realisation and saved as such
-    :param lat:
-    :param lon:
-    :param depth:
-    :param mw_mean:
-    :param mom:
-    :param strike:
-    :param rake:
-    :param dip:
-    :param additional_options: A dictionary containing
-    :param n_realisations:
-    :param dt:
-    :param srf_path:
-    :param stoch_path:
-    :param vs:
-    :param rho:
-    :param target_area_km:
-    :param target_slip_cm:
-    :param stype:
-    :param rise_time:
-    :param init_time:
-    :param silent:
+    :param additional_options: A dictionary containing any options to be used in the realisation, but not necessarily
+    placed in the srf
     """
 
     # Read yaml settings file
@@ -164,7 +157,7 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
     perturbed_standard_options = dict(standard_options)
     perturbed_additional_options = dict(additional_options)
 
-    for ns in xrange(1, n_realisations+1):
+    for ns in range(1, n_realisations+1):
 
         realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
         realisation_srf_path = os.path.join(out_dir, simulation_structure.get_srf_location(realisation_name))
@@ -243,6 +236,7 @@ def randomise_rupdelay(delay, var, deps):
     return delay
 
 def CreateSRF_multiStoch():
+    from setSrfParams import *
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
