@@ -56,7 +56,7 @@ if not os.path.exists(args.csv_file):
     sys.exit('CMT solutions CSV file not found: %s' % (args.csv_file))
 if not os.path.exists(args.velocity_model):
     sys.exit('Velocity model file not found: %s' % (args.velocity_model))
-all_opts = bool(args.uncertainty_file) and bool(args.cs_file) and bool(args.add_opts_file)
+all_opts = bool(args.uncertainty_file) and bool(args.cs_file)
 any_opts = bool(args.uncertainty_file) or bool(args.cs_file) or bool(args.add_opts_file)
 if any_opts and not all_opts:
     parser.error("If realisation uncertainty, a cybershake fault file or an additional options file are given then the "
@@ -86,7 +86,7 @@ if all_opts:
 
     n_sims = list(cs_file_pd.sort_values('pid')['N_Rels'])
 else:
-    n_sims = [1]*len(sources)
+    n_sims = np.ones(len(sources))
 
 # load velocity model (vs and rho)
 vmodel = np.rec.array(np.loadtxt(args.velocity_model, \
