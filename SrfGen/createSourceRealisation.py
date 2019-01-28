@@ -198,7 +198,7 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
                 dict_to_update[key] = uniform(dict_to_read_from[key]*(1-random_value['scalefactor']),
                                               dict_to_read_from[key]*(1+random_value['scalefactor']))
 
-        # Save the extra args to a json file
+        # Save the extra args to a yaml file
         additional_args_fname = os.path.join(out_dir, simulation_structure.get_source_params_location(realisation_name))
         utils.setup_dir(os.path.dirname(additional_args_fname))
         with open(additional_args_fname, 'w') as yamlf:
