@@ -1,3 +1,12 @@
+"""
+Used to generate the number of realisations for a given list of sources.
+Realisation counts are based on a model as provided by model_Mw, model_NumSim
+Inputs: A whitespace delimited file with source names and corresponding magnitudes, and a source list file with one source per line.
+Outputs: A whitespace delimited file with source names and corresponding number of simulation counts and an image displaying the number of simulations for a given magnitude.
+This was created based on an example matlab file found at https://wiki.canterbury.ac.nz/display/QuakeCore/Step+2%3A+Determine+the+number+of+simulation+jobs+for+a+given+fault
+This code was tested using python2 and python3
+"""
+
 import math
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
