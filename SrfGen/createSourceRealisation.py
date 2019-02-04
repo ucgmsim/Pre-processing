@@ -22,6 +22,8 @@ import yaml
 import argparse
 from qcore import simulation_structure, utils
 
+from numpy.random import lognormal
+
 from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
@@ -190,6 +192,8 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
             elif random_type == 'uniform_relative':
                 dict_to_update[key] = uniform(dict_to_read_from[key]*(1-random_value['scalefactor']),
                                               dict_to_read_from[key]*(1+random_value['scalefactor']))
+            elif random_type == 'log_normal':
+                dict_to_update[key] = lognormal(dict_to_read_from[key], random_value['std_dev'], 1)
 
         # Save the extra args to a yaml file
         additional_args_fname = os.path.join(out_dir, simulation_structure.get_source_params_location(realisation_name))
