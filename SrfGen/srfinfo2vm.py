@@ -18,6 +18,8 @@ import json
 import math
 from multiprocessing import Pool
 import os
+import platform
+import subprocess
 from shutil import rmtree, move
 from subprocess import Popen, PIPE
 import sys
@@ -1024,3 +1026,11 @@ if __name__ == "__main__":
         store_nhm_selection(args.out_dir, reports)
     # store summary
     store_summary(os.path.join(args.out_dir, "vminfo.csv"), reports)
+
+    # Hack to fix VM generation permission issue
+    hostname = platform.node()
+    if hostname.startswith(('maui', 'mahuika', 'wb', 'ni')): # Checks if is on the HPCF
+        permission_cmd = ['chmod', 'g+rwXs', '-R', args.out_dir]
+        subprocess.call(permission_cmd)
+        group_cmd = ['chgrp', 'nesi00213', '-R', args.out_dir]
+        subprocess.call(permission_cmd)
