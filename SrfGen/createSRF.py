@@ -16,6 +16,8 @@ sys.path.append(os.path.abspath(os.curdir))
 import srf_config
 
 SRF2STOCH = 'srf2stoch'
+GENERICSLIP2SRF = 'generic_slip2srf'
+FAULTSEG2GSFDIPDIR='fault_seg2gsf_dipdir'
 
 def mkdir_p(out_dir):
     if out_dir != '' and not os.path.isdir(out_dir):
@@ -329,7 +331,7 @@ def gen_stoch(stoch_file, srf_file, silent = False):
         dx, dy = srf.srf_dxy(srf_file)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
-            call([binary_version.get_unversioned_bin(SRF2STOCH) , 'dx=%s' % (dx), 'dy=%s' % (dy)], \
+            call([binary_version.get_unversioned_bin(SRF2STOCH), 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                  stdin = srfp, stdout = stochp)
 
 def gen_meta(srf_file, srf_type, mag, \
@@ -456,7 +458,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
         stderr = PIPE
     else:
         stderr = None
-    call([binary_version.get_unversioned_bin('generic_slip2srf'), 'infile=%s' % (gsf_file), \
+    call([binary_version.get_unversioned_bin(GENERICSLIP2SRF), 'infile=%s' % (gsf_file), \
             'outfile=%s' % (srf_file), 'outbin=0', \
             'stype=%s' % (stype), 'dt=%f' % (dt), 'plane_header=1', \
             'risetime=%f' % (rise_time), \
@@ -605,7 +607,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
                         stk[c][f], dip[c][f], rak[c][f], \
                         flen[c][f], fwid[c][f], nx[f], ny[f]))
         # create GSF file
-        cmd = [binary_version.get_unversioned_bin('fault_seg2gsf_dipdir'), 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
+        cmd = [binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
                 'outfile=%s' % (gsf_file)]
         if dip_dir != None:
             cmd.append('dipdir=%s' % (dip_dir))
