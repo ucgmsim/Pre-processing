@@ -163,9 +163,7 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
 
         realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
         realisation_srf_path = os.path.join(out_dir, simulation_structure.get_srf_location(realisation_name))
-        realisation_stoch_path = os.path.join(out_dir, simulation_structure.get_stoch_location(realisation_name))
-
-        realisation_stoch_path = '/'+os.path.join(*realisation_stoch_path.split('/')[:-1])
+        realisation_stoch_path = os.path.dirname(os.path.join(out_dir, simulation_structure.get_stoch_location(realisation_name)))
 
         for key in yaml_settings.keys():
 

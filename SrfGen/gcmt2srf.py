@@ -20,6 +20,8 @@ def run_create_srf(args, t, vs, rho, n_sims):
     if args.uncertainty_file:
         with open(args.add_opts_file) as ao_f:
             add_opts = yaml.load(ao_f)
+        for opt in add_opts.keys():
+            add_opts.update({opt: add_opts[opt]['mean']})
         create_ps_realisation(args.out_dir, str(t.pid), t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               args.uncertainty_file, n_realisations=n_sims, additional_options=add_opts,
                               dt=args.dt, vs=vs, rho=rho, silent=True)
@@ -40,7 +42,7 @@ parser = ArgumentParser()
 parser.add_argument('csv_file', help = 'path to CMT solutions CSV')
 parser.add_argument('velocity_model', help = 'path to 1D velocity model')
 parser.add_argument('-o', '--out-dir', help = 'directory to place outputs', \
-                    default = 'autosrf')
+                    default = './autosrf')
 parser.add_argument('--dt', help = 'SRF timestep', type = float, \
                     default = 0.005)
 parser.add_argument('-n', '--nproc', type = int, default = 1)
