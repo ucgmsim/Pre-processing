@@ -15,6 +15,8 @@ from qcore import geo, srf, binary_version
 sys.path.append(os.path.abspath(os.curdir))
 import srf_config
 
+SRF2STOCH = 'srf2stoch'
+
 def mkdir_p(out_dir):
     if out_dir != '' and not os.path.isdir(out_dir):
         try:
@@ -327,7 +329,7 @@ def gen_stoch(stoch_file, srf_file, silent = False):
         dx, dy = srf.srf_dxy(srf_file)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
-            call([binary_version.get_unversioned_bin('srf2stoch') , 'dx=%s' % (dx), 'dy=%s' % (dy)], \
+            call([binary_version.get_unversioned_bin(SRF2STOCH) , 'dx=%s' % (dx), 'dy=%s' % (dy)], \
                  stdin = srfp, stdout = stochp)
 
 def gen_meta(srf_file, srf_type, mag, \
