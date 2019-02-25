@@ -99,11 +99,11 @@ def CreateSRF_ffdStoch():
 
         # run createSRF with randomised parameters
         CreateSRF_ff(LAT, LON, m_mag, STK, \
-                RAK, DIP, DT, output, seed, rvfrac = RVFRAC, \
-                rough = ROUGH, slip_cov = SLIP_COV, flen = m_flen, \
-                dlen = DLEN, fwid = m_fwid, dwid = DWID, dtop = DTOP, \
-                shypo = shypo, dhypo = dhypo, \
-                genslip = GENSLIP, stoch = STOCH)
+                     RAK, DIP, DT, output, seed, rvfrac = RVFRAC, \
+                     rough = ROUGH, slip_cov = SLIP_COV, flen = m_flen, \
+                     dlen = DLEN, fwid = m_fwid, dwid = DWID, dtop = DTOP, \
+                     shypo = shypo, dhypo = dhypo, \
+                     genslip_version= GENSLIP, stoch = STOCH)
 
         # append stoch data to info file
         with open('Srf/%s' % (metainfo), 'a') as of:
@@ -327,12 +327,12 @@ def CreateSRF_multiStoch():
 
         # run createSRF with randomised parameters
         CreateSRF_multi(M_NSEG, M_SEG_DELAY, m_mag, M_MOM, \
-                M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
-                M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
-                M_RAK, M_DIP, M_ELON, M_ELAT, m_shypo, \
-                m_dhypo, DT, seed, output, CASES, rvfrac = RVFRAC, \
-                rough = ROUGH, slip_cov = SLIP_COV, genslip = GENSLIP, \
-                stoch = STOCH)
+                        M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
+                        M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
+                        M_RAK, M_DIP, M_ELON, M_ELAT, m_shypo, \
+                        m_dhypo, DT, seed, output, CASES, rvfrac = RVFRAC, \
+                        rough = ROUGH, slip_cov = SLIP_COV, genslip_version= GENSLIP, \
+                        stoch = STOCH)
 
         # append stoch data to info file
         with open(metainfo, 'a') as of:
