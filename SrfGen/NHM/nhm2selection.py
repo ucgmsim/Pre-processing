@@ -39,7 +39,7 @@ out = open(OUT_FILE, 'w')
 # load db
 dbi = NHM_START
 with open(NHM_FILE, 'r') as dbr:
-    db = map(str.strip, dbr.readlines())
+    db = list(map(str.strip, dbr.readlines()))
 dbl = len(db)
 
 # find criteria matching faults
@@ -53,7 +53,7 @@ while dbi < dbl:
     dbottom = float(db[dbi + 6].split()[0])
     dtop = float(db[dbi + 7].split()[0])
     n_pt = int(db[dbi + 11])
-    pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
+    pts = [list(map(float, ll.split())) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
     # Karim: add 3km to depth if bottom >= 12km
     extend = dbottom >= 12
     # fault plane width (along dip)

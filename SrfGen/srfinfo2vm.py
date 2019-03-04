@@ -170,7 +170,7 @@ def centre_lon(lat_target):
     # TODO: use np.interp
     with open(NZ_CENTRE_LINE, "r") as c:
         for line in c:
-            ll = map(float, line.split())
+            ll = list(map(float, line.split()))
             if ll[1] < lat_target:
                 ll_bottom = ll
             else:
@@ -841,7 +841,7 @@ def load_msgs_nhm(args):
         dtop = float(nhm[n_i + 7].split()[0])
         n_pt = int(nhm[n_i + 11])
         trace = nhm[n_i + 12 : n_i + 12 + n_pt]
-        trace = [map(float, pair) for pair in map(str.split, trace)]
+        trace = [list(map(float, pair)) for pair in map(str.split, trace)]
 
         # derived properties
         dbottom += 3 * (dbottom >= 12)
