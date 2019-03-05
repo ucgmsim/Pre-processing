@@ -41,7 +41,7 @@ def param_as_string(param):
             for x in range(len(param))])
 
 def CreateSRF_ffdStoch():
-    from setSrfParams import *
+    from setSrfParams import M_NAME,N_SCENARIOS,SEED,SEED_INC,N_SEED_INC,SHYPO,FLEN,V_HYPO,DHYPO,FWID,V_MAG,MAG,V_FLEN,DLEN,V_FWID,DWID,M_FWID,LAT,LON,RAK,DIP,DT,RVFRAC,ROUGH,SLIP_COV,DLEN,DWID,DTOP,GENSLIP,STOCH
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
@@ -238,7 +238,7 @@ def randomise_rupdelay(delay, var, deps):
     return delay
 
 def CreateSRF_multiStoch():
-    from setSrfParams import *
+    from setSrfParams import PREFIX, N_SCENARIOS,SEED,SEED_INC,N_SEED_INC, M_RUP_DELAY,V_RDELAY,D_RDELAY, M_SHYPO,FLEN,V_HYPO,M_DHYPO,M_FWID,M_MAG,CASES,MW_TOTAL,V_MAG,V_FLEN, M_MAG, V_FLEN, M_DLEN
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
