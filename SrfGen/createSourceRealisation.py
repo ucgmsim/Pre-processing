@@ -165,13 +165,13 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
         realisation_srf_path = os.path.join(out_dir, simulation_structure.get_srf_location(realisation_name))
         realisation_stoch_path = os.path.dirname(os.path.join(out_dir, simulation_structure.get_stoch_location(realisation_name)))
 
-        for key in list(yaml_settings.keys()):
+        for key in yaml_settings.keys():
 
             # Load the correct dictionaries to be read from/written to
-            if key in list(standard_options.keys()):
+            if key in standard_options.keys():
                 dict_to_read_from = standard_options
                 dict_to_update = perturbed_standard_options
-            elif key in list(additional_options.keys()):
+            elif key in additional_options.keys():
                 dict_to_read_from = additional_options
                 dict_to_update = perturbed_additional_options
             else:

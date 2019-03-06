@@ -375,7 +375,7 @@ def gen_meta(srf_file, srf_type, mag, \
         a['rake'] = rake
         a['mag'] = mag
         # srf header data
-        for k in list(planes[0].keys()):
+        for k in planes[0].keys():
             a[k] = [p[k] for p in planes]
         # point source has 1 vs/rho, others are taken from vm
         if srf_type == 1:

@@ -25,7 +25,7 @@ def run_create_srf(args, t, vs, rho, n_sims):
     if args.uncertainty_file:
         with open(args.add_opts_file) as ao_f:
             add_opts = yaml.load(ao_f)
-        for opt in list(add_opts.keys()):
+        for opt in add_opts.keys():
             add_opts.update({opt: add_opts[opt]['mean']})
         create_ps_realisation(args.out_dir, pid, t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               args.uncertainty_file, n_realisations=n_sims, additional_options=add_opts,
