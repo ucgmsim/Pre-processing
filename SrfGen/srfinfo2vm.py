@@ -502,6 +502,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
 def gen_vm(args, srf_meta, vm_params, mag, ptemp):
     # store configs
     vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+    print(vm_dir)
     vm_params["vm_dir"] = vm_dir
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
     params_vel = os.path.join(ptemp, "params_vel")
@@ -532,9 +533,9 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
         move("%s.py" % (params_vel), vm_dir)
         move("%s.json" % (params_vel), vm_dir)
         # generate a corners like NZVM would have
-        with open("%s/VeloModCorners.txt" % (vm_params["vm_dir"]), "w") as c:
-            c.write("> VM corners (python generated)\n")
-            c.write(vm_params["path_mod"])
+        with open("%s/VeloModCorners.txt" % (vm_params["vm_dir"]), "wb") as c:
+            c.write("> VM corners (python generated)\n".encode())
+            c.write(vm_params["path_mod"].encode())
         return
 
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
@@ -680,11 +681,11 @@ def create_vm(args, srf_meta):
     land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
 
     # for plotting and calculating VM domain distance
-    with open("%s/srf.path" % (ptemp), "w") as sp:
+    with open("%s/srf.path" % (ptemp), "wb") as sp:
         for plane in srf_meta["corners"]:
-            sp.write("> srf plane\n")
+            sp.write("> srf plane\n".encode())
             np.savetxt(sp, plane, fmt="%f")
-            sp.write("%f %f\n" % (tuple(plane[0])))
+            sp.write("%f %f\n".encode() % (tuple(plane[0])))
 
     # modify VM if necessary
     adjusted = False
@@ -793,6 +794,7 @@ def load_msgs(args):
 
         # name is unique and based on basename
         name = os.path.splitext(os.path.basename(info))[0].split("_")[0]
+
         if name in faults:
             continue
         faults.add(name)
