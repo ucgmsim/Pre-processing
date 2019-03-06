@@ -38,10 +38,10 @@ def param_as_string(param):
         return ' '.join(map(str, param))
     # 3rd case: 2D array
     return ' '.join([' '.join(map(str, param[x])) \
-            for x in xrange(len(param))])
+            for x in range(len(param))])
 
 def CreateSRF_ffdStoch():
-    from setSrfParams import *
+    from setSrfParams import M_NAME,N_SCENARIOS,SEED,SEED_INC,N_SEED_INC,SHYPO,FLEN,V_HYPO,DHYPO,FWID,V_MAG,MAG,V_FLEN,DLEN,V_FWID,DWID,M_FWID,LAT,LON,RAK,DIP,DT,RVFRAC,ROUGH,SLIP_COV,DLEN,DWID,DTOP,GENSLIP,STOCH
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
@@ -56,7 +56,7 @@ def CreateSRF_ffdStoch():
         of.write('\n')
 
     # create each scenario
-    for ns in xrange(N_SCENARIOS):
+    for ns in range(N_SCENARIOS):
         # scenario number as string
         nss = str(ns).zfill(4)
         # increment seed if wanted
@@ -152,7 +152,7 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
                         'rise_time': rise_time}
 
     for setting in yaml_settings:
-        key = yaml_settings[setting].keys()[0]
+        key = list(yaml_settings[setting].keys())[0]
         if 'mean' in yaml_settings[setting][key]:
             additional_options.update({setting: yaml_settings[setting][key]['mean']})
 
@@ -178,7 +178,7 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
                 continue
 
             # Do this after checking the key will be used
-            random_type = yaml_settings[key].keys()[0]
+            random_type = list(yaml_settings[key].keys())[0]
             random_value = yaml_settings[key][random_type]
 
             # Apply the random variable
@@ -219,7 +219,7 @@ def randomise_rupdelay(delay, var, deps):
     var: absolute variability
     deps: segment which triggers or None if independent
     """
-    for i in xrange(len(delay)):
+    for i in range(len(delay)):
         if var[i] == 0:
             # segments have no variability
             continue
@@ -231,14 +231,14 @@ def randomise_rupdelay(delay, var, deps):
         f = [i]
         while len(f) > 0:
             target = f.pop(0)
-            for j in xrange(len(deps)):
+            for j in range(len(deps)):
                 if deps[j] == target:
                     delay[j] += diff
                     f.append(j)
     return delay
 
 def CreateSRF_multiStoch():
-    from setSrfParams import *
+    from setSrfParams import PREFIX, N_SCENARIOS,SEED,SEED_INC,N_SEED_INC, M_RUP_DELAY,V_RDELAY,D_RDELAY, M_SHYPO,FLEN,V_HYPO,M_DHYPO,M_FWID,M_MAG,CASES,MW_TOTAL,V_MAG,V_FLEN, M_MAG, V_FLEN, M_DLEN
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
@@ -259,7 +259,7 @@ def CreateSRF_multiStoch():
         of.write('\n')
 
     # create each scenario
-    for ns in xrange(N_SCENARIOS):
+    for ns in range(N_SCENARIOS):
         # scenario number as string
         nss = str(ns).zfill(4)
         # increment seed if wanted
@@ -287,9 +287,9 @@ def CreateSRF_multiStoch():
         m_mag = []
         m_flen = []
         m_fwid = []
-        m0_tot = sum([mag2mom(M_MAG[i]) for i in xrange(len(CASES))])
+        m0_tot = sum([mag2mom(M_MAG[i]) for i in range(len(CASES))])
         m0_target = mag2mom(MW_TOTAL)
-        for case in xrange(len(CASES)):
+        for case in range(len(CASES)):
             # randomise MAGnitude
             if V_MAG[case]:
                 maxd = mag2mom(M_MAG[case]) * V_MAG[case]
@@ -317,9 +317,9 @@ def CreateSRF_multiStoch():
             else:
                 m_fwid.append(M_FWID[case])
         # normalise moment ratios
-        m_mag = [m_mag[i] / sum(m_mag) for i in xrange(len(m_mag))]
+        m_mag = [m_mag[i] / sum(m_mag) for i in range(len(m_mag))]
         # convert back to magnitudes
-        m_mag = [mom2mag(m_mag[i] * m0_target) for i in xrange(len(m_mag))]
+        m_mag = [mom2mag(m_mag[i] * m0_target) for i in range(len(m_mag))]
 
         output = '%s_%s_%.4d' % (PREFIX.rstrip('_'), run_id, ns)
 

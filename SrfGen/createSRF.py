@@ -574,10 +574,10 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         else:
             mag[c] = mom2mag(mom[c])
 
-        nx = map(int, [get_nx(flen[c][f], dlen[c][f]) \
-                for f in xrange(nseg[c])])
-        ny = map(int, [get_ny(fwid[c][f], dwid[c][f]) \
-                for f in xrange(nseg[c])])
+        nx = list(map(int, [get_nx(flen[c][f], dlen[c][f]) \
+                for f in range(nseg[c])]))
+        ny = list(map(int, [get_ny(fwid[c][f], dwid[c][f]) \
+                for f in range(nseg[c])]))
         nx_tot = sum(nx)
         flen_tot = sum(flen[c])
         # hypocentre is given based on the first segment
@@ -588,7 +588,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         if int(nseg[c] > 1):
             xseg = []
             sbound = 0.0
-            for g in xrange(nseg[c]):
+            for g in range(nseg[c]):
                 sbound += flen[c][g]
                 xseg.append(sbound - 0.5 * flen_tot)
             xseg = ','.join(map(str, xseg))
@@ -601,7 +601,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
 
         with open(fsg_file, 'w') as fs:
             fs.write('%d\n' % (nseg[c]))
-            for f in xrange(nseg[c]):
+            for f in range(nseg[c]):
                 fs.write('%f %f %f %.4f %.4f %.4f %.4f %.4f %i %i\n' % ( \
                         elon[c][f], elat[c][f], dtop[c][f], \
                         stk[c][f], dip[c][f], rak[c][f], \
@@ -655,7 +655,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
     # joined case files stored in separate file
     copyfile(casefiles[0], joined_srf)
     # join rest of cases into the first
-    for i in xrange(len(cases) - 1):
+    for i in range(len(cases) - 1):
         srf_join(joined_srf, casefiles[i + 1], joined_srf)
     # remove casefiles
     for casefile in casefiles:
@@ -680,8 +680,8 @@ if __name__ == "__main__":
         print('setSrfParams.py not found.')
         exit(1)
     except:
-        print "Error: setSrfParams.py has issues."
-        print sys.exc_info()[0]
+        print("Error: setSrfParams.py has issues.")
+        print(sys.exc_info()[0])
         raise
 
     # incomplete defaults compatibility
