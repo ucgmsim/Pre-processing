@@ -121,9 +121,30 @@ def CreateSRF_ffdStoch():
             of.write('\n')
 
 
-def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, strike, rake, dip,uncertainty_file,
-                          n_realisations=50, additional_options={}, dt=0.005, vs=3.20, rho=2.44, target_area_km=None,
-                          target_slip_cm=None, stype='cos', rise_time=0.5, init_time=0.0, silent=False):
+def create_ps_realisation(
+    out_dir,
+    fault_name,
+    lat,
+    lon,
+    depth,
+    mw_mean,
+    mom,
+    strike,
+    rake,
+    dip,
+    uncertainty_file,
+    n_realisations=50,
+    additional_options={},
+    dt=0.005,
+    vs=3.20,
+    rho=2.44,
+    target_area_km=None,
+    target_slip_cm=None,
+    stype='cos',
+    rise_time=0.5,
+    init_time=0.0,
+    silent=False,
+):
     """
     Creates SRF files using random variables.
     Nominal values are to be passed in, while the probability characteristics are to be found in a yaml file that
@@ -141,29 +162,51 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
 
     # Generate standard options dictionary
 
-    standard_options = {'depth': depth,
-                        'mw': mw_mean,
-                        'mom': mom,
-                        'strike': strike,
-                        'rake': rake,
-                        'dip': dip,
-                        'vs': vs,
-                        'rho': rho,
-                        'rise_time': rise_time}
+    standard_options = {
+        'depth': depth,
+        'mw': mw_mean,
+        'mom': mom,
+        'strike': strike,
+        'rake': rake,
+        'dip': dip,
+        'vs': vs,
+        'rho': rho,
+        'rise_time': rise_time,
+    }
 
     for setting in yaml_settings:
         key = list(yaml_settings[setting].keys())[0]
         if 'mean' in yaml_settings[setting][key]:
-            additional_options.update({setting: yaml_settings[setting][key]['mean']})
+            additional_options.update(
+                {
+                    setting: yaml_settings[setting][key][
+                        'mean'
+                    ]
+                }
+            )
 
     perturbed_standard_options = dict(standard_options)
     perturbed_additional_options = dict(additional_options)
 
-    for ns in range(1, n_realisations+1):
+    for ns in range(1, n_realisations + 1):
 
-        realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
-        realisation_srf_path = os.path.join(out_dir, simulation_structure.get_srf_location(realisation_name))
-        realisation_stoch_path = os.path.dirname(os.path.join(out_dir, simulation_structure.get_stoch_location(realisation_name)))
+        realisation_name = simulation_structure.get_realisation_name(
+            fault_name, ns
+        )
+        realisation_srf_path = os.path.join(
+            out_dir,
+            simulation_structure.get_srf_location(
+                realisation_name
+            ),
+        )
+        realisation_stoch_path = os.path.dirname(
+            os.path.join(
+                out_dir,
+                simulation_structure.get_stoch_location(
+                    realisation_name
+                ),
+            )
+        )
 
         for key in yaml_settings.keys():
 
@@ -173,7 +216,9 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
                 dict_to_update = perturbed_standard_options
             elif key in additional_options.keys():
                 dict_to_read_from = additional_options
-                dict_to_update = perturbed_additional_options
+                dict_to_update = (
+                    perturbed_additional_options
+                )
             else:
                 continue
 
@@ -183,32 +228,72 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
 
             # Apply the random variable
             if random_type == 'uniform':
-                dict_to_update[key] = uniform(dict_to_read_from[key] - random_value['halfrange'],
-                                              dict_to_read_from[key] + random_value['halfrange'])
+                dict_to_update[key] = uniform(
+                    dict_to_read_from[key]
+                    - random_value['halfrange'],
+                    dict_to_read_from[key]
+                    + random_value['halfrange'],
+                )
             elif random_type == 'normal':
-                dict_to_update[key] = normalvariate(dict_to_read_from[key], random_value['std_dev'])
+                dict_to_update[key] = normalvariate(
+                    dict_to_read_from[key],
+                    random_value['std_dev'],
+                )
             elif random_type == 'uniform_relative':
-                dict_to_update[key] = uniform(dict_to_read_from[key]*(1-random_value['scalefactor']),
-                                              dict_to_read_from[key]*(1+random_value['scalefactor']))
+                dict_to_update[key] = uniform(
+                    dict_to_read_from[key]
+                    * (1 - random_value['scalefactor']),
+                    dict_to_read_from[key]
+                    * (1 + random_value['scalefactor']),
+                )
             elif random_type == 'log_normal':
-                dict_to_update[key] = lognormal(dict_to_read_from[key], random_value['std_dev'], 1)
+                dict_to_update[key] = lognormal(
+                    dict_to_read_from[key],
+                    random_value['std_dev'],
+                    1,
+                )
 
         # Save the extra args to a yaml file
-        additional_args_fname = os.path.join(out_dir, simulation_structure.get_source_params_location(realisation_name))
-        utils.setup_dir(os.path.dirname(additional_args_fname))
+        additional_args_fname = os.path.join(
+            out_dir,
+            simulation_structure.get_source_params_location(
+                realisation_name
+            ),
+        )
+        utils.setup_dir(
+            os.path.dirname(additional_args_fname)
+        )
         with open(additional_args_fname, 'w') as yamlf:
             yaml.dump(perturbed_additional_options, yamlf)
 
-        #print("Making srf with standard dict:")
-        #print(perturbed_standard_options)
-        #print("and additional dict:")
-        #print(perturbed_additional_options)
+        # print("Making srf with standard dict:")
+        # print(perturbed_standard_options)
+        # print("and additional dict:")
+        # print(perturbed_additional_options)
 
-        CreateSRF_ps(lat, lon, perturbed_standard_options['depth'], perturbed_standard_options['mw'], perturbed_standard_options['mom'], perturbed_standard_options['strike'],
-                     perturbed_standard_options['rake'], perturbed_standard_options['dip'], dt=dt, prefix=realisation_srf_path[:-4], stoch=realisation_stoch_path,
-                     vs=perturbed_standard_options['vs'], rho=perturbed_standard_options['rho'], target_area_km=target_area_km,
-                     target_slip_cm=target_slip_cm, stype=stype, rise_time=perturbed_standard_options['rise_time'],
-                     init_time=init_time, silent=silent)
+        CreateSRF_ps(
+            lat,
+            lon,
+            perturbed_standard_options['depth'],
+            perturbed_standard_options['mw'],
+            perturbed_standard_options['mom'],
+            perturbed_standard_options['strike'],
+            perturbed_standard_options['rake'],
+            perturbed_standard_options['dip'],
+            dt=dt,
+            prefix=realisation_srf_path[:-4],
+            stoch=realisation_stoch_path,
+            vs=perturbed_standard_options['vs'],
+            rho=perturbed_standard_options['rho'],
+            target_area_km=target_area_km,
+            target_slip_cm=target_slip_cm,
+            stype=stype,
+            rise_time=perturbed_standard_options[
+                'rise_time'
+            ],
+            init_time=init_time,
+            silent=silent,
+        )
 
 
 def randomise_rupdelay(delay, var, deps):
