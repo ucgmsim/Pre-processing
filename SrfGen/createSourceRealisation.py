@@ -126,7 +126,6 @@ def CreateSRF_ffdStoch():
             # end of line / end of this srf file
             of.write('\n')
 
-
 def create_ps_realisation(
     out_dir,
     fault_name,
@@ -165,23 +164,34 @@ def create_ps_realisation(
     # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
     random_distribution_functions = {
         'none': lambda mean, **kwargs: mean,
-        'uniform': lambda mean, half_range, **kwargs: uniform(mean - half_range, mean + half_range),
-        'normal': lambda mean, std_dev, **kwargs: normalvariate(mean, std_dev),
+        'uniform': lambda mean, half_range, **kwargs: uniform(
+            mean - half_range, mean + half_range
+        ),
+        'normal': lambda mean, std_dev, **kwargs: normalvariate(
+            mean, std_dev
+        ),
         'uniform_relative': relative_uniform_distribution,
-        'log_normal': lambda mean, std_dev, **kwargs: lognormal(mean, std_dev, 1)
+        'log_normal': lambda mean, std_dev, **kwargs: lognormal(
+            mean, std_dev, 1
+        ),
     }
 
     # Generate standard options dictionary
 
-    unperturbed_standard_options = {'depth': {'mean': depth, 'distribution': 'none'},
-                        'mw': {'mean': mw_mean, 'distribution': 'none'},
-                        'mom': {'mean': mom, 'distribution': 'none'},
-                        'strike': {'mean': strike, 'distribution': 'none'},
-                        'rake': {'mean': rake, 'distribution': 'none'},
-                        'dip': {'mean': dip, 'distribution': 'none'},
-                        'vs': {'mean': vs, 'distribution': 'none'},
-                        'rho': {'mean': rho, 'distribution': 'none'},
-                        'rise_time': {'mean': rise_time, 'distribution': 'none'}}
+    unperturbed_standard_options = {
+        'depth': {'mean': depth, 'distribution': 'none'},
+        'mw': {'mean': mw_mean, 'distribution': 'none'},
+        'mom': {'mean': mom, 'distribution': 'none'},
+        'strike': {'mean': strike, 'distribution': 'none'},
+        'rake': {'mean': rake, 'distribution': 'none'},
+        'dip': {'mean': dip, 'distribution': 'none'},
+        'vs': {'mean': vs, 'distribution': 'none'},
+        'rho': {'mean': rho, 'distribution': 'none'},
+        'rise_time': {
+            'mean': rise_time,
+            'distribution': 'none',
+        },
+    }
 
     unperturbed_additional_options = dict()
 
@@ -190,13 +200,17 @@ def create_ps_realisation(
     for key, val in additional_options.items():
         if key in ['bb', 'hf']:
             for parameter, value in val.items():
-                unperturbed_additional_options.update({parameter: value})
+                unperturbed_additional_options.update(
+                    {parameter: value}
+                )
                 # Store the workflow component that the parameter is for so it can easily be accessed later
-                unperturbed_additional_options[parameter].update({'component': key})
+                unperturbed_additional_options[
+                    parameter
+                ].update({'component': key})
         elif key in unperturbed_standard_options:
             unperturbed_standard_options[key].update(val)
 
-    #Dictionaries that are to be (key:perturbated value) pairs
+    # Dictionaries that are to be (key:perturbated value) pairs
     perturbed_standard_options = {}
     perturbed_additional_options = {}
 
@@ -220,14 +234,21 @@ def create_ps_realisation(
             )
         )
 
-        for key in perturbed_standard_options.keys() + perturbed_additional_options.keys():
+        for key in (
+            perturbed_standard_options.keys()
+            + perturbed_additional_options.keys()
+        ):
 
             # Load the correct dictionaries to be read from/written to
             if key in perturbed_standard_options:
-                dict_to_read_from = unperturbed_standard_options
+                dict_to_read_from = (
+                    unperturbed_standard_options
+                )
                 dict_to_update = perturbed_standard_options
             elif key in perturbed_additional_options:
-                dict_to_read_from = unperturbed_additional_options
+                dict_to_read_from = (
+                    unperturbed_additional_options
+                )
                 dict_to_update = (
                     perturbed_additional_options
                 )
@@ -235,21 +256,43 @@ def create_ps_realisation(
                 continue
 
             # Do this after checking the key will be used
-            distribution = dict_to_read_from[key]['distribution']
+            distribution = dict_to_read_from[key][
+                'distribution'
+            ]
 
             # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
-            dict_to_update[key] = random_distribution_functions[distribution](**dict_to_read_from[key])
+            dict_to_update[
+                key
+            ] = random_distribution_functions[distribution](
+                **dict_to_read_from[key]
+            )
 
         # Save the extra args to a yaml file
-        additional_args_fname = os.path.join(out_dir, simulation_structure.get_source_params_location(realisation_name))
-        utils.setup_dir(os.path.dirname(additional_args_fname))
+        additional_args_fname = os.path.join(
+            out_dir,
+            simulation_structure.get_source_params_location(
+                realisation_name
+            ),
+        )
+        utils.setup_dir(
+            os.path.dirname(additional_args_fname)
+        )
 
         # Sort the parameters by their component.
         output_additional_options = {}
         for key, value in unperturbed_additional_options:
-            if value['component'] not in output_additional_options:
-                output_additional_options.update({value['component']: {}})
-            output_additional_options[value['component']].update({key: perturbed_additional_options[key]})
+            if (
+                value['component']
+                not in output_additional_options
+            ):
+                output_additional_options.update(
+                    {value['component']: {}}
+                )
+            output_additional_options[
+                value['component']
+            ].update(
+                {key: perturbed_additional_options[key]}
+            )
 
         with open(additional_args_fname, 'w') as yamlf:
             yaml.dump(output_additional_options, yamlf)
