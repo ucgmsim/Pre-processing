@@ -1,7 +1,6 @@
 #!/usr/bin/env python2
 
 from argparse import ArgumentParser
-from multiprocessing import Pool
 import os
 from subprocess import call
 import sys
@@ -9,6 +8,8 @@ import sys
 import numpy as np
 import pandas as pd
 import yaml
+
+from qcore.pool_wrapper import PoolWrapper
 
 from createSRF import leonard, CreateSRF_ps
 from createSourceRealisation import create_ps_realisation
@@ -102,6 +103,6 @@ vs = vmodel.vs[depth_bins]
 rho = vmodel.rho[depth_bins]
 
 # distribute work
-p = Pool(args.nproc)
+p = PoolWrapper(args.nproc)
 p.map(run_create_srf_star,list(zip([args] * len(sources), sources, vs, rho, n_sims)))
 #[run_create_srf(args, sources[i], vs[i], rho[i]) for i in xrange(len(sources))]

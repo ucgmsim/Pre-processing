@@ -235,17 +235,17 @@ def create_ps_realisation(
         )
 
         for key in (
-            perturbed_standard_options.keys()
-            + perturbed_additional_options.keys()
+            list(unperturbed_standard_options.keys())
+            + list(unperturbed_additional_options.keys())
         ):
 
             # Load the correct dictionaries to be read from/written to
-            if key in perturbed_standard_options:
+            if key in unperturbed_standard_options:
                 dict_to_read_from = (
                     unperturbed_standard_options
                 )
                 dict_to_update = perturbed_standard_options
-            elif key in perturbed_additional_options:
+            elif key in unperturbed_additional_options:
                 dict_to_read_from = (
                     unperturbed_additional_options
                 )
@@ -280,7 +280,7 @@ def create_ps_realisation(
 
         # Sort the parameters by their component.
         output_additional_options = {}
-        for key, value in unperturbed_additional_options:
+        for key, value in unperturbed_additional_options.items():
             if (
                 value['component']
                 not in output_additional_options
