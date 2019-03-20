@@ -412,7 +412,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         as_east = []
         as_west = []
 
-        isections = [list(x) for x in isections]
+        isections = [list(x) for x in isections] #items in isections are map objects
         for c in range(len(isections)):
             if "%s/srf.path" % (wd) in icomps[c]:
                 diff = space_srf
