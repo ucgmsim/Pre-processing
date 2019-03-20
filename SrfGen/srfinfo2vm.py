@@ -70,7 +70,7 @@ faultprop.ztor = 0.0
 # default scaling relationship
 def mag2pgv(mag):
     return np.interp(
-        mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], [0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
+        mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], [0.015, 0.0375, 0.075, 0.15, 0.5, 1.0]
     )
 
 
@@ -378,8 +378,8 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     # number of scan lines accross domain (inclusive of edges)
     scanlines = 81
     # first scan, reduce east and west
-    over_e = None
-    over_w = None
+    over_e = float("-inf") #None
+    over_w = float("-inf") #None
     # store scan data for 2nd level processing
     scan_extremes = np.zeros((scanlines, 2, 2))
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
@@ -411,6 +411,8 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         # shift different intersections by item-specific padding amount
         as_east = []
         as_west = []
+
+        isections = [list(x) for x in isections]
         for c in range(len(isections)):
             if "%s/srf.path" % (wd) in icomps[c]:
                 diff = space_srf
@@ -689,7 +691,7 @@ def create_vm(args, srf_meta):
 
     # modify VM if necessary
     adjusted = False
-    if faultprop.Mw >= 6.2 and land0 < 99:
+    if faultprop.Mw >= 3.5 and land0 < 99:
         adjusted = True
         print("modifying %s" % (srf_meta["name"]))
 
