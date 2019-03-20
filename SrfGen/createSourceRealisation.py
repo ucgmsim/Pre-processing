@@ -198,7 +198,7 @@ def create_ps_realisation(
     # Set default unperturbed values for all options,
     # including updating distributions for any standard options to be perturbated.
     for key, val in additional_options.items():
-        if key in ['bb', 'hf']:
+        if key in ['bb', 'hf', 'emod3d']:
             for parameter, value in val.items():
                 unperturbed_additional_options.update(
                     {parameter: value}
