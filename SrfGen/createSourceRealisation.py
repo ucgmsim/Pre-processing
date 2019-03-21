@@ -35,6 +35,12 @@ def relative_uniform_distribution(mean, scale_factor, **kwargs):
     return uniform(mean * (1 - scale_factor), mean * (1 + scale_factor))
 
 
+def uniform_distribution(mean, half_range, **kwargs):
+    return uniform(
+        mean - half_range, mean + half_range
+    )
+
+
 def param_as_string(param):
     # 1st case: single value
     if type(param).__name__ != 'list':
@@ -164,9 +170,7 @@ def create_ps_realisation(
     # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
     random_distribution_functions = {
         'none': lambda mean, **kwargs: mean,
-        'uniform': lambda mean, half_range, **kwargs: uniform(
-            mean - half_range, mean + half_range
-        ),
+        'uniform': uniform_distribution,
         'normal': lambda mean, std_dev, **kwargs: normalvariate(
             mean, std_dev
         ),
