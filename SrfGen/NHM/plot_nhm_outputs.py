@@ -835,6 +835,7 @@ if __name__ == "__main__":
     # run SRF plots and checks
     if args.srf_dir is not None:
         srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
+        stoch_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Stoch"))
         info_files = glob(
             os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info")
         )
