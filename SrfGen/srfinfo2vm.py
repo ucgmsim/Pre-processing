@@ -14,7 +14,6 @@ HELP:
 from argparse import ArgumentParser
 from distutils.spawn import find_executable
 from glob import glob
-import json
 import math
 from multiprocessing import Pool
 import os
@@ -37,6 +36,7 @@ try:
     from qcore import gmt
     from qcore.gen_coords import gen_coords
     from qcore.validate_vm import validate_vm
+    from qcore.utils import dump_yaml
 except ImportError:
     sys.exit("""
 qcore library has not been installed or is an old version.
@@ -264,66 +264,33 @@ def save_vm_config(
                 )
             )
     if params_vel != None:
-        with open("%s.py" % (params_vel), "w") as pv:
-            pv.write(
-                "\n".join(
-                    [
-                        'mag = "%s"' % (mag),
-                        'centroidDepth = "%s"' % (centroid_depth),
-                        'MODEL_LAT = "%s"' % (origin[1]),
-                        'MODEL_LON = "%s"' % (origin[0]),
-                        'MODEL_ROT = "%s"' % (rot),
-                        'hh = "%s"' % (hh),
-                        'min_vs = "%s"' % (min_vs),
-                        'model_version = "%s"' % (model_version),
-                        'topo_type = "%s"' % (topo_type),
-                        'output_directory = "%s"' % (os.path.basename(vm_dir)),
-                        "extracted_slice_parameters_directory"
-                        ' = "SliceParametersNZ/SliceParametersExtracted.txt"',
-                        'code = "%s"' % (code),
-                        'extent_x = "%s"' % (xlen),
-                        'extent_y = "%s"' % (ylen),
-                        'extent_zmax = "%s"' % (zmax),
-                        'extent_zmin = "%s"' % (zmin),
-                        'sim_duration = "%s"' % (sim_duration),
-                        'flo = "%s"' % (min_vs / (5.0 * hh)),
-                        'nx = "%s"' % (int(round(float(xlen) / hh))),
-                        'ny = "%s"' % (int(round(float(ylen) / hh))),
-                        'nz = "%s"' % (int(round(float(zmax - zmin) / hh))),
-                        'sufx = "_%s01-h%.3f"' % (code, hh),
-                    ]
-                )
-            )
-        with open("%s.json" % (params_vel), "w") as pv:
-            # must also convert mag from np.float to float
-            json.dump(
-                {
-                    "mag": float(mag),
-                    "centroidDepth": centroid_depth,
-                    "MODEL_LAT": origin[1],
-                    "MODEL_LON": origin[0],
-                    "MODEL_ROT": rot,
-                    "hh": hh,
-                    "min_vs": min_vs,
-                    "model_version": model_version,
-                    "topo_type": topo_type,
-                    "output_directory": os.path.basename(vm_dir),
-                    "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
-                    "code": code,
-                    "extent_x": xlen,
-                    "extent_y": ylen,
-                    "extent_zmax": zmax,
-                    "extent_zmin": zmin,
-                    "sim_duration": sim_duration,
-                    "flo": min_vs / (5.0 * hh),
-                    "nx": int(round(float(xlen) / hh)),
-                    "ny": int(round(float(ylen) / hh)),
-                    "nz": int(round(float(zmax - zmin) / hh)),
-                    "sufx": "_%s01-h%.3f" % (code, hh),
-                },
-                pv,
-            )
-
+        # must also convert mag from np.float to float
+       dump_yaml(
+            {
+                "mag": float(mag),
+                "centroidDepth": float(centroid_depth),
+                "MODEL_LAT": float(origin[1]),
+                "MODEL_LON": float(origin[0]),
+                "MODEL_ROT": float(rot),
+                "hh": hh,
+                "min_vs": float(min_vs),
+                "model_version": model_version,
+                "topo_type": topo_type,
+                "output_directory": os.path.basename(vm_dir),
+                "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
+                "code": code,
+                "extent_x": float(xlen),
+                "extent_y": float(ylen),
+                "extent_zmax": float(zmax),
+                "extent_zmin": float(zmin),
+                "sim_duration": float(sim_duration),
+                "flo": min_vs / (5.0 * hh),
+                "nx": int(round(float(xlen) / hh)),
+                "ny": int(round(float(ylen) / hh)),
+                "nz": int(round(float(zmax - zmin) / hh)),
+                "sufx": "_%s01-h%.3f" % (code, hh),
+            },"%s.yaml" %(params_vel)
+       )
 
 # get outer corners of a domain
 def build_corners(origin, rot, xlen, ylen):
@@ -554,8 +521,7 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
     rmtree(os.path.join(vm_dir, "Velocity_Model"))
     rmtree(os.path.join(vm_dir, "Log"))
     move(nzvm_cfg, vm_dir)
-    move("%s.py" % (params_vel), vm_dir)
-    move("%s.json" % (params_vel), vm_dir)
+    move("%s.yaml" % (params_vel), vm_dir)
     # create model_coords, model_bounds etc...
     gen_coords(vm_dir=vm_dir)
     # validate
