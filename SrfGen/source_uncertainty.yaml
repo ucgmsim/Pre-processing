@@ -1,12 +1,12 @@
 mw:
-    uniform:
-        halfrange: 0.05
-
-RVFrac:
-    uniform:
-        halfrange: 0.075
-
-sdrop:
-    uniform:
+    distribution: uniform
+    half_range: 0.05
+hf:
+    RVFrac:
+        mean: 0.8
+        distribution: uniform
+        half_range: 0.075
+    sdrop:
+        distribution: uniform
         mean: 50
-        halfrange: 5
+        half_range: 5
