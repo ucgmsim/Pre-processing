@@ -2,7 +2,6 @@
 """
 REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
-PYTHONPATH contains Bradley_2013_Sa and Afshari_Stewart_2016_Ds
 
 most basic example (set out_dir with -o or --out-dir):
 mpirun -n 3 srfinfo2vm.py "Srf/*.info"
@@ -46,8 +45,8 @@ qcore is available at https://github.com/ucgmsim/qcore""")
 
 # Empirical_Engine should be in PYTHON_PATH
 try:
-    from GMM_models.classdef import GMM, Site, Fault
-    from empirical_factory import compute_gmm
+    from Empirical_Engine.GMM_models.classdef import GMM, Site, Fault
+    from Empirical_Engine.util.empirical_factory import compute_gmm
 except ImportError:
     sys.exit("""
 Empirical_Engine not in $PYTHONPATH
