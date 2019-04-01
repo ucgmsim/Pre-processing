@@ -2,7 +2,6 @@
 """
 REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
-PYTHONPATH contains Bradley_2013_Sa and Afshari_Stewart_2016_Ds
 
 most basic example (set out_dir with -o or --out-dir):
 mpirun -n 3 srfinfo2vm.py "Srf/*.info"
@@ -44,16 +43,9 @@ you can install it using setup.py or add qcore/qcore to the PYTHONPATH like:
 $ export PYTHONPATH=$PYTHONPATH:/location/to/qcore/qcore
 qcore is available at https://github.com/ucgmsim/qcore""")
 
-# Empirical_Engine should be in PYTHON_PATH
-try:
-    from GMM_models.classdef import GMM, Site, Fault
-    from empirical_factory import compute_gmm
-except ImportError:
-    sys.exit("""
-Empirical_Engine not in $PYTHONPATH
-you can add it by running the below before running this script:
-$ export PYTHONPATH=$PYTHONPATH:/location/to/Empirical_Engine
-Empirical_Engine is available at https://github.com/ucgmsim/Empirical_Engine""")
+from empirical.GMM_models.classdef import GMM, Site, Fault
+from empirical.util.empirical_factory import compute_gmm
+
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
