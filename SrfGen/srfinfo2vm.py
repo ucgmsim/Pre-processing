@@ -43,9 +43,8 @@ you can install it using setup.py or add qcore/qcore to the PYTHONPATH like:
 $ export PYTHONPATH=$PYTHONPATH:/location/to/qcore/qcore
 qcore is available at https://github.com/ucgmsim/qcore""")
 
-from empirical.GMM_models.classdef import GMM, Site, Fault
+from empirical.util.classdef import GMM, Site, Fault
 from empirical.util.empirical_factory import compute_gmm
-
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
