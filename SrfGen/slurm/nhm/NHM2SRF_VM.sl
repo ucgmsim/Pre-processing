@@ -7,7 +7,7 @@
 # Please modify this file as needed, this is just a sample
 #SBATCH --job-name=nhm2srf_vm
 #SBATCH --account=nesi00213
-#SBATCH --partition=NeSI
+#SBATCH --partition=large
 #SBATCH --ntasks=1
 #SBATCH --time=03:00:00
 #SBATCH --output nhm2srf_vm-%j.out
@@ -16,7 +16,6 @@
 #OpenMP+Hyperthreading works well for VM
 
 ## END HEADER
-source machine_env.sh
 
 # user specific parameters
 export SRF_NUMPROCS=72
@@ -39,7 +38,7 @@ python $SRFGENPATH/NHM/nhm2srf.py $SELECTION_FILE -n $SRF_NUMPROCS
 echo "SRF generation completed"
 date
 echo "VM generation starts"
-srun python $SRFGENPATH/srfinfo2vm.py "autosrf/*/Srf/*.info" --pgv 2 --hh 0.4 --dt 0.02 --space-land 5 --space-srf 15 --min-vs 0.5 -n $VM_NUMPROCS
+srun python $SRFGENPATH/srfinfo2vm.py "autosrf/*/Srf/*.info" --pgv 2 --hh 0.4 --dt 0.02 --space-land 5 --space-srf 15 --min-vs 0.5 -n $VM_NUMPROCS --vm-version "1.66"
 date
 echo "VM generation completed"
 
