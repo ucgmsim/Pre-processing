@@ -307,6 +307,8 @@ def build_corners(origin, rot, xlen, ylen):
         c4 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing + 90)[::-1]
         # check right edge distance
         current_y = geo.ll_dist(c1[0], c1[1], c4[0], c4[1])
+
+        # complete for left edge
         c2 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing - 90)[::-1]
         c3 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing - 90)[::-1]
 
@@ -336,9 +338,6 @@ def build_corners(origin, rot, xlen, ylen):
             y_shift += (target_y - current_y) / 2.0
         elif not shifted:
             break
-    # complete for left edge
-    c2 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing - 90)[::-1]
-    c3 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing - 90)[::-1]
 
     # at this point we have a perfect square (by corner distance)
     # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
