@@ -307,9 +307,34 @@ def build_corners(origin, rot, xlen, ylen):
         c4 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing + 90)[::-1]
         # check right edge distance
         current_y = geo.ll_dist(c1[0], c1[1], c4[0], c4[1])
+        c2 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing - 90)[::-1]
+        c3 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing - 90)[::-1]
+
+        min_lon = min(c4[0], c1[0], c3[0], c2[0])
+        max_lon = max(c4[0], c1[0], c3[0], c2[0])
+        min_lat = min(c4[1], c1[1], c3[1], c2[1])
+        max_lat = max(c4[1], c1[1], c3[1], c2[1])
+
+        shifted = False
+
+        if (min_lon < 165 and max_lon > 180) or (min_lat < -48 and max_lat > -33):
+            raise ValueError("VM does not fit within NZ DEM bounds.")
+        if min_lon < 165:
+            shifted = True
+            origin[0] += 1.01*(165 - min_lon)
+        if max_lon > 180:
+            shifted = True
+            origin[0] += 1.01*(180 - max_lon)
+        if min_lat < -48:
+            shifted = True
+            origin[0] += 1.01*(-48 - min_lat)
+        if max_lat > -33:
+            shifted = True
+            origin[0] += 1.01*(-33 - max_lat)
+
         if round(target_y, 10) != round(current_y, 10):
             y_shift += (target_y - current_y) / 2.0
-        else:
+        elif not shifted:
             break
     # complete for left edge
     c2 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing - 90)[::-1]
