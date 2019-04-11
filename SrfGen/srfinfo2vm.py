@@ -692,7 +692,10 @@ def create_vm(args, srf_meta):
         xlen1, ylen1 = rrup2xylen(
             rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
         )[1:]
-        c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
+        try:
+            c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
+        except ValueError as e:
+            raise ValueError("Error for vm {} with message {}".format(srf_meta["name"], str(e)))
 
         # cut down ocean areas
         c4, c1, c3, c2 = reduce_domain(
