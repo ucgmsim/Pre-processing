@@ -321,18 +321,24 @@ def build_corners(origin, rot, xlen, ylen):
 
         if (min_lon < 165 and max_lon > 180) or (min_lat < -48 and max_lat > -33):
             raise ValueError("VM does not fit within NZ DEM bounds.")
+
+        (origin_lon, origin_lat) = origin
         if min_lon < 165:
             shifted = True
-            origin[0] += 1.01*(165 - min_lon)
-        if max_lon > 180:
+            origin_lon = origin[0] + 1.01*(165 - min_lon)
+        elif max_lon > 180:
             shifted = True
-            origin[0] += 1.01*(180 - max_lon)
+            origin_lon = origin[0] + 1.01*(180 - max_lon)
+
         if min_lat < -48:
             shifted = True
-            origin[0] += 1.01*(-48 - min_lat)
-        if max_lat > -33:
+            origin_lat = origin[1] + 1.01*(-48 - min_lat)
+        elif max_lat > -33:
             shifted = True
-            origin[0] += 1.01*(-33 - max_lat)
+            origin_lat = origin[1] + 1.01*(-33 - max_lat)
+
+        if shifted:
+            origin = (origin_lon, origin_lat)
 
         if round(target_y, 10) != round(current_y, 10):
             y_shift += (target_y - current_y) / 2.0
