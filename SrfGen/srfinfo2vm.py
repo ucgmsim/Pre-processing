@@ -283,10 +283,14 @@ def save_vm_config(
             },"%s.yaml" %(params_vel)
        )
 
+
 # get outer corners of a domain
 def build_corners(origin, rot, xlen, ylen):
     # wanted xlen, ylen is at corners
     # approach answer at infinity / "I don't know the formula" algorithm
+
+    # original_origin = (origin[0], origin[1])
+    # print(origin)
 
     # amount to shift from middle
     x_shift = xlen / 2.0
@@ -312,42 +316,43 @@ def build_corners(origin, rot, xlen, ylen):
         c2 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing - 90)[::-1]
         c3 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing - 90)[::-1]
 
-        min_lon = min(c4[0], c1[0], c3[0], c2[0])
-        max_lon = max(c4[0], c1[0], c3[0], c2[0])
-        min_lat = min(c4[1], c1[1], c3[1], c2[1])
-        max_lat = max(c4[1], c1[1], c3[1], c2[1])
+        #min_lon = min(c4[0], c1[0], c3[0], c2[0])
+        #max_lon = max(c4[0], c1[0], c3[0], c2[0])
+        #min_lat = min(c4[1], c1[1], c3[1], c2[1])
+        #max_lat = max(c4[1], c1[1], c3[1], c2[1])
 
-        shifted = False
+        #shifted = False
 
-        if (min_lon < 165 and max_lon > 180) or (min_lat < -48 and max_lat > -33):
-            raise ValueError("VM does not fit within NZ DEM bounds. {}, {}, {}, {}".format(c1, c2, c3, c4))
+        #if (min_lon < 165 and max_lon > 180) or (min_lat < -48 and max_lat > -33):
+        #    raise ValueError("VM does not fit within NZ DEM bounds. {}, {}, {}, {}, rot: {}, old origin: {}, new origin {}".format(c1, c2, c3, c4, rot, original_origin, origin))
 
-        (origin_lon, origin_lat) = origin
-        if min_lon < 165:
-            shifted = True
-            origin_lon = origin[0] + 1.01*(165 - min_lon)
-        elif max_lon > 180:
-            shifted = True
-            origin_lon = origin[0] + 1.01*(180 - max_lon)
-
-        if min_lat < -48:
-            shifted = True
-            origin_lat = origin[1] + 1.01*(-48 - min_lat)
-        elif max_lat > -33:
-            shifted = True
-            origin_lat = origin[1] + 1.01*(-33 - max_lat)
-
-        if shifted:
-            origin = (origin_lon, origin_lat)
+        #(origin_lon, origin_lat) = origin
+        #if min_lon < 165:
+        #    shifted = True
+        #    origin_lon = origin[0] + 1.01*(165 - min_lon)
+        #elif max_lon > 180:
+        #     shifted = True
+        #     origin_lon = origin[0] + 1.01*(180 - max_lon)
+        #
+        # if min_lat < -48:
+        #     shifted = True
+        #     origin_lat = origin[1] + 1.01*(-48 - min_lat)
+        # elif max_lat > -33:
+        #     shifted = True
+        #     origin_lat = origin[1] + 1.01*(-33 - max_lat)
+        #
+        # if shifted:
+        #     origin = (origin_lon, origin_lat)
 
         if round(target_y, 10) != round(current_y, 10):
             y_shift += (target_y - current_y) / 2.0
-        elif not shifted:
+        else:
             break
 
     # at this point we have a perfect square (by corner distance)
     # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
-    return c1, c2, c3, c4
+    #print(origin)
+    return c1, c2, c3, c4, origin
 
 
 # maximum width along lines a and b
@@ -442,7 +447,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     origin2 = geo.ll_shift(
         origin[1], origin[0], xlen2 / 2.0 - over_w * (over_w < 0) - xlen / 2.0, rot + 90
     )[::-1]
-    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab)
+    a1, b1, b0, a0, origin2 = build_corners(origin2, rot, xlen2, len_ab)
 
     # corners may have moved
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
@@ -484,7 +489,34 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         len_ab2 / 2.0 + over_s * (over_s > 0) - len_ab / 2.0,
         rot,
     )[::-1]
-    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
+    a1, b1, b0, a0, origin2 = build_corners(origin2, rot, xlen2, len_ab2)
+    
+    min_lon = min(a0[0], a1[0], b0[0], b1[0])
+    max_lon = max(a0[0], a1[0], b0[0], b1[0])
+    min_lat = min(a0[1], a1[1], b0[1], b1[1])
+    max_lat = max(a0[1], a1[1], b0[1], b1[1])
+
+    if (min_lon < 165 and max_lon > 180) or (min_lat < -48 and max_lat > -33):
+       raise ValueError(
+           "VM does not fit within NZ DEM bounds. {}, {}, {}, {}, rot: {}, origin {}".format(
+               a0, a1, b0, b1, rot, origin
+           )
+       )
+    diff_lat, diff_lon = 0, 0
+    if min_lon < 165:
+        diff_lon = 1.001*(165 - min_lon)
+    elif max_lon > 180:
+        diff_lon = 1.001*(180 - max_lon)
+    if min_lat < -48:
+        diff_lat = 1.001*(-48 - min_lat)
+    elif max_lat > -33:
+        diff_lat = 1.001*(-33 - max_lat)
+    if diff_lat or diff_lon:
+        a0 = (a0[0] + diff_lon, a0[1] + diff_lat)
+        a1 = (a1[0] + diff_lon, a1[1] + diff_lat)
+        b0 = (b0[0] + diff_lon, b0[1] + diff_lat)
+        b1 = (b1[0] + diff_lon, b1[1] + diff_lat)
+        
     return a0, a1, b0, b1
 
 
@@ -654,7 +686,7 @@ def create_vm(args, srf_meta):
     origin, xlen0, ylen0 = rrup2xylen(
         rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
     )
-    o1, o2, o3, o4 = build_corners(origin, bearing, xlen0, ylen0)
+    o1, o2, o3, o4, origin = build_corners(origin, bearing, xlen0, ylen0)
     vm0_region = corners2region(o1, o2, o3, o4)
     plot_region = (
         vm0_region[0] - 1,
@@ -693,9 +725,9 @@ def create_vm(args, srf_meta):
             rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
         )[1:]
         try:
-            c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
-        except ValueError as e:
-            raise ValueError("Error for vm {} with message {}".format(srf_meta["name"], str(e)))
+            c1, c2, c3, c4, origin = build_corners(origin, bearing, ylen1, xlen1)
+        except ValueError:
+            raise ValueError("Error for vm {}".format(srf_meta["name"]))
 
         # cut down ocean areas
         c4, c1, c3, c2 = reduce_domain(
