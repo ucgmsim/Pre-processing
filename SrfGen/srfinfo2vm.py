@@ -468,15 +468,19 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
                a0, a1, b0, b1, rot, origin
            )
        )
-    diff_lat, diff_lon = 0, 0
+
+    diff_lat, diff_lon = None, None
+
     if min_lon < 165:
         diff_lon = 1.001*(165 - min_lon)
     elif max_lon > 180:
         diff_lon = 1.001*(180 - max_lon)
+
     if min_lat < -48:
         diff_lat = 1.001*(-48 - min_lat)
     elif max_lat > -33:
         diff_lat = 1.001*(-33 - max_lat)
+
     if diff_lat or diff_lon:
         a0 = (a0[0] + diff_lon, a0[1] + diff_lat)
         a1 = (a1[0] + diff_lon, a1[1] + diff_lat)
