@@ -33,7 +33,7 @@ from createSRF import leonard, mag2mom, mom2mag
 try:
     from qcore import geo
     from qcore import gmt
-    from qcore.gen_coords import gen_coords
+    from gen_coords import gen_coords
     from qcore.validate_vm import validate_vm
     from qcore.utils import dump_yaml
 except ImportError:
