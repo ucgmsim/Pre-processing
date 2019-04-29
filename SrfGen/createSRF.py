@@ -677,8 +677,8 @@ if __name__ == "__main__":
         print('setSrfParams.py not found.')
         exit(1)
     except:
-        print "Error: setSrfParams.py has issues."
-        print sys.exc_info()[0]
+        print ("Error: setSrfParams.py has issues.")
+        print (sys.exc_info()[0])
         raise
 
     # incomplete defaults compatibility
