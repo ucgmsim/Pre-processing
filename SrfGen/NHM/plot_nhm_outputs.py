@@ -9,6 +9,7 @@ from shutil import copy, rmtree
 from subprocess import call
 from tempfile import mkdtemp
 
+import yaml
 from h5py import File as h5open
 import matplotlib
 
@@ -16,10 +17,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.stats import norm, kstest
 import numpy as np
+import yaml
 
 from createSRF import leonard
 from qcore.geo import ll_shift, ll_bearing, ll_dist
 from qcore import gmt
+
+
 
 
 def fig_init():
@@ -745,12 +749,12 @@ def plot_vm(vm_dirs, out_dir):
     rmtree(tmp)
 
 
-def plot_duration_mag(jsons, out_dir):
+def plot_duration_mag(yamls, out_dir):
     durations = []
     magnitudes = []
-    for j in jsons:
+    for j in yamls:
         with open(j, "r") as jo:
-            d = json.load(jo)
+            d = yaml.load(jo)
         magnitudes.append(d["mag"])
         durations.append(d["sim_duration"])
 
@@ -772,8 +776,8 @@ def plot_size_mag(vm_dirs, out_dir):
     magnitudes = []
     for d in vm_dirs:
         sizes.append(os.stat(os.path.join(d, "vs3dfile.s")).st_size / 1000000.0)
-        with open(os.path.join(d, "params_vel.json"), "r") as jo:
-            magnitudes.append(json.load(jo)["mag"])
+        with open(os.path.join(d, "vm_params.yaml"), "r") as jo:
+            magnitudes.append(yaml.load(jo)["mag"])
 
     fig_init()
     plt.plot(
@@ -854,13 +858,13 @@ if __name__ == "__main__":
 
     # run VM plots and checks
     if args.vm_dir is not None:
-        vm_json = glob(os.path.join(args.vm_dir, "*", "params_vel.json"))
-        vm_dirs = list(map(os.path.dirname, vm_json))
+        vm_params_yamls = glob(os.path.join(args.vm_dir, "*", "vm_params.yaml"))
+        vm_dirs = list(map(os.path.dirname, vm_params_yamls))
         names = list(map(os.path.basename, vm_dirs))
 
         plot_vm(vm_dirs, args.out_dir)
-        plot_duration_mag(vm_json, args.out_dir)
+        plot_duration_mag(vm_params_yamls, args.out_dir)
         plot_size_mag(vm_dirs, args.out_dir)
-        plot_vm_params(vm_json, args.out_dir)
+        plot_vm_params(vm_params_yamls, args.out_dir)
         if args.selection_file is not None:
             test_selection(args.selection_file, names, "VM", args.out_dir)

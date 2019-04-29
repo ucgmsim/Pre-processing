@@ -205,7 +205,7 @@ def corners2region(c1, c2, c3, c4):
 
 def save_vm_config(
     nzvm_cfg=None,
-    params_vel=None,
+    vm_params=None,
     vm_dir=None,
     origin=(170, -40),
     rot=0,
@@ -223,9 +223,9 @@ def save_vm_config(
     topo_type="BULLDOZED",
 ):
     """
-    Store VM config for NZVM generator and params_vel metadata store.
+    Store VM config for NZVM generator and vm_params metadata store.
     nzvm_cfg: path to NZVM cfg file
-    params_vel: path to params_vel.py that stores metadata
+    vm_params: path to vm_params.py that stores metadata
     vm_dir: folder for NZVM output (cannot exist)
     origin: model origin (longitude, latitude)
     rot: model rotation
@@ -254,7 +254,7 @@ def save_vm_config(
                     ]
                 )
             )
-    if params_vel is not None:
+    if vm_params is not None:
         # must also convert mag from np.float to float
         dump_yaml(
             {
@@ -280,7 +280,7 @@ def save_vm_config(
                 "ny": int(round(float(ylen) / hh)),
                 "nz": int(round(float(zmax - zmin) / hh)),
                 "sufx": "_%s01-h%.3f" % (code, hh),
-            }, "%s.yaml".format(params_vel)
+            }, "%s.yaml".format(vm_params)
         )
 
 
@@ -490,30 +490,30 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     return a0, a1, b0, b1
 
 
-def gen_vm(args, srf_meta, vm_params, mag, ptemp):
+def gen_vm(args, srf_meta, vm_params_dict, mag, ptemp):
     # store configs
     vm_dir = os.path.join(args.out_dir, srf_meta["name"])
     print(vm_dir)
-    vm_params["vm_dir"] = vm_dir
+    vm_params_dict["vm_dir"] = vm_dir
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    params_vel = os.path.join(ptemp, "vm_params")
+    vm_params_path = os.path.join(ptemp, "vm_params_dict")
     # NZVM won't run if folder exists
     if os.path.exists(vm_dir):
         rmtree(vm_dir)
     save_vm_config(
         nzvm_cfg=nzvm_cfg,
-        params_vel=params_vel,
+        vm_params=vm_params_path,
         vm_dir=vm_dir,
-        origin=vm_params["origin"],
-        rot=vm_params["bearing"],
-        xlen=vm_params["xlen_mod"],
-        ylen=vm_params["ylen_mod"],
-        zmax=vm_params["zlen_mod"],
+        origin=vm_params_dict["origin"],
+        rot=vm_params_dict["bearing"],
+        xlen=vm_params_dict["xlen_mod"],
+        ylen=vm_params_dict["ylen_mod"],
+        zmax=vm_params_dict["zlen_mod"],
         hh=args.hh,
         min_vs=args.min_vs,
         mag=mag,
         centroid_depth=srf_meta["hdepth"],
-        sim_duration=vm_params["sim_time_mod"],
+        sim_duration=vm_params_dict["sim_time_mod"],
         topo_type=args.vm_topo,
         model_version=args.vm_version,
     )
@@ -521,12 +521,12 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
         # save important files
         os.makedirs(vm_dir)
         move(nzvm_cfg, vm_dir)
-        move("%s.py" % (params_vel), vm_dir)
-        move("%s.json" % (params_vel), vm_dir)
+        move("%s.py" % (vm_params_path), vm_dir)
+        move("%s.json" % (vm_params_path), vm_dir)
         # generate a corners like NZVM would have
-        with open("%s/VeloModCorners.txt" % (vm_params["vm_dir"]), "wb") as c:
+        with open("%s/VeloModCorners.txt" % (vm_params_dict["vm_dir"]), "wb") as c:
             c.write("> VM corners (python generated)\n".encode())
-            c.write(vm_params["path_mod"].encode())
+            c.write(vm_params_dict["path_mod"].encode())
         return
 
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
@@ -544,7 +544,7 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
     rmtree(os.path.join(vm_dir, "Velocity_Model"))
     rmtree(os.path.join(vm_dir, "Log"))
     move(nzvm_cfg, vm_dir)
-    move("%s.yaml" % (params_vel), vm_dir)
+    move("%s.yaml" % (vm_params_path), vm_dir)
     # create model_coords, model_bounds etc...
     gen_coords(vm_dir=vm_dir)
     # validate

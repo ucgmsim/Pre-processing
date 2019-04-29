@@ -3,7 +3,7 @@ If the test passed it will delete the files in the output folder.
 Otherwise it would not delete files. 
  
  Instructions: Sample1 folder contains a sample output taken from hypocentre. Its path is noted in the readme file. In that path you will find the 
- params_vel.py along with other 5 output files. Use them as the benchmark files.If you want another sample to be tested, 
+ vm_params.yaml along with other 5 output files. Use them as the benchmark files.If you want another sample to be tested,
  create a similar folder structure like sample1 and store the relevant files there (e.g:sample2). While running the test change sample1 to sample2
 
 Just to run : py.test -s (or) python -m pytest -s -v test_gen_coords.py
@@ -23,7 +23,7 @@ import errno
 PATH_TO_SAMPLE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sample1")
 PATH_TO_SAMPLE_OUTDIR = os.path.join(PATH_TO_SAMPLE_DIR, "output")
 PATH_TO_SAMPLE_INPUT_DIR = os.path.join(PATH_TO_SAMPLE_DIR, "input")
-INPUT_FILENAME = "params_vel.yaml"
+INPUT_FILENAME = "vm_params.yaml"
 # print "PATH_TO_SAMPLE_OUTDIR: ",PATH_TO_SAMPLE_OUTDIR
 
 
@@ -45,7 +45,7 @@ SYMLINK_PATH = os.path.join(
 
 
 def setup_module(scope="module"):
-    """ create a symbolic link for params_vel.py"""
+    """ create a symbolic link for vm_params.yaml"""
     print("---------setup_module------------")
     try:
         os.mkdir(PATH_UNDER_TEST)
@@ -73,7 +73,7 @@ def test_gencoords():
 
 
 def teardown_module():
-    """ delete the symbolic link for params_vel.py"""
+    """ delete the symbolic link for vm_params.yaml"""
     print("---------teardown_module------------")
     if os.path.isfile(SYMLINK_PATH):
         os.remove(SYMLINK_PATH)
