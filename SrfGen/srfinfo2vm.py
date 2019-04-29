@@ -230,8 +230,8 @@ def save_vm_config(
     origin: model origin (longitude, latitude)
     rot: model rotation
     """
-    assert vm_dir != None
-    if nzvm_cfg != None:
+    assert vm_dir is not None
+    if nzvm_cfg is not None:
         assert not os.path.exists(vm_dir)
         with open(nzvm_cfg, "w") as vmd:
             vmd.write(
@@ -254,9 +254,9 @@ def save_vm_config(
                     ]
                 )
             )
-    if params_vel != None:
+    if params_vel is not None:
         # must also convert mag from np.float to float
-       dump_yaml(
+        dump_yaml(
             {
                 "mag": float(mag),
                 "centroidDepth": float(centroid_depth),
@@ -280,8 +280,8 @@ def save_vm_config(
                 "ny": int(round(float(ylen) / hh)),
                 "nz": int(round(float(zmax - zmin) / hh)),
                 "sufx": "_%s01-h%.3f" % (code, hh),
-            },"%s.yaml" %(params_vel)
-       )
+            }, "%s.yaml".format(params_vel)
+        )
 
 
 # get outer corners of a domain
@@ -496,7 +496,7 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
     print(vm_dir)
     vm_params["vm_dir"] = vm_dir
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    params_vel = os.path.join(ptemp, "params_vel")
+    params_vel = os.path.join(ptemp, "vm_params")
     # NZVM won't run if folder exists
     if os.path.exists(vm_dir):
         rmtree(vm_dir)
