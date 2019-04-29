@@ -18,7 +18,7 @@ from qcore import gmt
 # location containing Bradley_2010_Sa.py and AfshariStewart_2016_Ds.py
 #sys.path.append('/home/vap30/ucgmsim/post-processing/computations/')
 from Bradley_2010_Sa import Bradley_2010_Sa
-from AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
+from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
 # first entry index in NHM file
 NHM_START = 15

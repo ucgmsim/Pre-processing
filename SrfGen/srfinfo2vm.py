@@ -2,7 +2,6 @@
 """
 REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
-PYTHONPATH contains Bradley_2013_Sa and Afshari_Stewart_2016_Ds
 
 most basic example (set out_dir with -o or --out-dir):
 mpirun -n 3 srfinfo2vm.py "Srf/*.info"
@@ -14,7 +13,6 @@ HELP:
 from argparse import ArgumentParser
 from distutils.spawn import find_executable
 from glob import glob
-import json
 import math
 from multiprocessing import Pool
 import os
@@ -35,8 +33,9 @@ from createSRF import leonard, mag2mom, mom2mag
 try:
     from qcore import geo
     from qcore import gmt
-    from qcore.gen_coords import gen_coords
+    from gen_coords import gen_coords
     from qcore.validate_vm import validate_vm
+    from qcore.utils import dump_yaml
 except ImportError:
     sys.exit("""
 qcore library has not been installed or is an old version.
@@ -44,16 +43,8 @@ you can install it using setup.py or add qcore/qcore to the PYTHONPATH like:
 $ export PYTHONPATH=$PYTHONPATH:/location/to/qcore/qcore
 qcore is available at https://github.com/ucgmsim/qcore""")
 
-# Empirical_Engine should be in PYTHON_PATH
-try:
-    from GMM_models.classdef import GMM, Site, Fault
-    from empirical_factory import compute_gmm
-except ImportError:
-    sys.exit("""
-Empirical_Engine not in $PYTHONPATH
-you can add it by running the below before running this script:
-$ export PYTHONPATH=$PYTHONPATH:/location/to/Empirical_Engine
-Empirical_Engine is available at https://github.com/ucgmsim/Empirical_Engine""")
+from empirical.util.classdef import GMM, Site, Fault
+from empirical.util.empirical_factory import compute_gmm
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
@@ -70,7 +61,7 @@ faultprop.ztor = 0.0
 # default scaling relationship
 def mag2pgv(mag):
     return np.interp(
-        mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], [0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
+        mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], [0.015, 0.0375, 0.075, 0.15, 0.5, 1.0]
     )
 
 
@@ -170,7 +161,7 @@ def centre_lon(lat_target):
     # TODO: use np.interp
     with open(NZ_CENTRE_LINE, "r") as c:
         for line in c:
-            ll = map(float, line.split())
+            ll = list(map(float, line.split()))
             if ll[1] < lat_target:
                 ll_bottom = ll
             else:
@@ -264,65 +255,33 @@ def save_vm_config(
                 )
             )
     if params_vel != None:
-        with open("%s.py" % (params_vel), "w") as pv:
-            pv.write(
-                "\n".join(
-                    [
-                        'mag = "%s"' % (mag),
-                        'centroidDepth = "%s"' % (centroid_depth),
-                        'MODEL_LAT = "%s"' % (origin[1]),
-                        'MODEL_LON = "%s"' % (origin[0]),
-                        'MODEL_ROT = "%s"' % (rot),
-                        'hh = "%s"' % (hh),
-                        'min_vs = "%s"' % (min_vs),
-                        'model_version = "%s"' % (model_version),
-                        'topo_type = "%s"' % (topo_type),
-                        'output_directory = "%s"' % (os.path.basename(vm_dir)),
-                        "extracted_slice_parameters_directory"
-                        ' = "SliceParametersNZ/SliceParametersExtracted.txt"',
-                        'code = "%s"' % (code),
-                        'extent_x = "%s"' % (xlen),
-                        'extent_y = "%s"' % (ylen),
-                        'extent_zmax = "%s"' % (zmax),
-                        'extent_zmin = "%s"' % (zmin),
-                        'sim_duration = "%s"' % (sim_duration),
-                        'flo = "%s"' % (min_vs / (5.0 * hh)),
-                        'nx = "%s"' % (int(round(float(xlen) / hh))),
-                        'ny = "%s"' % (int(round(float(ylen) / hh))),
-                        'nz = "%s"' % (int(round(float(zmax - zmin) / hh))),
-                        'sufx = "_%s01-h%.3f"' % (code, hh),
-                    ]
-                )
-            )
-        with open("%s.json" % (params_vel), "w") as pv:
-            # must also convert mag from np.float to float
-            json.dump(
-                {
-                    "mag": float(mag),
-                    "centroidDepth": centroid_depth,
-                    "MODEL_LAT": origin[1],
-                    "MODEL_LON": origin[0],
-                    "MODEL_ROT": rot,
-                    "hh": hh,
-                    "min_vs": min_vs,
-                    "model_version": model_version,
-                    "topo_type": topo_type,
-                    "output_directory": os.path.basename(vm_dir),
-                    "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
-                    "code": code,
-                    "extent_x": xlen,
-                    "extent_y": ylen,
-                    "extent_zmax": zmax,
-                    "extent_zmin": zmin,
-                    "sim_duration": sim_duration,
-                    "flo": min_vs / (5.0 * hh),
-                    "nx": int(round(float(xlen) / hh)),
-                    "ny": int(round(float(ylen) / hh)),
-                    "nz": int(round(float(zmax - zmin) / hh)),
-                    "sufx": "_%s01-h%.3f" % (code, hh),
-                },
-                pv,
-            )
+        # must also convert mag from np.float to float
+       dump_yaml(
+            {
+                "mag": float(mag),
+                "centroidDepth": float(centroid_depth),
+                "MODEL_LAT": float(origin[1]),
+                "MODEL_LON": float(origin[0]),
+                "MODEL_ROT": float(rot),
+                "hh": hh,
+                "min_vs": float(min_vs),
+                "model_version": model_version,
+                "topo_type": topo_type,
+                "output_directory": os.path.basename(vm_dir),
+                "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
+                "code": code,
+                "extent_x": float(xlen),
+                "extent_y": float(ylen),
+                "extent_zmax": float(zmax),
+                "extent_zmin": float(zmin),
+                "sim_duration": float(sim_duration),
+                "flo": min_vs / (5.0 * hh),
+                "nx": int(round(float(xlen) / hh)),
+                "ny": int(round(float(ylen) / hh)),
+                "nz": int(round(float(zmax - zmin) / hh)),
+                "sufx": "_%s01-h%.3f" % (code, hh),
+            },"%s.yaml" %(params_vel)
+       )
 
 
 # get outer corners of a domain
@@ -378,8 +337,8 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     # number of scan lines accross domain (inclusive of edges)
     scanlines = 81
     # first scan, reduce east and west
-    over_e = None
-    over_w = None
+    over_e = float("-inf") #None
+    over_w = float("-inf") #None
     # store scan data for 2nd level processing
     scan_extremes = np.zeros((scanlines, 2, 2))
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
@@ -411,6 +370,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         # shift different intersections by item-specific padding amount
         as_east = []
         as_west = []
+
         for c in range(len(isections)):
             if "%s/srf.path" % (wd) in icomps[c]:
                 diff = space_srf
@@ -496,12 +456,44 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         rot,
     )[::-1]
     a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
+
+    min_lon = min(a0[0], a1[0], b0[0], b1[0])
+    max_lon = max(a0[0], a1[0], b0[0], b1[0])
+    min_lat = min(a0[1], a1[1], b0[1], b1[1])
+    max_lat = max(a0[1], a1[1], b0[1], b1[1])
+
+    if max_lon - min_lon > 180 - 165 or max_lat -min_lat > (-33) - (-48):
+        raise ValueError(
+            "VM does not fit within NZ DEM bounds. {}, {}, {}, {}, rot: {}, origin {}".format(
+                a0, a1, b0, b1, rot, origin
+            )
+        )
+
+    diff_lat, diff_lon = None, None
+
+    if min_lon < 165:
+        diff_lon = 1.001*(165 - min_lon)
+    elif max_lon > 180:
+        diff_lon = 1.001*(180 - max_lon)
+
+    if min_lat < -48:
+        diff_lat = 1.001*(-48 - min_lat)
+    elif max_lat > -33:
+        diff_lat = 1.001*(-33 - max_lat)
+
+    if diff_lat or diff_lon:
+        a0 = (a0[0] + diff_lon, a0[1] + diff_lat)
+        a1 = (a1[0] + diff_lon, a1[1] + diff_lat)
+        b0 = (b0[0] + diff_lon, b0[1] + diff_lat)
+        b1 = (b1[0] + diff_lon, b1[1] + diff_lat)
+        
     return a0, a1, b0, b1
 
 
 def gen_vm(args, srf_meta, vm_params, mag, ptemp):
     # store configs
     vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+    print(vm_dir)
     vm_params["vm_dir"] = vm_dir
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
     params_vel = os.path.join(ptemp, "params_vel")
@@ -532,9 +524,9 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
         move("%s.py" % (params_vel), vm_dir)
         move("%s.json" % (params_vel), vm_dir)
         # generate a corners like NZVM would have
-        with open("%s/VeloModCorners.txt" % (vm_params["vm_dir"]), "w") as c:
-            c.write("> VM corners (python generated)\n")
-            c.write(vm_params["path_mod"])
+        with open("%s/VeloModCorners.txt" % (vm_params["vm_dir"]), "wb") as c:
+            c.write("> VM corners (python generated)\n".encode())
+            c.write(vm_params["path_mod"].encode())
         return
 
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
@@ -552,8 +544,7 @@ def gen_vm(args, srf_meta, vm_params, mag, ptemp):
     rmtree(os.path.join(vm_dir, "Velocity_Model"))
     rmtree(os.path.join(vm_dir, "Log"))
     move(nzvm_cfg, vm_dir)
-    move("%s.py" % (params_vel), vm_dir)
-    move("%s.json" % (params_vel), vm_dir)
+    move("%s.yaml" % (params_vel), vm_dir)
     # create model_coords, model_bounds etc...
     gen_coords(vm_dir=vm_dir)
     # validate
@@ -680,15 +671,15 @@ def create_vm(args, srf_meta):
     land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
 
     # for plotting and calculating VM domain distance
-    with open("%s/srf.path" % (ptemp), "w") as sp:
+    with open("%s/srf.path" % (ptemp), "wb") as sp:
         for plane in srf_meta["corners"]:
-            sp.write("> srf plane\n")
+            sp.write("> srf plane\n".encode())
             np.savetxt(sp, plane, fmt="%f")
-            sp.write("%f %f\n" % (tuple(plane[0])))
+            sp.write("%f %f\n".encode() % (tuple(plane[0])))
 
     # modify VM if necessary
     adjusted = False
-    if faultprop.Mw >= 6.2 and land0 < 99:
+    if faultprop.Mw >= 3.5 and land0 < 99:
         adjusted = True
         print("modifying %s" % (srf_meta["name"]))
 
@@ -703,7 +694,10 @@ def create_vm(args, srf_meta):
         xlen1, ylen1 = rrup2xylen(
             rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
         )[1:]
-        c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
+        try:
+            c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
+        except ValueError:
+            raise ValueError("Error for vm {}".format(srf_meta["name"]))
 
         # cut down ocean areas
         c4, c1, c3, c2 = reduce_domain(
@@ -793,6 +787,7 @@ def load_msgs(args):
 
         # name is unique and based on basename
         name = os.path.splitext(os.path.basename(info))[0].split("_")[0]
+
         if name in faults:
             continue
         faults.add(name)
@@ -841,7 +836,7 @@ def load_msgs_nhm(args):
         dtop = float(nhm[n_i + 7].split()[0])
         n_pt = int(nhm[n_i + 11])
         trace = nhm[n_i + 12 : n_i + 12 + n_pt]
-        trace = [map(float, pair) for pair in map(str.split, trace)]
+        trace = [list(map(float, pair)) for pair in map(str.split, trace)]
 
         # derived properties
         dbottom += 3 * (dbottom >= 12)

@@ -129,9 +129,9 @@ def plot_area_nhm(srf_dirs, nhm_file, out_dir):
             n_pt = int(nhm[n_i + 11])
             if name in fault_names:
                 strace = [
-                    map(float, ll)
+                    list(map(float, ll))
                     for ll in map(
-                        str.split, map(str.strip, nhm[n_i + 12 : n_i + 12 + n_pt])
+                        str.split, list(map(str.strip, nhm[n_i + 12 : n_i + 12 + n_pt]))
                     )
                 ]
                 slen = sum(
@@ -314,7 +314,7 @@ def nhm2corners(nhm_file, names):
             ftype -= 2
             corners = np.zeros((n_pt - 1, 4, 2))
             trace = nhm[n_i + 12 : n_i + 12 + n_pt]
-            trace = [map(float, pair) for pair in map(str.split, trace)]
+            trace = [list(map(float, pair)) for pair in map(str.split, trace)]
             dip_dir = float(nhm[n_i + 4])
             for i in range(len(corners)):
                 corners[i, :2] = trace[i : i + 2]
@@ -452,7 +452,7 @@ def plot_srf_nhm(srf_dirs, nhm_file, out_dir):
         )
 
     # nhm faults
-    faults = map(os.path.basename, map(os.path.dirname, srf_dirs))
+    faults = list(map(os.path.basename, list(map(os.path.dirname, srf_dirs))))
     ftypes, nhm_cnrs_shal, nhm_cnrs_sub, ex_names = nhm2corners(nhm_file, faults)
     for x in p, q:
         x.path(
@@ -890,7 +890,7 @@ if __name__ == "__main__":
         info_files = glob(
             os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info")
         )
-        names = map(os.path.basename, map(os.path.dirname, srf_dirs))
+        names = list(map(os.path.basename, list(map(os.path.dirname, srf_dirs))))
 
         plot_area_mag(info_files, args.out_dir)
         plot_area_nhm(srf_dirs, args.nhm_file, args.out_dir)
@@ -909,8 +909,8 @@ if __name__ == "__main__":
     # run VM plots and checks
     if args.vm_dir is not None:
         vm_json = glob(os.path.join(args.vm_dir, "*", "params_vel.json"))
-        vm_dirs = map(os.path.dirname, vm_json)
-        names = map(os.path.basename, vm_dirs)
+        vm_dirs = list(map(os.path.dirname, vm_json))
+        names = list(map(os.path.basename, vm_dirs))
 
         plot_vm(vm_dirs, args.out_dir)
         plot_duration_mag(vm_json, args.out_dir)

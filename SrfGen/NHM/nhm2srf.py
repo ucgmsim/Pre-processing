@@ -54,7 +54,7 @@ def load_msgs(args, fault_names, faults):
     # load db
     dbi = args.nhm_skip
     with open(args.nhm_file, 'r') as dbr:
-        db = map(str.strip, dbr.readlines())
+        db = list(map(str.strip, dbr.readlines()))
     dbl = len(db)
 
     # compile messages (parameters for CreateSRF_multi)
@@ -70,9 +70,9 @@ def load_msgs(args, fault_names, faults):
             continue
 
         # load trace
-        pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
+        pts = [list(map(float, ll.split())) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
         # clean points (remove duplicates)
-        for i in xrange(n_pt - 2, -1, -1):
+        for i in range(n_pt - 2, -1, -1):
             if geo.ll_dist(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]) \
                     < 0.1:
                 del pts[i + 1]
@@ -88,7 +88,7 @@ def load_msgs(args, fault_names, faults):
         strikes = []
         stk_norm = 0
         stk_rev = 0
-        for plane in xrange(n_pt - 1):
+        for plane in range(n_pt - 1):
             mids.append(geo.ll_mid(pts[plane][0], pts[plane][1], \
                     pts[plane + 1][0], pts[plane + 1][1]))
             lengths.append(geo.ll_dist(pts[plane][0], pts[plane][1], \
@@ -143,7 +143,7 @@ def load_msgs(args, fault_names, faults):
             if len(fault) >= 3:
                 n_slip = int(fault[2])
             if len(fault) >= 4:
-                dhypos = map(float, fault[3].split(','))
+                dhypos = list(map(float, fault[3].split(',')))
         if t_hypo == 'n':
             hyp_step = trace_length / (n_hypo * 2.)
         seed = args.seed
@@ -178,7 +178,7 @@ def load_msgs(args, fault_names, faults):
         elon = [[ll[0] for ll in mids]]
         elat = [[ll[1] for ll in mids]]
 
-        for n_shyp in xrange(n_hypo):
+        for n_shyp in range(n_hypo):
             # hypocentre position from far left edge
             if t_hypo == 'n':
                 shyp_shift = hyp_step * (1 + 2 * n_shyp)
@@ -189,7 +189,7 @@ def load_msgs(args, fault_names, faults):
             # NOTE: this shypo is relative to the first combined fault
             # if not adjusted later, must be relative to full length
             shypo = [[shyp_shift - (lengths[0] / 2.)]]
-            for _ in xrange(n_slip):
+            for _ in range(n_slip):
                 for i, d in enumerate(dhypos):
                     seed += args.seed_inc
                     if t_hypo == 'r':
@@ -281,7 +281,7 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         with open(args.selection_file, 'r') as select:
-            faults = map(str.split, select.readlines())
+            faults = list(map(str.split, select.readlines()))
         fault_names = [f[0] for f in faults]
     # default value
     if args.dhypo is None:

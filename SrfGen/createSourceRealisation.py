@@ -29,6 +29,18 @@ from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
 mom2mag = lambda mom : (2 / 3. * log(mom) / log(10.0)) - 10.7
 
+
+def relative_uniform_distribution(mean, scale_factor, **kwargs):
+    """A uniform distribution where the min and max are scaled relative to the middle value given as the mean"""
+    return uniform(mean * (1 - scale_factor), mean * (1 + scale_factor))
+
+
+def uniform_distribution(mean, half_range, **kwargs):
+    return uniform(
+        mean - half_range, mean + half_range
+    )
+
+
 def param_as_string(param):
     # 1st case: single value
     if type(param).__name__ != 'list':
@@ -38,10 +50,10 @@ def param_as_string(param):
         return ' '.join(map(str, param))
     # 3rd case: 2D array
     return ' '.join([' '.join(map(str, param[x])) \
-            for x in xrange(len(param))])
+            for x in range(len(param))])
 
 def CreateSRF_ffdStoch():
-    from setSrfParams import *
+    from setSrfParams import M_NAME,N_SCENARIOS,SEED,SEED_INC,N_SEED_INC,SHYPO,FLEN,V_HYPO,DHYPO,FWID,V_MAG,MAG,V_FLEN,DLEN,V_FWID,DWID,M_FWID,LAT,LON,RAK,DIP,DT,RVFRAC,ROUGH,SLIP_COV,DLEN,DWID,DTOP,GENSLIP,STOCH
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
@@ -56,7 +68,7 @@ def CreateSRF_ffdStoch():
         of.write('\n')
 
     # create each scenario
-    for ns in xrange(N_SCENARIOS):
+    for ns in range(N_SCENARIOS):
         # scenario number as string
         nss = str(ns).zfill(4)
         # increment seed if wanted
@@ -99,11 +111,11 @@ def CreateSRF_ffdStoch():
 
         # run createSRF with randomised parameters
         CreateSRF_ff(LAT, LON, m_mag, STK, \
-                RAK, DIP, DT, output, seed, rvfrac = RVFRAC, \
-                rough = ROUGH, slip_cov = SLIP_COV, flen = m_flen, \
-                dlen = DLEN, fwid = m_fwid, dwid = DWID, dtop = DTOP, \
-                shypo = shypo, dhypo = dhypo, \
-                genslip = GENSLIP, stoch = STOCH)
+                     RAK, DIP, DT, output, seed, rvfrac = RVFRAC, \
+                     rough = ROUGH, slip_cov = SLIP_COV, flen = m_flen, \
+                     dlen = DLEN, fwid = m_fwid, dwid = DWID, dtop = DTOP, \
+                     shypo = shypo, dhypo = dhypo, \
+                     genslip_version= GENSLIP, stoch = STOCH)
 
         # append stoch data to info file
         with open('Srf/%s' % (metainfo), 'a') as of:
@@ -120,10 +132,29 @@ def CreateSRF_ffdStoch():
             # end of line / end of this srf file
             of.write('\n')
 
-
-def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, strike, rake, dip,uncertainty_file,
-                          n_realisations=50, additional_options={}, dt=0.005, vs=3.20, rho=2.44, target_area_km=None,
-                          target_slip_cm=None, stype='cos', rise_time=0.5, init_time=0.0, silent=False):
+def create_ps_realisation(
+    out_dir,
+    fault_name,
+    lat,
+    lon,
+    depth,
+    mw_mean,
+    mom,
+    strike,
+    rake,
+    dip,
+    n_realisations=50,
+    additional_options={},
+    dt=0.005,
+    vs=3.20,
+    rho=2.44,
+    target_area_km=None,
+    target_slip_cm=None,
+    stype='cos',
+    rise_time=0.5,
+    init_time=0.0,
+    silent=False,
+):
     """
     Creates SRF files using random variables.
     Nominal values are to be passed in, while the probability characteristics are to be found in a yaml file that
@@ -135,82 +166,169 @@ def create_ps_realisation(out_dir, fault_name, lat, lon, depth, mw_mean, mom, st
     placed in the srf
     """
 
-    # Read yaml settings file
-    with open(uncertainty_file) as yaml_file:
-        yaml_settings = yaml.load(yaml_file)
+    # Dictionary of distribution functions. 'none' is required for unperturbated options.
+    # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
+    random_distribution_functions = {
+        'none': lambda mean, **kwargs: mean,
+        'uniform': uniform_distribution,
+        'normal': lambda mean, std_dev, **kwargs: normalvariate(
+            mean, std_dev
+        ),
+        'uniform_relative': relative_uniform_distribution,
+        'log_normal': lambda mean, std_dev, **kwargs: lognormal(
+            mean, std_dev, 1
+        ),
+    }
 
     # Generate standard options dictionary
 
-    standard_options = {'depth': depth,
-                        'mw': mw_mean,
-                        'mom': mom,
-                        'strike': strike,
-                        'rake': rake,
-                        'dip': dip,
-                        'vs': vs,
-                        'rho': rho,
-                        'rise_time': rise_time}
+    unperturbed_standard_options = {
+        'depth': {'mean': depth, 'distribution': 'none'},
+        'mw': {'mean': mw_mean, 'distribution': 'none'},
+        'mom': {'mean': mom, 'distribution': 'none'},
+        'strike': {'mean': strike, 'distribution': 'none'},
+        'rake': {'mean': rake, 'distribution': 'none'},
+        'dip': {'mean': dip, 'distribution': 'none'},
+        'vs': {'mean': vs, 'distribution': 'none'},
+        'rho': {'mean': rho, 'distribution': 'none'},
+        'rise_time': {
+            'mean': rise_time,
+            'distribution': 'none',
+        },
+    }
 
-    for setting in yaml_settings:
-        key = yaml_settings[setting].keys()[0]
-        if 'mean' in yaml_settings[setting][key]:
-            additional_options.update({setting: yaml_settings[setting][key]['mean']})
+    unperturbed_additional_options = dict()
 
-    perturbed_standard_options = dict(standard_options)
-    perturbed_additional_options = dict(additional_options)
+    # Set default unperturbed values for all options,
+    # including updating distributions for any standard options to be perturbated.
+    for key, val in additional_options.items():
+        if key in ['bb', 'hf', 'emod3d']:
+            for parameter, value in val.items():
+                unperturbed_additional_options.update(
+                    {parameter: value}
+                )
+                # Store the workflow component that the parameter is for so it can easily be accessed later
+                unperturbed_additional_options[
+                    parameter
+                ].update({'component': key})
+        elif key in unperturbed_standard_options:
+            unperturbed_standard_options[key].update(val)
 
-    for ns in range(1, n_realisations+1):
+    # Dictionaries that are to be (key:perturbated value) pairs
+    perturbed_standard_options = {}
+    perturbed_additional_options = {}
 
-        realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
-        realisation_srf_path = os.path.join(out_dir, simulation_structure.get_srf_location(realisation_name))
-        realisation_stoch_path = os.path.join(out_dir, simulation_structure.get_stoch_location(realisation_name))
+    for ns in range(1, n_realisations + 1):
 
-        realisation_stoch_path = '/'+os.path.join(*realisation_stoch_path.split('/')[:-1])
+        realisation_name = simulation_structure.get_realisation_name(
+            fault_name, ns
+        )
+        realisation_srf_path = os.path.join(
+            out_dir,
+            simulation_structure.get_srf_location(
+                realisation_name
+            ),
+        )
+        realisation_stoch_path = os.path.dirname(
+            os.path.join(
+                out_dir,
+                simulation_structure.get_stoch_location(
+                    realisation_name
+                ),
+            )
+        )
 
-        for key in yaml_settings.keys():
+        for key in (
+            list(unperturbed_standard_options.keys())
+            + list(unperturbed_additional_options.keys())
+        ):
 
             # Load the correct dictionaries to be read from/written to
-            if key in standard_options.keys():
-                dict_to_read_from = standard_options
+            if key in unperturbed_standard_options:
+                dict_to_read_from = (
+                    unperturbed_standard_options
+                )
                 dict_to_update = perturbed_standard_options
-            elif key in additional_options.keys():
-                dict_to_read_from = additional_options
-                dict_to_update = perturbed_additional_options
+            elif key in unperturbed_additional_options:
+                dict_to_read_from = (
+                    unperturbed_additional_options
+                )
+                dict_to_update = (
+                    perturbed_additional_options
+                )
             else:
                 continue
 
             # Do this after checking the key will be used
-            random_type = yaml_settings[key].keys()[0]
-            random_value = yaml_settings[key][random_type]
+            distribution = dict_to_read_from[key][
+                'distribution'
+            ]
 
-            # Apply the random variable
-            if random_type == 'uniform':
-                dict_to_update[key] = uniform(dict_to_read_from[key] - random_value['halfrange'],
-                                              dict_to_read_from[key] + random_value['halfrange'])
-            elif random_type == 'normal':
-                dict_to_update[key] = normalvariate(dict_to_read_from[key], random_value['std_dev'])
-            elif random_type == 'uniform_relative':
-                dict_to_update[key] = uniform(dict_to_read_from[key]*(1-random_value['scalefactor']),
-                                              dict_to_read_from[key]*(1+random_value['scalefactor']))
-            elif random_type == 'log_normal':
-                dict_to_update[key] = lognormal(dict_to_read_from[key], random_value['std_dev'], 1)
+            # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
+            dict_to_update[
+                key
+            ] = random_distribution_functions[distribution](
+                **dict_to_read_from[key]
+            )
 
         # Save the extra args to a yaml file
-        additional_args_fname = os.path.join(out_dir, simulation_structure.get_source_params_location(realisation_name))
-        utils.setup_dir(os.path.dirname(additional_args_fname))
+        additional_args_fname = os.path.join(
+            out_dir,
+            simulation_structure.get_source_params_location(
+                realisation_name
+            ),
+        )
+        utils.setup_dir(
+            os.path.dirname(additional_args_fname)
+        )
+
+        # Sort the parameters by their component.
+        output_additional_options = {}
+        for key, value in unperturbed_additional_options.items():
+            if (
+                value['component']
+                not in output_additional_options
+            ):
+                output_additional_options.update(
+                    {value['component']: {}}
+                )
+            output_additional_options[
+                value['component']
+            ].update(
+                {key: perturbed_additional_options[key]}
+            )
+
         with open(additional_args_fname, 'w') as yamlf:
-            yaml.dump(perturbed_additional_options, yamlf)
+            yaml.dump(output_additional_options, yamlf)
 
-        #print("Making srf with standard dict:")
-        #print(perturbed_standard_options)
-        #print("and additional dict:")
-        #print(perturbed_additional_options)
+        # print("Making srf with standard dict:")
+        # print(perturbed_standard_options)
+        # print("and additional dict:")
+        # print(perturbed_additional_options)
 
-        CreateSRF_ps(lat, lon, perturbed_standard_options['depth'], perturbed_standard_options['mw'], perturbed_standard_options['mom'], perturbed_standard_options['strike'],
-                     perturbed_standard_options['rake'], perturbed_standard_options['dip'], dt=dt, prefix=realisation_srf_path[:-4], stoch=realisation_stoch_path,
-                     vs=perturbed_standard_options['vs'], rho=perturbed_standard_options['rho'], target_area_km=target_area_km,
-                     target_slip_cm=target_slip_cm, stype=stype, rise_time=perturbed_standard_options['rise_time'],
-                     init_time=init_time, silent=silent)
+        CreateSRF_ps(
+            lat,
+            lon,
+            perturbed_standard_options['depth'],
+            perturbed_standard_options['mw'],
+            perturbed_standard_options['mom'],
+            perturbed_standard_options['strike'],
+            perturbed_standard_options['rake'],
+            perturbed_standard_options['dip'],
+            dt=dt,
+            prefix=realisation_srf_path[:-4],
+            stoch=realisation_stoch_path,
+            vs=perturbed_standard_options['vs'],
+            rho=perturbed_standard_options['rho'],
+            target_area_km=target_area_km,
+            target_slip_cm=target_slip_cm,
+            stype=stype,
+            rise_time=perturbed_standard_options[
+                'rise_time'
+            ],
+            init_time=init_time,
+            silent=silent,
+        )
 
 
 def randomise_rupdelay(delay, var, deps):
@@ -221,7 +339,7 @@ def randomise_rupdelay(delay, var, deps):
     var: absolute variability
     deps: segment which triggers or None if independent
     """
-    for i in xrange(len(delay)):
+    for i in range(len(delay)):
         if var[i] == 0:
             # segments have no variability
             continue
@@ -233,14 +351,14 @@ def randomise_rupdelay(delay, var, deps):
         f = [i]
         while len(f) > 0:
             target = f.pop(0)
-            for j in xrange(len(deps)):
+            for j in range(len(deps)):
                 if deps[j] == target:
                     delay[j] += diff
                     f.append(j)
     return delay
 
 def CreateSRF_multiStoch():
-    from setSrfParams import *
+    from setSrfParams import PREFIX, N_SCENARIOS,SEED,SEED_INC,N_SEED_INC, M_RUP_DELAY,V_RDELAY,D_RDELAY, M_SHYPO,FLEN,V_HYPO,M_DHYPO,M_FWID,M_MAG,CASES,MW_TOTAL,V_MAG,V_FLEN, M_MAG, V_FLEN, M_DLEN
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
@@ -261,7 +379,7 @@ def CreateSRF_multiStoch():
         of.write('\n')
 
     # create each scenario
-    for ns in xrange(N_SCENARIOS):
+    for ns in range(N_SCENARIOS):
         # scenario number as string
         nss = str(ns).zfill(4)
         # increment seed if wanted
@@ -289,9 +407,9 @@ def CreateSRF_multiStoch():
         m_mag = []
         m_flen = []
         m_fwid = []
-        m0_tot = sum([mag2mom(M_MAG[i]) for i in xrange(len(CASES))])
+        m0_tot = sum([mag2mom(M_MAG[i]) for i in range(len(CASES))])
         m0_target = mag2mom(MW_TOTAL)
-        for case in xrange(len(CASES)):
+        for case in range(len(CASES)):
             # randomise MAGnitude
             if V_MAG[case]:
                 maxd = mag2mom(M_MAG[case]) * V_MAG[case]
@@ -319,20 +437,20 @@ def CreateSRF_multiStoch():
             else:
                 m_fwid.append(M_FWID[case])
         # normalise moment ratios
-        m_mag = [m_mag[i] / sum(m_mag) for i in xrange(len(m_mag))]
+        m_mag = [m_mag[i] / sum(m_mag) for i in range(len(m_mag))]
         # convert back to magnitudes
-        m_mag = [mom2mag(m_mag[i] * m0_target) for i in xrange(len(m_mag))]
+        m_mag = [mom2mag(m_mag[i] * m0_target) for i in range(len(m_mag))]
 
         output = '%s_%s_%.4d' % (PREFIX.rstrip('_'), run_id, ns)
 
         # run createSRF with randomised parameters
         CreateSRF_multi(M_NSEG, M_SEG_DELAY, m_mag, M_MOM, \
-                M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
-                M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
-                M_RAK, M_DIP, M_ELON, M_ELAT, m_shypo, \
-                m_dhypo, DT, seed, output, CASES, rvfrac = RVFRAC, \
-                rough = ROUGH, slip_cov = SLIP_COV, genslip = GENSLIP, \
-                stoch = STOCH)
+                        M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
+                        M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
+                        M_RAK, M_DIP, M_ELON, M_ELAT, m_shypo, \
+                        m_dhypo, DT, seed, output, CASES, rvfrac = RVFRAC, \
+                        rough = ROUGH, slip_cov = SLIP_COV, genslip_version= GENSLIP, \
+                        stoch = STOCH)
 
         # append stoch data to info file
         with open(metainfo, 'a') as of:

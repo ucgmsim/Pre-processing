@@ -32,7 +32,7 @@ while dbi < dbl:
     rake = float(db[dbi + 5])
 
     # find total area
-    pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
+    pts = [list(map(float, ll.split())) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
     dbottom = float(db[dbi + 6].split()[0])
     dtop = float(db[dbi + 7].split()[0])
     # Karim: add 3km to depth if bottom >= 12km
@@ -40,7 +40,7 @@ while dbi < dbl:
     # fault width (along dip)
     fwid = (dbottom - dtop + 3 * extend) / math.sin(math.radians(dip))
     flen = sum([geo.ll_dist(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]) \
-            for i in xrange(n_pt - 1)])
+            for i in range(n_pt - 1)])
     Ml = leonard(rake, fwid * flen)
 
     # output

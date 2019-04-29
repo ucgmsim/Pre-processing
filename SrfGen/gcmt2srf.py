@@ -1,7 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from multiprocessing import Pool
 import os
 from subprocess import call
 import sys
@@ -10,21 +9,28 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from qcore.pool_wrapper import PoolWrapper
+
 from createSRF import leonard, CreateSRF_ps
 from createSourceRealisation import create_ps_realisation
 
 
 def run_create_srf(args, t, vs, rho, n_sims):
     mom = -1
-    prefix = os.path.join(args.out_dir, str(t.pid), 'Srf', str(t.pid))
+    try:
+        pid=t.pid.decode() #t.pid is originally numpy.bytes_
+    except AttributeError:
+        pid = t.pid
+
+    prefix = os.path.join(args.out_dir, pid, 'Srf', pid)
     if args.uncertainty_file:
-        with open(args.add_opts_file) as ao_f:
+        with open(args.uncertainty_file) as ao_f:
             add_opts = yaml.load(ao_f)
-        create_ps_realisation(args.out_dir, str(t.pid), t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
-                              args.uncertainty_file, n_realisations=n_sims, additional_options=add_opts,
-                              dt=args.dt, vs=vs, rho=rho, silent=True)
+        create_ps_realisation(args.out_dir, pid, t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
+                              n_realisations=n_sims, additional_options=add_opts, dt=args.dt, vs=vs, rho=rho,
+                              silent=True)
     else:
-        stoch = os.path.join(args.out_dir, str(t.pid), 'Stoch')
+        stoch = os.path.join(args.out_dir, pid, 'Stoch')
         CreateSRF_ps(t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip, dt=args.dt, prefix=prefix, stoch=stoch,
                      vs=vs, rho=rho, silent=True)
     if args.plot:
@@ -40,7 +46,7 @@ parser = ArgumentParser()
 parser.add_argument('csv_file', help = 'path to CMT solutions CSV')
 parser.add_argument('velocity_model', help = 'path to 1D velocity model')
 parser.add_argument('-o', '--out-dir', help = 'directory to place outputs', \
-                    default = 'autosrf')
+                    default = './autosrf')
 parser.add_argument('--dt', help = 'SRF timestep', type = float, \
                     default = 0.005)
 parser.add_argument('-n', '--nproc', type = int, default = 1)
@@ -49,7 +55,6 @@ uncertainty_group = parser.add_argument_group('Uncertainty options', 'Options to
                                                                      'with uncertainty factors')
 uncertainty_group.add_argument('-r', '--realistion-uncertainty', dest='uncertainty_file', type=str, default='')
 uncertainty_group.add_argument('-c', '--cybershake-fault-file', dest='cs_file', type=str, default='')
-uncertainty_group.add_argument('-a', '--additional-options-file', dest='add_opts_file', type=str, default='')
 args = parser.parse_args()
 # validate parameters
 if not os.path.exists(args.csv_file):
@@ -98,6 +103,6 @@ vs = vmodel.vs[depth_bins]
 rho = vmodel.rho[depth_bins]
 
 # distribute work
-p = Pool(args.nproc)
-p.map(run_create_srf_star,zip([args] * len(sources), sources, vs, rho, n_sims))
+p = PoolWrapper(args.nproc)
+p.map(run_create_srf_star,list(zip([args] * len(sources), sources, vs, rho, n_sims)))
 #[run_create_srf(args, sources[i], vs[i], rho[i]) for i in xrange(len(sources))]
