@@ -5,6 +5,7 @@ from subprocess import check_call
 import sys
 
 from qcore.binary_version import get_unversioned_bin
+from qcore.constants import VM_PARAMS_FILE_NAME
 from qcore.utils import load_yaml
 
 
@@ -18,7 +19,7 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
     """
 
     # load params for velocity model
-    vm = load_yaml(os.path.join(vm_dir, "vm_params.yaml"))
+    vm = load_yaml(os.path.join(vm_dir, VM_PARAMS_FILE_NAME))
 
     XLEN = vm["nx"] * vm["hh"]
     YLEN = vm["ny"] * vm["hh"]

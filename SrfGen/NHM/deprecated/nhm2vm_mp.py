@@ -21,6 +21,8 @@ from Bradley_2010_Sa import Bradley_2010_Sa
 from empirical.GMM_models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
 # first entry index in NHM file
+from qcore.constants import VM_PARAMS_FILE_NAME
+
 NHM_START = 15
 PGV_TARGET = 5
 
@@ -473,7 +475,7 @@ def create_vm(details):
     ###
     vm_out = os.path.join(details['out'], details['name'])
     nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
-    vm_params = os.path.join(ptemp, 'vm_params.yaml')
+    vm_params = os.path.join(ptemp, VM_PARAMS_FILE_NAME)
     with open(nzvm_cfg, 'w') as vmd:
         vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
                 'MODEL_VERSION=1.65', \

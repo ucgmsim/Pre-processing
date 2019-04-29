@@ -22,6 +22,7 @@ import yaml
 from createSRF import leonard
 from qcore.geo import ll_shift, ll_bearing, ll_dist
 from qcore import gmt
+from qcore.constants import VM_PARAMS_FILE_NAME
 
 
 def fig_init():
@@ -774,7 +775,7 @@ def plot_size_mag(vm_dirs, out_dir):
     magnitudes = []
     for d in vm_dirs:
         sizes.append(os.stat(os.path.join(d, "vs3dfile.s")).st_size / 1000000.0)
-        with open(os.path.join(d, "vm_params.yaml"), "r") as jo:
+        with open(os.path.join(d, VM_PARAMS_FILE_NAME), "r") as jo:
             magnitudes.append(yaml.load(jo)["mag"])
 
     fig_init()
@@ -856,7 +857,7 @@ if __name__ == "__main__":
 
     # run VM plots and checks
     if args.vm_dir is not None:
-        vm_params_yamls = glob(os.path.join(args.vm_dir, "*", "vm_params.yaml"))
+        vm_params_yamls = glob(os.path.join(args.vm_dir, "*", VM_PARAMS_FILE_NAME))
         vm_dirs = list(map(os.path.dirname, vm_params_yamls))
         names = list(map(os.path.basename, vm_dirs))
 

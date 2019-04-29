@@ -18,12 +18,12 @@ import shutil
 import getpass
 from datetime import datetime
 import errno
+from qcore.constants import VM_PARAMS_FILE_NAME
 
 
 PATH_TO_SAMPLE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sample1")
 PATH_TO_SAMPLE_OUTDIR = os.path.join(PATH_TO_SAMPLE_DIR, "output")
 PATH_TO_SAMPLE_INPUT_DIR = os.path.join(PATH_TO_SAMPLE_DIR, "input")
-INPUT_FILENAME = "vm_params.yaml"
 # print "PATH_TO_SAMPLE_OUTDIR: ",PATH_TO_SAMPLE_OUTDIR
 
 
@@ -39,7 +39,7 @@ PATH_FOR_PRG_TOBE_TESTED = os.path.join(
     os.path.dirname(__file__), "../../SrfGen/gen_coords.py"
 )
 SYMLINK_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(PATH_FOR_PRG_TOBE_TESTED)), INPUT_FILENAME
+    os.path.abspath(os.path.dirname(PATH_FOR_PRG_TOBE_TESTED)), VM_PARAMS_FILE_NAME
 )
 # print "symbolic: **** ", SYMLINK_PATH
 
@@ -52,9 +52,9 @@ def setup_module(scope="module"):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
-    sample_path = os.path.join(PATH_TO_SAMPLE_INPUT_DIR, INPUT_FILENAME)
+    sample_path = os.path.join(PATH_TO_SAMPLE_INPUT_DIR, VM_PARAMS_FILE_NAME)
     #    os.symlink(sample_path,SYMLINK_PATH)
-    os.symlink(sample_path, os.path.join(PATH_UNDER_TEST, INPUT_FILENAME))
+    os.symlink(sample_path, os.path.join(PATH_UNDER_TEST, VM_PARAMS_FILE_NAME))
 
 
 def test_gencoords():
