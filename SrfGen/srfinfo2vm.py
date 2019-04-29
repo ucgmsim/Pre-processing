@@ -496,7 +496,7 @@ def gen_vm(args, srf_meta, vm_params_dict, mag, ptemp):
     print(vm_dir)
     vm_params_dict["vm_dir"] = vm_dir
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    vm_params_path = os.path.join(ptemp, "vm_params_dict")
+    vm_params_path = os.path.join(ptemp, "vm_params")
     # NZVM won't run if folder exists
     if os.path.exists(vm_dir):
         rmtree(vm_dir)
@@ -521,8 +521,7 @@ def gen_vm(args, srf_meta, vm_params_dict, mag, ptemp):
         # save important files
         os.makedirs(vm_dir)
         move(nzvm_cfg, vm_dir)
-        move("%s.py" % (vm_params_path), vm_dir)
-        move("%s.json" % (vm_params_path), vm_dir)
+        move("%s.yaml" % (vm_params_path), vm_dir)
         # generate a corners like NZVM would have
         with open("%s/VeloModCorners.txt" % (vm_params_dict["vm_dir"]), "wb") as c:
             c.write("> VM corners (python generated)\n".encode())

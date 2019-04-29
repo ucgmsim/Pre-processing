@@ -24,8 +24,6 @@ from qcore.geo import ll_shift, ll_bearing, ll_dist
 from qcore import gmt
 
 
-
-
 def fig_init():
     return plt.figure(figsize=(8, 5), dpi=150)
 
