@@ -7,6 +7,7 @@ import sys
 from qcore.binary_version import get_unversioned_bin
 from qcore.utils import load_yaml
 
+
 def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origin="1"):
     """
     Generate coordinate files for an emod3d domain (set of grid points).
@@ -17,25 +18,8 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
     """
 
     # load params for velocity model
-    try:
-        vm=load_yaml(os.path.join(vm_dir,"params_vel.yaml"))
-    except (IOError, FileNotFoundError) as e:
-        # deprecated, will break if run multiple times as a function
-        sys.path.insert(0, vm_dir)
-        import params_vel as vm
+    vm = load_yaml(os.path.join(vm_dir, "vm_params.yaml"))
 
-        # notify of location because of above breakage issue
-        print("vm dir:     %s\nsim params: %s" % (vm_dir, os.path.abspath(vm.__file__)))
-        vm = {
-            "nx": int(vm.nx),
-            "ny": int(vm.ny),
-            "nz": int(vm.nz),
-            "hh": float(vm.hh),
-            "sufx": vm.sufx,
-            "MODEL_LON": float(vm.MODEL_LON),
-            "MODEL_LAT": float(vm.MODEL_LAT),
-            "MODEL_ROT": float(vm.MODEL_ROT),
-        }
     XLEN = vm["nx"] * vm["hh"]
     YLEN = vm["ny"] * vm["hh"]
     ZLEN = vm["nz"] * vm["hh"]

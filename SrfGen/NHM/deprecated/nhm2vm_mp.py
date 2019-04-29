@@ -469,11 +469,11 @@ def create_vm(details):
 
     # store info
     ###
-    ### XXX: params_vel depends on gen_coords.py
+    ### XXX: vm_params depends on gen_coords.py
     ###
     vm_out = os.path.join(details['out'], details['name'])
     nzvm_cfg = os.path.join(ptemp, 'nzvm.cfg')
-    params_vel = os.path.join(ptemp, 'params_vel.py')
+    vm_params = os.path.join(ptemp, 'vm_params.yaml')
     with open(nzvm_cfg, 'w') as vmd:
         vmd.write('\n'.join(['CALL_TYPE=GENERATE_VELOCITY_MOD', \
                 'MODEL_VERSION=1.65', \
@@ -489,7 +489,7 @@ def create_vm(details):
                 'EXTENT_LATLON_SPACING=%s' % (HH), \
                 'MIN_VS=0.5', \
                 'TOPO_TYPE=BULLDOZED\n']))
-    with open(params_vel, 'w') as pv:
+    with open(vm_params, 'w') as pv:
         pv.write('\n'.join(['mag = "%s"' % (faultprop.Mw), \
                 'centroidDepth = "%s"' % (centroid_depth), \
                 'MODEL_LAT = "%s"' % (mid0[1]), \
@@ -536,7 +536,7 @@ def create_vm(details):
     rmtree(os.path.join(vm_out, 'Velocity_Model'))
     rmtree(os.path.join(vm_out, 'Log'))
     os.rename(nzvm_cfg, os.path.join(vm_out, os.path.basename(nzvm_cfg)))
-    os.rename(params_vel, os.path.join(vm_out, os.path.basename(params_vel)))
+    os.rename(vm_params, os.path.join(vm_out, os.path.basename(vm_params)))
     # create model_coords, model_bounds etc...
     # debug info unwanted (in stdout instead of stderr)
     with open('/dev/null', 'a') as sink:
