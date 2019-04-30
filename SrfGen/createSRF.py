@@ -281,7 +281,7 @@ def MwScalingRelation(Mw, MwScalingRel):
 
 def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
     with open(gsf_file, 'w') as gsfp:
-        gexec = Popen([srf_config.GSF_BIN, 'read_slip_vals=0'], \
+        gexec = Popen([binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), 'read_slip_vals=0'], \
                 stdin = PIPE, stdout = gsfp)
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' \
                 % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny))
