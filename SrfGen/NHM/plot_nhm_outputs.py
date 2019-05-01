@@ -21,7 +21,7 @@ import yaml
 
 from createSRF import leonard
 from qcore.geo import ll_shift, ll_bearing, ll_dist
-from qcore import gmt
+from qcore import gmt, srf
 from qcore.constants import VM_PARAMS_FILE_NAME
 
 
@@ -770,6 +770,57 @@ def plot_duration_mag(yamls, out_dir):
     plt.close()
 
 
+def plot_srf_subfault_size(srf_dirs, out_dir):
+    srf_subfault_size = []
+    for i, srf_dir in enumerate(srf_dirs):
+        srf_file = glob(os.path.join(srf_dir, "*.srf"))[0]
+        i_dx, i_dy = srf.srf_dxy(srf_file)
+        srf_subfault_size.append((i, i_dx, i_dy))
+
+    x, dx, dy = zip(*srf_subfault_size)
+
+    fig_init()
+    plt.plot(x, dx, marker='x', linestyle="None")
+    plt.title('SRF Subfault Size (dx)')
+    plt.ylabel('dx (km)')
+    plt.xlabel("sources")
+    plt.savefig(os.path.join(out_dir, "srf_dx_subfault_size"))
+    plt.close()
+
+    fig_init()
+    plt.plot(x, dy, marker='x', linestyle="None")
+    plt.title('SRF Subfault Size (dy)')
+    plt.ylabel('dy (km)')
+    plt.xlabel("sources")
+    plt.savefig(os.path.join(out_dir, "srf_dy_subfault_size"))
+    plt.close()
+
+
+def plot_stoch_subfault_size(stoch_dirs, out_dir):
+    stoch_subfault_size = []
+    for i, stoch_dir in enumerate(stoch_dirs):
+        stoch_file = glob(os.path.join(stoch_dir, "*.stoch"))[0]
+        stoch_header = srf.read_stoch_header(stoch_file)
+        for plane in stoch_header['plane_headers']:
+            stoch_subfault_size.append((i, plane['dx'], plane['dy']))
+    x, dx, dy = zip(*stoch_subfault_size)
+    fig_init()
+    plt.plot(x, dx, marker='x', linestyle="None")
+    plt.title('Stoch Subfault Size (dx)')
+    plt.ylabel('dx (km)')
+    plt.xlabel("sources")
+    plt.savefig(os.path.join(out_dir, "stoch_dx_subfault_size"))
+    plt.close()
+
+    fig_init()
+    plt.plot(x, dy, marker='x', linestyle="None")
+    plt.title('Stoch Subfault Size (dy)')
+    plt.ylabel('dy (km)')
+    plt.xlabel("sources")
+    plt.savefig(os.path.join(out_dir, "stoch_dy_subfault_size"))
+    plt.close()
+
+
 def plot_size_mag(vm_dirs, out_dir):
     sizes = []
     magnitudes = []
@@ -838,6 +889,7 @@ if __name__ == "__main__":
     # run SRF plots and checks
     if args.srf_dir is not None:
         srf_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Srf"))
+        stoch_dirs = glob(os.path.join(os.path.abspath(args.srf_dir), "*", "Stoch"))
         info_files = glob(
             os.path.join(os.path.abspath(args.srf_dir), "*", "Srf", "*.info")
         )
@@ -852,6 +904,8 @@ if __name__ == "__main__":
         plot_srf_nhm(srf_dirs, args.nhm_file, args.out_dir)
         plot_hypo_dist(srf_dirs, os.path.join(args.out_dir, "hypo_dist"))
         plot_srf_error(srf_dirs, args.out_dir)
+        plot_stoch_subfault_size(stoch_dirs, args.out_dir)
+        plot_srf_subfault_size(srf_dirs, args.out_dir)
         if args.selection_file is not None:
             test_selection(args.selection_file, names, "SRF", args.out_dir)
 
