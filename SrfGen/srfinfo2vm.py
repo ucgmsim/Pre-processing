@@ -280,7 +280,7 @@ def save_vm_config(
                 "ny": int(round(float(ylen) / hh)),
                 "nz": int(round(float(zmax - zmin) / hh)),
                 "sufx": "_%s01-h%.3f" % (code, hh),
-            }, "%s.yaml".format(vm_params)
+            }, "{}.yaml".format(vm_params)
         )
 
 
