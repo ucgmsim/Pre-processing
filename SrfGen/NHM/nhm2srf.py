@@ -204,7 +204,7 @@ def load_msgs(args, fault_names, faults):
                                 name, n_shyp+1
                             )
                         ),
-                    )
+                    )[:-4]
                     # create SRF from description
                     msgs.append({'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag, \
                             'mom':mom, 'rvfac_seg':rvfac_seg, 'gwid':gwid, \
