@@ -14,7 +14,8 @@ from time import time
 import numpy as np
 
 from createSRF import leonard, CreateSRF_multi
-from qcore import geo
+from qcore import geo, simulation_structure
+
 
 def rand_shyp_dhyp(length = 1.0, width = 1.0):
     # normal distribution
@@ -196,9 +197,14 @@ def load_msgs(args, fault_names, faults):
                         dhypo = [[dhyp_shift] * n_plane]
                     else:
                         dhypo = [[fwid[0][0] * d] * n_plane]
-                    prefix = '%s/%s/Srf/%s_HYP%.2d-%.2d_S%s' \
-                            % (args.out_dir, name, name, n_shyp * len(dhypos) + i + 1, \
-                               n_hypo * len(dhypos), seed)
+                    prefix = os.path.join(
+                        args.out_dir,
+                        simulation_structure.get_srf_location(
+                            simulation_structure.get_realisation_name(
+                                name, n_shyp+1
+                            )
+                        ),
+                    )[:-4]
                     # create SRF from description
                     msgs.append({'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag, \
                             'mom':mom, 'rvfac_seg':rvfac_seg, 'gwid':gwid, \
