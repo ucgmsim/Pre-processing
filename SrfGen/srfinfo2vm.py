@@ -93,16 +93,11 @@ def auto_z(mag, depth):
     )
 
 
-# simulation time based on magnitude
-def auto_time(mag):
-    return np.power(10, max(1, 0.5 * mag - 1))
-
-
 # simulation time based on area
 def auto_time2(xlen, ylen, ds_multiplier):
-    s_wave_arrival = max(xlen, ylen) / 3.2
-    # alternative if rrup not available
-    siteprop.Rrup = max(xlen / 2.0, ylen / 2.0)
+    rrup = max(xlen, ylen) / 2.0
+    s_wave_arrival = rrup / 3.2
+    siteprop.Rrup = rrup
     # magnitude is in faultprop
     ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
     return s_wave_arrival + ds_multiplier * ds
@@ -664,8 +659,6 @@ def create_vm(args, srf_meta):
         vm0_region[3] + 1,
     )
 
-    # original domain has a ds_multiplier of 2 when calculating sim time
-    sim_time0 = (auto_time2(xlen0, ylen0, 2) // args.dt) * args.dt
     # proportion in ocean
     land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
 
@@ -722,6 +715,7 @@ def create_vm(args, srf_meta):
         ylen1 = ylen0
         xlen1 = xlen0
         land1 = land0
+        c1, c2, c3, c4 = o1, o2, o3, o4
     # not enough land in final domain
     if math.floor(land1) == 0:
         xlen1 = 0
@@ -730,10 +724,7 @@ def create_vm(args, srf_meta):
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["hdepth"]) / args.hh) * args.hh
     # modified sim time
-    sim_time1 = (auto_time2(xlen1, ylen1, 1) // args.dt) * args.dt
-    if not adjusted:
-        sim_time1 = sim_time0
-        c1, c2, c3, c4 = o1, o2, o3, o4
+    sim_time1 = (auto_time2(xlen1, ylen1, 1.2) // args.dt) * args.dt
 
     # optimisation results
     vm_params = {
@@ -741,7 +732,7 @@ def create_vm(args, srf_meta):
         "mag": faultprop.Mw,
         "dbottom": srf_meta["dbottom"],
         "zlen": zlen,
-        "sim_time": sim_time0,
+        "sim_time": sim_time1,
         "xlen": xlen0,
         "ylen": ylen0,
         "land": land0,
@@ -898,7 +889,7 @@ def store_summary(table, info_store):
     with open(table, "w") as t:
         t.write(
             '"name","mw","plane depth (km, to bottom)",'
-            '"vm depth (zlen, km)","sim time (s)","xlen (km)",'
+            '"vm depth (zlen, km)","xlen (km)",'
             '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
             '"adjusted sim time (s)","adjusted xlen (km)",'
             '"adjusted ylen (km)","adjusted land (% cover)"\n'
@@ -906,13 +897,12 @@ def store_summary(table, info_store):
 
         for i in info_store:
             t.write(
-                "%s,%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n"
+                "%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n"
                 % (
                     i["name"],
                     i["mag"],
                     i["dbottom"],
                     i["zlen"],
-                    i["sim_time"],
                     i["xlen"],
                     i["ylen"],
                     i["land"],
