@@ -469,7 +469,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
             )
         )
 
-    diff_lat, diff_lon = None, None
+    diff_lat, diff_lon = 0, 0
 
     if min_lon < 165:
         diff_lon = 1.001*(165 - min_lon)
