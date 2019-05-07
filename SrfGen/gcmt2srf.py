@@ -62,7 +62,7 @@ if not os.path.exists(args.csv_file):
 if not os.path.exists(args.velocity_model):
     sys.exit('Velocity model file not found: %s' % (args.velocity_model))
 all_opts = bool(args.uncertainty_file) and bool(args.cs_file)
-any_opts = bool(args.uncertainty_file) or bool(args.cs_file) or bool(args.add_opts_file)
+any_opts = bool(args.uncertainty_file) or bool(args.cs_file)
 if any_opts and not all_opts:
     parser.error("If realisation uncertainty, a cybershake fault file or an additional options file are given then the "
                  "others must be given also.")
