@@ -22,7 +22,7 @@ import yaml
 import argparse
 from qcore import simulation_structure, utils
 
-from numpy.random import lognormal
+from numpy.random import lognormal, weibull
 
 from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
@@ -178,6 +178,7 @@ def create_ps_realisation(
         'log_normal': lambda mean, std_dev, **kwargs: lognormal(
             mean, std_dev, 1
         ),
+        'weibull': lambda k, lambdaa, **kwargs: lambdaa*weibull(k)
     }
 
     # Generate standard options dictionary
