@@ -722,7 +722,7 @@ def create_vm(args, srf_meta):
         ylen1 = 0
 
     # zlen is independent from xlen and ylen
-    zlen = round(auto_z(faultprop.Mw, srf_meta["hdepth"]) / args.hh) * args.hh
+    zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
     sim_time1 = (auto_time2(xlen1, ylen1, 1.2) // args.dt) * args.dt
 
