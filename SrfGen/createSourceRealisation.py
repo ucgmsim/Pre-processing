@@ -178,7 +178,7 @@ def create_ps_realisation(
         'log_normal': lambda mean, std_dev, **kwargs: lognormal(
             mean, std_dev, 1
         ),
-        'weibull': lambda k, lambdaa, **kwargs: lambdaa*weibull(k)
+        'weibull': lambda k=3.353, lambdaa=0.612, **kwargs: lambdaa*weibull(k)
     }
 
     # Generate standard options dictionary
