@@ -23,6 +23,7 @@ import argparse
 from qcore import simulation_structure, utils
 
 from numpy.random import lognormal, weibull
+from scipy.stats import truncnorm
 
 from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
@@ -178,7 +179,10 @@ def create_ps_realisation(
         'log_normal': lambda mean, std_dev, **kwargs: lognormal(
             mean, std_dev, 1
         ),
-        'weibull': lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor * weibull(k)
+        'weibull': lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor * weibull(k),
+        'truncated_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: truncnorm(
+            std_dev_limit, -std_dev_limit, loc=mean, scale=std_dev
+        ).rvs(),
     }
 
     # Generate standard options dictionary
