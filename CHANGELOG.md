@@ -7,6 +7,7 @@ Pre processing
     - The Weibull distribution is now available for parameter perturbation
         - A mean value is not required for this distribution
         - The variables k and scale_factor are optional, and have default values as per nhm2srf
+    - Truncated normal distribution has also been added for parameter perturbation
 
 ## [19.4.1] - 2019-04-17 -- Initial Version
 ### Changed
