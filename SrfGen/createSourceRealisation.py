@@ -181,7 +181,7 @@ def create_ps_realisation(
         ),
         'weibull': lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor * weibull(k),
         'truncated_normal': lambda mean, std_dev, limit=2, **kwargs: truncnorm(
-            limit, -limit, loc=mean, scale=std_dev
+            -limit, limit, loc=mean, scale=std_dev
         ).rvs(),
     }
 
