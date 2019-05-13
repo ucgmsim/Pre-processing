@@ -22,6 +22,7 @@ import yaml
 import argparse
 from qcore import simulation_structure, utils
 
+from numpy import log
 from numpy.random import lognormal, weibull
 from scipy.stats import truncnorm
 
@@ -180,9 +181,16 @@ def create_ps_realisation(
             mean, std_dev, 1
         ),
         'weibull': lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor * weibull(k),
-        'truncated_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(truncnorm(
-            -std_dev_limit, std_dev_limit, loc=mean, scale=std_dev
-        ).rvs()),
+        'truncated_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            truncnorm(
+                -std_dev_limit, std_dev_limit, loc=mean, scale=std_dev
+            ).rvs()
+        ),
+        'truncated_log_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            exp(truncnorm(
+                -std_dev_limit, std_dev_limit, mean=float(mean[4:-1]), scale=std_dev
+            ).rvs())
+        ),
     }
 
     # Generate standard options dictionary
