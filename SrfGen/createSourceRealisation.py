@@ -188,7 +188,7 @@ def create_ps_realisation(
         ),
         'truncated_log_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
             exp(truncnorm(
-                -std_dev_limit, std_dev_limit, mean=float(mean[4:-1]), scale=std_dev
+                -std_dev_limit, std_dev_limit, loc=float(mean[4:-1]), scale=std_dev
             ).rvs())
         ),
     }
