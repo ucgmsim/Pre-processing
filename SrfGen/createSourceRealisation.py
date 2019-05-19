@@ -13,7 +13,6 @@ require the file setSrfParams.py to be present
 Alternatively create_ps_realisation can be imported and used from another python2 file
 """
 
-from math import exp, log
 import os
 from random import uniform, randint, normalvariate
 from time import time
@@ -22,7 +21,7 @@ import yaml
 import argparse
 from qcore import simulation_structure, utils
 
-from numpy import log
+from numpy import log, exp
 from numpy.random import lognormal, weibull
 from scipy.stats import truncnorm
 
@@ -188,7 +187,7 @@ def create_ps_realisation(
         ),
         'truncated_log_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
             exp(truncnorm(
-                -std_dev_limit, std_dev_limit, mean=float(mean[4:-1]), scale=std_dev
+                -std_dev_limit, std_dev_limit, loc=log(float(mean[4:-1])), scale=std_dev
             ).rvs())
         ),
     }
