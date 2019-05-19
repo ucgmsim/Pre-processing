@@ -13,7 +13,6 @@ require the file setSrfParams.py to be present
 Alternatively create_ps_realisation can be imported and used from another python2 file
 """
 
-from math import exp, log
 import os
 from random import uniform, randint, normalvariate
 from time import time
@@ -22,14 +21,13 @@ import yaml
 import argparse
 from qcore import simulation_structure, utils
 
-from numpy import log
-from numpy.random import lognormal, weibull
+import numpy as np
 from scipy.stats import truncnorm
 
 from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
-mag2mom = lambda mw : exp(1.5 * (mw + 10.7) * log(10.0))
-mom2mag = lambda mom : (2 / 3. * log(mom) / log(10.0)) - 10.7
+mag2mom = lambda mw : np.exp(1.5 * (mw + 10.7) * np.log(10.0))
+mom2mag = lambda mom : (2 / 3. * np.log(mom) / np.log(10.0)) - 10.7
 
 
 def relative_uniform_distribution(mean, scale_factor, **kwargs):
@@ -177,18 +175,18 @@ def create_ps_realisation(
             mean, std_dev
         ),
         'uniform_relative': relative_uniform_distribution,
-        'log_normal': lambda mean, std_dev, **kwargs: lognormal(
+        'log_normal': lambda mean, std_dev, **kwargs: np.random.lognormal(
             mean, std_dev, 1
         ),
-        'weibull': lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor * weibull(k),
+        'weibull': lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor * np.random.weibull(k),
         'truncated_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
             truncnorm(
                 -std_dev_limit, std_dev_limit, loc=mean, scale=std_dev
             ).rvs()
         ),
         'truncated_log_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
-            exp(truncnorm(
-                -std_dev_limit, std_dev_limit, loc=float(mean[4:-1]), scale=std_dev
+            np.exp(truncnorm(
+                -std_dev_limit, std_dev_limit, loc=np.log(float(mean[4:-1])), scale=std_dev
             ).rvs())
         ),
     }
