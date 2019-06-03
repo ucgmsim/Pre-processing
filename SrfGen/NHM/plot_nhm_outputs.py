@@ -149,8 +149,6 @@ def plot_area_nhm(srf_dirs, nhm_file, out_dir):
                     ]
                 )
                 dbottom = float(nhm[n_i + 6].split()[0])
-                if dbottom <= 12:
-                    dbottom += 3
                 dwid = (dbottom - float(nhm[n_i + 7].split()[0])) / math.sin(
                     math.radians(float(nhm[n_i + 3].split()[0]))
                 )
