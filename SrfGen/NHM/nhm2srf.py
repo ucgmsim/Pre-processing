@@ -299,20 +299,18 @@ if __name__ == '__main__':
         print('No matches found.')
         sys.exit(1)
 
-    for fault in msg_list:
-        srf_file = os.path.join(args.out_dir, fault['name'], 'Srf', fault['name'])
-        gen_meta(
-            srf_file, 1, fault['mag'], fault['strike'], fault['rake'], fault['dip'], 0.005, lon=fault['elon'],
-            lat=fault['elat'], vs=vs, rho=rho,
-            centroid_depth=rel.depth
-        )
-        gen_meta(srf_file, 1, fault['mag'], fault['strike'], fault['rake'], fault['dip'], fault['dt'], \
-                 vm='%s/lp_generic1d-gp01_v1.vmod' % (os.path.dirname(os.path.abspath(__file__))), dip_dir=dip_dir, \
-                 shypo=[s[0] + 0.5 * fault['flen'][len(fault['cases'])-1][0] for s in shypo], \
-                 dhypo=[d[0] for d in fault['dhypo']], tect_type=tect_type)
-
     # distribute work
     p = Pool(args.nproc)
     p.map(run_create_srf, msg_list)
+
+    for fault in msg_list:
+        srf_file = os.path.join(args.out_dir, fault['name'], 'Srf', "{}_REL01.srf".format(fault['name']))
+        gen_meta(
+            srf_file, 1, fault['mag'], fault['strike'], fault['rake'], fault['dip'], fault['dt'],
+            vm='%s/lp_generic1d-gp01_v1.vmod' % (os.path.dirname(os.path.abspath(__file__))),
+            dip_dir=fault['dip_dir'],
+            shypo=[s[0] + 0.5 * fault['flen'][len(fault['cases'])-1][0] for s in fault['shypo']],
+            dhypo=[d[0] for d in fault['dhypo']], tect_type=fault['tect_type']
+        )
     # debug friendly alternative
     #[run_create_srf(msg) for msg in msg_list]
