@@ -11,7 +11,7 @@ import yaml
 
 from qcore.pool_wrapper import PoolWrapper
 
-from createSRF import leonard, CreateSRF_ps
+from createSRF import leonard, CreateSRF_ps, gen_meta
 from createSourceRealisation import create_ps_realisation
 
 
@@ -100,6 +100,18 @@ depth_bins = np.digitize(np.around(sources.depth, decimals = 5), \
                             np.around(np.cumsum(vmodel.depth), decimals = 5))
 vs = vmodel.vs[depth_bins]
 rho = vmodel.rho[depth_bins]
+
+if all_opts:
+    for rel in sources.iterrows():
+        try:
+            fault = rel.pid.decode()  # t.pid is originally numpy.bytes_
+        except AttributeError:
+            fault = rel.pid
+        srf_file = os.path.join(args.out_dir, fault, 'Srf', fault)
+        gen_meta(
+            srf_file, 1, rel.mag, rel.strike, rel.rake, rel.dip, 0.005, lon=rel.lon, lat=rel.lat, vs=vs, rho=rho,
+            centroid_depth=rel.depth
+        )
 
 # distribute work
 p = PoolWrapper(args.nproc)
