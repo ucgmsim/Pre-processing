@@ -102,15 +102,15 @@ vs = vmodel.vs[depth_bins]
 rho = vmodel.rho[depth_bins]
 
 if all_opts:
-    for rel in sources.iterrows():
+    for i in range(sources.shape[0]):
         try:
-            fault = rel.pid.decode()  # t.pid is originally numpy.bytes_
+            fault = sources['pid'][i].decode()  # t.pid is originally numpy.bytes_
         except AttributeError:
-            fault = rel.pid
+            fault = sources['pid'][i]
         srf_file = os.path.join(args.out_dir, fault, 'Srf', fault)
         gen_meta(
-            srf_file, 1, rel.mag, rel.strike, rel.rake, rel.dip, 0.005, lon=rel.lon, lat=rel.lat, vs=vs, rho=rho,
-            centroid_depth=rel.depth
+            srf_file, 1, sources['mag'][i], sources['strike'][i], sources['rake'][i], sources['dip'][i], 0.005,
+            lon=sources['lon'][i], lat=sources['lat'][i], vs=vs, rho=rho, centroid_depth=sources['depth'][i]
         )
 
 # distribute work
