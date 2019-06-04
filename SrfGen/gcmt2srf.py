@@ -101,20 +101,19 @@ depth_bins = np.digitize(np.around(sources.depth, decimals = 5), \
 vs = vmodel.vs[depth_bins]
 rho = vmodel.rho[depth_bins]
 
+# distribute work
+p = PoolWrapper(args.nproc)
+p.map(run_create_srf_star,list(zip([args] * len(sources), sources, vs, rho, n_sims)))
+#[run_create_srf(args, sources[i], vs[i], rho[i]) for i in xrange(len(sources))]
+
 if all_opts:
     for i in range(sources.shape[0]):
         try:
             fault = sources['pid'][i].decode()  # t.pid is originally numpy.bytes_
         except AttributeError:
             fault = sources['pid'][i]
-        srf_file = os.path.join(args.out_dir, fault, 'Srf', fault)
-        os.makedirs(os.path.basename(srf_file))
+        srf_file = os.path.join(args.out_dir, fault, 'Srf', "{}_REL01.srf".format(fault))
         gen_meta(
             srf_file, 1, sources['mag'][i], sources['strike'][i], sources['rake'][i], sources['dip'][i], 0.005,
             lon=sources['lon'][i], lat=sources['lat'][i], vs=vs, rho=rho, centroid_depth=sources['depth'][i]
         )
-
-# distribute work
-p = PoolWrapper(args.nproc)
-p.map(run_create_srf_star,list(zip([args] * len(sources), sources, vs, rho, n_sims)))
-#[run_create_srf(args, sources[i], vs[i], rho[i]) for i in xrange(len(sources))]
