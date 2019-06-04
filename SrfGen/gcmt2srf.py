@@ -115,5 +115,6 @@ if all_opts:
         srf_file = os.path.join(args.out_dir, fault, 'Srf', "{}_REL01.srf".format(fault))
         gen_meta(
             srf_file, 1, sources['mag'][i], sources['strike'][i], sources['rake'][i], sources['dip'][i], 0.005,
-            lon=sources['lon'][i], lat=sources['lat'][i], vs=vs, rho=rho, centroid_depth=sources['depth'][i]
+            lon=sources['lon'][i], lat=sources['lat'][i], vs=vs, rho=rho, centroid_depth=sources['depth'][i],
+            file_name=os.path.join(args.out_dir, fault, 'Srf', "{}.info".format(fault))
         )

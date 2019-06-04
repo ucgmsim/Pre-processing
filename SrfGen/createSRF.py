@@ -339,7 +339,7 @@ def gen_meta(srf_file, srf_type, mag, \
             centroid_depth = None, lon = None, lat = None, mom = None, \
             flen = None, dlen = None, fwid = None, dwid = None, \
             shypo = None, dhypo = None, mwsr = None, tect_type = None, \
-            dip_dir = None):
+            dip_dir = None, file_name=None):
     """
     Stores SRF metadata as hdf5.
     srf_file: SRF path used as basename for info file and additional metadata
@@ -367,7 +367,9 @@ def gen_meta(srf_file, srf_type, mag, \
                                     pwid, dip_deg)[::-1]
         dbottom.append(p['dtop'] + p['width'] * math.sin(math.radians(p['dip'])))
 
-    with h5open('%s.info' % (os.path.splitext(srf_file)[0]), 'w') as h:
+    if file_name is None:
+        file_name = os.path.splitext(srf_file)[0]
+    with h5open('%s.info' % (file_name), 'w') as h:
         a = h.attrs
         # only taken from given parameters
         a['type'] = srf_type
