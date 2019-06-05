@@ -311,7 +311,7 @@ if __name__ == '__main__':
             dip_dir=fault['dip_dir'],
             shypo=[s[0] + 0.5 * fault['flen'][len(fault['cases'])-1][0] for s in fault['shypo']],
             dhypo=[d[0] for d in fault['dhypo']], tect_type=fault['tect_type'],
-            file_name=os.path.join(args.out_dir, fault['name'], 'Srf', fault['name'])
+            file_name=os.path.join(args.out_dir, fault['name'], fault['name'])
         )
     # debug friendly alternative
     #[run_create_srf(msg) for msg in msg_list]
