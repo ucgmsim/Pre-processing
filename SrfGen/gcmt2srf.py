@@ -29,6 +29,12 @@ def run_create_srf(args, t, vs, rho, n_sims):
         create_ps_realisation(args.out_dir, pid, t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               n_realisations=n_sims, additional_options=add_opts, dt=args.dt, vs=vs, rho=rho,
                               silent=True)
+        srf_file = os.path.join(args.out_dir, pid, 'Srf', "{}_REL01.srf".format(pid))
+        gen_meta(
+            srf_file, 1, t.mag, t.strike, t.rake, t.dip, 0.005,
+            lon=t.lon, lat=t.lat, vs=vs, rho=rho, centroid_depth=t.depth,
+            file_name=os.path.join(args.out_dir, pid, pid)
+        )
     else:
         stoch = os.path.join(args.out_dir, pid, 'Stoch')
         CreateSRF_ps(t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip, dt=args.dt, prefix=prefix, stoch=stoch,
@@ -105,16 +111,3 @@ rho = vmodel.rho[depth_bins]
 p = PoolWrapper(args.nproc)
 p.map(run_create_srf_star,list(zip([args] * len(sources), sources, vs, rho, n_sims)))
 #[run_create_srf(args, sources[i], vs[i], rho[i]) for i in xrange(len(sources))]
-
-if all_opts:
-    for i in range(sources.shape[0]):
-        try:
-            fault = sources['pid'][i].decode()  # t.pid is originally numpy.bytes_
-        except AttributeError:
-            fault = sources['pid'][i]
-        srf_file = os.path.join(args.out_dir, fault, 'Srf', "{}_REL01.srf".format(fault))
-        gen_meta(
-            srf_file, 1, sources['mag'][i], sources['strike'][i], sources['rake'][i], sources['dip'][i], 0.005,
-            lon=sources['lon'][i], lat=sources['lat'][i], vs=vs, rho=rho, centroid_depth=sources['depth'][i],
-            file_name=os.path.join(args.out_dir, fault, fault)
-        )
