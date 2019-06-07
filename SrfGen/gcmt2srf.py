@@ -29,6 +29,12 @@ def run_create_srf(args, t, vs, rho, n_sims):
         create_ps_realisation(args.out_dir, pid, t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               n_realisations=n_sims, additional_options=add_opts, dt=args.dt, vs=vs, rho=rho,
                               silent=True)
+        srf_file = os.path.join(args.out_dir, pid, 'Srf', "{}_REL01.srf".format(pid))
+        gen_meta(
+            srf_file, 1, t['mag'][i], t['strike'][i], t['rake'][i], t['dip'][i], 0.005,
+            lon=t['lon'][i], lat=t['lat'][i], vs=vs, rho=rho, centroid_depth=t['depth'][i],
+            file_name=os.path.join(args.out_dir, pid, pid)
+        )
     else:
         stoch = os.path.join(args.out_dir, pid, 'Stoch')
         CreateSRF_ps(t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip, dt=args.dt, prefix=prefix, stoch=stoch,
@@ -112,6 +118,8 @@ if all_opts:
             fault = sources['pid'][i].decode()  # t.pid is originally numpy.bytes_
         except AttributeError:
             fault = sources['pid'][i]
+        if fault not in cs_file_pd["pid"]:
+            continue
         srf_file = os.path.join(args.out_dir, fault, 'Srf', "{}_REL01.srf".format(fault))
         gen_meta(
             srf_file, 1, sources['mag'][i], sources['strike'][i], sources['rake'][i], sources['dip'][i], 0.005,
