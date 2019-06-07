@@ -31,8 +31,8 @@ def run_create_srf(args, t, vs, rho, n_sims):
                               silent=True)
         srf_file = os.path.join(args.out_dir, pid, 'Srf', "{}_REL01.srf".format(pid))
         gen_meta(
-            srf_file, 1, t['mag'][i], t['strike'][i], t['rake'][i], t['dip'][i], 0.005,
-            lon=t['lon'][i], lat=t['lat'][i], vs=vs, rho=rho, centroid_depth=t['depth'][i],
+            srf_file, 1, t.mag, t.strike, t.rake, t.dip, 0.005,
+            lon=t.lon, lat=t.lat, vs=vs, rho=rho, centroid_depth=t.depth,
             file_name=os.path.join(args.out_dir, pid, pid)
         )
     else:
