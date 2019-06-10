@@ -75,6 +75,9 @@ def leonard(rake, A, ds = 4.00, ss = 3.99):
     else:
         return ss + math.log10(A)
 
+def skarlatoudis(A):
+    return math.log10(A) - (math.log10(1.77 * math.pow(10, -10)) + 6.03)
+
 # by earth radius
 # not really correct for NZ, use proper formulas
 one_deg_lat = math.radians(6371.0072)

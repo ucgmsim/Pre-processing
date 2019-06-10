@@ -13,7 +13,7 @@ from time import time
 
 import numpy as np
 
-from createSRF import leonard, CreateSRF_multi
+from createSRF import leonard, skarlatoudis, CreateSRF_multi
 from qcore import geo, simulation_structure
 
 
@@ -62,6 +62,7 @@ def load_msgs(args, fault_names, faults):
     msgs = []
     while dbi < dbl:
         name = db[dbi]
+        tect_type, fault_type = db[dbi + 1].split()
         # points in fault trace
         n_pt = int(db[dbi + 11])
         skip = 13 + n_pt
@@ -173,7 +174,10 @@ def load_msgs(args, fault_names, faults):
         if float(db[dbi + 6].split()[0]) >= 12:
             fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0] + 3) \
                 / math.sin(math.radians(dip[0][0]))] * n_plane]
-        mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
+        if tect_type == "SUBDUCTION_INTERFACE":
+            mag = [skarlatoudis(fwid[0][0] * trace_length)]
+        else:
+            mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
         dwid = dlen
         stk = [strikes]
         elon = [[ll[0] for ll in mids]]
