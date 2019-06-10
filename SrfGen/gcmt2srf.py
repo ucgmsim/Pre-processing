@@ -11,7 +11,7 @@ import yaml
 
 from qcore.pool_wrapper import PoolWrapper
 
-from createSRF import leonard, CreateSRF_ps
+from createSRF import leonard, CreateSRF_ps, gen_meta
 from createSourceRealisation import create_ps_realisation
 
 
@@ -29,6 +29,12 @@ def run_create_srf(args, t, vs, rho, n_sims):
         create_ps_realisation(args.out_dir, pid, t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               n_realisations=n_sims, additional_options=add_opts, dt=args.dt, vs=vs, rho=rho,
                               silent=True)
+        srf_file = os.path.join(args.out_dir, pid, 'Srf', "{}_REL01.srf".format(pid))
+        gen_meta(
+            srf_file, 1, t.mag, t.strike, t.rake, t.dip, 0.005,
+            lon=t.lon, lat=t.lat, vs=vs, rho=rho, centroid_depth=t.depth,
+            file_name=os.path.join(args.out_dir, pid, pid)
+        )
     else:
         stoch = os.path.join(args.out_dir, pid, 'Stoch')
         CreateSRF_ps(t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip, dt=args.dt, prefix=prefix, stoch=stoch,
@@ -62,10 +68,9 @@ if not os.path.exists(args.csv_file):
 if not os.path.exists(args.velocity_model):
     sys.exit('Velocity model file not found: %s' % (args.velocity_model))
 all_opts = bool(args.uncertainty_file) and bool(args.cs_file)
-any_opts = bool(args.uncertainty_file) or bool(args.cs_file) or bool(args.add_opts_file)
+any_opts = bool(args.uncertainty_file) or bool(args.cs_file)
 if any_opts and not all_opts:
-    parser.error("If realisation uncertainty, a cybershake fault file or an additional options file are given then the "
-                 "others must be given also.")
+    parser.error("If realisation uncertainty or a cybershake fault file is given then the other must be given also.")
     exit(1)
 
 

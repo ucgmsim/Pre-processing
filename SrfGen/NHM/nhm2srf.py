@@ -13,7 +13,8 @@ from time import time
 
 import numpy as np
 
-from createSRF import leonard, skarlatoudis, CreateSRF_multi
+
+from createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
 from qcore import geo, simulation_structure
 
 
@@ -235,25 +236,35 @@ def load_msgs(args, fault_names, faults):
 
     return msgs
 
-def run_create_srf(t):
+def run_create_srf(fault):
     t0 = time()
 #    sys.stdout = open(str(os.getpid())+".out","w")
-    print('creating SRF: %s' % (t['name']))
+    print('creating SRF: %s' % (fault['name']))
     # all of the work, rest of the script is complete under 1 second
-    CreateSRF_multi(t['nseg'], t['seg_delay'], t['mag'], t['mom'], \
-            t['rvfac_seg'], t['gwid'], t['rup_delay'], t['flen'], t['dlen'], \
-            t['fwid'], t['dwid'], t['dtop'], t['stk'], t['rake'], t['dip'], \
-            t['elon'], t['elat'], t['shypo'], t['dhypo'], t['dt'], t['seed'], \
-            t['prefix'], t['cases'], dip_dir = t['dip_dir'], \
-            stoch = t['stoch'], tect_type = t['tect_type'], silent = True)
-    print('created SRF: %s (%.2fs)' % (t['name'], time() - t0))
-    if t['plot']:
+    CreateSRF_multi(fault['nseg'], fault['seg_delay'], fault['mag'], fault['mom'], \
+                    fault['rvfac_seg'], fault['gwid'], fault['rup_delay'], fault['flen'], fault['dlen'], \
+                    fault['fwid'], fault['dwid'], fault['dtop'], fault['stk'], fault['rake'], fault['dip'], \
+                    fault['elon'], fault['elat'], fault['shypo'], fault['dhypo'], fault['dt'], fault['seed'], \
+                    fault['prefix'], fault['cases'], dip_dir = fault['dip_dir'], \
+                    stoch = fault['stoch'], tect_type = fault['tect_type'], silent = True)
+    print('created SRF: %s (%.2fs)' % (fault['name'], time() - t0))
+    if fault['plot']:
         t0 = time()
-        print('plotting SRF: %s' % (t['name']))
-        call(['plot_srf_square.py', '%s.srf' % (t['prefix'])])
-        call(['plot_srf_map.py', '%s.srf' % (t['prefix'])])
-        print('plotted SRF: %s (%.2fs)' % (t['name'], time() - t0))
+        print('plotting SRF: %s' % (fault['name']))
+        call(['plot_srf_square.py', '%s.srf' % (fault['prefix'])])
+        call(['plot_srf_map.py', '%s.srf' % (fault['prefix'])])
+        print('plotted SRF: %s (%.2fs)' % (fault['name'], time() - t0))
+    srf_file = os.path.join(args.out_dir, fault['name'], 'Srf', "{}_REL01.srf".format(fault['name']))
+    gen_meta(
+        srf_file, 4, fault['mag'], fault['stk'], fault['rake'], fault['dip'], fault['dt'],
+        vm='%s/lp_generic1d-gp01_v1.vmod' % (os.path.dirname(os.path.abspath(__file__))),
+        dip_dir=fault['dip_dir'],
+        shypo=[s[0] + 0.5 * fault['flen'][len(fault['cases']) - 1][0] for s in fault['shypo']],
+        dhypo=[d[0] for d in fault['dhypo']], tect_type=fault['tect_type'],
+        file_name=os.path.join(args.out_dir, fault['name'], fault['name'])
+    )
  #   sys.stdout.close()
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -306,5 +317,6 @@ if __name__ == '__main__':
     # distribute work
     p = Pool(args.nproc)
     p.map(run_create_srf, msg_list)
+
     # debug friendly alternative
     #[run_create_srf(msg) for msg in msg_list]
