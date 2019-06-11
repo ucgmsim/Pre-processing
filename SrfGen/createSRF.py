@@ -75,6 +75,9 @@ def leonard(rake, A, ds = 4.00, ss = 3.99):
     else:
         return ss + math.log10(A)
 
+def skarlatoudis(A):
+    return math.log10(A) - (math.log10(1.77 * math.pow(10, -10)) + 6.03)
+
 # by earth radius
 # not really correct for NZ, use proper formulas
 one_deg_lat = math.radians(6371.0072)
@@ -284,7 +287,7 @@ def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
         gexec = Popen([binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), 'read_slip_vals=0'], \
                 stdin = PIPE, stdout = gsfp)
         gexec.communicate('1\n%f %f %f %d %d %d %f %f %s %s' \
-                % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny))
+                % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny), 'utf-8')
         gexec.wait()
 
 def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
