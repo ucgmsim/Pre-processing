@@ -31,6 +31,7 @@ from createSRF import leonard, mag2mom, mom2mag
 
 # qcore library should already be in path
 try:
+    from qcore import constants
     from qcore import geo
     from qcore import gmt
     from gen_coords import gen_coords
@@ -1016,5 +1017,5 @@ if __name__ == "__main__":
     if hostname.startswith(('maui', 'mahuika', 'wb', 'ni')): # Checks if is on the HPCF
         permission_cmd = ['chmod', 'g+rwXs', '-R', args.out_dir]
         subprocess.call(permission_cmd)
-        group_cmd = ['chgrp', 'nesi00213', '-R', args.out_dir]
+        group_cmd = ['chgrp', constants.DEFAULT_ACCOUNT, '-R', args.out_dir]
         subprocess.call(permission_cmd)
