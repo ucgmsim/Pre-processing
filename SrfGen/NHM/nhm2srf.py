@@ -172,11 +172,12 @@ def load_msgs(args, fault_names, faults):
         flen = [lengths]
         # subfault density
         dlen = [[0.1] * n_plane]
-        raw_fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) / math.sin(math.radians(dip[0][0]))] * n_plane]
         # Karim: add 3km to depth if bottom >= 12km
         if float(db[dbi + 6].split()[0]) >= 12:
             raw_fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0] + 3) \
                 / math.sin(math.radians(dip[0][0]))] * n_plane]
+        else:
+            raw_fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) / math.sin(math.radians(dip[0][0]))] * n_plane]
         fwid = []
         for segment in raw_fwid:
             fwid.append([round_subfault_size(f, mag) for f in segment])
