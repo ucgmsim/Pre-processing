@@ -17,6 +17,7 @@ import numpy as np
 from createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
 from qcore import geo, simulation_structure
 
+MAGNITUDE_ROUNDING_THRESHOLD = 7.5
 
 def rand_shyp_dhyp(length = 1.0, width = 1.0):
     # normal distribution
@@ -243,7 +244,7 @@ def load_msgs(args, fault_names, faults):
 
 
 def round_subfault_size(dist, mag):
-    if mag[0] > 7.5:
+    if mag[0] > MAGNITUDE_ROUNDING_THRESHOLD:
         return round(dist * 2) / 2
     else:
         return round(dist * 10) / 10
