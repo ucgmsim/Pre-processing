@@ -91,11 +91,18 @@ def load_msgs(args, fault_names, faults):
         strikes = []
         stk_norm = 0
         stk_rev = 0
+
+        # other values from nhm file
+        mag = [float(db[dbi + 10].split()[0])]
+        rake = [[float(db[dbi + 5])] * n_plane]
+        dip = [[float(db[dbi + 3].split()[0])] * n_plane]
+        dtop = [[float(db[dbi + 7].split()[0])] * n_plane]
+
         for plane in range(n_pt - 1):
             mids.append(geo.ll_mid(pts[plane][0], pts[plane][1], \
                     pts[plane + 1][0], pts[plane + 1][1]))
             dist = geo.ll_dist(pts[plane][0], pts[plane][1], pts[plane + 1][0], pts[plane + 1][1])
-            lengths.append(round_to_nearest_half(dist))
+            lengths.append(round_subfault_size(dist, mag))
             bearing = geo.ll_bearing(mids[plane][0], mids[plane][1], \
                     pts[plane + 1][0], pts[plane + 1][1])
             if abs((bearing - strike_avg + 180) % 360 - 180) < 90:
@@ -161,11 +168,6 @@ def load_msgs(args, fault_names, faults):
         gwid = ['-1']
         rup_delay = [0]
 
-        # other values from nhm file
-        mag = [float(db[dbi + 10].split()[0])]
-        rake = [[float(db[dbi + 5])] * n_plane]
-        dip = [[float(db[dbi + 3].split()[0])] * n_plane]
-        dtop = [[float(db[dbi + 7].split()[0])] * n_plane]
         flen = [lengths]
         # subfault density
         dlen = [[0.1] * n_plane]
@@ -176,7 +178,7 @@ def load_msgs(args, fault_names, faults):
                 / math.sin(math.radians(dip[0][0]))] * n_plane]
         fwid = []
         for segment in raw_fwid:
-            fwid.append([round_to_nearest_half(f) for f in segment])
+            fwid.append([round_subfault_size(f, mag) for f in segment])
 
         if tect_type == "SUBDUCTION_INTERFACE":
             mag = [skarlatoudis(fwid[0][0] * trace_length)]
@@ -240,8 +242,11 @@ def load_msgs(args, fault_names, faults):
     return msgs
 
 
-def round_to_nearest_half(dist):
-    return round(dist * 2) / 2
+def round_subfault_size(dist, mag):
+    if mag[0] > 7.5:
+        return round(dist * 2) / 2
+    else:
+        return round(dist * 10) / 10
 
 
 def run_create_srf(fault):
