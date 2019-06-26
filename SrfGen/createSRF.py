@@ -271,7 +271,7 @@ def MwScalingRelation(Mw, MwScalingRel):
 
     elif MwScalingRel == 'VillamorEtAl2001':
         A = 10 ** (0.75 * (Mw - 3.39))
-        # i.e. Eqn 2 in [1] Stirling, MW, Gerstenberger, M, Litchfield, N, McVerry, GH, Smith, WD, Pettinga, JR, Barnes, P. 2007. 
+        # i.e. Eqn 2 in [1] Stirling, MW, Gerstenberger, M, Litchfield, N, McVerry, GH, Smith, WD, Pettinga, JR, Barnes, P. 2007.
         # updated probabilistic seismic hazard assessment for the Canterbury region, GNS Science Consultancy Report 2007/232, ECan Report Number U06/6. 58pp.
 
     else:
@@ -320,7 +320,7 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         print('Creating SRF:\n%s' % ' '.join(cmd))
         call(cmd, stdout = srfp)
 
-def gen_stoch(stoch_file, srf_file, silent = False):
+def gen_stoch(stoch_file, srf_file, silent = False, single_segment=False):
     """
     Creates stoch file from srf file.
     """
@@ -334,8 +334,12 @@ def gen_stoch(stoch_file, srf_file, silent = False):
         dx, dy = srf.srf_dxy(srf_file)
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
-            call([binary_version.get_unversioned_bin(SRF2STOCH), 'dx=%s' % (dx), 'dy=%s' % (dy)], \
-                 stdin = srfp, stdout = stochp)
+            if single_segment:
+                call([binary_version.get_unversioned_bin(SRF2STOCH), 'target_dx=%s' % (dx), 'dy=%s' % (dy)],
+                     stdin = srfp, stdout = stochp)
+            else:
+                call([binary_version.get_unversioned_bin(SRF2STOCH), 'dx=%s' % (dx), 'dy=%s' % (dy)],
+                     stdin = srfp, stdout = stochp)
 
 def gen_meta(srf_file, srf_type, mag, \
             strike, rake, dip, dt, vm = None, vs = None, rho = None, \
@@ -666,8 +670,11 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
     for casefile in casefiles:
         os.remove(casefile)
     if stoch != None:
+        single_segment = False
+        if nseg == 1:
+            single_segment = True
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, joined_srf, silent = silent)
+        gen_stoch(stoch_file, joined_srf, silent = silent, single_segment=single_segment)
     # save INFO
     gen_meta(joined_srf, 4, mag[0], stk, rak, dip, dt, \
             vm = velocity_model, dip_dir = dip_dir, \
