@@ -335,10 +335,10 @@ def gen_stoch(stoch_file, srf_file, silent = False, single_segment=False):
     with open(stoch_file, 'w') as stochp:
         with open(srf_file, 'r') as srfp:
             if single_segment:
-                call([binary_version.get_unversioned_bin(SRF2STOCH), 'target_dx=%s' % (dx), 'dy=%s' % (dy)],
+                call([binary_version.get_unversioned_bin(SRF2STOCH), 'target_dx={}'.format(dx), 'target_dy={}'.format(dy)],
                      stdin = srfp, stdout = stochp)
             else:
-                call([binary_version.get_unversioned_bin(SRF2STOCH), 'dx=%s' % (dx), 'dy=%s' % (dy)],
+                call([binary_version.get_unversioned_bin(SRF2STOCH), 'dx={}'.format(dx), 'dy={}'.format(dy)],
                      stdin = srfp, stdout = stochp)
 
 def gen_meta(srf_file, srf_type, mag, \
@@ -533,7 +533,7 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
             rough = rough)
     if stoch != None:
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file)
+        gen_stoch(stoch_file, srf_file, single_segment=True)
 
     # save INFO
     if srf_type == 2:
@@ -669,7 +669,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
     # remove casefiles
     for casefile in casefiles:
         os.remove(casefile)
-    if stoch != None:
+    if stoch is not None:
         single_segment = False
         if nseg == 1:
             single_segment = True
