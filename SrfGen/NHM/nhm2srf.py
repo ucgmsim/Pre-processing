@@ -17,6 +17,7 @@ import numpy as np
 from createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
 from qcore import geo, simulation_structure
 
+MAGNITUDE_ROUNDING_THRESHOLD = 7.5
 
 def rand_shyp_dhyp(length = 1.0, width = 1.0):
     # normal distribution
@@ -91,11 +92,18 @@ def load_msgs(args, fault_names, faults):
         strikes = []
         stk_norm = 0
         stk_rev = 0
+
+        # other values from nhm file
+        mag = [float(db[dbi + 10].split()[0])]
+        rake = [[float(db[dbi + 5])] * n_plane]
+        dip = [[float(db[dbi + 3].split()[0])] * n_plane]
+        dtop = [[float(db[dbi + 7].split()[0])] * n_plane]
+
         for plane in range(n_pt - 1):
             mids.append(geo.ll_mid(pts[plane][0], pts[plane][1], \
                     pts[plane + 1][0], pts[plane + 1][1]))
-            lengths.append(geo.ll_dist(pts[plane][0], pts[plane][1], \
-                    pts[plane + 1][0], pts[plane + 1][1]))
+            dist = geo.ll_dist(pts[plane][0], pts[plane][1], pts[plane + 1][0], pts[plane + 1][1])
+            lengths.append(round_subfault_size(dist, mag))
             bearing = geo.ll_bearing(mids[plane][0], mids[plane][1], \
                     pts[plane + 1][0], pts[plane + 1][1])
             if abs((bearing - strike_avg + 180) % 360 - 180) < 90:
@@ -161,20 +169,19 @@ def load_msgs(args, fault_names, faults):
         gwid = ['-1']
         rup_delay = [0]
 
-        # other values from nhm file
-        mag = [float(db[dbi + 10].split()[0])]
-        rake = [[float(db[dbi + 5])] * n_plane]
-        dip = [[float(db[dbi + 3].split()[0])] * n_plane]
-        dtop = [[float(db[dbi + 7].split()[0])] * n_plane]
         flen = [lengths]
         # subfault density
         dlen = [[0.1] * n_plane]
-        fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) \
-                / math.sin(math.radians(dip[0][0]))] * n_plane]
         # Karim: add 3km to depth if bottom >= 12km
         if float(db[dbi + 6].split()[0]) >= 12:
-            fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0] + 3) \
+            raw_fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0] + 3) \
                 / math.sin(math.radians(dip[0][0]))] * n_plane]
+        else:
+            raw_fwid = [[(float(db[dbi + 6].split()[0]) - dtop[0][0]) / math.sin(math.radians(dip[0][0]))] * n_plane]
+        fwid = []
+        for segment in raw_fwid:
+            fwid.append([round_subfault_size(f, mag) for f in segment])
+
         if tect_type == "SUBDUCTION_INTERFACE":
             mag = [skarlatoudis(fwid[0][0] * trace_length)]
         else:
@@ -219,7 +226,7 @@ def load_msgs(args, fault_names, faults):
                             'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed, \
                             'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
                             'stoch':'%s/%s/Stoch' % (args.out_dir, name), \
-                            'name':name, 'tect_type':db[dbi + 1].split()[0], \
+                            'name':name, 'tect_type':tect_type, \
                             'plot':args.plot})
                     # store parameters
                     with open(out_log, 'a') as log:
@@ -235,6 +242,14 @@ def load_msgs(args, fault_names, faults):
         dbi += skip
 
     return msgs
+
+
+def round_subfault_size(dist, mag):
+    if mag[0] > MAGNITUDE_ROUNDING_THRESHOLD:
+        return round(dist * 2) / 2
+    else:
+        return round(dist * 10) / 10
+
 
 def run_create_srf(fault):
     t0 = time()
