@@ -660,7 +660,10 @@ def create_vm(args, srf_meta):
     )
 
     # proportion in ocean
-    land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
+    if args.no_optimise:
+        land0 = 100
+    else:
+        land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
 
     # for plotting and calculating VM domain distance
     with open("%s/srf.path" % (ptemp), "wb") as sp:
@@ -964,6 +967,7 @@ def load_args():
         default="BULLDOZED",
     )
     arg("--selection", help="also generate NHM selection file", action="store_true")
+    arg("--no_optimise", help="Don't try and optimise the vm if it is off shore. Removes GMT dependency", action="store_true")
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
     if not args.novm:
