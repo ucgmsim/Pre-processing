@@ -44,7 +44,7 @@ def plot_area_mag(srf_infos, out_dir):
         with h5open(i, "r") as h:
             area = sum(h.attrs["length"] * h.attrs["width"])
             # if dip slip else strike slip
-            if round(h.attrs["rake"][0][0] % 360 / 90.0) % 2:
+            if round(h.attrs["rake"][0] % 360 / 90.0) % 2:
                 ds_mw.append(h.attrs["mag"])
                 ds_area.append(area)
             else:
