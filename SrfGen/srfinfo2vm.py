@@ -453,36 +453,6 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     )[::-1]
     a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
 
-    min_lon = min(a0[0], a1[0], b0[0], b1[0])
-    max_lon = max(a0[0], a1[0], b0[0], b1[0])
-    min_lat = min(a0[1], a1[1], b0[1], b1[1])
-    max_lat = max(a0[1], a1[1], b0[1], b1[1])
-
-    if max_lon - min_lon > 180 - 165 or max_lat -min_lat > (-33) - (-48):
-        raise ValueError(
-            "VM does not fit within NZ DEM bounds. {}, {}, {}, {}, rot: {}, origin {}".format(
-                a0, a1, b0, b1, rot, origin
-            )
-        )
-
-    diff_lat, diff_lon = 0, 0
-
-    if min_lon < 165:
-        diff_lon = 1.001*(165 - min_lon)
-    elif max_lon > 180:
-        diff_lon = 1.001*(180 - max_lon)
-
-    if min_lat < -48:
-        diff_lat = 1.001*(-48 - min_lat)
-    elif max_lat > -33:
-        diff_lat = 1.001*(-33 - max_lat)
-
-    if diff_lat or diff_lon:
-        a0 = (a0[0] + diff_lon, a0[1] + diff_lat)
-        a1 = (a1[0] + diff_lon, a1[1] + diff_lat)
-        b0 = (b0[0] + diff_lon, b0[1] + diff_lat)
-        b1 = (b1[0] + diff_lon, b1[1] + diff_lat)
-        
     return a0, a1, b0, b1
 
 
