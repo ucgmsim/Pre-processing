@@ -676,7 +676,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         stoch_file = '%s/%s.stoch' % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, joined_srf, silent = silent, single_segment=single_segment)
     # save INFO
-    gen_meta(joined_srf, 4, mag[0], stk, rak, dip, dt, \
+    gen_meta(joined_srf, 4, mag[0], stk, np.asarray(rak), dip, dt, \
             vm = velocity_model, dip_dir = dip_dir, \
             shypo = [s[0] + 0.5 * flen[c][0] for s in shypo], \
             dhypo = [d[0] for d in dhypo], tect_type = tect_type)
