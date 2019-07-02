@@ -1018,4 +1018,4 @@ if __name__ == "__main__":
         permission_cmd = ['chmod', 'g+rwXs', '-R', args.out_dir]
         subprocess.call(permission_cmd)
         group_cmd = ['chgrp', constants.DEFAULT_ACCOUNT, '-R', args.out_dir]
-        subprocess.call(permission_cmd)
+        subprocess.call(group_cmd)
