@@ -925,9 +925,9 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("info_glob", help="info file selection expression. eg: Srf/*.info")
-    parser.add_argument("out-dir", help="The VMs directory")
+    parser.add_argument("out_dir", help="The VMs directory")
     parser.add_argument(
-        "--nhm-file",
+        "--nhm_file",
         help="path to NHM if using info_glob == 'NHM'",
         default=os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "NHM", "NZ_FLTmodel_2010.txt"
@@ -947,21 +947,21 @@ def main():
         default=0.02,
     )
     parser.add_argument(
-        "--space-land",
+        "--space_land",
         help="min space between VM edge and land (km)",
         type=float,
         default=5.0,
     )
     parser.add_argument(
-        "--space-srf",
+        "--space_srf",
         help="min space between VM edge and SRF (km)",
         type=float,
         default=15.0,
     )
-    parser.add_argument("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
-    parser.add_argument("--vm-version", help="velocity model version to generate", default="1.65")
+    parser.add_argument("--min_vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
+    parser.add_argument("--vm_version", help="velocity model version to generate", default="1.65")
     parser.add_argument(
-        "--vm-topo",
+        "--vm_topo",
         help="topo_type parameter for velocity model generation",
         default="BULLDOZED",
     )
