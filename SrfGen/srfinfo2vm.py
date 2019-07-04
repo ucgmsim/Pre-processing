@@ -640,6 +640,7 @@ def create_vm_gen_params(temp_dir, srf_meta, space_land=5.0, space_srf=15.0, dt=
     # properties stored in classes (fault of external code)
     faultprop.Mw = srf_meta["mag"]
     faultprop.dip = srf_meta["dip"]
+    faultprop.rake = srf_meta["rake"]
     faultprop.ztor = 0.0
     siteprop.vs30 = 500
     # rrup to reach wanted PGV
