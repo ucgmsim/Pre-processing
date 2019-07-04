@@ -20,7 +20,7 @@ import platform
 import subprocess
 from shutil import rmtree, move
 import sys
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mk
 
 from h5py import File as h5open
 import numpy as np
@@ -45,13 +45,6 @@ NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
 NZ_LAND_OUTLINE = os.path.join(script_dir, "NHM/res/rough_land.txt")
 NZVM_BIN = find_executable("NZVM")
 
-siteprop = Site()
-siteprop.vs30 = 500
-
-faultprop = Fault()
-# TODO ztor should be read from srfinfo file
-faultprop.ztor = 0.0
-
 
 # default scaling relationship
 def mag2pgv(mag):
@@ -61,7 +54,7 @@ def mag2pgv(mag):
 
 
 # rrup at which pgv is close to target
-def find_rrup(pgv_target):
+def find_rrup(pgv_target, faultprop, siteprop):
     rrup = 50.0
     while True:
         siteprop.Rrup = rrup
@@ -89,7 +82,7 @@ def auto_z(mag, depth):
 
 
 # simulation time based on area
-def auto_time2(xlen, ylen, ds_multiplier):
+def auto_time2(xlen, ylen, ds_multiplier, faultprop, siteprop):
     rrup = max(xlen, ylen) / 2.0
     s_wave_arrival = rrup / 3.2
     siteprop.Rrup = rrup
@@ -642,14 +635,17 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
 def create_vm_gen_params(temp_dir, srf_meta, space_land=5.0, space_srf=15.0, dt=0.005, hh=0.4, pgv=5.0):
     # temp directory for current process
     faultprop = Fault()
+    siteprop = Site()
 
     # properties stored in classes (fault of external code)
     faultprop.Mw = srf_meta["mag"]
     faultprop.dip = srf_meta["dip"]
+    faultprop.ztor = 0.0
+    siteprop.vs30 = 500
     # rrup to reach wanted PGV
     if pgv == -1.0:
         pgv = mag2pgv(faultprop.Mw)
-    rrup, pgv_actual = find_rrup(pgv)
+    rrup, pgv_actual = find_rrup(pgv, faultprop, siteprop)
 
     # original, unrotated vm
     bearing = 0
@@ -730,7 +726,7 @@ def create_vm_gen_params(temp_dir, srf_meta, space_land=5.0, space_srf=15.0, dt=
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / hh) * hh
     # modified sim time
-    sim_time1 = (auto_time2(xlen1, ylen1, 1.2) // dt) * dt
+    sim_time1 = (auto_time2(xlen1, ylen1, 1.2, faultprop, siteprop) // dt) * dt
 
     # optimisation results
     return {
@@ -765,7 +761,7 @@ def store_nhm_selection(out_dir, vm_params):
         selected = os.path.join(out_dir, "nhm_selection.txt")
         with open(selected, "a") as sf:
             sf.write(
-                "{} {}\n".format(vm_params["name"], min(max(vm_params["mag"] * 20 - 110, 10), 50))
+                "{} {}r\n".format(vm_params["name"], min(max(vm_params["mag"] * 20 - 110, 10), 50))
             )
     else:
         excluded = os.path.join(out_dir, "excluded.txt")
@@ -786,7 +782,7 @@ def store_summary(table, info_store):
             )
     with open(table, "a") as t:
         t.write(
-            "{:d},{:d},{:d},{:d},{:d},{:d},{:.0f},{:d},{:d},{:d},{:d},{:.0f}\n".format(
+            "{},{:.12g},{:g},{:g},{:g},{:g},{:.0f},{:g},{:g},{:g},{:g},{:.0f}\n".format(
                 info_store["name"],
                 info_store["mag"],
                 info_store["dbottom"],
@@ -857,6 +853,7 @@ def load_msg(info_file):
                     "corners": a["corners"],
                     "mag": mag,
                     "hdepth": a["hdepth"],
+                    "rake": a["rake"],
                 }
 
 
