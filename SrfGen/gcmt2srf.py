@@ -29,7 +29,7 @@ def run_create_srf(args, t, vs, rho, n_sims):
         create_ps_realisation(args.out_dir, pid, t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               n_realisations=n_sims, additional_options=add_opts, dt=args.dt, vs=vs, rho=rho,
                               silent=True)
-        srf_file = os.path.join(args.out_dir, pid, 'Srf', "{}_REL01.srf".format(pid))
+        srf_file = os.path.join(args.out_dir, pid, 'Srf', "{}_REL01.info".format(pid))
         gen_meta(
             srf_file, 1, t.mag, t.strike, t.rake, t.dip, 0.005,
             lon=t.lon, lat=t.lat, vs=vs, rho=rho, centroid_depth=t.depth,
