@@ -783,7 +783,7 @@ def store_summary(table, info_store):
             )
     with open(table, "a") as t:
         t.write(
-            "{},{:.12g},{:g},{:g},{:g},{:g},{:.0f},{:g},{:g},{:g},{:g},{:.0f}\n".format(
+            "{},{:.12g},{:.12g},{:g},{:g},{:g},{:.0f},{:g},{:g},{:g},{:.17g},{:.0f}\n".format(
                 info_store["name"],
                 info_store["mag"],
                 info_store["dbottom"],
