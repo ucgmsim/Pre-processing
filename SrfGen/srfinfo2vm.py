@@ -20,7 +20,7 @@ import platform
 import subprocess
 from shutil import rmtree, move
 import sys
-from tempfile import TemporaryDirectory, mk
+from tempfile import TemporaryDirectory
 
 from h5py import File as h5open
 import numpy as np
