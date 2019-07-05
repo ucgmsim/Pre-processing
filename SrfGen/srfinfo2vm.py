@@ -40,6 +40,15 @@ from empirical.util.empirical_factory import compute_gmm
 from SrfGen.createSRF import leonard, mom2mag, mag2mom
 from SrfGen.gen_coords import gen_coords
 
+DEFAULT_DT = 0.02
+DEFAULT_VM_TOPO = "BULLDOZED"
+DEFAULT_VM_VERSION = "1.65"
+DEFAULT_MAX_PGV = 5.0
+DEFAULT_GRID_SPACING = 0.4
+DEFAULT_SPACE_LAND = 5.0
+DEFAULT_SPACE_SRF = 15.0
+DEFAULT_MIN_VS = 0.5
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
 NZ_LAND_OUTLINE = os.path.join(script_dir, "NHM/res/rough_land.txt")
@@ -185,6 +194,7 @@ def corners2region(c1, c2, c3, c4):
     x_max, y_max = np.max(perimiter, axis=0)
     return (x_min, x_max, y_min, y_max)
 
+
 def save_nzvm_config(
     nzvm_cfg=None,
     vm_dir=None,
@@ -194,10 +204,10 @@ def save_nzvm_config(
     ylen=100,
     zmax=40,
     zmin=0,
-    hh=0.4,
-    min_vs=0.5,
-    model_version="1.65",
-    topo_type="BULLDOZED",
+    hh=DEFAULT_GRID_SPACING,
+    min_vs=DEFAULT_MIN_VS,
+    model_version=DEFAULT_VM_VERSION,
+    topo_type=DEFAULT_VM_TOPO,
 ):
     """
     Store VM config for NZVM generator and vm_params metadata store.
@@ -235,12 +245,12 @@ def generate_vm_params(
     vm_gen_params,
     vm_dir,
     zmin=0,
-    hh=0.4,
-    min_vs=0.5,
+    hh=DEFAULT_GRID_SPACING,
+    min_vs=DEFAULT_MIN_VS,
     centroid_depth=7,
     code="rt",
-    model_version="1.65",
-    topo_type="BULLDOZED",
+    model_version=DEFAULT_VM_VERSION,
+    topo_type=DEFAULT_VM_TOPO,
 ):
     model_lon, model_lat = vm_gen_params["origin"]
     xlen_mod = vm_gen_params["xlen_mod"]
@@ -477,78 +487,39 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     return a0, a1, b0, b1
 
 
-def gen_vm(min_vs, vm_topo, vm_version, novm, hh, out_dir, srf_meta, vm_gen_params, ptemp):
-    # store configs
-    vm_dir = os.path.join(out_dir, srf_meta["name"])
-    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    vm_params_yaml_path = os.path.join(ptemp, "vm_params.yaml")
+def gen_vm(vm_dir, nzvm_cfg, temp_dir):
     # NZVM won't run if folder exists
     rmtree(vm_dir, ignore_errors=True)
 
-    vm_params = generate_vm_params(
-        vm_gen_params,
-        vm_dir,
-        hh=hh,
-        min_vs=min_vs,
-        centroid_depth=srf_meta["hdepth"],
-        topo_type=vm_topo,
-        model_version=vm_version,
-    )
-    dump_yaml(vm_params, vm_params_yaml_path)
-    save_nzvm_config(
-        nzvm_cfg=nzvm_cfg,
-        vm_dir=vm_dir,
-        origin=vm_gen_params["origin"],
-        rot=vm_gen_params["bearing"],
-        xlen=vm_gen_params["xlen_mod"],
-        ylen=vm_gen_params["ylen_mod"],
-        zmax=vm_gen_params["zlen_mod"],
-        hh=hh,
-        min_vs=min_vs,
-        topo_type=vm_topo,
-        model_version=vm_version,
-    )
+    # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
+    with open(os.path.join(temp_dir, "NZVM.out"), "w") as logfile:
+        nzvm_exe = subprocess.Popen(
+            [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile
+        )
+        nzvm_exe.communicate()
 
-    if novm:
-        # save important files
-        os.makedirs(vm_dir)
-        move(nzvm_cfg, vm_dir)
-        move(vm_params_yaml_path, vm_dir)
-        # generate a corners like NZVM would have
-        with open("{}/VeloModCorners.txt".format(vm_dir), "wb") as c:
-            c.write("> VM corners (python generated)\n".encode())
-            c.write(vm_gen_params["path_mod"].encode())
+    # fix up directory contents
+    files_to_move = [
+        os.path.join(vm_dir, "Velocity_Model", "rho3dfile.d"),
+        os.path.join(vm_dir, "Velocity_Model", "vp3dfile.p"),
+        os.path.join(vm_dir, "Velocity_Model", "vs3dfile.s"),
+        os.path.join(vm_dir, "Log", "VeloModCorners.txt"),
+        nzvm_cfg,
+    ]
+    for file_name in files_to_move:
+        move(file_name, vm_dir)
+
+    rmtree(os.path.join(vm_dir, "Velocity_Model"))
+    rmtree(os.path.join(vm_dir, "Log"))
+
+    # create model_coords, model_bounds etc...
+    gen_coords(vm_dir=vm_dir)
+    # validate
+    success, message = validate_vm(vm_dir)
+    if success:
+        sys.stderr.write("VM check OK: {}\n".format(vm_dir))
     else:
-        # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
-        with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
-            nzvm_exe = subprocess.Popen(
-                [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile
-            )
-            nzvm_exe.communicate()
-
-        # fix up directory contents
-        files_to_move = [
-            os.path.join(vm_dir, "Velocity_Model", "rho3dfile.d"),
-            os.path.join(vm_dir, "Velocity_Model", "vp3dfile.p"),
-            os.path.join(vm_dir, "Velocity_Model", "vs3dfile.s"),
-            os.path.join(vm_dir, "Log", "VeloModCorners.txt"),
-            nzvm_cfg,
-            vm_params_yaml_path,
-        ]
-        for file_name in files_to_move:
-            move(file_name, vm_dir)
-
-        rmtree(os.path.join(vm_dir, "Velocity_Model"))
-        rmtree(os.path.join(vm_dir, "Log"))
-
-        # create model_coords, model_bounds etc...
-        gen_coords(vm_dir=vm_dir)
-        # validate
-        success, message = validate_vm(vm_dir)
-        if success:
-            sys.stderr.write("VM check OK: {}\n".format(vm_dir))
-        else:
-            sys.stderr.write("VM check BAD: {}\n".format(message))
+        raise RuntimeError("VM check BAD: {}".format(message))
 
 
 def plot_vm(vm_params, srf_corners, mag, ptemp):
@@ -557,7 +528,7 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
     p.coastlines()
 
     # filled slip area
-    p.path("%s/srf.path" % (ptemp), is_file=True, fill="yellow", split="-")
+    p.path(os.path.join(ptemp, "srf.path"), is_file=True, fill="yellow", split="-")
     # top edge
     for plane in srf_corners:
         p.path("\n".join([" ".join(map(str, ll)) for ll in plane[:2]]), is_file=False)
@@ -603,7 +574,7 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
     vm_exists = "vm_dir" in vm_params
     if vm_exists:
         p.points(
-            "%s/VeloModCorners.txt" % (vm_params["vm_dir"]),
+            os.path.join(vm_params["vm_dir"], "VeloModCorners.txt"),
             fill="red",
             line=None,
             shape="c",
@@ -632,7 +603,15 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
         )
 
 
-def create_vm_gen_params(temp_dir, srf_meta, space_land=5.0, space_srf=15.0, dt=0.005, hh=0.4, pgv=5.0):
+def create_vm_gen_params(
+    temp_dir,
+    srf_meta,
+    space_land=DEFAULT_SPACE_LAND,
+    space_srf=DEFAULT_SPACE_SRF,
+    dt=DEFAULT_DT,
+    hh=DEFAULT_GRID_SPACING,
+    pgv=DEFAULT_MAX_PGV,
+):
     # temp directory for current process
     faultprop = Fault()
     siteprop = Site()
@@ -666,7 +645,7 @@ def create_vm_gen_params(temp_dir, srf_meta, space_land=5.0, space_srf=15.0, dt=
     land0 = vm_land(o1, o2, o3, o4, wd=temp_dir)
 
     # for plotting and calculating VM domain distance
-    with open("{}/srf.path".format(temp_dir), "wb") as sp:
+    with open(os.path.join(temp_dir, "srf.path"), "wb") as sp:
         for plane in srf_meta["corners"]:
             sp.write("> srf plane\n".encode())
             np.savetxt(sp, plane, fmt="%f")
@@ -800,8 +779,20 @@ def store_summary(table, info_store):
         )
 
 
-def create_vm_from_srfinfo(out_dir, space_land, space_srf, dt, hh, pgv, min_vs, vm_topo, vm_version, novm, selection,
-                           srf_meta):
+def create_vm_from_srfinfo(
+    out_dir,
+    space_land,
+    space_srf,
+    dt,
+    hh,
+    pgv,
+    min_vs,
+    vm_topo,
+    vm_version,
+    novm,
+    selection,
+    srf_meta
+):
     os.makedirs(out_dir, exist_ok=True)
 
     with TemporaryDirectory(prefix="_tmp_{}_".format(srf_meta["name"]), dir=out_dir) as temp_dir:
@@ -816,7 +807,45 @@ def create_vm_from_srfinfo(out_dir, space_land, space_srf, dt, hh, pgv, min_vs, 
         )
 
         if min(vm_gen_params["xlen_mod"], vm_gen_params["ylen_mod"], vm_gen_params["zlen_mod"]) > 0:
-            gen_vm(min_vs, vm_topo, vm_version, novm, hh, out_dir, srf_meta, vm_gen_params, temp_dir)
+            vm_dir = os.path.join(out_dir, srf_meta["name"])
+
+            vm_params_yaml_path = os.path.join(vm_dir, "vm_params.yaml")
+            vm_params = generate_vm_params(
+                vm_gen_params,
+                vm_dir,
+                hh=hh,
+                min_vs=min_vs,
+                centroid_depth=srf_meta["hdepth"],
+                topo_type=vm_topo,
+                model_version=vm_version,
+            )
+            dump_yaml(vm_params, vm_params_yaml_path)
+
+            nzvm_cfg = os.path.join(temp_dir, "nzvm.cfg")
+            save_nzvm_config(
+                nzvm_cfg=nzvm_cfg,
+                vm_dir=vm_dir,
+                origin=vm_gen_params["origin"],
+                rot=vm_gen_params["bearing"],
+                xlen=vm_gen_params["xlen_mod"],
+                ylen=vm_gen_params["ylen_mod"],
+                zmax=vm_gen_params["zlen_mod"],
+                hh=hh,
+                min_vs=min_vs,
+                topo_type=vm_topo,
+                model_version=vm_version,
+            )
+
+            if novm:
+                # save important files
+                os.makedirs(vm_dir)
+                move(nzvm_cfg, vm_dir)
+                # generate a corners like NZVM would have
+                with open(os.path.join(vm_dir, "VeloModCorners.txt"), "wb") as c:
+                    c.write("> VM corners (python generated)\n".encode())
+                    c.write(vm_gen_params["path_mod"].encode())
+            else:
+                gen_vm(vm_dir, nzvm_cfg, temp_dir)
 
         plot_vm(vm_gen_params, srf_meta["corners"], vm_gen_params["mag"], temp_dir)
 
@@ -868,7 +897,7 @@ def load_msg_nhm(nhm_file: str, fault_name: str) -> Dict:
     n_i = 0
     while n_i < len(nhm) and nhm[n_i].strip() != fault_name:
         n_i += 13 + int(nhm[n_i + 11])
-    if n_i >= len(nhm):
+    if nhm[n_i].strip() != fault_name:
         return None
     name = nhm[n_i].strip()
     dip = float(nhm[n_i + 3].split()[0])
@@ -877,7 +906,7 @@ def load_msg_nhm(nhm_file: str, fault_name: str) -> Dict:
     dbottom = float(nhm[n_i + 6].split()[0])
     dtop = float(nhm[n_i + 7].split()[0])
     n_pt = int(nhm[n_i + 11])
-    trace = nhm[n_i + 12 : n_i + 12 + n_pt]
+    trace = nhm[n_i + 12: n_i + 12 + n_pt]
     trace = [list(map(float, pair)) for pair in map(str.split, trace)]
 
     # derived properties
@@ -935,33 +964,33 @@ def main():
         "--pgv",
         help="max PGV at velocity model perimeter (estimated, cm/s)",
         type=float,
-        default=5.0,
+        default=DEFAULT_MAX_PGV,
     )
-    parser.add_argument("--hh", help="velocity model grid spacing (km)", type=float, default=0.4)
+    parser.add_argument("--hh", help="velocity model grid spacing (km)", type=float, default=DEFAULT_GRID_SPACING)
     parser.add_argument(
         "--dt",
         help="timestep to estimate simulation duration (s)",
         type=float,
-        default=0.02,
+        default=DEFAULT_DT,
     )
     parser.add_argument(
         "--space_land",
         help="min space between VM edge and land (km)",
         type=float,
-        default=5.0,
+        default=DEFAULT_SPACE_LAND,
     )
     parser.add_argument(
         "--space_srf",
         help="min space between VM edge and SRF (km)",
         type=float,
-        default=15.0,
+        default=DEFAULT_SPACE_SRF,
     )
-    parser.add_argument("--min_vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
-    parser.add_argument("--vm_version", help="velocity model version to generate", default="1.65")
+    parser.add_argument("--min_vs", help="for nzvm gen and flo (km/s)", type=float, default=DEFAULT_MIN_VS)
+    parser.add_argument("--vm_version", help="velocity model version to generate", default=DEFAULT_VM_VERSION)
     parser.add_argument(
         "--vm_topo",
         help="topo_type parameter for velocity model generation",
-        default="BULLDOZED",
+        default=DEFAULT_VM_TOPO,
     )
     parser.add_argument("--selection", help="Append to the nhm selection file", action="store_true")
     parser.add_argument("--novm", help="only generate parameters", action="store_true")
