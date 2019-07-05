@@ -1,9 +1,8 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import math
 import os
 from shutil import copyfile
-from subprocess import call, Popen, PIPE
 import sys
 
 from h5py import File as h5open
@@ -19,6 +18,7 @@ SRF2STOCH = 'srf2stoch'
 GENERICSLIP2SRF = 'generic_slip2srf'
 FAULTSEG2GSFDIPDIR='fault_seg2gsf_dipdir'
 
+
 def mkdir_p(out_dir):
     if out_dir != '' and not os.path.isdir(out_dir):
         try:
@@ -26,6 +26,7 @@ def mkdir_p(out_dir):
         except OSError:
             if not os.path.exists(out_dir):
                 raise
+
 
 def srf_join(in1, in2, out):
     """
@@ -59,6 +60,7 @@ def srf_join(in1, in2, out):
 
     o.close()
 
+
 mag2mom = lambda mw : math.exp(1.5 * (mw + 10.7) * math.log(10.0))
 mom2mag = lambda mom : (2 / 3. * math.log(mom) / math.log(10.0)) - 10.7
 get_nx = lambda FLEN, DLEN : '%.0f' % (FLEN / DLEN)
@@ -68,6 +70,7 @@ get_fileroot = lambda MAG, FLEN, FWID, seed : \
 get_gsfname = lambda MAG, DLEN, DWID : \
         'm%.2f-%.2fx%.2f.gsf' % (MAG, DLEN, DWID)
 # Leonard 2014 Relations
+
 def leonard(rake, A, ds = 4.00, ss = 3.99):
     # if dip slip else strike slip
     if round(rake % 360 / 90.) % 2:
@@ -75,12 +78,15 @@ def leonard(rake, A, ds = 4.00, ss = 3.99):
     else:
         return ss + math.log10(A)
 
+
 def skarlatoudis(A):
     return math.log10(A) - (math.log10(1.77 * math.pow(10, -10)) + 6.03)
+
 
 # by earth radius
 # not really correct for NZ, use proper formulas
 one_deg_lat = math.radians(6371.0072)
+
 
 # comment placed in corners file (above/below hypocenter)
 # make sure lines end with '\n', especially the last one.
@@ -90,6 +96,7 @@ hypocenter is first then for each \n\
 >Hypocenter (reference??) \n', \
 '> Below are the corners \
 (first point repeated as fifth to close box \n')
+
 
 def write_corners(filename, hypocentre, corners):
     """
@@ -104,6 +111,7 @@ def write_corners(filename, hypocentre, corners):
         # 2 3
         for i in [0, 1, 3, 2, 0]:
             cf.write('%f %f\n' % tuple(corners[i]))
+
 
 def get_corners(lat, lon, flen, fwid, dip, strike):
     """
@@ -136,6 +144,7 @@ def get_corners(lat, lon, flen, fwid, dip, strike):
     # joined (lon, lat) pairs
     return np.dstack((lons.flat, lats.flat))[0]
 
+
 def get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip):
     """
     Same logic as corners, for a single point.
@@ -151,6 +160,7 @@ def get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip):
     lon_hyp = lon + (A[0][0] / one_deg_lat) * 1.0 / (math.cos(math.radians(lat)))
 
     return lon_hyp, lat_hyp
+
 
 def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
         strike, rake, dip, MwScalingRel):
@@ -250,6 +260,7 @@ def focal_mechanism_2_finite_fault(Lat, Lon, Depth, Mw, \
             fault_length, DLEN, fault_width, DWID, depth_tcl, \
             lat_tcl, lon_tcl, SHYPO, DHYPO
 
+
 ###########################################################################
 def MwScalingRelation(Mw, MwScalingRel):
     """
@@ -290,6 +301,7 @@ def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
                 % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny), 'utf-8')
         gexec.wait()
 
+
 def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
             genslip_version ='3.3', rvfrac = None, rough = None, slip_cov = None, \
             velocity_model = None):
@@ -320,6 +332,7 @@ def gen_srf(srf_file, gsf_file, mw, dt, nx, ny, seed, shypo, dhypo, \
         print('Creating SRF:\n%s' % ' '.join(cmd))
         call(cmd, stdout = srfp)
 
+
 def gen_stoch(stoch_file, srf_file, silent = False, single_segment=False):
     """
     Creates stoch file from srf file.
@@ -340,6 +353,7 @@ def gen_stoch(stoch_file, srf_file, silent = False, single_segment=False):
             else:
                 call([binary_version.get_unversioned_bin(SRF2STOCH), 'dx={}'.format(dx), 'dy={}'.format(dy)],
                      stdin = srfp, stdout = stochp)
+
 
 def gen_meta(srf_file, srf_type, mag, \
             strike, rake, dip, dt, vm = None, vs = None, rho = None, \
@@ -407,6 +421,7 @@ def gen_meta(srf_file, srf_type, mag, \
         # derived parameters
         a['corners'] = corners
         a['dbottom'] = dbottom
+
 
 def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
         prefix = 'source', stoch = None, vs = 3.20, rho = 2.44, \
@@ -490,6 +505,7 @@ def CreateSRF_ps(lat, lon, depth, mw, mom, strike, rake, dip, dt = 0.005, \
     # location of resulting SRF file
     return srf_file
 
+
 def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
                  flen = None, dlen = None, fwid = None, dwid = None, \
                  dtop = None, shypo = None, dhypo = None, stoch = None, depth = None, \
@@ -548,19 +564,18 @@ def CreateSRF_ff(lat, lon, mw, strike, rake, dip, dt, prefix0, seed, \
     # location of resulting SRF
     return srf_file
 
-def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
-                    flen, dlen, fwid, dwid, dtop, stk, rak, dip, elon, elat, \
-                    shypo, dhypo, dt, seed, prefix0, cases, genslip_version ='3.3', \
-                    rvfrac = None, rough = None, slip_cov = None, stoch = None, \
-                    dip_dir = None, silent = False, velocity_model = None, \
-                    tect_type = None):
+
+def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, flen, dlen, fwid, dwid, dtop, stk, rak,
+                    dip, elon, elat, shypo, dhypo, dt, seed, prefix0, cases, genslip_version='3.3', rvfrac=None,
+                    rough=None, slip_cov=None, stoch=None, dip_dir=None, silent=False, velocity_model=None,
+                    tect_type=None):
 
     # do not change any pointers
     mag = list(mag0)
     mom = list(mom0)
     prefix = prefix0
 
-    if velocity_model == None:
+    if velocity_model is None:
         velocity_model = srf_config.VELOCITY_MODEL
 
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
@@ -618,7 +633,7 @@ def CreateSRF_multi(nseg, seg_delay, mag0, mom0, rvfac_seg, gwid, rup_delay, \
         # create GSF file
         cmd = [binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), 'read_slip_vals=0', 'infile=%s' % (fsg_file), \
                 'outfile=%s' % (gsf_file)]
-        if dip_dir != None:
+        if dip_dir is not None:
             cmd.append('dipdir=%s' % (dip_dir))
         call(cmd)
         os.remove(fsg_file)
