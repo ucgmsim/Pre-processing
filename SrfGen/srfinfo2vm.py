@@ -12,8 +12,6 @@ HELP:
 import argparse
 from distutils.spawn import find_executable
 from glob import glob
-from typing import Dict
-
 import math
 import os
 import platform
@@ -21,29 +19,28 @@ import subprocess
 from shutil import rmtree, move
 import sys
 from tempfile import TemporaryDirectory
+from typing import Dict
 
 from h5py import File as h5open
 import numpy as np
 
 # qcore library should already be in path
-from qcore.simulation_structure import get_fault_from_realisation
-
+from empirical.util.classdef import GMM, Site, Fault
+from empirical.util.empirical_factory import compute_gmm
 from qcore import constants
 from qcore import geo
 from qcore import gmt
-from qcore.validate_vm import validate_vm
+from qcore.simulation_structure import get_fault_from_realisation
 from qcore.utils import dump_yaml
-
-from empirical.util.classdef import GMM, Site, Fault
-from empirical.util.empirical_factory import compute_gmm
+from qcore.validate_vm import validate_vm
 
 from SrfGen.createSRF import leonard, mom2mag, mag2mom
 from SrfGen.gen_coords import gen_coords
 
 DEFAULT_DT = 0.02
-DEFAULT_VM_TOPO = "BULLDOZED"
-DEFAULT_VM_VERSION = "1.65"
-DEFAULT_MAX_PGV = 5.0
+DEFAULT_VM_TOPO = "SQUASHED TAPERED"
+DEFAULT_VM_VERSION = "2.02"
+DEFAULT_MAX_PGV = 2.0
 DEFAULT_GRID_SPACING = 0.4
 DEFAULT_SPACE_LAND = 5.0
 DEFAULT_SPACE_SRF = 15.0
