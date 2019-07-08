@@ -11,6 +11,7 @@ from subprocess import call
 from time import time
 
 import numpy as np
+from scipy.stats import truncnorm
 
 from createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
 from qcore import geo, simulation_structure
@@ -22,8 +23,8 @@ MAGNITUDE_ROUNDING_THRESHOLD = 7.5
 
 def get_seed():
     """Creates a seed for genslip.
-    This number is the maximum value of a 32 bit int"""
-    return random.randint(2147483647)
+    This number is the maximum value of a 32 bit int as that is how genslip stores the value"""
+    return random.randint(2**32-1)
 
 
 def rand_shyp_dhyp(length=1.0, width=1.0):
@@ -34,12 +35,12 @@ def rand_shyp_dhyp(length=1.0, width=1.0):
     dhyp_scale = 0.612
     dhyp_shape = 3.353
 
-    shyp = -1
     dhyp = 2
 
     # within range 0 -> 1 (exclusive)
-    while shyp <= 0 or shyp >= 1:
-        shyp = np.random.normal(shyp_mu, shyp_sigma)
+    shyp = truncnorm(
+        (0-shyp_mu)/shyp_sigma, (1-shyp_mu)/shyp_sigma, loc=shyp_mu, scale=shyp_sigma
+    ).rvs()
     while dhyp >= 1:
         dhyp = np.random.weibull(dhyp_shape) * dhyp_scale
     return shyp * length, dhyp * width
