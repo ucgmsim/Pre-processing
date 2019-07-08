@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import os
 from subprocess import check_call
@@ -21,26 +21,27 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
     # load params for velocity model
     vm = load_yaml(os.path.join(vm_dir, VM_PARAMS_FILE_NAME))
 
-    XLEN = vm["nx"] * vm["hh"]
-    YLEN = vm["ny"] * vm["hh"]
-    ZLEN = vm["nz"] * vm["hh"]
+    hh = vm["hh"]
+    XLEN = vm["nx"] * hh
+    YLEN = vm["ny"] * hh
+    ZLEN = vm["nz"] * hh
 
     # list of outputs that this function can create
-    GRIDFILE = os.path.join(vm_dir, "gridfile%s" % (vm["sufx"]))
-    GRIDOUT = os.path.join(vm_dir, "gridout%s" % (vm["sufx"]))
-    MODEL_COORDS = os.path.join(vm_dir, "model_coords%s" % (vm["sufx"]))
-    MODEL_PARAMS = os.path.join(vm_dir, "model_params%s" % (vm["sufx"]))
-    MODEL_BOUNDS = os.path.join(vm_dir, "model_bounds%s" % (vm["sufx"]))
+    GRIDFILE = os.path.join(vm_dir, "gridfile{}".format(vm["sufx"]))
+    GRIDOUT = os.path.join(vm_dir, "gridout{}".format(vm["sufx"]))
+    MODEL_COORDS = os.path.join(vm_dir, "model_coords{}".format(vm["sufx"]))
+    MODEL_PARAMS = os.path.join(vm_dir, "model_params{}".format(vm["sufx"]))
+    MODEL_BOUNDS = os.path.join(vm_dir, "model_bounds{}".format(vm["sufx"]))
 
     # generate gridfile
     try:
         with open(GRIDFILE, "w") as gridf:
-            gridf.write("xlen=%f\n" % (XLEN))
-            gridf.write("%10.4f %10.4f %13.6e\n" % (0.0, XLEN, vm["hh"]))
-            gridf.write("ylen=%f\n" % (YLEN))
-            gridf.write("%10.4f %10.4f %13.6e\n" % (0.0, YLEN, vm["hh"]))
-            gridf.write("zlen=%f\n" % (ZLEN))
-            gridf.write("%10.4f %10.4f %13.6e\n" % (0.0, ZLEN, vm["hh"]))
+            gridf.write("xlen={:f}\n".format(XLEN))
+            gridf.write("{:10.4f} {:10.4f} {:13.6e}\n".format(0.0, XLEN, hh))
+            gridf.write("ylen={:f}\n".format(YLEN))
+            gridf.write("{:10.4f} {:10.4f} {:13.6e}\n".format(0.0, YLEN, hh))
+            gridf.write("zlen={:f}\n".format(ZLEN))
+            gridf.write("{:10.4f} {:10.4f} {:13.6e}\n".format(0.0, ZLEN, hh))
     except IOError:
         raise IOError("Cannot write GRIDFILE: %s" % (GRIDFILE))
 
@@ -52,7 +53,7 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
         "nzout=1 name='{MODEL_COORDS}' gzip=0 latfirst=0 "
         "modellon={vm[MODEL_LON]} modellat={vm[MODEL_LAT]} "
         "modelrot={vm[MODEL_ROT]} 1> '{MODEL_PARAMS}'"
-    ).format(get_unversioned_bin("gen_model_cords"), **dict(locals(), **globals()))
+    ).format(get_unversioned_bin("gen_model_cords"), **locals())
     if debug:
         print(cmd)
     else:
@@ -60,21 +61,20 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
     check_call(cmd, shell=True)
 
     # also generate coordinate related outputs
-    if do_coords != "1":
-        return
+    if do_coords == "1":
 
-    # retrieve MODEL_BOUNDS
-    x_bounds = [0, vm["nx"] - 1]
-    y_bounds = [0, vm["ny"] - 1]
-    try:
-        with open(MODEL_COORDS, "r") as coordf:
-            with open(MODEL_BOUNDS, "w") as boundf:
-                for line in coordf:
-                    x, y = map(float, line.split()[2:4])
-                    if x in x_bounds or y in y_bounds:
-                        boundf.write(line)
-    except IOError:
-        raise IOError("Cannot write MODEL_BOUNDS: %s" % (MODEL_BOUNDS))
+        # retrieve MODEL_BOUNDS
+        x_bounds = [0, vm["nx"] - 1]
+        y_bounds = [0, vm["ny"] - 1]
+        try:
+            with open(MODEL_COORDS, "r") as coordf:
+                with open(MODEL_BOUNDS, "w") as boundf:
+                    for line in coordf:
+                        x, y = map(float, line.split()[2:4])
+                        if x in x_bounds or y in y_bounds:
+                            boundf.write(line)
+        except IOError:
+            raise IOError("Cannot write MODEL_BOUNDS: {}".format(MODEL_BOUNDS))
 
 
 # allow running from shell

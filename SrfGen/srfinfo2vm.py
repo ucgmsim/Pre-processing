@@ -9,55 +9,48 @@ mpirun -n 3 srfinfo2vm.py "Srf/*.info"
 HELP:
 ./srfinfo2vm -h
 """
-
-from argparse import ArgumentParser
+import argparse
 from distutils.spawn import find_executable
 from glob import glob
 import math
-from multiprocessing import Pool
 import os
 import platform
 import subprocess
 from shutil import rmtree, move
-from subprocess import Popen, PIPE
 import sys
-from tempfile import mkdtemp
-from time import time
+from tempfile import TemporaryDirectory
+from typing import Dict
 
 from h5py import File as h5open
 import numpy as np
 
-from createSRF import leonard, mag2mom, mom2mag
-
 # qcore library should already be in path
-try:
-    from qcore import constants
-    from qcore import geo
-    from qcore import gmt
-    from gen_coords import gen_coords
-    from qcore.validate_vm import validate_vm
-    from qcore.utils import dump_yaml
-except ImportError:
-    sys.exit("""
-qcore library has not been installed or is an old version.
-you can install it using setup.py or add qcore/qcore to the PYTHONPATH like:
-$ export PYTHONPATH=$PYTHONPATH:/location/to/qcore/qcore
-qcore is available at https://github.com/ucgmsim/qcore""")
-
 from empirical.util.classdef import GMM, Site, Fault
 from empirical.util.empirical_factory import compute_gmm
+from qcore import constants
+from qcore import geo
+from qcore import gmt
+from qcore.simulation_structure import get_fault_from_realisation
+from qcore.utils import dump_yaml
+from qcore.validate_vm import validate_vm
+
+from SrfGen.createSRF import leonard, mom2mag, mag2mom
+from SrfGen.gen_coords import gen_coords
+
+DEFAULT_DT = 0.02
+DEFAULT_VM_TOPO = "SQUASHED TAPERED"
+DEFAULT_VM_VERSION = "2.02"
+DEFAULT_MAX_PGV = 2.0
+DEFAULT_GRID_SPACING = 0.4
+DEFAULT_SPACE_LAND = 5.0
+DEFAULT_SPACE_SRF = 15.0
+DEFAULT_MIN_VS = 0.5
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
 NZ_LAND_OUTLINE = os.path.join(script_dir, "NHM/res/rough_land.txt")
 NZVM_BIN = find_executable("NZVM")
 
-siteprop = Site()
-siteprop.vs30 = 500
-
-faultprop = Fault()
-# TODO ztor should be read from srfinfo file
-faultprop.ztor = 0.0
 
 # default scaling relationship
 def mag2pgv(mag):
@@ -67,7 +60,7 @@ def mag2pgv(mag):
 
 
 # rrup at which pgv is close to target
-def find_rrup(pgv_target):
+def find_rrup(pgv_target, faultprop, siteprop):
     rrup = 50.0
     while True:
         siteprop.Rrup = rrup
@@ -95,7 +88,7 @@ def auto_z(mag, depth):
 
 
 # simulation time based on area
-def auto_time2(xlen, ylen, ds_multiplier):
+def auto_time2(xlen, ylen, ds_multiplier, faultprop, siteprop):
     rrup = max(xlen, ylen) / 2.0
     s_wave_arrival = rrup / 3.2
     siteprop.Rrup = rrup
@@ -199,9 +192,8 @@ def corners2region(c1, c2, c3, c4):
     return (x_min, x_max, y_min, y_max)
 
 
-def save_vm_config(
+def save_nzvm_config(
     nzvm_cfg=None,
-    vm_params=None,
     vm_dir=None,
     origin=(170, -40),
     rot=0,
@@ -209,14 +201,10 @@ def save_vm_config(
     ylen=100,
     zmax=40,
     zmin=0,
-    hh=0.4,
-    min_vs=0.5,
-    mag=5.5,
-    centroid_depth=7,
-    sim_duration=100,
-    code="rt",
-    model_version="1.65",
-    topo_type="BULLDOZED",
+    hh=DEFAULT_GRID_SPACING,
+    min_vs=DEFAULT_MIN_VS,
+    model_version=DEFAULT_VM_VERSION,
+    topo_type=DEFAULT_VM_TOPO,
 ):
     """
     Store VM config for NZVM generator and vm_params metadata store.
@@ -226,58 +214,68 @@ def save_vm_config(
     origin: model origin (longitude, latitude)
     rot: model rotation
     """
-    assert vm_dir is not None
-    if nzvm_cfg is not None:
-        assert not os.path.exists(vm_dir)
-        with open(nzvm_cfg, "w") as vmd:
-            vmd.write(
-                "\n".join(
-                    [
-                        "CALL_TYPE=GENERATE_VELOCITY_MOD",
-                        "MODEL_VERSION=%s" % (model_version),
-                        "OUTPUT_DIR=%s" % (vm_dir),
-                        "ORIGIN_LAT=%s" % (origin[1]),
-                        "ORIGIN_LON=%s" % (origin[0]),
-                        "ORIGIN_ROT=%s" % (rot),
-                        "EXTENT_X=%s" % (xlen),
-                        "EXTENT_Y=%s" % (ylen),
-                        "EXTENT_ZMAX=%s" % (zmax),
-                        "EXTENT_ZMIN=%s" % (zmin),
-                        "EXTENT_Z_SPACING=%s" % (hh),
-                        "EXTENT_LATLON_SPACING=%s" % (hh),
-                        "MIN_VS=%s" % (min_vs),
-                        "TOPO_TYPE=%s\n" % (topo_type),
-                    ]
-                )
+    assert vm_dir is not None and not os.path.exists(vm_dir)
+    with open(nzvm_cfg, "w") as vmd:
+        vmd.write(
+            "\n".join(
+                [
+                    "CALL_TYPE=GENERATE_VELOCITY_MOD",
+                    "MODEL_VERSION={}".format(model_version),
+                    "OUTPUT_DIR={}".format(vm_dir),
+                    "ORIGIN_LAT={}".format(origin[1]),
+                    "ORIGIN_LON={}".format(origin[0]),
+                    "ORIGIN_ROT={}".format(rot),
+                    "EXTENT_X={}".format(xlen),
+                    "EXTENT_Y={}".format(ylen),
+                    "EXTENT_ZMAX={}".format(zmax),
+                    "EXTENT_ZMIN={}".format(zmin),
+                    "EXTENT_Z_SPACING={}".format(hh),
+                    "EXTENT_LATLON_SPACING={}".format(hh),
+                    "MIN_VS={}".format(min_vs),
+                    "TOPO_TYPE={}\n".format(topo_type),
+                ]
             )
-    if vm_params is not None:
-        # must also convert mag from np.float to float
-        dump_yaml(
-            {
-                "mag": float(mag),
-                "centroidDepth": float(centroid_depth),
-                "MODEL_LAT": float(origin[1]),
-                "MODEL_LON": float(origin[0]),
-                "MODEL_ROT": float(rot),
-                "hh": hh,
-                "min_vs": float(min_vs),
-                "model_version": model_version,
-                "topo_type": topo_type,
-                "output_directory": os.path.basename(vm_dir),
-                "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
-                "code": code,
-                "extent_x": float(xlen),
-                "extent_y": float(ylen),
-                "extent_zmax": float(zmax),
-                "extent_zmin": float(zmin),
-                "sim_duration": float(sim_duration),
-                "flo": min_vs / (5.0 * hh),
-                "nx": int(round(float(xlen) / hh)),
-                "ny": int(round(float(ylen) / hh)),
-                "nz": int(round(float(zmax - zmin) / hh)),
-                "sufx": "_%s01-h%.3f" % (code, hh),
-            }, "{}.yaml".format(vm_params)
         )
+
+
+def generate_vm_params(
+    vm_gen_params,
+    vm_dir,
+    zmin=0,
+    hh=DEFAULT_GRID_SPACING,
+    min_vs=DEFAULT_MIN_VS,
+    centroid_depth=7,
+    code="rt",
+    model_version=DEFAULT_VM_VERSION,
+    topo_type=DEFAULT_VM_TOPO,
+):
+    model_lon, model_lat = vm_gen_params["origin"]
+    xlen_mod = vm_gen_params["xlen_mod"]
+    ylen_mod = vm_gen_params["ylen_mod"]
+    zlen_mod = vm_gen_params["zlen_mod"]
+    return {
+        "mag": float(vm_gen_params["mag"]),
+        "centroidDepth": float(centroid_depth),
+        "MODEL_LAT": float(model_lat),
+        "MODEL_LON": float(model_lon),
+        "MODEL_ROT": float(vm_gen_params["bearing"]),
+        "hh": hh,
+        "min_vs": float(min_vs),
+        "model_version": model_version,
+        "topo_type": topo_type,
+        "output_directory": os.path.basename(vm_dir),
+        "code": code,
+        "extent_x": float(xlen_mod),
+        "extent_y": float(ylen_mod),
+        "extent_zmax": float(zlen_mod),
+        "extent_zmin": float(zmin),
+        "sim_duration": float(vm_gen_params["sim_time_mod"]),
+        "flo": min_vs / (5.0 * hh),
+        "nx": int(round(float(xlen_mod) / hh)),
+        "ny": int(round(float(ylen_mod) / hh)),
+        "nz": int(round(float(zlen_mod - zmin) / hh)),
+        "sufx": "_{}01-h{:.3f}".format(code, hh),
+    }
 
 
 # get outer corners of a domain
@@ -486,68 +484,39 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     return a0, a1, b0, b1
 
 
-def gen_vm(args, srf_meta, vm_params_dict, mag, ptemp):
-    # store configs
-    vm_dir = os.path.join(args.out_dir, srf_meta["name"])
-    print(vm_dir)
-    vm_params_dict["vm_dir"] = vm_dir
-    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    vm_params_path = os.path.join(ptemp, "vm_params")
+def gen_vm(vm_dir, nzvm_cfg, temp_dir):
     # NZVM won't run if folder exists
-    if os.path.exists(vm_dir):
-        rmtree(vm_dir)
-    save_vm_config(
-        nzvm_cfg=nzvm_cfg,
-        vm_params=vm_params_path,
-        vm_dir=vm_dir,
-        origin=vm_params_dict["origin"],
-        rot=vm_params_dict["bearing"],
-        xlen=vm_params_dict["xlen_mod"],
-        ylen=vm_params_dict["ylen_mod"],
-        zmax=vm_params_dict["zlen_mod"],
-        hh=args.hh,
-        min_vs=args.min_vs,
-        mag=mag,
-        centroid_depth=srf_meta["hdepth"],
-        sim_duration=vm_params_dict["sim_time_mod"],
-        topo_type=args.vm_topo,
-        model_version=args.vm_version,
-    )
-    if args.novm:
-        # save important files
-        os.makedirs(vm_dir)
-        move(nzvm_cfg, vm_dir)
-        move("%s.yaml" % (vm_params_path), vm_dir)
-        # generate a corners like NZVM would have
-        with open("%s/VeloModCorners.txt" % (vm_params_dict["vm_dir"]), "wb") as c:
-            c.write("> VM corners (python generated)\n".encode())
-            c.write(vm_params_dict["path_mod"].encode())
-        return
+    rmtree(vm_dir, ignore_errors=True)
 
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
-    with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
-        nzvm_exe = Popen(
+    with open(os.path.join(temp_dir, "NZVM.out"), "w") as logfile:
+        nzvm_exe = subprocess.Popen(
             [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile
         )
         nzvm_exe.communicate()
 
     # fix up directory contents
-    move(os.path.join(vm_dir, "Velocity_Model", "rho3dfile.d"), vm_dir)
-    move(os.path.join(vm_dir, "Velocity_Model", "vp3dfile.p"), vm_dir)
-    move(os.path.join(vm_dir, "Velocity_Model", "vs3dfile.s"), vm_dir)
-    move(os.path.join(vm_dir, "Log", "VeloModCorners.txt"), vm_dir)
+    files_to_move = [
+        os.path.join(vm_dir, "Velocity_Model", "rho3dfile.d"),
+        os.path.join(vm_dir, "Velocity_Model", "vp3dfile.p"),
+        os.path.join(vm_dir, "Velocity_Model", "vs3dfile.s"),
+        os.path.join(vm_dir, "Log", "VeloModCorners.txt"),
+        nzvm_cfg,
+    ]
+    for file_name in files_to_move:
+        move(file_name, vm_dir)
+
     rmtree(os.path.join(vm_dir, "Velocity_Model"))
     rmtree(os.path.join(vm_dir, "Log"))
-    move(nzvm_cfg, vm_dir)
-    move("%s.yaml" % (vm_params_path), vm_dir)
+
     # create model_coords, model_bounds etc...
     gen_coords(vm_dir=vm_dir)
     # validate
     success, message = validate_vm(vm_dir)
     if success:
-        sys.stderr.write("VM check OK: %s\n" % (vm_dir))
+        sys.stderr.write("VM check OK: {}\n".format(vm_dir))
     else:
-        sys.stderr.write("VM check BAD: %s\n" % (message))
+        raise RuntimeError("VM check BAD: {}".format(message))
 
 
 def plot_vm(vm_params, srf_corners, mag, ptemp):
@@ -556,7 +525,7 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
     p.coastlines()
 
     # filled slip area
-    p.path("%s/srf.path" % (ptemp), is_file=True, fill="yellow", split="-")
+    p.path(os.path.join(ptemp, "srf.path"), is_file=True, fill="yellow", split="-")
     # top edge
     for plane in srf_corners:
         p.path("\n".join([" ".join(map(str, ll)) for ll in plane[:2]]), is_file=False)
@@ -602,7 +571,7 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
     vm_exists = "vm_dir" in vm_params
     if vm_exists:
         p.points(
-            "%s/VeloModCorners.txt" % (vm_params["vm_dir"]),
+            os.path.join(vm_params["vm_dir"], "VeloModCorners.txt"),
             fill="red",
             line=None,
             shape="c",
@@ -631,25 +600,34 @@ def plot_vm(vm_params, srf_corners, mag, ptemp):
         )
 
 
-def create_vm(args, srf_meta):
+def create_vm_gen_params(
+    temp_dir,
+    srf_meta,
+    space_land=DEFAULT_SPACE_LAND,
+    space_srf=DEFAULT_SPACE_SRF,
+    dt=DEFAULT_DT,
+    hh=DEFAULT_GRID_SPACING,
+    pgv=DEFAULT_MAX_PGV,
+):
     # temp directory for current process
-    ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
+    faultprop = Fault()
+    siteprop = Site()
 
     # properties stored in classes (fault of external code)
     faultprop.Mw = srf_meta["mag"]
-    faultprop.rake = srf_meta["rake"]
     faultprop.dip = srf_meta["dip"]
+    faultprop.rake = srf_meta["rake"]
+    faultprop.ztor = 0.0
+    siteprop.vs30 = 500
     # rrup to reach wanted PGV
-    if args.pgv == -1.0:
+    if pgv == -1.0:
         pgv = mag2pgv(faultprop.Mw)
-    else:
-        pgv = args.pgv
-    rrup, pgv_actual = find_rrup(pgv)
+    rrup, pgv_actual = find_rrup(pgv, faultprop, siteprop)
 
     # original, unrotated vm
     bearing = 0
     origin, xlen0, ylen0 = rrup2xylen(
-        rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+        rrup, hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=temp_dir
     )
     o1, o2, o3, o4 = build_corners(origin, bearing, xlen0, ylen0)
     vm0_region = corners2region(o1, o2, o3, o4)
@@ -661,10 +639,10 @@ def create_vm(args, srf_meta):
     )
 
     # proportion in ocean
-    land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
+    land0 = vm_land(o1, o2, o3, o4, wd=temp_dir)
 
     # for plotting and calculating VM domain distance
-    with open("%s/srf.path" % (ptemp), "wb") as sp:
+    with open(os.path.join(temp_dir, "srf.path"), "wb") as sp:
         for plane in srf_meta["corners"]:
             sp.write("> srf plane\n".encode())
             np.savetxt(sp, plane, fmt="%f")
@@ -674,7 +652,7 @@ def create_vm(args, srf_meta):
     adjusted = False
     if faultprop.Mw >= 3.5 and land0 < 99:
         adjusted = True
-        print("modifying %s" % (srf_meta["name"]))
+        print("modifying {}".format(srf_meta["name"]))
 
         # rotation based on centre line bearing at this point
         l1 = centre_lon(vm0_region[2])
@@ -685,7 +663,7 @@ def create_vm(args, srf_meta):
         # wanted distance is at corners, not middle top to bottom
         # approach answer at infinity / "I don't know the formula" algorithm
         xlen1, ylen1 = rrup2xylen(
-            rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+            rrup, hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=temp_dir
         )[1:]
         try:
             c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
@@ -694,14 +672,14 @@ def create_vm(args, srf_meta):
 
         # cut down ocean areas
         c4, c1, c3, c2 = reduce_domain(
-            c4, c1, c3, c2, args.hh, args.space_srf, args.space_land, ptemp
+            c4, c1, c3, c2, hh, space_srf, space_land, temp_dir
         )
         origin = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
-        ylen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) / args.hh) * args.hh
-        xlen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) / args.hh) * args.hh
+        ylen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) / hh) * hh
+        xlen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) / hh) * hh
 
         # proportion in ocean
-        land1 = vm_land(c1, c2, c3, c4, wd=ptemp)
+        land1 = vm_land(c1, c2, c3, c4, wd=temp_dir)
 
         # adjust region to fit new corners
         plot_region = (
@@ -723,12 +701,12 @@ def create_vm(args, srf_meta):
         ylen1 = 0
 
     # zlen is independent from xlen and ylen
-    zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
+    zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / hh) * hh
     # modified sim time
-    sim_time1 = (auto_time2(xlen1, ylen1, 1.2) // args.dt) * args.dt
+    sim_time1 = (auto_time2(xlen1, ylen1, 1.2, faultprop, siteprop) // dt) * dt
 
     # optimisation results
-    vm_params = {
+    return {
         "name": srf_meta["name"],
         "mag": faultprop.Mw,
         "dbottom": srf_meta["dbottom"],
@@ -746,276 +724,313 @@ def create_vm(args, srf_meta):
         "bearing": bearing,
         "adjusted": adjusted,
         "plot_region": plot_region,
-        "path": "%s %s\n%s %s\n%s %s\n%s %s\n"
-        % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
-        "path_mod": "%s %s\n%s %s\n%s %s\n%s %s\n"
-        % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
+        "path": "{} {}\n{} {}\n{} {}\n{} {}\n".format(
+            o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]
+        ),
+        "path_mod": "{} {}\n{} {}\n{} {}\n{} {}\n".format(
+            c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
+        ),
     }
 
-    # will not create VM if it is entirely in the ocean
-    if xlen1 != 0 and ylen1 != 0 and zlen != 0:
-        # run the actual generation
-        gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp)
-    # plot results
-    plot_vm(vm_params, srf_meta["corners"], faultprop.Mw, ptemp)
 
-    # working dir cleanup, return info about VM
-    rmtree(ptemp)
-    return vm_params
-
-
-def load_msgs(args):
-    # returns list of appropriate srf metadata
-    msgs = []
-    faults = set()
-
-    # add task for every info file
-    info_files = glob(args.info_glob)
-    for info in info_files:
-        if not os.path.exists(info):
-            print("SRF info file not found: %s" % (info))
-            continue
-
-        # name is unique and based on basename
-        name = os.path.splitext(os.path.basename(info))[0].split("_")[0]
-
-        if name in faults:
-            continue
-        faults.add(name)
-
-        with h5open(info) as h:
-            a = h.attrs
-            try:
-                rake = a["rake"][0][0]
-            except (TypeError, IndexError):
-                rake = a["rake"]
-            try:
-                mag = mom2mag(sum(map(mag2mom, a["mag"])))
-            except TypeError:
-                mag = a["mag"]
-            msgs.append(
-                (
-                    args,
-                    {
-                        "name": name,
-                        "dip": a["dip"][0],
-                        "rake": rake,
-                        "dbottom": a["dbottom"][0],
-                        "corners": a["corners"],
-                        "mag": mag,
-                        "hdepth": a["hdepth"],
-                    },
-                )
+def store_nhm_selection(out_dir, vm_params):
+    if min(vm_params["xlen_mod"], vm_params["ylen_mod"], vm_params["zlen_mod"]) > 0:
+        selected = os.path.join(out_dir, "nhm_selection.txt")
+        with open(selected, "a") as sf:
+            sf.write(
+                "{} {}r\n".format(vm_params["name"], min(max(vm_params["mag"] * 20 - 110, 10), 50))
             )
-    return msgs
-
-
-def load_msgs_nhm(args):
-    msgs = []
-
-    with open(args.nhm_file, "r") as n:
-        for _ in range(15):
-            n.readline()
-        nhm = n.readlines()
-    n_i = 0
-    while n_i < len(nhm):
-        n = nhm[n_i].strip()
-        dip = float(nhm[n_i + 3].split()[0])
-        dip_dir = float(nhm[n_i + 4])
-        rake = float(nhm[n_i + 5])
-        dbottom = float(nhm[n_i + 6].split()[0])
-        dtop = float(nhm[n_i + 7].split()[0])
-        n_pt = int(nhm[n_i + 11])
-        trace = nhm[n_i + 12 : n_i + 12 + n_pt]
-        trace = [list(map(float, pair)) for pair in map(str.split, trace)]
-
-        # derived properties
-        dbottom += 3 * (dbottom >= 12)
-        pwid = (dbottom - dtop) / math.tan(math.radians(dip))
-        fwid = (dbottom - dtop) / math.sin(math.radians(dip))
-        trace_length = sum(
-            [
-                geo.ll_dist(trace[i][0], trace[i][1], trace[i + 1][0], trace[i + 1][1])
-                for i in range(n_pt - 1)
-            ]
-        )
-        corners = np.zeros((n_pt - 1, 4, 2))
-        for i in range(len(corners)):
-            corners[i, :2] = trace[i : i + 2]
-            corners[i, 2] = geo.ll_shift(
-                corners[i, 1, 1], corners[i, 1, 0], pwid, dip_dir
-            )[::-1]
-            corners[i, 3] = geo.ll_shift(
-                corners[i, 0, 1], corners[i, 0, 0], pwid, dip_dir
-            )[::-1]
-
-        # move to next fault
-        n_i += 13 + n_pt
-
-        mag = leonard(rake, fwid * trace_length)
-        msgs.append(
-            (
-                args,
-                {
-                    "name": n,
-                    "dip": dip,
-                    "rake": rake,
-                    "dbottom": dbottom,
-                    "corners": corners,
-                    "mag": mag,
-                    "hdepth": dtop + 0.5 * (dbottom - dtop),
-                },
-            )
-        )
-
-    return msgs
-
-
-def store_nhm_selection(out_dir, reports):
-    selected = os.path.join(out_dir, "nhm_selection.txt")
-    excluded = os.path.join(out_dir, "excluded.txt")
-    with open(selected, "w") as sf:
-        with open(excluded, "w") as ef:
-            for r in reports:
-                if r["xlen_mod"] == 0 or r["ylen_mod"] == 0 or r["zlen"] == 0:
-                    ef.write("%s\n" % (r["name"]))
-                else:
-                    sf.write(
-                        "%s %dr\n" % (r["name"], min(max(r["mag"] * 20 - 110, 10), 50))
-                    )
+    else:
+        excluded = os.path.join(out_dir, "excluded.txt")
+        with open(excluded, "a") as ef:
+            ef.write("{}\n".format(vm_params["name"]))
 
 
 def store_summary(table, info_store):
     # initialise table file
-    with open(table, "w") as t:
+    if not os.path.exists(table):
+        with open(table, "w") as t:
+            t.write(
+                '"name","mw","plane depth (km, to bottom)",'
+                '"vm depth (zlen, km)","xlen (km)",'
+                '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
+                '"adjusted sim time (s)","adjusted xlen (km)",'
+                '"adjusted ylen (km)","adjusted land (% cover)"\n'
+            )
+    with open(table, "a") as t:
         t.write(
-            '"name","mw","plane depth (km, to bottom)",'
-            '"vm depth (zlen, km)","xlen (km)",'
-            '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
-            '"adjusted sim time (s)","adjusted xlen (km)",'
-            '"adjusted ylen (km)","adjusted land (% cover)"\n'
+            "{},{:.12g},{:.12g},{:g},{:g},{:g},{:.0f},{:g},{:g},{:g},{:.17g},{:.0f}\n".format(
+                info_store["name"],
+                info_store["mag"],
+                info_store["dbottom"],
+                info_store["zlen"],
+                info_store["xlen"],
+                info_store["ylen"],
+                info_store["land"],
+                info_store["zlen_mod"],
+                info_store["sim_time_mod"],
+                info_store["xlen_mod"],
+                info_store["ylen_mod"],
+                info_store["land_mod"],
+            )
         )
 
-        for i in info_store:
-            t.write(
-                "%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n"
-                % (
-                    i["name"],
-                    i["mag"],
-                    i["dbottom"],
-                    i["zlen"],
-                    i["xlen"],
-                    i["ylen"],
-                    i["land"],
-                    i["zlen_mod"],
-                    i["sim_time_mod"],
-                    i["xlen_mod"],
-                    i["ylen_mod"],
-                    i["land_mod"],
-                )
+
+def create_vm_from_srfinfo(
+    out_dir,
+    space_land,
+    space_srf,
+    dt,
+    hh,
+    pgv,
+    min_vs,
+    vm_topo,
+    vm_version,
+    novm,
+    selection,
+    srf_meta
+):
+    os.makedirs(out_dir, exist_ok=True)
+
+    with TemporaryDirectory(prefix="_tmp_{}_".format(srf_meta["name"]), dir=out_dir) as temp_dir:
+        vm_gen_params = create_vm_gen_params(
+            temp_dir=temp_dir,
+            srf_meta=srf_meta,
+            space_land=space_land,
+            space_srf=space_srf,
+            dt=dt,
+            hh=hh,
+            pgv=pgv,
+        )
+
+        if min(vm_gen_params["xlen_mod"], vm_gen_params["ylen_mod"], vm_gen_params["zlen_mod"]) > 0:
+            vm_dir = os.path.join(out_dir, srf_meta["name"])
+
+            vm_params_yaml_path = os.path.join(vm_dir, "vm_params.yaml")
+            vm_params = generate_vm_params(
+                vm_gen_params,
+                vm_dir,
+                hh=hh,
+                min_vs=min_vs,
+                centroid_depth=srf_meta["hdepth"],
+                topo_type=vm_topo,
+                model_version=vm_version,
+            )
+            dump_yaml(vm_params, vm_params_yaml_path)
+
+            nzvm_cfg = os.path.join(temp_dir, "nzvm.cfg")
+            save_nzvm_config(
+                nzvm_cfg=nzvm_cfg,
+                vm_dir=vm_dir,
+                origin=vm_gen_params["origin"],
+                rot=vm_gen_params["bearing"],
+                xlen=vm_gen_params["xlen_mod"],
+                ylen=vm_gen_params["ylen_mod"],
+                zmax=vm_gen_params["zlen_mod"],
+                hh=hh,
+                min_vs=min_vs,
+                topo_type=vm_topo,
+                model_version=vm_version,
             )
 
+            if novm:
+                # save important files
+                os.makedirs(vm_dir)
+                move(nzvm_cfg, vm_dir)
+                # generate a corners like NZVM would have
+                with open(os.path.join(vm_dir, "VeloModCorners.txt"), "wb") as c:
+                    c.write("> VM corners (python generated)\n".encode())
+                    c.write(vm_gen_params["path_mod"].encode())
+            else:
+                gen_vm(vm_dir, nzvm_cfg, temp_dir)
 
-def load_args():
-    parser = ArgumentParser()
-    arg = parser.add_argument
-    arg("info_glob", help="info file selection expression. eg: Srf/*.info")
-    arg(
-        "--nhm-file",
+        plot_vm(vm_gen_params, srf_meta["corners"], vm_gen_params["mag"], temp_dir)
+
+    # nhm selection formatted file and list of excluded VMs
+    if selection:
+        store_nhm_selection(out_dir, vm_gen_params)
+    # store summary
+    store_summary(os.path.join(out_dir, "vminfo.csv"), vm_gen_params)
+
+    # Hack to fix VM generation permission issue
+    hostname = platform.node()
+    if hostname.startswith(('maui', 'mahuika', 'wb', 'ni')):  # Checks if is on the HPCF
+        permission_cmd = ['chmod', 'g+rwXs', '-R', out_dir]
+        subprocess.call(permission_cmd)
+        group_cmd = ['chgrp', constants.DEFAULT_ACCOUNT, '-R', out_dir]
+        subprocess.call(group_cmd)
+
+
+def load_msg(info_file):
+    # returns list of appropriate srf metadata
+
+    # name is unique and based on basename
+    name = os.path.splitext(os.path.basename(info_file))[0].split("_")[0]
+
+    with h5open(info_file) as h:
+        a = h.attrs
+        try:
+            mag = mom2mag(sum(map(mag2mom, a["mag"])))
+        except TypeError:
+            mag = a["mag"]
+        return {
+                    "name": name,
+                    "dip": a["dip"][0],
+                    "dbottom": a["dbottom"][0],
+                    "corners": a["corners"],
+                    "mag": mag,
+                    "hdepth": a["hdepth"],
+                    "rake": a["rake"],
+                }
+
+
+def load_msg_nhm(nhm_file: str, fault_name: str) -> Dict:
+
+    with open(nhm_file, "r") as n:
+        for _ in range(15):
+            n.readline()
+        nhm = n.readlines()
+
+    n_i = 0
+    while n_i < len(nhm) and nhm[n_i].strip() != fault_name:
+        n_i += 13 + int(nhm[n_i + 11])
+    if nhm[n_i].strip() != fault_name:
+        return None
+    name = nhm[n_i].strip()
+    dip = float(nhm[n_i + 3].split()[0])
+    dip_dir = float(nhm[n_i + 4])
+    rake = float(nhm[n_i + 5])
+    dbottom = float(nhm[n_i + 6].split()[0])
+    dtop = float(nhm[n_i + 7].split()[0])
+    n_pt = int(nhm[n_i + 11])
+    trace = nhm[n_i + 12: n_i + 12 + n_pt]
+    trace = [list(map(float, pair)) for pair in map(str.split, trace)]
+
+    # derived properties
+    dbottom += 3 * (dbottom >= 12)
+    pwid = (dbottom - dtop) / math.tan(math.radians(dip))
+    fwid = (dbottom - dtop) / math.sin(math.radians(dip))
+    trace_length = sum(
+        [
+            geo.ll_dist(trace[i][0], trace[i][1], trace[i + 1][0], trace[i + 1][1])
+            for i in range(n_pt - 1)
+        ]
+    )
+    corners = np.zeros((n_pt - 1, 4, 2))
+    for i in range(len(corners)):
+        corners[i, :2] = trace[i : i + 2]
+        corners[i, 2] = geo.ll_shift(
+            corners[i, 1, 1], corners[i, 1, 0], pwid, dip_dir
+        )[::-1]
+        corners[i, 3] = geo.ll_shift(
+            corners[i, 0, 1], corners[i, 0, 0], pwid, dip_dir
+        )[::-1]
+
+    mag = leonard(rake, fwid * trace_length)
+    return {
+        "name": name,
+        "dip": dip,
+        "rake": rake,
+        "dbottom": dbottom,
+        "corners": corners,
+        "mag": mag,
+        "hdepth": dtop + 0.5 * (dbottom - dtop),
+    }
+
+
+def main():
+    if NZVM_BIN is None:
+        sys.exit("""NZVM binary not in PATH
+            You can compile it from here: https://github.com/ucgmsim/Velocity-Model
+            Then add it to the PATH by either:
+            sudo cp /location/to/Velocity-Model/NZVM /usr/bin/
+            or:
+            export PATH=$PATH:/location/to/Velocity-Model""")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("info_glob", help="info file selection expression. eg: Srf/*.info")
+    parser.add_argument("out_dir", help="The VMs directory")
+    parser.add_argument(
+        "--nhm_file",
         help="path to NHM if using info_glob == 'NHM'",
         default=os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "NHM", "NZ_FLTmodel_2010.txt"
         ),
     )
     parser.add_argument(
-        "-o", "--out-dir", help="directory to place outputs", default="autovm"
-    )
-    arg(
         "--pgv",
-        help="max PGV at velocity model perimiter (estimated, cm/s)",
+        help="max PGV at velocity model perimeter (estimated, cm/s)",
         type=float,
-        default=5.0,
+        default=DEFAULT_MAX_PGV,
     )
-    arg("--hh", help="velocity model grid spacing (km)", type=float, default=0.4)
-    arg(
+    parser.add_argument("--hh", help="velocity model grid spacing (km)", type=float, default=DEFAULT_GRID_SPACING)
+    parser.add_argument(
         "--dt",
         help="timestep to estimate simulation duration (s)",
         type=float,
-        default=0.005,
+        default=DEFAULT_DT,
     )
-    arg(
-        "--space-land",
+    parser.add_argument(
+        "--space_land",
         help="min space between VM edge and land (km)",
         type=float,
-        default=5.0,
+        default=DEFAULT_SPACE_LAND,
     )
-    arg(
-        "--space-srf",
+    parser.add_argument(
+        "--space_srf",
         help="min space between VM edge and SRF (km)",
         type=float,
-        default=15.0,
+        default=DEFAULT_SPACE_SRF,
     )
-    arg("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
-    arg("-n", "--nproc", help="number of processes", type=int, default=1)
-    arg("--novm", help="only generate parameters", action="store_true")
-    arg("--vm-version", help="velocity model version to generate", default="1.65")
-    arg(
-        "--vm-topo",
+    parser.add_argument("--min_vs", help="for nzvm gen and flo (km/s)", type=float, default=DEFAULT_MIN_VS)
+    parser.add_argument("--vm_version", help="velocity model version to generate", default=DEFAULT_VM_VERSION)
+    parser.add_argument(
+        "--vm_topo",
         help="topo_type parameter for velocity model generation",
-        default="BULLDOZED",
+        default=DEFAULT_VM_TOPO,
     )
-    arg("--selection", help="also generate NHM selection file", action="store_true")
+    parser.add_argument("--selection", help="Append to the nhm selection file", action="store_true")
+    parser.add_argument("--novm", help="only generate parameters", action="store_true")
     args = parser.parse_args()
-    args.out_dir = os.path.abspath(args.out_dir)
-    if not args.novm:
-        if NZVM_BIN is None:
-            sys.exit("""NZVM binary not in PATH
-You can compile it from here: https://github.com/ucgmsim/Velocity-Model
-Then add it to the PATH by either:
-sudo cp /location/to/Velocity-Model/NZVM /usr/bin/
-or:
-export PATH=$PATH:/location/to/Velocity-Model""")
 
-    return args
-
-
-if __name__ == "__main__":
-    args = load_args()
-
+    out_dir = os.path.abspath(args.out_dir)
     # load wanted fault information
-    if args.info_glob == "NHM":
-        msg_list = load_msgs_nhm(args)
-    else:
-        msg_list = load_msgs(args)
-    if len(msg_list) == 0:
-        sys.exit("Found nothing to do.")
 
-    # prepare to run
-    if not os.path.isdir(args.out_dir):
-        os.makedirs(args.out_dir)
+    info_files = glob(args.info_glob)
 
-    # proxy function for mapping
-    def create_vm_star(args_meta):
-        return create_vm(*args_meta)
+    use_nhm = args.info_glob == "NHM"
 
-    # distribute work
-    if args.nproc > 1:
-        p = Pool(processes=args.nproc)
-        reports = p.map(create_vm_star, msg_list)
-    else:
-        # debug friendly alternative
-        reports = [create_vm_star(msg) for msg in msg_list]
+    faults = set()
+    for info_file in info_files:
 
-    # nhm selection formatted file and list of excluded VMs
-    if args.selection:
-        store_nhm_selection(args.out_dir, reports)
-    # store summary
-    store_summary(os.path.join(args.out_dir, "vminfo.csv"), reports)
+        name = get_fault_from_realisation(os.path.basename(info_file))
 
-    # Hack to fix VM generation permission issue
-    hostname = platform.node()
-    if hostname.startswith(('maui', 'mahuika', 'wb', 'ni')): # Checks if is on the HPCF
-        permission_cmd = ['chmod', 'g+rwXs', '-R', args.out_dir]
-        subprocess.call(permission_cmd)
-        group_cmd = ['chgrp', constants.DEFAULT_ACCOUNT, '-R', args.out_dir]
-        subprocess.call(permission_cmd)
+        if name in faults:
+            continue
+        faults.add(name)
+
+        if use_nhm:
+            srf_meta = load_msg_nhm(args.nhm_file, name)
+            if srf_meta is None:
+                raise ValueError("No NHM found for {}. Aborting velocity model generation".format(name))
+        else:
+            srf_meta = load_msg(info_file)
+
+        create_vm_from_srfinfo(
+            out_dir,
+            args.space_land,
+            args.space_srf,
+            args.dt,
+            args.hh,
+            args.pgv,
+            args.min_vs,
+            args.vm_topo,
+            args.vm_version,
+            args.novm,
+            args.selection,
+            srf_meta,
+        )
+
+
+if __name__ == '__main__':
+    main()
