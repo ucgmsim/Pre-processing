@@ -3,7 +3,7 @@
 import math
 import os
 from shutil import copyfile
-from subprocess import call
+from subprocess import call, PIPE, Popen
 import sys
 
 from h5py import File as h5open
@@ -1111,9 +1111,6 @@ if __name__ == "__main__":
     if TYPE == 1:
         print("Point source plotting not yet implemented.")
         exit(0)
-
-    # start plotting
-    from subprocess import call, Popen, PIPE
 
     for script in ["plot_srf_square.py", "plot_srf_map.py"]:
         path_tester = Popen(["which", script], stdout=PIPE)
