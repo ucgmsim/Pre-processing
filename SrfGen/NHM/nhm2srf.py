@@ -227,7 +227,9 @@ def load_msgs(args, fault_names, faults):
                             'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
                             'stoch':'%s/%s/Stoch' % (args.out_dir, name), \
                             'name':name, 'tect_type':tect_type, \
-                            'plot':args.plot})
+                            'plot':args.plot, 'genslip_version': "3.3"})
+                    if tect_type == "SUBDUCTION_INTERFACE":
+                        msgs[-1].update({"genslip_version": "5.4.2"})
                     # store parameters
                     with open(out_log, 'a') as log:
                         log.write('%s.srf\t%s\t%s\t%s\n' \
@@ -256,12 +258,17 @@ def run_create_srf(fault):
 #    sys.stdout = open(str(os.getpid())+".out","w")
     print('creating SRF: %s' % (fault['name']))
     # all of the work, rest of the script is complete under 1 second
-    CreateSRF_multi(fault['nseg'], fault['seg_delay'], fault['mag'], fault['mom'], \
-                    fault['rvfac_seg'], fault['gwid'], fault['rup_delay'], fault['flen'], fault['dlen'], \
-                    fault['fwid'], fault['dwid'], fault['dtop'], fault['stk'], fault['rake'], fault['dip'], \
-                    fault['elon'], fault['elat'], fault['shypo'], fault['dhypo'], fault['dt'], fault['seed'], \
-                    fault['prefix'], fault['cases'], dip_dir = fault['dip_dir'], \
-                    stoch = fault['stoch'], tect_type = fault['tect_type'], silent = True)
+    CreateSRF_multi(fault['nseg'], fault['seg_delay'], fault['mag'], fault['mom'],
+                    fault['rvfac_seg'], fault['gwid'], fault['rup_delay'], fault['flen'], fault['dlen'],
+                    fault['fwid'], fault['dwid'], fault['dtop'], fault['stk'], fault['rake'], fault['dip'],
+                    fault['elon'], fault['elat'], fault['shypo'], fault['dhypo'], fault['dt'], fault['seed'],
+                    fault['prefix'], fault['cases'],
+                    dip_dir=fault['dip_dir'],
+                    stoch=fault['stoch'],
+                    tect_type=fault['tect_type'],
+                    silent=True,
+                    genslip_version=fault["genslip_version"],
+                    )
     print('created SRF: %s (%.2fs)' % (fault['name'], time() - t0))
     if fault['plot']:
         t0 = time()
