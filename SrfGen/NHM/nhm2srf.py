@@ -28,19 +28,22 @@ def get_seed():
 
 
 def rand_shyp_dhyp(length=1.0, width=1.0):
-    # normal distribution
+    # truncated normal distribution
     shyp_mu = 0.5
     shyp_sigma = 0.25
-    # weibel distribution
+    lower_std_dev_limit = (0 - shyp_mu) / shyp_sigma
+    upper_std_dev_limit = (1 - shyp_mu) / shyp_sigma
+
+    shyp = truncnorm(
+        lower_std_dev_limit, upper_std_dev_limit, loc=shyp_mu, scale=shyp_sigma
+    ).rvs()
+
+    # truncated weibull distribution
     dhyp_scale = 0.612
     dhyp_shape = 3.353
 
-    dhyp = 2
-
     # within range 0 -> 1 (exclusive)
-    shyp = truncnorm(
-        (0-shyp_mu)/shyp_sigma, (1-shyp_mu)/shyp_sigma, loc=shyp_mu, scale=shyp_sigma
-    ).rvs()
+    dhyp = np.random.weibull(dhyp_shape) * dhyp_scale
     while dhyp >= 1:
         dhyp = np.random.weibull(dhyp_shape) * dhyp_scale
     return shyp * length, dhyp * width
@@ -281,7 +284,7 @@ def generate_srf(out_dir, fault_name, create_srf_params, plot):
     gen_meta(
         srf_file,
         4,
-        create_srf_params["mag"],
+        create_srf_params["mag0"],
         create_srf_params["stk"],
         create_srf_params["rake"],
         create_srf_params["dip"],
