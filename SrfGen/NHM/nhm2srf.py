@@ -142,6 +142,11 @@ def load_msgs(args, fault_names, faults):
                     else:
                         z_hypo = (trace_length % hyp_step) / 2.
 
+                elif fault[1][-1] == 'n':
+                    t_hypo = 'n'
+                    n_hypo = int(fault[1][:-1])
+                    hyp_step = trace_length / (n_hypo * 2.)
+
                 # given as number of randomly placed hypocentres
                 elif fault[1][-1] == 'r':
                     t_hypo = 'r'
@@ -155,8 +160,6 @@ def load_msgs(args, fault_names, faults):
                 n_slip = int(fault[2])
             if len(fault) >= 4:
                 dhypos = list(map(float, fault[3].split(',')))
-        if t_hypo == 'n':
-            hyp_step = trace_length / (n_hypo * 2.)
         seed = args.seed
 
         # fixed values
