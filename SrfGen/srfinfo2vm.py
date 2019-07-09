@@ -967,7 +967,7 @@ def load_args():
         default="BULLDOZED",
     )
     arg("--selection", help="also generate NHM selection file", action="store_true")
-    arg("--no_optimise", help="Don't try and optimise the vm if it is off shore. Removes GMT dependency", action="store_true")
+    arg("--no_optimise", help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data", action="store_true")
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
     if not args.novm:
