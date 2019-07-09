@@ -128,7 +128,7 @@ def load_msgs(args, fault_names, faults):
         n_hypo = args.nhypo
         n_slip = args.nslip
         dhypos = args.dhypo
-        if faults != None:
+        if faults is not None:
             fault = faults[fault_names.index(name)]
             if len(fault) >= 2:
                 # given as hypocentre every x km

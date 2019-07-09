@@ -933,6 +933,7 @@ def CreateSRF_multi(
                 cmd.append("ky_corner=2.3882")
                 cmd.append("tsfac_slope=-0.5")
                 cmd.append("tsfac_bzero=-0.1")
+                cmd.append("risetime_coef=1.95")
             if rvfrac is not None:
                 cmd.append("rvfrac={}".format(rvfrac))
             if rough is not None:
