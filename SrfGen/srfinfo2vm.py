@@ -95,8 +95,8 @@ def auto_z(mag, depth):
 
 
 # simulation time based on area
-def auto_time2(xlen, ylen, ds_multiplier):
-    rrup = max(xlen, ylen) / 2.0
+def auto_time2(vm_corners, srf_corners, ds_multiplier):
+    rrup = max([min([geo.ll_dist(*corner, *s_corner[::-1]) for s_corner in srf_corners]) for corner in vm_corners])
     s_wave_arrival = rrup / 3.2
     siteprop.Rrup = rrup
     # magnitude is in faultprop
@@ -698,7 +698,7 @@ def create_vm(args, srf_meta):
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
-    sim_time1 = (auto_time2(xlen1, ylen1, 1.2) // args.dt) * args.dt
+    sim_time1 = (auto_time2((c1, c2, c3, c4), np.ndarray.flatten(srf_meta["corners"]), 1.2) // args.dt) * args.dt
 
     # optimisation results
     vm_params = {
