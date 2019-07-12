@@ -702,8 +702,10 @@ def create_vm(args, srf_meta):
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
-    srf_corners = [(srf_meta["corners"][i+1], srf_meta["corners"][i]) for i in range(0, len(srf_meta["corners"]), 2)]
-    initial_time = auto_time2((c1[::-1], c2[::-1], c3[::-1], c4[::-1]), srf_corners, 1.2)
+    srf_corners_flat = np.ndarray.flatten(srf_meta["corners"])
+    srf_corners = [(srf_corners_flat[i+1], srf_corners_flat[i]) for i in range(0, len(srf_corners_flat), 2)]
+    vm_corners = (c1[::-1], c2[::-1], c3[::-1], c4[::-1])
+    initial_time = auto_time2(vm_corners, srf_corners, 1.2)
     sim_time1 = (initial_time // args.dt) * args.dt
 
     # optimisation results
