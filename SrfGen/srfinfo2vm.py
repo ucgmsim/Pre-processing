@@ -100,7 +100,11 @@ def auto_time2(vm_corners, srf_corners, ds_multiplier):
     :param vm_corners: A list of (lon, lat) tuples
     :param srf_corners: A list of (lon, lat) tuples
     :param ds_multiplier: An integer"""
-    rrup = max([min([geo.ll_dist(*corner, *s_corner) for s_corner in srf_corners]) for corner in vm_corners])
+    max_lat = max([p[1] for p in srf_corners])
+    min_lat = min([p[1] for p in srf_corners])
+    max_lon = max([p[0] for p in srf_corners])
+    min_lon = min([p[0] for p in srf_corners])
+    rrup = max([geo.ll_dist(*corner, (max_lon+min_lon), (max_lat+min_lat)) for corner in vm_corners])
     s_wave_arrival = rrup / 3.2
     siteprop.Rrup = rrup
     # magnitude is in faultprop
