@@ -324,14 +324,8 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
     bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
 
-    # determine rest of model parameters
-    origin = geo.ll_mid(a0[0], a0[1], b1[0], b1[1])
-    centre_top = geo.ll_mid(a1[0], a1[1], b1[0], b1[1])
-    rot = geo.ll_bearing(origin[0], origin[1], centre_top[0], centre_top[1])
-    xlen = geo.ll_dist(a0[0], a0[1], b0[0], b0[1])
-
     # number of scan lines accross domain (inclusive of edges)
-    scanlines = 81
+    scanlines = max(round(len_ab/5), 81)
     # first scan, reduce east and west
     over_e = float("-inf") #None
     over_w = float("-inf") #None
@@ -405,11 +399,17 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         over_w = max(over_w, math.ceil((m2w - m2we) / hh) * hh)
 
     # bring in sides
-    xlen2 = xlen + over_e * (over_e < 0) + over_w * (over_w < 0)
-    origin2 = geo.ll_shift(
-        origin[1], origin[0], xlen2 / 2.0 - over_w * (over_w < 0) - xlen / 2.0, rot + 90
-    )[::-1]
-    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab)
+    a1b1_bearing = geo.ll_bearing(a1[0], a1[1], b1[0], b1[1])
+    a1 = geo.ll_shift(a1[1], a1[0], -over_e, a1b1_bearing)[::-1]
+
+    b1a1_bearing = geo.ll_bearing(b1[0], b1[1], a1[0], a1[1])
+    b1 = geo.ll_shift(b1[1], b1[0], -over_w, b1a1_bearing)[::-1]
+
+    a0b0_bearing = geo.ll_bearing(a0[0], a0[1], b0[0], b0[1])
+    a0 = geo.ll_shift(a0[1], a0[0], -over_e, a0b0_bearing)[::-1]
+
+    b0a0_bearing = geo.ll_bearing(b0[0], b0[1], a0[0], a0[1])
+    b0 = geo.ll_shift(b0[1], b0[0], -over_w, b0a0_bearing)[::-1]
 
     # corners may have moved
     bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
@@ -433,10 +433,7 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
             else:
                 isect_west = True
         # not on land if isect outside zone and either no east or no west isect
-        if not isect_inside and (not isect_east or not isect_west):
-            # TODO: invert above if statement gracefully
-            pass
-        else:
+        if isect_inside or (isect_east and isect_west):
             if not land_discovered:
                 # shift bottom edge up
                 over_s = math.floor((x * len_ab - 15) / hh) * hh
@@ -444,14 +441,15 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
             over_n = math.floor((len_ab - x * len_ab - 15) / hh) * hh
 
     # bring in top and bottom edge
-    len_ab2 = len_ab - over_s * (over_s > 0) - over_n * (over_n > 0)
-    origin2 = geo.ll_shift(
-        origin2[1],
-        origin2[0],
-        len_ab2 / 2.0 + over_s * (over_s > 0) - len_ab / 2.0,
-        rot,
-    )[::-1]
-    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
+    a0 = geo.ll_shift(a0[1], a0[0], over_s, bearing_a)[::-1]
+
+    bearing_a1a0 = geo.ll_bearing(a1[0], a1[1], a0[0], a0[1])
+    a1 = geo.ll_shift(a1[1], a1[0], over_n, bearing_a1a0)[::-1]
+
+    b0 = geo.ll_shift(b0[1], b0[0], over_s, bearing_b)[::-1]
+
+    bearing_b1b0 = geo.ll_bearing(b1[0], b1[1], b0[0], b0[1])
+    b1 = geo.ll_shift(b1[1], b1[0], over_n, bearing_b1b0)[::-1]
 
     return a0, a1, b0, b1
 
