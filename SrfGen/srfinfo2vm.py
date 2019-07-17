@@ -98,17 +98,14 @@ def auto_z(mag, depth):
 def auto_time2(vm_corners, srf_corners, ds_multiplier):
     """Calculates the sim duration from the bounds of the vm and srf
     :param vm_corners: A list of (lon, lat) tuples
-    :param srf_corners: A list of (lon, lat) tuples
+    :param srf_corners: A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
     :param ds_multiplier: An integer"""
-    max_lat = max([point[1] for point in srf_corners])
-    min_lat = min([point[1] for point in srf_corners])
-    max_lon = max([point[0] for point in srf_corners])
-    min_lon = min([point[0] for point in srf_corners])
     s_wave_arrival = (
-        max([
-            geo.ll_dist(*corner, (max_lon + min_lon) / 2, (max_lat + min_lat) / 2)
-            for corner in vm_corners
-        ]) / 3.2
+            max([
+                geo.ll_dist(*corner, (srf_corners[:, 0].max + srf_corners[:, 0].min) / 2,
+                            (srf_corners[:, 1].max + srf_corners[:, 1].min) / 2)
+                for corner in vm_corners
+            ]) / 3.2
     )
     siteprop.Rrup = max([
         min([geo.ll_dist(*corner, *s_corner) for s_corner in srf_corners])
@@ -713,10 +710,8 @@ def create_vm(args, srf_meta):
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
-    srf_corners_flat = np.ndarray.flatten(srf_meta["corners"])
-    srf_corners = [(srf_corners_flat[i], srf_corners_flat[i+1]) for i in range(0, len(srf_corners_flat), 2)]
     vm_corners = (c1, c2, c3, c4)
-    initial_time = auto_time2(vm_corners, srf_corners, 1.2)
+    initial_time = auto_time2(vm_corners, np.concatenate(srf_meta["corners"], axis=0), 1.2)
     sim_time1 = (initial_time // args.dt) * args.dt
 
     # optimisation results
