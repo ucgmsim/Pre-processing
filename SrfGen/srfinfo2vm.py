@@ -320,7 +320,7 @@ def build_corners(origin, rot, xlen, ylen):
 # maximum width along lines a and b
 def reduce_domain2(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
     # number of scan lines accross domain (inclusive of edges)
-    scanlines = max(round(len_ab / 5), 81)
+    scanlines = max(round(ylen / 5), 81)
     # first scan, reduce east and west
     over_e = 0
     over_w = 0
