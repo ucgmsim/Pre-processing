@@ -399,21 +399,20 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
         over_w = max(over_w, math.ceil((m2w - m2we) / hh) * hh)
 
     # bring in sides
-    a1b1_bearing = geo.ll_bearing(a1[0], a1[1], b1[0], b1[1])
-    a1 = geo.ll_shift(a1[1], a1[0], -over_e, a1b1_bearing)[::-1]
+    if over_e < 0:
+        a1b1_bearing = geo.ll_bearing(a1[0], a1[1], b1[0], b1[1])
+        a1 = geo.ll_shift(a1[1], a1[0], -over_e, a1b1_bearing)[::-1]
+        a0b0_bearing = geo.ll_bearing(a0[0], a0[1], b0[0], b0[1])
+        a0 = geo.ll_shift(a0[1], a0[0], -over_e, a0b0_bearing)[::-1]
+        bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
 
-    b1a1_bearing = geo.ll_bearing(b1[0], b1[1], a1[0], a1[1])
-    b1 = geo.ll_shift(b1[1], b1[0], -over_w, b1a1_bearing)[::-1]
+    if over_w < 0:
+        b1a1_bearing = geo.ll_bearing(b1[0], b1[1], a1[0], a1[1])
+        b1 = geo.ll_shift(b1[1], b1[0], -over_w, b1a1_bearing)[::-1]
+        b0a0_bearing = geo.ll_bearing(b0[0], b0[1], a0[0], a0[1])
+        b0 = geo.ll_shift(b0[1], b0[0], -over_w, b0a0_bearing)[::-1]
+        bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
 
-    a0b0_bearing = geo.ll_bearing(a0[0], a0[1], b0[0], b0[1])
-    a0 = geo.ll_shift(a0[1], a0[0], -over_e, a0b0_bearing)[::-1]
-
-    b0a0_bearing = geo.ll_bearing(b0[0], b0[1], a0[0], a0[1])
-    b0 = geo.ll_shift(b0[1], b0[0], -over_w, b0a0_bearing)[::-1]
-
-    # corners may have moved
-    bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
-    bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
     # second scan, reduce north and south
     over_s = 0
     over_n = len_ab
@@ -441,15 +440,15 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
             over_n = math.floor((len_ab - x * len_ab - 15) / hh) * hh
 
     # bring in top and bottom edge
-    a0 = geo.ll_shift(a0[1], a0[0], over_s, bearing_a)[::-1]
+    if over_s > 0:
+        a0 = geo.ll_shift(a0[1], a0[0], over_s, bearing_a)[::-1]
+        b0 = geo.ll_shift(b0[1], b0[0], over_s, bearing_b)[::-1]
 
-    bearing_a1a0 = geo.ll_bearing(a1[0], a1[1], a0[0], a0[1])
-    a1 = geo.ll_shift(a1[1], a1[0], over_n, bearing_a1a0)[::-1]
-
-    b0 = geo.ll_shift(b0[1], b0[0], over_s, bearing_b)[::-1]
-
-    bearing_b1b0 = geo.ll_bearing(b1[0], b1[1], b0[0], b0[1])
-    b1 = geo.ll_shift(b1[1], b1[0], over_n, bearing_b1b0)[::-1]
+    if over_n > 0:
+        bearing_a1a0 = geo.ll_bearing(a1[0], a1[1], a0[0], a0[1])
+        a1 = geo.ll_shift(a1[1], a1[0], over_n, bearing_a1a0)[::-1]
+        bearing_b1b0 = geo.ll_bearing(b1[0], b1[1], b0[0], b0[1])
+        b1 = geo.ll_shift(b1[1], b1[0], over_n, bearing_b1b0)[::-1]
 
     return a0, a1, b0, b1
 
