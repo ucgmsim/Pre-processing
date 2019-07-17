@@ -315,14 +315,21 @@ def reduce_domain2(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
     over_w = 0
     # store scan data for 2nd level processing
     scan_extremes = np.zeros((scanlines, 2, 2))
+
+    x_shift = xlen / 2.0
+    y_shift = ylen / 2.0
+
+    y_len_mid_shift = R_EARTH * math.asin(math.sin(y_shift / R_EARTH) / math.cos(x_shift / R_EARTH))
+    x_len_mid_shift = R_EARTH * math.asin(math.sin(x_shift / R_EARTH) / math.cos(y_shift / R_EARTH))
+
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
-        m = geo.ll_shift(origin[1], origin[0], ylen*(x-0.5), bearing)[::-1]
+        m = geo.ll_shift(origin[1], origin[0], y_len_mid_shift*2*(x-0.5), bearing)[::-1]
         # extend path a -> b, make sure we reach land for intersections
         bearing_p = geo.ll_bearing(m[0], m[1], origin[0], origin[1])
         if 90 <= bearing_p <= 270:
             bearing_p = (bearing_p + 180) % 360
-        ap = geo.ll_shift(m[1], m[0], 600+xlen/2, bearing_p + 90)[::-1]
-        bp = geo.ll_shift(m[1], m[0], 600+xlen/2, bearing_p + 270)[::-1]
+        ap = geo.ll_shift(m[1], m[0], 600+x_len_mid_shift, (bearing_p + 90) % 360)[::-1]
+        bp = geo.ll_shift(m[1], m[0], 600+x_len_mid_shift, (bearing_p + 270) % 360)[::-1]
 
         # GMT spatial is not great-circle path connective
         geo.path_from_corners(
@@ -378,28 +385,29 @@ def reduce_domain2(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
             m2w *= -1
         over_w = max(over_w, math.ceil(m2w / hh) * hh)
 
-    xlen = math.ceil((over_e + over_w)/hh)*hh
     if not np.isclose(over_e, over_w):
-        origin1 = geo.ll_shift(*origin[::-1], (over_e-over_w)/2, bearing+90)[::-1]
+        x_mid_ratio = x_len_mid_shift / x_shift
+        origin1 = geo.ll_shift(*origin[::-1], x_mid_ratio*(over_e-over_w)/2, bearing+90)[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
         if over_e > over_w:
             bearing = (bearing + 90) % 360
         else:
             bearing = (bearing - 90) % 360
         origin = origin1
+    xlen = math.ceil((over_e + over_w) / hh) * hh
 
     # second scan, reduce north and south
     over_s = 0
     over_n = ylen
     land_discovered = False
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
-        m = geo.ll_shift(origin[1], origin[0], ylen*(x-0.5), bearing)[::-1]
+        m = geo.ll_shift(origin[1], origin[0], y_len_mid_shift*2*(x-0.5), bearing)[::-1]
         # extend path a -> b, make sure we reach land for intersections
         bearing_p = geo.ll_bearing(m[0], m[1], origin[0], origin[1])
         if 90 <= bearing_p <= 270:
             bearing_p = (bearing_p + 180) % 360
-        a = geo.ll_shift(m[1], m[0], xlen/2, bearing_p + 90)[::-1]
-        b = geo.ll_shift(m[1], m[0], xlen/2, bearing_p + 270)[::-1]
+        a = geo.ll_shift(m[1], m[0], x_len_mid_shift/2, bearing_p + 90)[::-1]
+        b = geo.ll_shift(m[1], m[0], x_len_mid_shift/2, bearing_p + 270)[::-1]
         # determine if window contains any land by locations of intersections
         isect_inside = False
         isect_east = False
@@ -419,16 +427,20 @@ def reduce_domain2(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
             land_discovered = True
             over_n = math.floor((ylen - x * ylen - 15) / hh) * hh
 
-    ylen -= over_s*(over_s > 0) + over_n*(over_n > 0)
-    origin = geo.ll_shift(*origin[::-1], (over_s*(over_s > 0) - over_n*(over_n > 0)) / 2, bearing)[::-1]
-
     if not np.isclose(over_n, over_s):
-        # If we don't move them in by the same amount, then we need to move the origin
-        origin1 = geo.ll_shift(*origin[::-1], (over_s*(over_s > 0) - over_n*(over_n > 0)) / 2, bearing)[::-1]
+        # If we don't move the north and south boundaries in by the same amount, then we need to move the origin an
+        # amount relative to the change
+        # The multiplier for the difference between the origin->mid north point and the mid east -> northeast corner
+        # This is symmetric with north/south and east/west
+        y_mid_ratio = y_len_mid_shift / y_shift
+        # Move the origin by a distance relative to the amount taken off each end, multiplied by the ratio
+        origin1 = geo.ll_shift(*origin[::-1], y_mid_ratio*(over_s*(over_s > 0) - over_n*(over_n > 0)) / 2, bearing)[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
         if over_s*(over_s > 0) > over_n*(over_n > 0):
             bearing = (bearing + 180) % 360
         origin = origin1
+
+    ylen -= over_s * (over_s > 0) + over_n * (over_n > 0)
 
     return origin, bearing, xlen, ylen
 
