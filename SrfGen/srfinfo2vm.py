@@ -100,6 +100,7 @@ def auto_time2(vm_corners, srf_corners, ds_multiplier):
     :param vm_corners: A list of (lon, lat) tuples
     :param srf_corners: A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
     :param ds_multiplier: An integer"""
+    # S wave arrival time is determined by the distance from the srf centroid to the furthest corner
     s_wave_arrival = (
             max([
                 geo.ll_dist(*corner, (srf_corners[:, 0].max + srf_corners[:, 0].min) / 2,
@@ -107,6 +108,7 @@ def auto_time2(vm_corners, srf_corners, ds_multiplier):
                 for corner in vm_corners
             ]) / 3.2
     )
+    # Rrup is determined by the largest vm corner to nearest srf corner distance
     siteprop.Rrup = max([
         min([geo.ll_dist(*corner, *s_corner) for s_corner in srf_corners])
         for corner in vm_corners
