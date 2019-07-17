@@ -420,11 +420,11 @@ def reduce_domain2(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
             over_n = math.floor((ylen - x * ylen - 15) / hh) * hh
 
     ylen -= over_s*(over_s > 0) + over_n*(over_n > 0)
-    origin = geo.ll_shift(*origin[::-1], (over_n*(over_n > 0) - over_s*(over_s > 0)) / 2, bearing)[::-1]
+    origin = geo.ll_shift(*origin[::-1], (over_s*(over_s > 0) - over_n*(over_n > 0)) / 2, bearing)[::-1]
 
     if not np.isclose(over_n, over_s):
         # If we don't move them in by the same amount, then we need to move the origin
-        origin1 = geo.ll_shift(*origin[::-1], (over_n*(over_n > 0) - over_s*(over_s > 0)) / 2, bearing)[::-1]
+        origin1 = geo.ll_shift(*origin[::-1], (over_s*(over_s > 0) - over_n*(over_n > 0)) / 2, bearing)[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
         if over_s*(over_s > 0) > over_n*(over_n > 0):
             bearing = (bearing + 180) % 360
