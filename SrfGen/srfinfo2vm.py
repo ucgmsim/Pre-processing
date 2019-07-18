@@ -59,6 +59,8 @@ faultprop = Fault()
 # TODO ztor should be read from srfinfo file
 faultprop.ztor = 0.0
 
+S_WAVE_KM_PER_S = 3.2
+
 # default scaling relationship
 def mag2pgv(mag):
     return np.interp(
@@ -105,7 +107,7 @@ def auto_time2(vm_corners, srf_corners, ds_multiplier):
         vm_corners,
         (srf_corners[:, 0].max() + srf_corners[:, 0].min()) / 2,
         (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
-    ).max() / 3.2
+    ).max() / S_WAVE_KM_PER_S
     # Rrup is determined by the largest vm corner to nearest srf corner distance
     siteprop.Rrup = max([
         geo.get_distances(srf_corners, *corner).min()
