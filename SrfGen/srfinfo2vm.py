@@ -97,20 +97,18 @@ def auto_z(mag, depth):
 # simulation time based on area
 def auto_time2(vm_corners, srf_corners, ds_multiplier):
     """Calculates the sim duration from the bounds of the vm and srf
-    :param vm_corners: A list of (lon, lat) tuples
+    :param vm_corners: A numpy array of (lon, lat) tuples
     :param srf_corners: A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
     :param ds_multiplier: An integer"""
     # S wave arrival time is determined by the distance from the srf centroid to the furthest corner
-    s_wave_arrival = (
-            max([
-                geo.ll_dist(*corner, (srf_corners[:, 0].max + srf_corners[:, 0].min) / 2,
-                            (srf_corners[:, 1].max + srf_corners[:, 1].min) / 2)
-                for corner in vm_corners
-            ]) / 3.2
-    )
+    s_wave_arrival = geo.get_distances(
+        vm_corners,
+        (srf_corners[:, 0].max() + srf_corners[:, 0].min()) / 2,
+        (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
+    ).max() / 3.2
     # Rrup is determined by the largest vm corner to nearest srf corner distance
     siteprop.Rrup = max([
-        min([geo.ll_dist(*corner, *s_corner) for s_corner in srf_corners])
+        geo.get_distances(srf_corners, *corner).min()
         for corner in vm_corners
     ])
     # magnitude is in faultprop
@@ -712,7 +710,7 @@ def create_vm(args, srf_meta):
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
-    vm_corners = (c1, c2, c3, c4)
+    vm_corners = np.asarray(c1, c2, c3, c4)
     initial_time = auto_time2(vm_corners, np.concatenate(srf_meta["corners"], axis=0), 1.2)
     sim_time1 = (initial_time // args.dt) * args.dt
 
