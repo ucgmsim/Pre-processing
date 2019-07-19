@@ -59,6 +59,8 @@ faultprop = Fault()
 # TODO ztor should be read from srfinfo file
 faultprop.ztor = 0.0
 
+S_WAVE_KM_PER_S = 3.2
+
 # default scaling relationship
 def mag2pgv(mag):
     return np.interp(
@@ -95,10 +97,22 @@ def auto_z(mag, depth):
 
 
 # simulation time based on area
-def auto_time2(xlen, ylen, ds_multiplier):
-    rrup = max(xlen, ylen) / 2.0
-    s_wave_arrival = rrup / 3.2
-    siteprop.Rrup = rrup
+def auto_time2(vm_corners, srf_corners, ds_multiplier):
+    """Calculates the sim duration from the bounds of the vm and srf
+    :param vm_corners: A numpy array of (lon, lat) tuples
+    :param srf_corners: A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
+    :param ds_multiplier: An integer"""
+    # S wave arrival time is determined by the distance from the srf centroid to the furthest corner
+    s_wave_arrival = geo.get_distances(
+        vm_corners,
+        (srf_corners[:, 0].max() + srf_corners[:, 0].min()) / 2,
+        (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
+    ).max() / S_WAVE_KM_PER_S
+    # Rrup is determined by the largest vm corner to nearest srf corner distance
+    siteprop.Rrup = max([
+        geo.get_distances(srf_corners, *corner).min()
+        for corner in vm_corners
+    ])
     # magnitude is in faultprop
     ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
     return s_wave_arrival + ds_multiplier * ds
@@ -698,7 +712,9 @@ def create_vm(args, srf_meta):
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
-    sim_time1 = (auto_time2(xlen1, ylen1, 1.2) // args.dt) * args.dt
+    vm_corners = np.asarray(c1, c2, c3, c4)
+    initial_time = auto_time2(vm_corners, np.concatenate(srf_meta["corners"], axis=0), 1.2)
+    sim_time1 = (initial_time // args.dt) * args.dt
 
     # optimisation results
     vm_params = {
