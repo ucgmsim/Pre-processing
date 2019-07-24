@@ -280,37 +280,25 @@ def save_vm_config(
         )
 
 
-# get outer corners of a domain
 def build_corners(origin, rot, xlen, ylen):
     # wanted xlen, ylen is at corners
-    # approach answer at infinity / "I don't know the formula" algorithm
-
     # amount to shift from middle
     x_shift = xlen / 2.0
     y_shift = ylen / 2.0
-    # x lengths will always be correct
-    target_y = ylen
 
-    # adjust middle ylen such that edge (corner to corner) ylen is correct
-    while True:
-        # upper and lower mid points
-        t_u = geo.ll_shift(origin[1], origin[0], y_shift, rot)[::-1]
-        t_l = geo.ll_shift(origin[1], origin[0], y_shift, rot + 180)[::-1]
-        # bearings have changed at the top and bottom
-        top_bearing = (geo.ll_bearing(t_u[0], t_u[1], origin[0], origin[1]) + 180) % 360
-        bottom_bearing = geo.ll_bearing(t_l[0], t_l[1], origin[0], origin[1])
-        # extend top and bottom middle line to make right edge
-        c1 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing + 90)[::-1]
-        c4 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing + 90)[::-1]
-        # check right edge distance
-        current_y = geo.ll_dist(c1[0], c1[1], c4[0], c4[1])
-        if round(target_y, 10) != round(current_y, 10):
-            y_shift += (target_y - current_y) / 2.0
-        else:
-            break
-    # complete for left edge
-    c2 = geo.ll_shift(t_u[1], t_u[0], x_shift, top_bearing - 90)[::-1]
-    c3 = geo.ll_shift(t_l[1], t_l[0], x_shift, bottom_bearing - 90)[::-1]
+    y_len_mid_shift = R_EARTH*math.asin(math.sin(y_shift/R_EARTH)/math.cos(x_shift/R_EARTH))
+
+    top_mid = geo.ll_shift(lat=origin[1], lon=origin[0], distance=y_len_mid_shift, bearing=rot)[::-1]
+    bottom_mid = geo.ll_shift(lat=origin[1], lon=origin[0], distance=y_len_mid_shift, bearing=(rot+180)%360)[::-1]
+
+    top_mid_bearing = geo.ll_bearing(*top_mid, *origin)+180 % 360
+    bottom_mid_bearing = geo.ll_bearing(*bottom_mid, *origin)
+
+    c2 = geo.ll_shift(lat=top_mid[1], lon=top_mid[0], distance=x_shift, bearing=(top_mid_bearing - 90) % 360)[::-1]
+    c1 = geo.ll_shift(lat=top_mid[1], lon=top_mid[0], distance=x_shift, bearing=(top_mid_bearing + 90) % 360)[::-1]
+
+    c3 = geo.ll_shift(lat=bottom_mid[1], lon=bottom_mid[0], distance=x_shift, bearing=(bottom_mid_bearing - 90) % 360)[::-1]
+    c4 = geo.ll_shift(lat=bottom_mid[1], lon=bottom_mid[0], distance=x_shift, bearing=(bottom_mid_bearing + 90) % 360)[::-1]
 
     # at this point we have a perfect square (by corner distance)
     # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
@@ -318,36 +306,40 @@ def build_corners(origin, rot, xlen, ylen):
 
 
 # maximum width along lines a and b
-def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
-    # scan line paths follow lines a, b
-    len_ab = geo.ll_dist(a0[0], a0[1], a1[0], a1[1])
-    bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
-    bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
-
-    # determine rest of model parameters
-    origin = geo.ll_mid(a0[0], a0[1], b1[0], b1[1])
-    centre_top = geo.ll_mid(a1[0], a1[1], b1[0], b1[1])
-    rot = geo.ll_bearing(origin[0], origin[1], centre_top[0], centre_top[1])
-    xlen = geo.ll_dist(a0[0], a0[1], b0[0], b0[1])
-
+def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
+    """Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
+    srf boundary. Returns the new values to be used.
+    Uses great circle geometry """
     # number of scan lines accross domain (inclusive of edges)
-    scanlines = 81
-    # first scan, reduce east and west
-    over_e = float("-inf") #None
-    over_w = float("-inf") #None
+    scanlines = max(round(ylen / 5), 81)
+
     # store scan data for 2nd level processing
     scan_extremes = np.zeros((scanlines, 2, 2))
+
+    # Half the x/ylen, commonly used value
+    x_shift = xlen / 2.0
+    y_shift = ylen / 2.0
+
+    # The first point will always change them
+    # Positive is east of mid line
+    dist_east_from_mid = -x_shift
+    # Positive is west of mid line
+    dist_west_from_mid = -x_shift
+
+    # The distance between the origin and domain boundary mid points
+    y_len_mid_shift = R_EARTH * math.asin(math.sin(y_shift / R_EARTH) / math.cos(x_shift / R_EARTH))
+    x_len_mid_shift = R_EARTH * math.asin(math.sin(x_shift / R_EARTH) / math.cos(y_shift / R_EARTH))
+
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
-        a = geo.ll_shift(a0[1], a0[0], x * len_ab, bearing_a)[::-1]
-        b = geo.ll_shift(b0[1], b0[0], x * len_ab, bearing_b)[::-1]
-        m = geo.ll_mid(a[0], a[1], b[0], b[1])
+        m = geo.ll_shift(origin[1], origin[0], y_len_mid_shift*2*(x-0.5), bearing)[::-1]
         # extend path a -> b, make sure we reach land for intersections
-        bearing_p = geo.ll_bearing(m[0], m[1], a[0], a[1])
-        ap = geo.ll_shift(m[1], m[0], 600, bearing_p)[::-1]
-        bp = geo.ll_shift(m[1], m[0], 600, bearing_p + 180)[::-1]
-        # mid to east edge, west edge
-        m2ee = geo.ll_dist(m[0], m[1], a[0], a[1])
-        m2we = geo.ll_dist(m[0], m[1], b[0], b[1])
+        bearing_p = geo.ll_bearing(m[0], m[1], origin[0], origin[1])
+        if 90 <= bearing_p <= 270:
+            # Make sure bearing is pointing northwards: [-90, 90] % 360
+            bearing_p = (bearing_p + 180) % 360
+        ap = geo.ll_shift(m[1], m[0], 600+x_len_mid_shift, (bearing_p + 90) % 360)[::-1]
+        bp = geo.ll_shift(m[1], m[0], 600+x_len_mid_shift, (bearing_p + 270) % 360)[::-1]
+
         # GMT spatial is not great-circle path connective
         geo.path_from_corners(
             corners=[ap, bp],
@@ -364,63 +356,55 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
             scan_extremes[i] = np.nan
             continue
         # shift different intersections by item-specific padding amount
-        as_east = []
-        as_west = []
 
-        for c in range(len(isections)):
+        for c, intersection in enumerate(isections):
             if "%s/srf.path" % (wd) in icomps[c]:
                 diff = space_srf
             elif NZ_LAND_OUTLINE in icomps[c]:
                 diff = space_land
-            # these bearings will be slightly wrong but don't need to be exact
-            # TODO: adjust to follow same path as ap -> bp
-            as_east.append(
-                geo.ll_shift(isections[c][1], isections[c][0], diff, bearing_p)[::-1]
-            )
-            as_west.append(
-                geo.ll_shift(isections[c][1], isections[c][0], diff, bearing_p + 180)[
-                    ::-1
-                ]
-            )
-        # find final extremes
-        east = as_east[np.argmax(as_east, axis=0)[0]]
-        west = as_west[np.argmin(as_west, axis=0)[0]]
+            else:
+                # Something went wrong
+                continue
+
+            isection_bearing = geo.ll_bearing(*m, *intersection)
+            if abs(isection_bearing - (bearing_p+90)) < 5 and dist_east_from_mid < x_shift:
+                # The intersection is (relatively) east of the mid point
+                east = geo.ll_dist(*intersection, *m) + diff
+                west = diff - geo.ll_dist(*intersection, *m)
+            elif abs(isection_bearing - (bearing_p+270) % 360) < 5 and dist_west_from_mid < x_shift:
+                # The intersection is (relatively) west of the mid point
+                east = diff - geo.ll_dist(*intersection, *m)
+                west = geo.ll_dist(*intersection, *m) + diff
+            else:
+                # If the point isn't east or west, it's probably on the center line
+                east = west = diff
+
+            # Only update if we have a better choice, but only go up to the original value
+            if east > dist_east_from_mid:
+                dist_east_from_mid = min(east, x_shift)
+            if west > dist_west_from_mid:
+                dist_west_from_mid = min(west, x_shift)
+
         # for north/south (later on), use direct/un-shifted points
         scan_extremes[i] = (
             isections[np.argmax(isections, axis=0)[0]],
             isections[np.argmin(isections, axis=0)[0]],
         )
 
-        # distance beyond east is negative
-        m2e = geo.ll_dist(m[0], m[1], east[0], east[1])
-        be = geo.ll_bearing(m[0], m[1], east[0], east[1])
-        if abs(be - (bearing_p) % 360) > 90:
-            m2e *= -1
-        over_e = max(over_e, math.ceil((m2e - m2ee) / hh) * hh)
-        # distance beyond west is negative
-        m2w = geo.ll_dist(m[0], m[1], west[0], west[1])
-        bw = geo.ll_bearing(m[0], m[1], west[0], west[1])
-        if abs(bw - (bearing_p + 180) % 360) > 90:
-            m2w *= -1
-        over_w = max(over_w, math.ceil((m2w - m2we) / hh) * hh)
-
-    # bring in sides
-    xlen2 = xlen + over_e * (over_e < 0) + over_w * (over_w < 0)
-    origin2 = geo.ll_shift(
-        origin[1], origin[0], xlen2 / 2.0 - over_w * (over_w < 0) - xlen / 2.0, rot + 90
-    )[::-1]
-    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab)
-
-    # corners may have moved
-    bearing_a = geo.ll_bearing(a0[0], a0[1], a1[0], a1[1])
-    bearing_b = geo.ll_bearing(b0[0], b0[1], b1[0], b1[1])
     # second scan, reduce north and south
     over_s = 0
-    over_n = len_ab
+    over_n = ylen
     land_discovered = False
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
-        a = geo.ll_shift(a0[1], a0[0], x * len_ab, bearing_a)[::-1]
-        b = geo.ll_shift(b0[1], b0[0], x * len_ab, bearing_b)[::-1]
+        m = geo.ll_shift(origin[1], origin[0], y_len_mid_shift * 2 * (x - 0.5), bearing)[::-1]
+        # extend path a -> b, make sure we reach land for intersections
+        bearing_p = geo.ll_bearing(m[0], m[1], origin[0], origin[1])
+        if 90 <= bearing_p <= 270:
+            bearing_p = (bearing_p + 180) % 360
+        # Extend scan points to the relative east and west, at the distance of the widest part.
+        # TODO: use the width of the domain at that point instead of the max width
+        a = geo.ll_shift(m[1], m[0], x_len_mid_shift, bearing_p + 90)[::-1]
+        b = geo.ll_shift(m[1], m[0], x_len_mid_shift, bearing_p + 270)[::-1]
         # determine if window contains any land by locations of intersections
         isect_inside = False
         isect_east = False
@@ -433,27 +417,45 @@ def reduce_domain(a0, a1, b0, b1, hh, space_srf, space_land, wd):
             else:
                 isect_west = True
         # not on land if isect outside zone and either no east or no west isect
-        if not isect_inside and (not isect_east or not isect_west):
-            # TODO: invert above if statement gracefully
-            pass
-        else:
+        if isect_inside or (isect_east and isect_west):
             if not land_discovered:
                 # shift bottom edge up
-                over_s = math.floor((x * len_ab - 15) / hh) * hh
+                over_s = math.floor((x * ylen - 15) / hh) * hh
             land_discovered = True
-            over_n = math.floor((len_ab - x * len_ab - 15) / hh) * hh
+            over_n = math.floor((ylen - x * ylen - 15) / hh) * hh
 
-    # bring in top and bottom edge
-    len_ab2 = len_ab - over_s * (over_s > 0) - over_n * (over_n > 0)
-    origin2 = geo.ll_shift(
-        origin2[1],
-        origin2[0],
-        len_ab2 / 2.0 + over_s * (over_s > 0) - len_ab / 2.0,
-        rot,
-    )[::-1]
-    a1, b1, b0, a0 = build_corners(origin2, rot, xlen2, len_ab2)
+    if not np.isclose(dist_east_from_mid, dist_west_from_mid):
+        # If the east and west are not changing by the same amount, then we have to move the origin, and get the new
+        # bearing
+        x_mid_ratio = x_len_mid_shift / x_shift
+        origin1 = geo.ll_shift(*origin[::-1], x_mid_ratio*(dist_east_from_mid-dist_west_from_mid)/2, bearing+90)[::-1]
+        bearing = geo.ll_bearing(*origin1, *origin)
+        if dist_east_from_mid > dist_west_from_mid:
+            # If we moved east we need the right angle clockwise from the old origin
+            bearing = (bearing + 90) % 360
+        else:
+            # If we moved west then we need the right angle anticlockwise from the old origin
+            bearing = (bearing - 90) % 360
+        origin = origin1
 
-    return a0, a1, b0, b1
+    xlen = math.ceil((dist_east_from_mid + dist_west_from_mid) / hh) * hh
+
+    if not np.isclose(over_n*(over_n > 0), over_s*(over_s > 0)):
+        # If we don't move the north and south boundaries in by the same amount, then we need to move the origin an
+        # amount relative to the change
+        # The multiplier for the difference between the origin->mid north point and the mid east -> northeast corner
+        # This is symmetric with north/south and east/west
+        y_mid_ratio = y_len_mid_shift / y_shift
+        # Move the origin by a distance relative to the amount taken off each end, multiplied by the ratio
+        origin1 = geo.ll_shift(*origin[::-1], y_mid_ratio*(over_s*(over_s > 0) - over_n*(over_n > 0)) / 2, bearing)[::-1]
+        bearing = geo.ll_bearing(*origin1, *origin)
+        if over_s*(over_s > 0) > over_n*(over_n > 0):
+            bearing = (bearing + 180) % 360
+        origin = origin1
+
+    ylen -= over_s * (over_s > 0) + over_n * (over_n > 0)
+
+    return origin, bearing, xlen, ylen
 
 
 def gen_vm(args, srf_meta, vm_params_dict, mag, ptemp):
@@ -657,21 +659,17 @@ def create_vm(args, srf_meta):
 
         # wanted distance is at corners, not middle top to bottom
         # approach answer at infinity / "I don't know the formula" algorithm
-        xlen1, ylen1 = rrup2xylen(
+        _, xlen1, ylen1 = rrup2xylen(
             rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
-        )[1:]
-        try:
-            c1, c2, c3, c4 = build_corners(origin, bearing, ylen1, xlen1)
-        except ValueError:
-            raise ValueError("Error for vm {}".format(srf_meta["name"]))
+        )
 
         # cut down ocean areas
-        c4, c1, c3, c2 = reduce_domain(
-            c4, c1, c3, c2, args.hh, args.space_srf, args.space_land, ptemp
-        )
-        origin = geo.ll_mid(c4[0], c4[1], c2[0], c2[1])
-        ylen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c1[0], c1[1]) / args.hh) * args.hh
-        xlen1 = math.ceil(geo.ll_dist(c4[0], c4[1], c3[0], c3[1]) / args.hh) * args.hh
+        origin, bearing, xlen1, ylen1, = reduce_domain(origin, bearing, xlen1, ylen1, args.hh, args.space_srf, args.space_land, ptemp)
+
+        try:
+            c1, c2, c3, c4 = build_corners(origin, bearing, xlen1, ylen1)
+        except ValueError:
+            raise ValueError("Error for vm {}".format(srf_meta["name"]))
 
         # proportion in ocean
         land1 = vm_land(c1, c2, c3, c4, wd=ptemp)
