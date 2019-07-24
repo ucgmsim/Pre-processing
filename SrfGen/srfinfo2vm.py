@@ -455,8 +455,8 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
 
     xlen = math.ceil((dist_east_from_mid + dist_west_from_mid) / hh) * hh
 
-    over_n_max = over_n * (over_n > 0)
-    over_s_max = over_s * (over_s > 0)
+    over_n_max = max(over_n, 0)
+    over_s_max = max(over_s, 0)
     if not np.isclose(over_n_max, over_s_max):
         # If we don't move the north and south boundaries in by the same amount, then we need to move the origin an
         # amount relative to the change
