@@ -455,20 +455,23 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
 
     xlen = math.ceil((dist_east_from_mid + dist_west_from_mid) / hh) * hh
 
-    if not np.isclose(over_n*(over_n > 0), over_s*(over_s > 0)):
+    over_n_max = over_n * (over_n > 0)
+    over_s_max = over_s * (over_s > 0)
+    if not np.isclose(over_n_max, over_s_max):
         # If we don't move the north and south boundaries in by the same amount, then we need to move the origin an
         # amount relative to the change
         # The multiplier for the difference between the origin->mid north point and the mid east -> northeast corner
         # This is symmetric with north/south and east/west
         y_mid_ratio = y_len_mid_shift / y_shift
         # Move the origin by a distance relative to the amount taken off each end, multiplied by the ratio
-        origin1 = geo.ll_shift(*origin[::-1], y_mid_ratio*(over_s*(over_s > 0) - over_n*(over_n > 0)) / 2, bearing)[::-1]
+        origin1 = geo.ll_shift(*origin[::-1], y_mid_ratio * (over_s_max - over_n_max) / 2, bearing)[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
-        if over_s*(over_s > 0) > over_n*(over_n > 0):
+        if over_s_max > over_n_max:
+            # The point moved north, so we are looking South
             bearing = (bearing + 180) % 360
         origin = origin1
 
-    ylen -= over_s * (over_s > 0) + over_n * (over_n > 0)
+    ylen -= over_s_max + over_n_max
 
     return origin, bearing, xlen, ylen
 
