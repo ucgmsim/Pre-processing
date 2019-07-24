@@ -455,6 +455,7 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
 
     xlen = math.ceil((dist_east_from_mid + dist_west_from_mid) / hh) * hh
 
+    # If either of the numbers is negative then we don't trim that edge, so set the minimum value of each to 0
     over_n_max = max(over_n, 0)
     over_s_max = max(over_s, 0)
     if not np.isclose(over_n_max, over_s_max):
