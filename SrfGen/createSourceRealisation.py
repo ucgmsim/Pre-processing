@@ -14,17 +14,18 @@ Alternatively create_ps_realisation can be imported and used from another python
 """
 
 import os
+from logging import Logger
 from random import uniform, randint, normalvariate
 from time import time
 import yaml
 
 import argparse
-from qcore import simulation_structure, utils
-
-import numpy as np
 from scipy.stats import truncnorm
+import numpy as np
 
-from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
+from qcore import qclogging, simulation_structure, utils
+
+from SrfGen.createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
 mag2mom = lambda mw : np.exp(1.5 * (mw + 10.7) * np.log(10.0))
 mom2mag = lambda mom : (2 / 3. * np.log(mom) / np.log(10.0)) - 10.7
@@ -51,6 +52,7 @@ def param_as_string(param):
     # 3rd case: 2D array
     return ' '.join([' '.join(map(str, param[x])) \
             for x in range(len(param))])
+
 
 def CreateSRF_ffdStoch():
     from setSrfParams import M_NAME,N_SCENARIOS,SEED,SEED_INC,N_SEED_INC,SHYPO,FLEN,V_HYPO,DHYPO,FWID,V_MAG,MAG,V_FLEN,DLEN,V_FWID,DWID,M_FWID,LAT,LON,RAK,DIP,DT,RVFRAC,ROUGH,SLIP_COV,DLEN,DWID,DTOP,GENSLIP,STOCH
@@ -132,6 +134,7 @@ def CreateSRF_ffdStoch():
             # end of line / end of this srf file
             of.write('\n')
 
+
 def create_ps_realisation(
     out_dir,
     fault_name,
@@ -154,6 +157,7 @@ def create_ps_realisation(
     rise_time=0.5,
     init_time=0.0,
     silent=False,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Creates SRF files using random variables.
@@ -165,6 +169,7 @@ def create_ps_realisation(
     :param additional_options: A dictionary containing any options to be used in the realisation, but not necessarily
     placed in the srf
     """
+    logger.debug("Creating point source realisation with perturbated parameters")
 
     # Dictionary of distribution functions. 'none' is required for unperturbated options.
     # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
@@ -230,6 +235,7 @@ def create_ps_realisation(
     perturbed_additional_options = {}
 
     for ns in range(1, n_realisations + 1):
+        logger.debug("Creating realisation {}".format(ns))
 
         realisation_name = simulation_structure.get_realisation_name(
             fault_name, ns
@@ -274,13 +280,14 @@ def create_ps_realisation(
             distribution = dict_to_read_from[key][
                 'distribution'
             ]
-
+            logger.debug("Perturbating variable {} with distribution {}".format(key, distribution))
             # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
             dict_to_update[
                 key
             ] = random_distribution_functions[distribution](
                 **dict_to_read_from[key]
             )
+            logger.debug("Value of perturbated variable: {}".format(dict_to_update[key]))
 
         # Save the extra args to a yaml file
         additional_args_fname = os.path.join(
@@ -309,6 +316,7 @@ def create_ps_realisation(
                 {key: perturbed_additional_options[key]}
             )
 
+        logger.debug("Saving additional parameters to {}".format(additional_args_fname))
         with open(additional_args_fname, 'w') as yamlf:
             yaml.dump(output_additional_options, yamlf)
 
@@ -339,6 +347,7 @@ def create_ps_realisation(
             ],
             init_time=init_time,
             silent=silent,
+            logger=logger
         )
 
 
@@ -367,6 +376,7 @@ def randomise_rupdelay(delay, var, deps):
                     delay[j] += diff
                     f.append(j)
     return delay
+
 
 def CreateSRF_multiStoch():
     from setSrfParams import PREFIX, N_SCENARIOS,SEED,SEED_INC,N_SEED_INC, M_RUP_DELAY,V_RDELAY,D_RDELAY, M_SHYPO,FLEN,V_HYPO,M_DHYPO,M_FWID,M_MAG,CASES,MW_TOTAL,V_MAG,V_FLEN, M_MAG, V_FLEN, M_DLEN
@@ -482,8 +492,12 @@ def CreateSRF_multiStoch():
             # end of line / end of this srf file
             of.write('\n')
 
+
 if __name__ == '__main__':
+    logger = qclogging.get_logger("createSourceRealisation")
     parser = argparse.ArgumentParser()
+    parser.add_argument("out_dir", help="Location to save the output. Must exist")
+    parser.add_argument("fault_name", help="The name of the fault for the realisations")
     parser.add_argument("type", help="Type of earthquake to create SRF for")
     parser.add_argument("lat", help="latitude")
     parser.add_argument("lon", help="longitude")
@@ -495,10 +509,11 @@ if __name__ == '__main__':
     parser.add_argument("dip", help="Dip to be simulated")
     parser.add_argument("n_realisations", help="The number of realisations to generate SRFs for")
     args = parser.parse_args()
+    qclogging.add_general_file_handler(logger, "createSourceRealisation")
 
     if args.type == 1:
-        create_ps_realisation(args.lat, args.lon, args.depth, args.mw_mean, args.mom, args.strike, args.rake, args.dip,
-                              args.n_realisations)
+        create_ps_realisation(args.out_dir, args.fault_name, args.lat, args.lon, args.depth, args.mw_mean, args.mom,
+                              args.strike, args.rake, args.dip, args.n_realisations, logger=logger)
     elif args.type == 3:
         CreateSRF_ffdStoch()
     elif args.type == 4:

@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 import os
+from logging import Logger
 from subprocess import call
 import sys
 
@@ -10,30 +11,35 @@ import pandas as pd
 import yaml
 
 from qcore.pool_wrapper import PoolWrapper
+from qcore import qclogging
 
-from createSRF import leonard, CreateSRF_ps, gen_meta
-from createSourceRealisation import create_ps_realisation
+from SrfGen.createSRF import leonard, CreateSRF_ps, gen_meta
+from SrfGen.createSourceRealisation import create_ps_realisation
 
 
-def run_create_srf(args, t, vs, rho, n_sims):
+def run_create_srf(args, t, vs, rho, n_sims, logger: Logger = qclogging.get_basic_logger()):
+    logger.debug("Entered run_create_srf")
     mom = -1
     try:
         pid=t.pid.decode() #t.pid is originally numpy.bytes_
     except AttributeError:
         pid = t.pid
+    logger.debug("pid is {}".format(pid))
 
     prefix = os.path.join(args.out_dir, pid, 'Srf', pid)
+    logger.debug("Using prefix: {}".format(prefix))
     if args.uncertainty_file:
+        logger.debug("Uncertainty file found. Generating perturbated realisations")
         with open(args.uncertainty_file) as ao_f:
             add_opts = yaml.load(ao_f)
         create_ps_realisation(args.out_dir, pid, t.lat, t.lon, t.depth, t.mag, mom, t.strike, t.rake, t.dip,
                               n_realisations=n_sims, additional_options=add_opts, dt=args.dt, vs=vs, rho=rho,
-                              silent=True)
+                              silent=True, logger=logger)
         srf_file = os.path.join(args.out_dir, pid, 'Srf', "{}_REL01.srf".format(pid))
         gen_meta(
             srf_file, 1, t.mag, t.strike, t.rake, t.dip, 0.005,
             lon=t.lon, lat=t.lat, vs=vs, rho=rho, centroid_depth=t.depth,
-            file_name=os.path.join(args.out_dir, pid, pid)
+            file_name=os.path.join(args.out_dir, pid, pid, logger=logger)
         )
     else:
         stoch = os.path.join(args.out_dir, pid, 'Stoch')
