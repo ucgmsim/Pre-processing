@@ -575,7 +575,7 @@ def gen_vm(
 ):
     # store configs
     vm_dir = os.path.join(args.out_dir, srf_meta["name"])
-    logger.info("Saving VM to {}".format(vm_dir))
+    logger.info("Generating VM. Saving it to {}".format(vm_dir))
     vm_params_dict["vm_dir"] = vm_dir
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
     vm_params_path = os.path.join(ptemp, "vm_params")
@@ -656,6 +656,7 @@ def gen_vm(
 def plot_vm(
     vm_params, srf_corners, mag, ptemp, logger: Logger = qclogging.get_basic_logger()
 ):
+    logger.debug("Plotting vm")
     p = gmt.GMTPlot(os.path.join(ptemp, "optimisation.ps"))
     p.spacial("M", vm_params["plot_region"], sizing=7)
     p.coastlines()
@@ -914,12 +915,10 @@ def create_vm(args, srf_meta, logger: Logger = qclogging.get_basic_logger()):
     # will not create VM if it is entirely in the ocean
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
         # run the actual generation
-        logger.debug("Generating vm")
-        gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp)
+        gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
     else:
         logger.debug("At least one dimension was 0. Not generating VM")
     # plot results
-    logger.debug("Plotting vm")
     plot_vm(vm_params, srf_meta["corners"], faultprop.Mw, ptemp, logger=logger)
 
     # working dir cleanup, return info about VM
