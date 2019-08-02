@@ -39,11 +39,13 @@ try:
     from qcore.validate_vm import validate_vm
     from qcore.utils import dump_yaml
 except ImportError:
-    sys.exit("""
+    sys.exit(
+        """
 qcore library has not been installed or is an old version.
 you can install it using setup.py or add qcore/qcore to the PYTHONPATH like:
 $ export PYTHONPATH=$PYTHONPATH:/location/to/qcore/qcore
-qcore is available at https://github.com/ucgmsim/qcore""")
+qcore is available at https://github.com/ucgmsim/qcore"""
+    )
 
 from empirical.util.classdef import GMM, Site, Fault
 from empirical.util.empirical_factory import compute_gmm
@@ -104,16 +106,18 @@ def auto_time2(vm_corners, srf_corners, ds_multiplier):
     :param srf_corners: A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
     :param ds_multiplier: An integer"""
     # S wave arrival time is determined by the distance from the srf centroid to the furthest corner
-    s_wave_arrival = geo.get_distances(
-        vm_corners,
-        (srf_corners[:, 0].max() + srf_corners[:, 0].min()) / 2,
-        (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
-    ).max() / S_WAVE_KM_PER_S
+    s_wave_arrival = (
+        geo.get_distances(
+            vm_corners,
+            (srf_corners[:, 0].max() + srf_corners[:, 0].min()) / 2,
+            (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
+        ).max()
+        / S_WAVE_KM_PER_S
+    )
     # Rrup is determined by the largest vm corner to nearest srf corner distance
-    siteprop.Rrup = max([
-        geo.get_distances(srf_corners, *corner).min()
-        for corner in vm_corners
-    ])
+    siteprop.Rrup = max(
+        [geo.get_distances(srf_corners, *corner).min() for corner in vm_corners]
+    )
     # magnitude is in faultprop
     ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
     return s_wave_arrival + ds_multiplier * ds
@@ -291,7 +295,8 @@ def save_vm_config(
                 "ny": int(round(float(ylen) / hh)),
                 "nz": int(round(float(zmax - zmin) / hh)),
                 "sufx": "_%s01-h%.3f" % (code, hh),
-            }, "{}.yaml".format(vm_params)
+            },
+            "{}.yaml".format(vm_params),
         )
 
 
@@ -301,19 +306,48 @@ def build_corners(origin, rot, xlen, ylen):
     x_shift = xlen / 2.0
     y_shift = ylen / 2.0
 
-    y_len_mid_shift = R_EARTH*math.asin(math.sin(y_shift/R_EARTH)/math.cos(x_shift/R_EARTH))
+    y_len_mid_shift = R_EARTH * math.asin(
+        math.sin(y_shift / R_EARTH) / math.cos(x_shift / R_EARTH)
+    )
 
-    top_mid = geo.ll_shift(lat=origin[1], lon=origin[0], distance=y_len_mid_shift, bearing=rot)[::-1]
-    bottom_mid = geo.ll_shift(lat=origin[1], lon=origin[0], distance=y_len_mid_shift, bearing=(rot+180)%360)[::-1]
+    top_mid = geo.ll_shift(
+        lat=origin[1], lon=origin[0], distance=y_len_mid_shift, bearing=rot
+    )[::-1]
+    bottom_mid = geo.ll_shift(
+        lat=origin[1],
+        lon=origin[0],
+        distance=y_len_mid_shift,
+        bearing=(rot + 180) % 360,
+    )[::-1]
 
-    top_mid_bearing = geo.ll_bearing(*top_mid, *origin)+180 % 360
+    top_mid_bearing = geo.ll_bearing(*top_mid, *origin) + 180 % 360
     bottom_mid_bearing = geo.ll_bearing(*bottom_mid, *origin)
 
-    c2 = geo.ll_shift(lat=top_mid[1], lon=top_mid[0], distance=x_shift, bearing=(top_mid_bearing - 90) % 360)[::-1]
-    c1 = geo.ll_shift(lat=top_mid[1], lon=top_mid[0], distance=x_shift, bearing=(top_mid_bearing + 90) % 360)[::-1]
+    c2 = geo.ll_shift(
+        lat=top_mid[1],
+        lon=top_mid[0],
+        distance=x_shift,
+        bearing=(top_mid_bearing - 90) % 360,
+    )[::-1]
+    c1 = geo.ll_shift(
+        lat=top_mid[1],
+        lon=top_mid[0],
+        distance=x_shift,
+        bearing=(top_mid_bearing + 90) % 360,
+    )[::-1]
 
-    c3 = geo.ll_shift(lat=bottom_mid[1], lon=bottom_mid[0], distance=x_shift, bearing=(bottom_mid_bearing - 90) % 360)[::-1]
-    c4 = geo.ll_shift(lat=bottom_mid[1], lon=bottom_mid[0], distance=x_shift, bearing=(bottom_mid_bearing + 90) % 360)[::-1]
+    c3 = geo.ll_shift(
+        lat=bottom_mid[1],
+        lon=bottom_mid[0],
+        distance=x_shift,
+        bearing=(bottom_mid_bearing - 90) % 360,
+    )[::-1]
+    c4 = geo.ll_shift(
+        lat=bottom_mid[1],
+        lon=bottom_mid[0],
+        distance=x_shift,
+        bearing=(bottom_mid_bearing + 90) % 360,
+    )[::-1]
 
     # at this point we have a perfect square (by corner distance)
     # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
@@ -342,18 +376,28 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
     dist_west_from_mid = -x_shift
 
     # The distance between the origin and domain boundary mid points
-    y_len_mid_shift = R_EARTH * math.asin(math.sin(y_shift / R_EARTH) / math.cos(x_shift / R_EARTH))
-    x_len_mid_shift = R_EARTH * math.asin(math.sin(x_shift / R_EARTH) / math.cos(y_shift / R_EARTH))
+    y_len_mid_shift = R_EARTH * math.asin(
+        math.sin(y_shift / R_EARTH) / math.cos(x_shift / R_EARTH)
+    )
+    x_len_mid_shift = R_EARTH * math.asin(
+        math.sin(x_shift / R_EARTH) / math.cos(y_shift / R_EARTH)
+    )
 
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
-        m = geo.ll_shift(origin[1], origin[0], y_len_mid_shift*2*(x-0.5), bearing)[::-1]
+        m = geo.ll_shift(
+            origin[1], origin[0], y_len_mid_shift * 2 * (x - 0.5), bearing
+        )[::-1]
         # extend path a -> b, make sure we reach land for intersections
         bearing_p = geo.ll_bearing(m[0], m[1], origin[0], origin[1])
         if 90 <= bearing_p <= 270:
             # Make sure bearing is pointing northwards: [-90, 90] % 360
             bearing_p = (bearing_p + 180) % 360
-        ap = geo.ll_shift(m[1], m[0], 600+x_len_mid_shift, (bearing_p + 90) % 360)[::-1]
-        bp = geo.ll_shift(m[1], m[0], 600+x_len_mid_shift, (bearing_p + 270) % 360)[::-1]
+        ap = geo.ll_shift(m[1], m[0], 600 + x_len_mid_shift, (bearing_p + 90) % 360)[
+            ::-1
+        ]
+        bp = geo.ll_shift(m[1], m[0], 600 + x_len_mid_shift, (bearing_p + 270) % 360)[
+            ::-1
+        ]
 
         # GMT spatial is not great-circle path connective
         geo.path_from_corners(
@@ -382,11 +426,17 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
                 continue
 
             isection_bearing = geo.ll_bearing(*m, *intersection)
-            if abs(isection_bearing - (bearing_p+90)) < 5 and dist_east_from_mid < x_shift:
+            if (
+                abs(isection_bearing - (bearing_p + 90)) < 5
+                and dist_east_from_mid < x_shift
+            ):
                 # The intersection is (relatively) east of the mid point
                 east = geo.ll_dist(*intersection, *m) + diff
                 west = diff - geo.ll_dist(*intersection, *m)
-            elif abs(isection_bearing - (bearing_p+270) % 360) < 5 and dist_west_from_mid < x_shift:
+            elif (
+                abs(isection_bearing - (bearing_p + 270) % 360) < 5
+                and dist_west_from_mid < x_shift
+            ):
                 # The intersection is (relatively) west of the mid point
                 east = diff - geo.ll_dist(*intersection, *m)
                 west = geo.ll_dist(*intersection, *m) + diff
@@ -411,7 +461,9 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
     over_n = ylen
     land_discovered = False
     for i, x in enumerate(np.linspace(0, 1, scanlines, endpoint=True)):
-        m = geo.ll_shift(origin[1], origin[0], y_len_mid_shift * 2 * (x - 0.5), bearing)[::-1]
+        m = geo.ll_shift(
+            origin[1], origin[0], y_len_mid_shift * 2 * (x - 0.5), bearing
+        )[::-1]
         # extend path a -> b, make sure we reach land for intersections
         bearing_p = geo.ll_bearing(m[0], m[1], origin[0], origin[1])
         if 90 <= bearing_p <= 270:
@@ -443,7 +495,11 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
         # If the east and west are not changing by the same amount, then we have to move the origin, and get the new
         # bearing
         x_mid_ratio = x_len_mid_shift / x_shift
-        origin1 = geo.ll_shift(*origin[::-1], x_mid_ratio*(dist_east_from_mid-dist_west_from_mid)/2, bearing+90)[::-1]
+        origin1 = geo.ll_shift(
+            *origin[::-1],
+            x_mid_ratio * (dist_east_from_mid - dist_west_from_mid) / 2,
+            bearing + 90
+        )[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
         if dist_east_from_mid > dist_west_from_mid:
             # If we moved east we need the right angle clockwise from the old origin
@@ -465,7 +521,9 @@ def reduce_domain(origin, bearing, xlen, ylen, hh, space_srf, space_land, wd):
         # This is symmetric with north/south and east/west
         y_mid_ratio = y_len_mid_shift / y_shift
         # Move the origin by a distance relative to the amount taken off each end, multiplied by the ratio
-        origin1 = geo.ll_shift(*origin[::-1], y_mid_ratio * (over_s_max - over_n_max) / 2, bearing)[::-1]
+        origin1 = geo.ll_shift(
+            *origin[::-1], y_mid_ratio * (over_s_max - over_n_max) / 2, bearing
+        )[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
         if over_s_max > over_n_max:
             # The point moved north, so we are looking South
@@ -683,7 +741,16 @@ def create_vm(args, srf_meta):
         )
 
         # cut down ocean areas
-        origin, bearing, xlen1, ylen1, = reduce_domain(origin, bearing, xlen1, ylen1, args.hh, args.space_srf, args.space_land, ptemp)
+        origin, bearing, xlen1, ylen1, = reduce_domain(
+            origin,
+            bearing,
+            xlen1,
+            ylen1,
+            args.hh,
+            args.space_srf,
+            args.space_land,
+            ptemp,
+        )
 
         try:
             c1, c2, c3, c4 = build_corners(origin, bearing, xlen1, ylen1)
@@ -716,7 +783,9 @@ def create_vm(args, srf_meta):
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
     vm_corners = np.asarray(c1, c2, c3, c4)
-    initial_time = auto_time2(vm_corners, np.concatenate(srf_meta["corners"], axis=0), 1.2)
+    initial_time = auto_time2(
+        vm_corners, np.concatenate(srf_meta["corners"], axis=0), 1.2
+    )
     sim_time1 = (initial_time // args.dt) * args.dt
 
     # optimisation results
@@ -957,17 +1026,23 @@ def load_args():
         default="BULLDOZED",
     )
     arg("--selection", help="also generate NHM selection file", action="store_true")
-    arg("--no_optimise", help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data", action="store_true")
+    arg(
+        "--no_optimise",
+        help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data",
+        action="store_true",
+    )
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
     if not args.novm:
         if NZVM_BIN is None:
-            sys.exit("""NZVM binary not in PATH
+            sys.exit(
+                """NZVM binary not in PATH
 You can compile it from here: https://github.com/ucgmsim/Velocity-Model
 Then add it to the PATH by either:
 sudo cp /location/to/Velocity-Model/NZVM /usr/bin/
 or:
-export PATH=$PATH:/location/to/Velocity-Model""")
+export PATH=$PATH:/location/to/Velocity-Model"""
+            )
 
     return args
 
@@ -1007,8 +1082,8 @@ if __name__ == "__main__":
 
     # Hack to fix VM generation permission issue
     hostname = platform.node()
-    if hostname.startswith(('maui', 'mahuika', 'wb', 'ni')): # Checks if is on the HPCF
-        permission_cmd = ['chmod', 'g+rwXs', '-R', args.out_dir]
+    if hostname.startswith(("maui", "mahuika", "wb", "ni")):  # Checks if is on the HPCF
+        permission_cmd = ["chmod", "g+rwXs", "-R", args.out_dir]
         subprocess.call(permission_cmd)
-        group_cmd = ['chgrp', constants.DEFAULT_ACCOUNT, '-R', args.out_dir]
+        group_cmd = ["chgrp", constants.DEFAULT_ACCOUNT, "-R", args.out_dir]
         subprocess.call(group_cmd)
