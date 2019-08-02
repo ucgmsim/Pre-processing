@@ -4,21 +4,22 @@ import math
 
 from qcore import geo
 
-nhm = 'NZ_FLTmodel_2010.txt'
+nhm = "NZ_FLTmodel_2010.txt"
 
 # Leonard 2014 Relations
 def leonard(rake, A):
     # if dip slip else strike slip
-    if round(rake % 360 / 90.) % 2:
+    if round(rake % 360 / 90.0) % 2:
         return 4.00 + math.log10(A)
     else:
         return 3.99 + math.log10(A)
 
+
 # output header
-print('Name,NHM_Mw,Leonard_Mw')
+print("Name,NHM_Mw,Leonard_Mw")
 
 # loop through faults
-with open(nhm, 'r') as nf:
+with open(nhm, "r") as nf:
     db = nf.readlines()
     dbi = 15
     dbl = len(db)
@@ -39,12 +40,16 @@ while dbi < dbl:
     extend = dbottom >= 12
     # fault width (along dip)
     fwid = (dbottom - dtop + 3 * extend) / math.sin(math.radians(dip))
-    flen = sum([geo.ll_dist(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]) \
-            for i in range(n_pt - 1)])
+    flen = sum(
+        [
+            geo.ll_dist(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1])
+            for i in range(n_pt - 1)
+        ]
+    )
     Ml = leonard(rake, fwid * flen)
 
     # output
-    print('%s,%s,%s' % (name, Mw, Ml))
+    print("%s,%s,%s" % (name, Mw, Ml))
 
     # move to next definition
     dbi += 13 + n_pt

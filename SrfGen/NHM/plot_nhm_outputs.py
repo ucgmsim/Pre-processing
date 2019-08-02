@@ -336,24 +336,34 @@ def nhm2corners(nhm_file, names):
 
 
 def plot_srf_trace_dbottom(srf_dirs, out_dir):
-
     def trace2gmt(trace, depth):
-        return "> -Z%s\n" % (depth) + "\n".join([" ".join(map(str, ll)) for ll in trace])
+        return "> -Z%s\n" % (depth) + "\n".join(
+            [" ".join(map(str, ll)) for ll in trace]
+        )
 
     tmp = mkdtemp()
-    cpt = os.path.join(tmp, 'cpt.cpt')
+    cpt = os.path.join(tmp, "cpt.cpt")
     depth_min = 5
     depth_max = 30
-    gmt.makecpt("rainbow", cpt, depth_min, depth_max, inc=(depth_max - depth_min) / 5.0, continuous=False)
+    gmt.makecpt(
+        "rainbow",
+        cpt,
+        depth_min,
+        depth_max,
+        inc=(depth_max - depth_min) / 5.0,
+        continuous=False,
+    )
 
     p = gmt.GMTPlot(os.path.join(tmp, "trace.ps"))
     p.spacial("M", region=gmt.nz_region, sizing=10, x_shift=1, y_shift=1)
-    p.basemap(
-        topo=None, road=None, highway=None, land="white", water="white", res="f"
-    )
+    p.basemap(topo=None, road=None, highway=None, land="white", water="white", res="f")
     p.ticks(major="2d")
     p.text(
-        sum(gmt.nz_region[:2]) / 2.0, gmt.nz_region[3], "Fault Depths", size="26p", dy=0.3
+        sum(gmt.nz_region[:2]) / 2.0,
+        gmt.nz_region[3],
+        "Fault Depths",
+        size="26p",
+        dy=0.3,
     )
 
     # fault traces, colour based on bottom depth
@@ -362,11 +372,16 @@ def plot_srf_trace_dbottom(srf_dirs, out_dir):
             corners = h.attrs["corners"]
             dbottom = h.attrs["dbottom"]
             p.path(
-                "\n".join([trace2gmt(corners[i, :2], depth=dbottom[i]) for i in range(len(corners))]),
+                "\n".join(
+                    [
+                        trace2gmt(corners[i, :2], depth=dbottom[i])
+                        for i in range(len(corners))
+                    ]
+                ),
                 is_file=False,
                 colour="40/40/40",
                 cpt=cpt,
-                width="1.2p"
+                width="1.2p",
             )
 
     p.cpt_scale(
@@ -778,17 +793,17 @@ def plot_srf_subfault_size(srf_dirs, out_dir):
     x, dx, dy = zip(*srf_subfault_size)
 
     fig_init()
-    plt.plot(x, dx, marker='x', linestyle="None")
-    plt.title('SRF Subfault Size (dx)')
-    plt.ylabel('dx (km)')
+    plt.plot(x, dx, marker="x", linestyle="None")
+    plt.title("SRF Subfault Size (dx)")
+    plt.ylabel("dx (km)")
     plt.xlabel("sources")
     plt.savefig(os.path.join(out_dir, "srf_dx_subfault_size"))
     plt.close()
 
     fig_init()
-    plt.plot(x, dy, marker='x', linestyle="None")
-    plt.title('SRF Subfault Size (dy)')
-    plt.ylabel('dy (km)')
+    plt.plot(x, dy, marker="x", linestyle="None")
+    plt.title("SRF Subfault Size (dy)")
+    plt.ylabel("dy (km)")
     plt.xlabel("sources")
     plt.savefig(os.path.join(out_dir, "srf_dy_subfault_size"))
     plt.close()
@@ -799,21 +814,21 @@ def plot_stoch_subfault_size(stoch_dirs, out_dir):
     for i, stoch_dir in enumerate(stoch_dirs):
         stoch_file = glob(os.path.join(stoch_dir, "*.stoch"))[0]
         stoch_header = srf.read_stoch_header(stoch_file)
-        for plane in stoch_header['plane_headers']:
-            stoch_subfault_size.append((i, plane['dx'], plane['dy']))
+        for plane in stoch_header["plane_headers"]:
+            stoch_subfault_size.append((i, plane["dx"], plane["dy"]))
     x, dx, dy = zip(*stoch_subfault_size)
     fig_init()
-    plt.plot(x, dx, marker='x', linestyle="None")
-    plt.title('Stoch Subfault Size (dx)')
-    plt.ylabel('dx (km)')
+    plt.plot(x, dx, marker="x", linestyle="None")
+    plt.title("Stoch Subfault Size (dx)")
+    plt.ylabel("dx (km)")
     plt.xlabel("sources")
     plt.savefig(os.path.join(out_dir, "stoch_dx_subfault_size"))
     plt.close()
 
     fig_init()
-    plt.plot(x, dy, marker='x', linestyle="None")
-    plt.title('Stoch Subfault Size (dy)')
-    plt.ylabel('dy (km)')
+    plt.plot(x, dy, marker="x", linestyle="None")
+    plt.title("Stoch Subfault Size (dy)")
+    plt.ylabel("dy (km)")
     plt.xlabel("sources")
     plt.savefig(os.path.join(out_dir, "stoch_dy_subfault_size"))
     plt.close()
