@@ -84,7 +84,10 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
         skip = 13 + n_pt
         # skip if not wanted
         if name not in fault_names:
-            logging.log(logging.DEBUG/2, "{} not in the list of fault names, continuing".format(name))
+            logging.log(
+                logging.DEBUG / 2,
+                "{} not in the list of fault names, continuing".format(name),
+            )
             dbi += skip
             continue
         logger.debug("Found {}, procceding to add to messages".format(name))
@@ -135,7 +138,9 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                 stk_rev += 1
         if stk_norm and stk_rev:
             logger.critical(
-                'WARNING: FAULT GOES BACK IN REVERSE OF ORIGINAL DIRECTION: {}'.format(name)
+                "WARNING: FAULT GOES BACK IN REVERSE OF ORIGINAL DIRECTION: {}".format(
+                    name
+                )
             )
         # assuming no reverse angles and ordering in one direction
         if stk_rev:
@@ -161,9 +166,11 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                     if n_hypo == 1:
                         z_hypo = trace_length / 2.0
                     else:
-                        z_hypo = (trace_length % hyp_step) / 2.
+                        z_hypo = (trace_length % hyp_step) / 2.0
                     logger.debug(
-                        "Fault found in fault selection file, making {} realisations with equally spaced hypocenters".format(hyp_step)
+                        "Fault found in fault selection file, making {} realisations with equally spaced hypocenters".format(
+                            hyp_step
+                        )
                     )
 
                 # given as number of randomly placed hypocentres
@@ -171,13 +178,19 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                     t_hypo = "r"
                     n_hypo = int(fault[1][:-1])
                     logger.debug(
-                        "Fault found in fault selection file. Making {} realisations with randomised parameters".format(n_hypo)
+                        "Fault found in fault selection file. Making {} realisations with randomised parameters".format(
+                            n_hypo
+                        )
                     )
 
                 # given as number of hypocentres
                 else:
                     n_hypo = int(fault[1])
-                    logger.debug("Fault found in fault selection file. Making {} realisations".format(n_hypo))
+                    logger.debug(
+                        "Fault found in fault selection file. Making {} realisations".format(
+                            n_hypo
+                        )
+                    )
 
             if len(fault) >= 3:
                 n_slip = int(fault[2])
@@ -225,10 +238,14 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
             fwid.append([round_subfault_size(f, mag) for f in segment])
 
         if tect_type == "SUBDUCTION_INTERFACE":
-            logger.debug("Subduction interface tectonic type, using Skarlatoudis formula to determine magnitude")
+            logger.debug(
+                "Subduction interface tectonic type, using Skarlatoudis formula to determine magnitude"
+            )
             mag = [skarlatoudis(fwid[0][0] * trace_length)]
         else:
-            logger.debug("Non subduction interface tectonic type, using Leonard formula to determine magnitude")
+            logger.debug(
+                "Non subduction interface tectonic type, using Leonard formula to determine magnitude"
+            )
             mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
         dwid = dlen
         stk = [strikes]
@@ -293,19 +310,41 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                             "plot": args.plot,
                         }
                     )
-                    msgs.append((
-                        {'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag,
-                        'mom':mom, 'rvfac_seg':rvfac_seg, 'gwid':gwid,
-                        'rup_delay':rup_delay, 'flen':flen, 'dlen':dlen,
-                        'fwid':fwid, 'dwid':dwid, 'dtop':dtop, 'stk':stk,
-                        'rake':rake, 'dip':dip, 'elon':elon, 'elat':elat,
-                        'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed,
-                        'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir,
-                        'stoch':'%s/%s/Stoch' % (args.out_dir, name),
-                        'name':name, 'tect_type':tect_type,
-                        'plot':args.plot},
-                        qclogging.get_realisation_logger(logger, name),
-                    ))
+                    msgs.append(
+                        (
+                            {
+                                "nseg": nseg,
+                                "seg_delay": seg_delay,
+                                "mag": mag,
+                                "mom": mom,
+                                "rvfac_seg": rvfac_seg,
+                                "gwid": gwid,
+                                "rup_delay": rup_delay,
+                                "flen": flen,
+                                "dlen": dlen,
+                                "fwid": fwid,
+                                "dwid": dwid,
+                                "dtop": dtop,
+                                "stk": stk,
+                                "rake": rake,
+                                "dip": dip,
+                                "elon": elon,
+                                "elat": elat,
+                                "shypo": shypo,
+                                "dhypo": dhypo,
+                                "dt": dt,
+                                "seed": seed,
+                                "prefix": prefix,
+                                "cases": cases,
+                                "dip_dir": dip_dir,
+                                "stoch": "%s/%s/Stoch" % (args.out_dir, name),
+                                "name": name,
+                                "tect_type": tect_type,
+                                "plot": args.plot,
+                            },
+                            qclogging.get_realisation_logger(logger, name),
+                        )
+                    )
                     # store parameters
                     with open(out_log, "a") as log:
                         log.write(
@@ -334,8 +373,8 @@ def round_subfault_size(dist, mag):
 
 def run_create_srf(fault, logger: Logger = qclogging.get_basic_logger()):
     t0 = time()
-#    sys.stdout = open(str(os.getpid())+".out","w")
-    logger.info('Creating SRF: {}'.format(fault['name']))
+    #    sys.stdout = open(str(os.getpid())+".out","w")
+    logger.info("Creating SRF: {}".format(fault["name"]))
     # all of the work, rest of the script is complete under 1 second
     CreateSRF_multi(
         fault["nseg"],
@@ -402,6 +441,7 @@ def run_create_srf(fault, logger: Logger = qclogging.get_basic_logger()):
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
+
     logger = qclogging.get_logger("nhm2srf")
     # parameters
     parser = ArgumentParser()
@@ -435,6 +475,7 @@ if __name__ == "__main__":
     if os.path.isdir(args.out_dir):
         qclogging.add_general_file_handler(logger, os.path.join("nhm2srf_log.txt"))
     else:
+        qclogging.add_buffer_handler(logger, file_name=os.path.join("nhm2srf_log.txt"))
 
     # selection file or ALL
     if args.selection_file == "ALL":
@@ -442,13 +483,17 @@ if __name__ == "__main__":
         fault_names = None
         logger.debug("Creating realisations for all faults")
     elif not os.path.exists(args.selection_file):
-        logger.error('Fault selecion file not found: {}'.format(args.selection_file))
+        logger.error("Fault selecion file not found: {}".format(args.selection_file))
         sys.exit(1)
     else:
         with open(args.selection_file, "r") as select:
             faults = list(map(str.split, select.readlines()))
         fault_names = [f[0] for f in faults]
-        logger.debug("Creating realisations for the following faults: {}".format(", ".join(fault_names)))
+        logger.debug(
+            "Creating realisations for the following faults: {}".format(
+                ", ".join(fault_names)
+            )
+        )
     # default value
     if args.dhypo is None:
         args.dhypo = [0.6]
