@@ -27,8 +27,8 @@ from qcore import qclogging, simulation_structure, utils
 
 from SrfGen.createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
-mag2mom = lambda mw : np.exp(1.5 * (mw + 10.7) * np.log(10.0))
-mom2mag = lambda mom : (2 / 3. * np.log(mom) / np.log(10.0)) - 10.7
+mag2mom = lambda mw: np.exp(1.5 * (mw + 10.7) * np.log(10.0))
+mom2mag = lambda mom: (2 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
 
 
 def relative_uniform_distribution(mean, scale_factor, **kwargs):
@@ -37,37 +37,66 @@ def relative_uniform_distribution(mean, scale_factor, **kwargs):
 
 
 def uniform_distribution(mean, half_range, **kwargs):
-    return uniform(
-        mean - half_range, mean + half_range
-    )
+    return uniform(mean - half_range, mean + half_range)
 
 
 def param_as_string(param):
     # 1st case: single value
-    if type(param).__name__ != 'list':
-        return '%s' % (param)
+    if type(param).__name__ != "list":
+        return "%s" % (param)
     # 2nd case: 1D array
-    if type(param[0]).__name__ != 'list':
-        return ' '.join(map(str, param))
+    if type(param[0]).__name__ != "list":
+        return " ".join(map(str, param))
     # 3rd case: 2D array
-    return ' '.join([' '.join(map(str, param[x])) \
-            for x in range(len(param))])
+    return " ".join([" ".join(map(str, param[x])) for x in range(len(param))])
 
 
 def CreateSRF_ffdStoch():
-    from setSrfParams import M_NAME,N_SCENARIOS,SEED,SEED_INC,N_SEED_INC,SHYPO,FLEN,V_HYPO,DHYPO,FWID,V_MAG,MAG,V_FLEN,DLEN,V_FWID,DWID,M_FWID,LAT,LON,RAK,DIP,DT,RVFRAC,ROUGH,SLIP_COV,DLEN,DWID,DTOP,GENSLIP,STOCH
+    from setSrfParams import (
+        M_NAME,
+        N_SCENARIOS,
+        SEED,
+        SEED_INC,
+        N_SEED_INC,
+        SHYPO,
+        FLEN,
+        V_HYPO,
+        DHYPO,
+        FWID,
+        V_MAG,
+        MAG,
+        V_FLEN,
+        DLEN,
+        V_FWID,
+        DWID,
+        M_FWID,
+        LAT,
+        LON,
+        RAK,
+        DIP,
+        DT,
+        RVFRAC,
+        ROUGH,
+        SLIP_COV,
+        DLEN,
+        DWID,
+        DTOP,
+        GENSLIP,
+        STOCH,
+    )
+
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
     run_id = str(time())[2:9]
 
     # file containing variability info
-    metainfo = '%s_%s.txt' % (M_NAME, run_id)
+    metainfo = "%s_%s.txt" % (M_NAME, run_id)
     # overwrite file / list variables printed
-    with open('Srf/%s' % (metainfo), 'w') as of:
-        for column in ['filename', 'seed', 'mag', 'flen', 'fwid']:
-            of.write('%s\t' % column)
-        of.write('\n')
+    with open("Srf/%s" % (metainfo), "w") as of:
+        for column in ["filename", "seed", "mag", "flen", "fwid"]:
+            of.write("%s\t" % column)
+        of.write("\n")
 
     # create each scenario
     for ns in range(N_SCENARIOS):
@@ -79,8 +108,8 @@ def CreateSRF_ffdStoch():
         # randomise hypocentre position - SHYPO -flen/2 -> flen/2
         shypo = SHYPO
         if V_HYPO[0]:
-            mn = max( - FLEN / 2, SHYPO - V_HYPO[0])
-            mx = min( FLEN / 2, SHYPO + V_HYPO[0])
+            mn = max(-FLEN / 2, SHYPO - V_HYPO[0])
+            mx = min(FLEN / 2, SHYPO + V_HYPO[0])
             shypo = uniform(mn, mx)
         # randomise hypocentre posinion - HYPO 0 -> fwid
         dhypo = DHYPO
@@ -90,8 +119,7 @@ def CreateSRF_ffdStoch():
             dhypo[0][0] = uniform(mn, mx)
         # randomise MAGnitude
         if V_MAG[0]:
-            m_mag = round(MAG + \
-                    uniform(-V_MAG[0], V_MAG[0]), 2)
+            m_mag = round(MAG + uniform(-V_MAG[0], V_MAG[0]), 2)
         else:
             m_mag = MAG
         # randomise FaultLENgth
@@ -109,30 +137,47 @@ def CreateSRF_ffdStoch():
         else:
             m_fwid = M_FWID[case]
 
-        output = '%s_%s_%.4d' % (M_NAME, run_id, ns)
+        output = "%s_%s_%.4d" % (M_NAME, run_id, ns)
 
         # run createSRF with randomised parameters
-        CreateSRF_ff(LAT, LON, m_mag, STK, \
-                     RAK, DIP, DT, output, seed, rvfrac = RVFRAC, \
-                     rough = ROUGH, slip_cov = SLIP_COV, flen = m_flen, \
-                     dlen = DLEN, fwid = m_fwid, dwid = DWID, dtop = DTOP, \
-                     shypo = shypo, dhypo = dhypo, \
-                     genslip_version= GENSLIP, stoch = STOCH)
+        CreateSRF_ff(
+            LAT,
+            LON,
+            m_mag,
+            STK,
+            RAK,
+            DIP,
+            DT,
+            output,
+            seed,
+            rvfrac=RVFRAC,
+            rough=ROUGH,
+            slip_cov=SLIP_COV,
+            flen=m_flen,
+            dlen=DLEN,
+            fwid=m_fwid,
+            dwid=DWID,
+            dtop=DTOP,
+            shypo=shypo,
+            dhypo=dhypo,
+            genslip_version=GENSLIP,
+            stoch=STOCH,
+        )
 
         # append stoch data to info file
-        with open('Srf/%s' % (metainfo), 'a') as of:
+        with open("Srf/%s" % (metainfo), "a") as of:
             # filename
-            of.write('%s\t' % output)
+            of.write("%s\t" % output)
             # seed
-            of.write('%i\t' % seed)
+            of.write("%i\t" % seed)
             # magnitude
-            of.write('%s\t' % param_as_string(m_mag))
+            of.write("%s\t" % param_as_string(m_mag))
             # fault length
-            of.write('%s\t' % param_as_string(m_flen))
+            of.write("%s\t" % param_as_string(m_flen))
             # fault width
-            of.write('%s\t' % param_as_string(m_fwid))
+            of.write("%s\t" % param_as_string(m_fwid))
             # end of line / end of this srf file
-            of.write('\n')
+            of.write("\n")
 
 
 def create_ps_realisation(
@@ -153,7 +198,7 @@ def create_ps_realisation(
     rho=2.44,
     target_area_km=None,
     target_slip_cm=None,
-    stype='cos',
+    stype="cos",
     rise_time=0.5,
     init_time=0.0,
     silent=False,
@@ -174,43 +219,42 @@ def create_ps_realisation(
     # Dictionary of distribution functions. 'none' is required for unperturbated options.
     # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
     random_distribution_functions = {
-        'none': lambda mean, **kwargs: mean,
-        'uniform': uniform_distribution,
-        'normal': lambda mean, std_dev, **kwargs: normalvariate(
-            mean, std_dev
-        ),
-        'uniform_relative': relative_uniform_distribution,
-        'log_normal': lambda mean, std_dev, **kwargs: np.random.lognormal(
+        "none": lambda mean, **kwargs: mean,
+        "uniform": uniform_distribution,
+        "normal": lambda mean, std_dev, **kwargs: normalvariate(mean, std_dev),
+        "uniform_relative": relative_uniform_distribution,
+        "log_normal": lambda mean, std_dev, **kwargs: np.random.lognormal(
             mean, std_dev, 1
         ),
-        'weibull': lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor * np.random.weibull(k),
-        'truncated_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
-            truncnorm(
-                -std_dev_limit, std_dev_limit, loc=mean, scale=std_dev
-            ).rvs()
+        "weibull": lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor
+        * np.random.weibull(k),
+        "truncated_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            truncnorm(-std_dev_limit, std_dev_limit, loc=mean, scale=std_dev).rvs()
         ),
-        'truncated_log_normal': lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
-            np.exp(truncnorm(
-                -std_dev_limit, std_dev_limit, loc=np.log(float(mean[4:-1])), scale=std_dev
-            ).rvs())
+        "truncated_log_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            np.exp(
+                truncnorm(
+                    -std_dev_limit,
+                    std_dev_limit,
+                    loc=np.log(float(mean[4:-1])),
+                    scale=std_dev,
+                ).rvs()
+            )
         ),
     }
 
     # Generate standard options dictionary
 
     unperturbed_standard_options = {
-        'depth': {'mean': depth, 'distribution': 'none'},
-        'mw': {'mean': mw_mean, 'distribution': 'none'},
-        'mom': {'mean': mom, 'distribution': 'none'},
-        'strike': {'mean': strike, 'distribution': 'none'},
-        'rake': {'mean': rake, 'distribution': 'none'},
-        'dip': {'mean': dip, 'distribution': 'none'},
-        'vs': {'mean': vs, 'distribution': 'none'},
-        'rho': {'mean': rho, 'distribution': 'none'},
-        'rise_time': {
-            'mean': rise_time,
-            'distribution': 'none',
-        },
+        "depth": {"mean": depth, "distribution": "none"},
+        "mw": {"mean": mw_mean, "distribution": "none"},
+        "mom": {"mean": mom, "distribution": "none"},
+        "strike": {"mean": strike, "distribution": "none"},
+        "rake": {"mean": rake, "distribution": "none"},
+        "dip": {"mean": dip, "distribution": "none"},
+        "vs": {"mean": vs, "distribution": "none"},
+        "rho": {"mean": rho, "distribution": "none"},
+        "rise_time": {"mean": rise_time, "distribution": "none"},
     }
 
     unperturbed_additional_options = dict()
@@ -218,15 +262,11 @@ def create_ps_realisation(
     # Set default unperturbed values for all options,
     # including updating distributions for any standard options to be perturbated.
     for key, val in additional_options.items():
-        if key in ['bb', 'hf', 'emod3d']:
+        if key in ["bb", "hf", "emod3d"]:
             for parameter, value in val.items():
-                unperturbed_additional_options.update(
-                    {parameter: value}
-                )
+                unperturbed_additional_options.update({parameter: value})
                 # Store the workflow component that the parameter is for so it can easily be accessed later
-                unperturbed_additional_options[
-                    parameter
-                ].update({'component': key})
+                unperturbed_additional_options[parameter].update({"component": key})
         elif key in unperturbed_standard_options:
             unperturbed_standard_options[key].update(val)
 
@@ -237,87 +277,62 @@ def create_ps_realisation(
     for ns in range(1, n_realisations + 1):
         logger.debug("Creating realisation {}".format(ns))
 
-        realisation_name = simulation_structure.get_realisation_name(
-            fault_name, ns
-        )
+        realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
         realisation_srf_path = os.path.join(
-            out_dir,
-            simulation_structure.get_srf_location(
-                realisation_name
-            ),
+            out_dir, simulation_structure.get_srf_location(realisation_name)
         )
         realisation_stoch_path = os.path.dirname(
             os.path.join(
-                out_dir,
-                simulation_structure.get_stoch_location(
-                    realisation_name
-                ),
+                out_dir, simulation_structure.get_stoch_location(realisation_name)
             )
         )
 
-        for key in (
-            list(unperturbed_standard_options.keys())
-            + list(unperturbed_additional_options.keys())
+        for key in list(unperturbed_standard_options.keys()) + list(
+            unperturbed_additional_options.keys()
         ):
 
             # Load the correct dictionaries to be read from/written to
             if key in unperturbed_standard_options:
-                dict_to_read_from = (
-                    unperturbed_standard_options
-                )
+                dict_to_read_from = unperturbed_standard_options
                 dict_to_update = perturbed_standard_options
             elif key in unperturbed_additional_options:
-                dict_to_read_from = (
-                    unperturbed_additional_options
-                )
-                dict_to_update = (
-                    perturbed_additional_options
-                )
+                dict_to_read_from = unperturbed_additional_options
+                dict_to_update = perturbed_additional_options
             else:
                 continue
 
             # Do this after checking the key will be used
-            distribution = dict_to_read_from[key][
-                'distribution'
-            ]
-            logger.debug("Perturbating variable {} with distribution {}".format(key, distribution))
+            distribution = dict_to_read_from[key]["distribution"]
+            logger.debug(
+                "Perturbating variable {} with distribution {}".format(
+                    key, distribution
+                )
+            )
             # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
-            dict_to_update[
-                key
-            ] = random_distribution_functions[distribution](
+            dict_to_update[key] = random_distribution_functions[distribution](
                 **dict_to_read_from[key]
             )
-            logger.debug("Value of perturbated variable: {}".format(dict_to_update[key]))
+            logger.debug(
+                "Value of perturbated variable: {}".format(dict_to_update[key])
+            )
 
         # Save the extra args to a yaml file
         additional_args_fname = os.path.join(
-            out_dir,
-            simulation_structure.get_source_params_location(
-                realisation_name
-            ),
+            out_dir, simulation_structure.get_source_params_location(realisation_name)
         )
-        utils.setup_dir(
-            os.path.dirname(additional_args_fname)
-        )
+        utils.setup_dir(os.path.dirname(additional_args_fname))
 
         # Sort the parameters by their component.
         output_additional_options = {}
         for key, value in unperturbed_additional_options.items():
-            if (
-                value['component']
-                not in output_additional_options
-            ):
-                output_additional_options.update(
-                    {value['component']: {}}
-                )
-            output_additional_options[
-                value['component']
-            ].update(
+            if value["component"] not in output_additional_options:
+                output_additional_options.update({value["component"]: {}})
+            output_additional_options[value["component"]].update(
                 {key: perturbed_additional_options[key]}
             )
 
         logger.debug("Saving additional parameters to {}".format(additional_args_fname))
-        with open(additional_args_fname, 'w') as yamlf:
+        with open(additional_args_fname, "w") as yamlf:
             yaml.dump(output_additional_options, yamlf)
 
         # print("Making srf with standard dict:")
@@ -328,26 +343,24 @@ def create_ps_realisation(
         CreateSRF_ps(
             lat,
             lon,
-            perturbed_standard_options['depth'],
-            perturbed_standard_options['mw'],
-            perturbed_standard_options['mom'],
-            perturbed_standard_options['strike'],
-            perturbed_standard_options['rake'],
-            perturbed_standard_options['dip'],
+            perturbed_standard_options["depth"],
+            perturbed_standard_options["mw"],
+            perturbed_standard_options["mom"],
+            perturbed_standard_options["strike"],
+            perturbed_standard_options["rake"],
+            perturbed_standard_options["dip"],
             dt=dt,
             prefix=realisation_srf_path[:-4],
             stoch=realisation_stoch_path,
-            vs=perturbed_standard_options['vs'],
-            rho=perturbed_standard_options['rho'],
+            vs=perturbed_standard_options["vs"],
+            rho=perturbed_standard_options["rho"],
             target_area_km=target_area_km,
             target_slip_cm=target_slip_cm,
             stype=stype,
-            rise_time=perturbed_standard_options[
-                'rise_time'
-            ],
+            rise_time=perturbed_standard_options["rise_time"],
             init_time=init_time,
             silent=silent,
-            logger=logger
+            logger=logger,
         )
 
 
@@ -379,25 +392,48 @@ def randomise_rupdelay(delay, var, deps):
 
 
 def CreateSRF_multiStoch():
-    from setSrfParams import PREFIX, N_SCENARIOS,SEED,SEED_INC,N_SEED_INC, M_RUP_DELAY,V_RDELAY,D_RDELAY, M_SHYPO,FLEN,V_HYPO,M_DHYPO,M_FWID,M_MAG,CASES,MW_TOTAL,V_MAG,V_FLEN, M_MAG, V_FLEN, M_DLEN
+    from setSrfParams import (
+        PREFIX,
+        N_SCENARIOS,
+        SEED,
+        SEED_INC,
+        N_SEED_INC,
+        M_RUP_DELAY,
+        V_RDELAY,
+        D_RDELAY,
+        M_SHYPO,
+        FLEN,
+        V_HYPO,
+        M_DHYPO,
+        M_FWID,
+        M_MAG,
+        CASES,
+        MW_TOTAL,
+        V_MAG,
+        V_FLEN,
+        M_MAG,
+        V_FLEN,
+        M_DLEN,
+    )
+
     # used for differentiating multiple runs
     # most significant digits 3+ years appart
     # least significant digit 10 seconds appart
     run_id = str(time())[2:9]
 
     out_dir = os.path.dirname(PREFIX)
-    if out_dir == '':
-        out_dir = '.'
+    if out_dir == "":
+        out_dir = "."
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
     # file containing variability info
-    metainfo = '%s_%s.txt' % (PREFIX.rstrip('_'), run_id)
+    metainfo = "%s_%s.txt" % (PREFIX.rstrip("_"), run_id)
     # overwrite file / list variables printed
-    with open(metainfo, 'w') as of:
-        for column in ['filename', 'seed', 'nseg', 'mag', 'flen', 'fwid', 'rupdelay']:
-            of.write('%s\t' % column)
-        of.write('\n')
+    with open(metainfo, "w") as of:
+        for column in ["filename", "seed", "nseg", "mag", "flen", "fwid", "rupdelay"]:
+            of.write("%s\t" % column)
+        of.write("\n")
 
     # create each scenario
     for ns in range(N_SCENARIOS):
@@ -413,8 +449,8 @@ def CreateSRF_multiStoch():
         if V_HYPO[0]:
             shypo = M_SHYPO[0][0]
             flen = M_FLEN[0][0]
-            mn = max( - flen / 2, shypo - V_HYPO[0])
-            mx = min( flen / 2, shypo + V_HYPO[0])
+            mn = max(-flen / 2, shypo - V_HYPO[0])
+            mx = min(flen / 2, shypo + V_HYPO[0])
             m_shypo[0][0] = uniform(mn, mx)
         # randomise hypocentre posinion - HYPO 0 -> fwid
         m_dhypo = list(M_DHYPO)
@@ -434,8 +470,7 @@ def CreateSRF_multiStoch():
             # randomise MAGnitude
             if V_MAG[case]:
                 maxd = mag2mom(M_MAG[case]) * V_MAG[case]
-                m_mag.append((mag2mom(M_MAG[case]) \
-                        + uniform(-maxd, maxd)) / m0_tot)
+                m_mag.append((mag2mom(M_MAG[case]) + uniform(-maxd, maxd)) / m0_tot)
             else:
                 m_mag.append(mag2mom(M_MAG[case]) / m0_tot)
             # randomise FaultLENgth
@@ -452,9 +487,10 @@ def CreateSRF_multiStoch():
             if V_FWID[case]:
                 # maximum multiple of DWID to shift
                 maxd = (M_FWID[case][0] * V_FWID[case]) // M_DWID[case][0]
-                m_fwid.append([M_FWID[case][0] + \
-                        randint(-maxd, maxd) * M_DWID[case][0]] \
-                                        * len(M_FWID[case]))
+                m_fwid.append(
+                    [M_FWID[case][0] + randint(-maxd, maxd) * M_DWID[case][0]]
+                    * len(M_FWID[case])
+                )
             else:
                 m_fwid.append(M_FWID[case])
         # normalise moment ratios
@@ -462,38 +498,61 @@ def CreateSRF_multiStoch():
         # convert back to magnitudes
         m_mag = [mom2mag(m_mag[i] * m0_target) for i in range(len(m_mag))]
 
-        output = '%s_%s_%.4d' % (PREFIX.rstrip('_'), run_id, ns)
+        output = "%s_%s_%.4d" % (PREFIX.rstrip("_"), run_id, ns)
 
         # run createSRF with randomised parameters
-        CreateSRF_multi(M_NSEG, M_SEG_DELAY, m_mag, M_MOM, \
-                        M_RVFAC_SEG, M_GWID, m_rdelay, m_flen, \
-                        M_DLEN, m_fwid, M_DWID, M_DTOP, M_STK, \
-                        M_RAK, M_DIP, M_ELON, M_ELAT, m_shypo, \
-                        m_dhypo, DT, seed, output, CASES, rvfrac = RVFRAC, \
-                        rough = ROUGH, slip_cov = SLIP_COV, genslip_version= GENSLIP, \
-                        stoch = STOCH)
+        CreateSRF_multi(
+            M_NSEG,
+            M_SEG_DELAY,
+            m_mag,
+            M_MOM,
+            M_RVFAC_SEG,
+            M_GWID,
+            m_rdelay,
+            m_flen,
+            M_DLEN,
+            m_fwid,
+            M_DWID,
+            M_DTOP,
+            M_STK,
+            M_RAK,
+            M_DIP,
+            M_ELON,
+            M_ELAT,
+            m_shypo,
+            m_dhypo,
+            DT,
+            seed,
+            output,
+            CASES,
+            rvfrac=RVFRAC,
+            rough=ROUGH,
+            slip_cov=SLIP_COV,
+            genslip_version=GENSLIP,
+            stoch=STOCH,
+        )
 
         # append stoch data to info file
-        with open(metainfo, 'a') as of:
+        with open(metainfo, "a") as of:
             # filename
-            of.write('%s.srf\t' % output)
+            of.write("%s.srf\t" % output)
             # seed
-            of.write('%i\t' % seed)
+            of.write("%i\t" % seed)
             # segment distribution
-            of.write('%s\t' % param_as_string(M_NSEG))
+            of.write("%s\t" % param_as_string(M_NSEG))
             # magnitude
-            of.write('%s\t' % param_as_string(m_mag))
+            of.write("%s\t" % param_as_string(m_mag))
             # fault length
-            of.write('%s\t' % param_as_string(m_flen))
+            of.write("%s\t" % param_as_string(m_flen))
             # fault width
-            of.write('%s\t' % param_as_string(m_fwid))
+            of.write("%s\t" % param_as_string(m_fwid))
             # fault width
-            of.write('%s\t' % param_as_string(m_rdelay))
+            of.write("%s\t" % param_as_string(m_rdelay))
             # end of line / end of this srf file
-            of.write('\n')
+            of.write("\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logger = qclogging.get_logger("createSourceRealisation")
     parser = argparse.ArgumentParser()
     parser.add_argument("out_dir", help="Location to save the output. Must exist")
@@ -507,13 +566,27 @@ if __name__ == '__main__':
     parser.add_argument("strike", help="Strike to be simulated")
     parser.add_argument("rake", help="Rake to be simulated")
     parser.add_argument("dip", help="Dip to be simulated")
-    parser.add_argument("n_realisations", help="The number of realisations to generate SRFs for")
+    parser.add_argument(
+        "n_realisations", help="The number of realisations to generate SRFs for"
+    )
     args = parser.parse_args()
     qclogging.add_general_file_handler(logger, "createSourceRealisation")
 
     if args.type == 1:
-        create_ps_realisation(args.out_dir, args.fault_name, args.lat, args.lon, args.depth, args.mw_mean, args.mom,
-                              args.strike, args.rake, args.dip, args.n_realisations, logger=logger)
+        create_ps_realisation(
+            args.out_dir,
+            args.fault_name,
+            args.lat,
+            args.lon,
+            args.depth,
+            args.mw_mean,
+            args.mom,
+            args.strike,
+            args.rake,
+            args.dip,
+            args.n_realisations,
+            logger=logger,
+        )
     elif args.type == 3:
         CreateSRF_ffdStoch()
     elif args.type == 4:

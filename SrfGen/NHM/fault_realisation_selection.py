@@ -24,7 +24,9 @@ output_file_name = "fault_selection_c18p6.txt"
 output_image_file_name = "fig_NumSim_vs_Mw.png"
 
 
-assert len(model_Mw) == len(model_NumSim), "model_MW and model_NumSim must be the same length"
+assert len(model_Mw) == len(
+    model_NumSim
+), "model_MW and model_NumSim must be the same length"
 assert len(model_Mw) > 1, "model_MW and model_NumSim must have length greater than 1"
 
 # Name, magnitude
@@ -52,17 +54,19 @@ for event in fault:
 for event in data:
     fault_Mw = event[1]
     num_sim = 0
-    for i in range(0, len(model_Mw)-1):
-        if (fault_Mw >= model_Mw[i]) and (fault_Mw < model_Mw[i+1]):
-            num_sim = ((model_NumSim[i+1] - model_NumSim[i]) / (model_Mw[i+1] - model_Mw[i])) * \
-                      (fault_Mw - model_Mw[i]) + model_NumSim[i]
+    for i in range(0, len(model_Mw) - 1):
+        if (fault_Mw >= model_Mw[i]) and (fault_Mw < model_Mw[i + 1]):
+            num_sim = (
+                (model_NumSim[i + 1] - model_NumSim[i])
+                / (model_Mw[i + 1] - model_Mw[i])
+            ) * (fault_Mw - model_Mw[i]) + model_NumSim[i]
 
     event.append(math.ceil(num_sim))
 
 print("Total number of realisations =" + str(sum([event[2] for event in data])))
 
 
-with open(output_file_name, 'w') as output_file:
+with open(output_file_name, "w") as output_file:
     for event in data:
         output_file.write("{0} {1}r \n".format(event[0], event[2]))
 
@@ -72,7 +76,7 @@ plt.figure()
 plt.plot([x[1] for x in data], [y[2] for y in data], linewidth=1.5, markersize=8)
 plt.xlabel("Rupture magnitude, Mw")
 plt.ylabel("Number of realisations")
-plt.axis([model_Mw[0], model_Mw[-2], 0,1.2*max([event[2] for event in data])])
+plt.axis([model_Mw[0], model_Mw[-2], 0, 1.2 * max([event[2] for event in data])])
 plt.grid(True, "both")
-#plt.axes().yaxis.set_major_locator(MultipleLocator(5))
+# plt.axes().yaxis.set_major_locator(MultipleLocator(5))
 plt.savefig(output_image_file_name, format="png")
