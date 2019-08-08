@@ -24,7 +24,13 @@ from qcore import simulation_structure, utils
 import numpy as np
 from scipy.stats import truncnorm
 
-from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
+from createSRF import (
+    CreateSRF_ff,
+    CreateSRF_multi,
+    CreateSRF_ps,
+    create_srf_psff,
+    focal_mechanism_2_finite_fault,
+)
 
 mag2mom = lambda mw: np.exp(1.5 * (mw + 10.7) * np.log(10.0))
 mom2mag = lambda mom: (2 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
@@ -37,6 +43,61 @@ def relative_uniform_distribution(mean, scale_factor, **kwargs):
 
 def uniform_distribution(mean, half_range, **kwargs):
     return uniform(mean - half_range, mean + half_range)
+
+
+def perturbate_parameters(unperturbed_standard_options, unperturbed_additional_options):
+    # Dictionary of distribution functions. 'none' is required for unperturbated options.
+    # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
+    random_distribution_functions = {
+        "none": lambda mean, **kwargs: mean,
+        "uniform": uniform_distribution,
+        "normal": lambda mean, std_dev, **kwargs: normalvariate(mean, std_dev),
+        "uniform_relative": relative_uniform_distribution,
+        "log_normal": lambda mean, std_dev, **kwargs: np.random.lognormal(
+            mean, std_dev, 1
+        ),
+        "weibull": lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor
+        * np.random.weibull(k),
+        "truncated_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            truncnorm(-std_dev_limit, std_dev_limit, loc=mean, scale=std_dev).rvs()
+        ),
+        "truncated_log_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            np.exp(
+                truncnorm(
+                    -std_dev_limit,
+                    std_dev_limit,
+                    loc=np.log(float(mean[4:-1])),
+                    scale=std_dev,
+                ).rvs()
+            )
+        ),
+    }
+
+    perturbed_standard_options = {}
+    perturbed_additional_options = {}
+    for key in list(unperturbed_standard_options.keys()) + list(
+        unperturbed_additional_options.keys()
+    ):
+
+        # Load the correct dictionaries to be read from/written to
+        if key in unperturbed_standard_options:
+            dict_to_read_from = unperturbed_standard_options
+            dict_to_update = perturbed_standard_options
+        elif key in unperturbed_additional_options:
+            dict_to_read_from = unperturbed_additional_options
+            dict_to_update = perturbed_additional_options
+        else:
+            continue
+
+        # Do this after checking the key will be used
+        distribution = dict_to_read_from[key]["distribution"]
+
+        # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
+        dict_to_update[key] = random_distribution_functions[distribution](
+            **dict_to_read_from[key]
+        )
+
+    return perturbed_standard_options, perturbed_additional_options
 
 
 def param_as_string(param):
@@ -179,6 +240,123 @@ def CreateSRF_ffdStoch():
             of.write("\n")
 
 
+def create_ps2ff_realisation(
+    out_dir,
+    fault_name,
+    lat,
+    lon,
+    depth,
+    mw_mean,
+    strike,
+    rake,
+    dip,
+    mwsr,
+    n_realisations=50,
+    additional_options={},
+    dt=0.005,
+    seed=None,
+    silent=False,
+):
+    """Creates an srf for a type 2 fault, a finite fault created from point source parameters"""
+
+    # Generate standard options dictionary
+
+    unperturbed_standard_options = {
+        "depth": {"mean": depth, "distribution": "none"},
+        "mw": {"mean": mw_mean, "distribution": "none"},
+        "strike": {"mean": strike, "distribution": "none"},
+        "rake": {"mean": rake, "distribution": "none"},
+        "dip": {"mean": dip, "distribution": "none"},
+    }
+
+    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
+        additional_options, unperturbed_standard_options
+    )
+
+    for ns in range(1, n_realisations + 1):
+
+        realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
+        realisation_srf_path = os.path.join(
+            out_dir, simulation_structure.get_srf_location(realisation_name)
+        )
+        realisation_stoch_path = os.path.dirname(
+            os.path.join(
+                out_dir, simulation_structure.get_stoch_location(realisation_name)
+            )
+        )
+
+        perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
+            unperturbed_standard_options, unperturbed_additional_options
+        )
+
+        save_sim_params(
+            out_dir,
+            realisation_name,
+            perturbed_additional_options,
+            unperturbed_additional_options,
+        )
+
+        # print("Making srf with standard dict:")
+        # print(perturbed_standard_options)
+        # print("and additional dict:")
+        # print(perturbed_additional_options)
+
+        flen0, dlen0, fwid0, dwid0, dtop0, lat0, lon0, shypo0, dhypo0 = focal_mechanism_2_finite_fault(
+            lat,
+            lon,
+            perturbed_standard_options["depth"],
+            perturbed_standard_options["mw"],
+            perturbed_standard_options["strike"],
+            perturbed_standard_options["rake"],
+            perturbed_standard_options["dip"],
+            mwsr,
+        )[
+            3:
+        ]
+
+        create_srf_psff(
+            lat0,
+            lon0,
+            mw=perturbed_standard_options["mw"],
+            strike=perturbed_standard_options["strike"],
+            rake=perturbed_standard_options["rake"],
+            dip=perturbed_standard_options["dip"],
+            dt=dt,
+            prefix0=realisation_srf_path[:-4],
+            stoch=realisation_stoch_path,
+            seed=seed,
+            flen=flen0,
+            dlen=dlen0,
+            fwid=fwid0,
+            dwid=dwid0,
+            dtop=dtop0,
+            shypo=shypo0,
+            dhypo=dhypo0,
+            depth=perturbed_standard_options["depth"],
+            mwsr=mwsr,
+            rvfrac=perturbed_standard_options["rvfrac"],
+            rough=perturbed_standard_options["rough"],
+            slip_cov=perturbed_standard_options["slip_cov"],
+            silent=silent,
+        )
+
+
+def set_up_parameter_dicts(additional_options, unperturbed_standard_options):
+    unperturbed_standard_options = unperturbed_standard_options
+    unperturbed_additional_options = dict()
+    # Set default unperturbed values for all options,
+    # including updating distributions for any standard options to be perturbated.
+    for key, val in additional_options.items():
+        if key in ["bb", "hf", "emod3d"]:
+            for parameter, value in val.items():
+                unperturbed_additional_options.update({parameter: value})
+                # Store the workflow component that the parameter is for so it can easily be accessed later
+                unperturbed_additional_options[parameter].update({"component": key})
+        elif key in unperturbed_standard_options:
+            unperturbed_standard_options[key].update(val)
+    return unperturbed_additional_options, unperturbed_standard_options
+
+
 def create_ps_realisation(
     out_dir,
     fault_name,
@@ -213,33 +391,6 @@ def create_ps_realisation(
     placed in the srf
     """
 
-    # Dictionary of distribution functions. 'none' is required for unperturbated options.
-    # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
-    random_distribution_functions = {
-        "none": lambda mean, **kwargs: mean,
-        "uniform": uniform_distribution,
-        "normal": lambda mean, std_dev, **kwargs: normalvariate(mean, std_dev),
-        "uniform_relative": relative_uniform_distribution,
-        "log_normal": lambda mean, std_dev, **kwargs: np.random.lognormal(
-            mean, std_dev, 1
-        ),
-        "weibull": lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor
-        * np.random.weibull(k),
-        "truncated_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
-            truncnorm(-std_dev_limit, std_dev_limit, loc=mean, scale=std_dev).rvs()
-        ),
-        "truncated_log_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
-            np.exp(
-                truncnorm(
-                    -std_dev_limit,
-                    std_dev_limit,
-                    loc=np.log(float(mean[4:-1])),
-                    scale=std_dev,
-                ).rvs()
-            )
-        ),
-    }
-
     # Generate standard options dictionary
 
     unperturbed_standard_options = {
@@ -254,22 +405,9 @@ def create_ps_realisation(
         "rise_time": {"mean": rise_time, "distribution": "none"},
     }
 
-    unperturbed_additional_options = dict()
-
-    # Set default unperturbed values for all options,
-    # including updating distributions for any standard options to be perturbated.
-    for key, val in additional_options.items():
-        if key in ["bb", "hf", "emod3d"]:
-            for parameter, value in val.items():
-                unperturbed_additional_options.update({parameter: value})
-                # Store the workflow component that the parameter is for so it can easily be accessed later
-                unperturbed_additional_options[parameter].update({"component": key})
-        elif key in unperturbed_standard_options:
-            unperturbed_standard_options[key].update(val)
-
-    # Dictionaries that are to be (key:perturbated value) pairs
-    perturbed_standard_options = {}
-    perturbed_additional_options = {}
+    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
+        additional_options, unperturbed_standard_options
+    )
 
     for ns in range(1, n_realisations + 1):
 
@@ -283,45 +421,16 @@ def create_ps_realisation(
             )
         )
 
-        for key in list(unperturbed_standard_options.keys()) + list(
-            unperturbed_additional_options.keys()
-        ):
-
-            # Load the correct dictionaries to be read from/written to
-            if key in unperturbed_standard_options:
-                dict_to_read_from = unperturbed_standard_options
-                dict_to_update = perturbed_standard_options
-            elif key in unperturbed_additional_options:
-                dict_to_read_from = unperturbed_additional_options
-                dict_to_update = perturbed_additional_options
-            else:
-                continue
-
-            # Do this after checking the key will be used
-            distribution = dict_to_read_from[key]["distribution"]
-
-            # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
-            dict_to_update[key] = random_distribution_functions[distribution](
-                **dict_to_read_from[key]
-            )
-
-        # Save the extra args to a yaml file
-        additional_args_fname = os.path.join(
-            out_dir, simulation_structure.get_source_params_location(realisation_name)
+        perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
+            unperturbed_standard_options, unperturbed_additional_options
         )
-        utils.setup_dir(os.path.dirname(additional_args_fname))
 
-        # Sort the parameters by their component.
-        output_additional_options = {}
-        for key, value in unperturbed_additional_options.items():
-            if value["component"] not in output_additional_options:
-                output_additional_options.update({value["component"]: {}})
-            output_additional_options[value["component"]].update(
-                {key: perturbed_additional_options[key]}
-            )
-
-        with open(additional_args_fname, "w") as yamlf:
-            yaml.dump(output_additional_options, yamlf)
+        save_sim_params(
+            out_dir,
+            realisation_name,
+            perturbed_additional_options,
+            unperturbed_additional_options,
+        )
 
         # print("Making srf with standard dict:")
         # print(perturbed_standard_options)
@@ -349,6 +458,29 @@ def create_ps_realisation(
             init_time=init_time,
             silent=silent,
         )
+
+
+def save_sim_params(
+    out_dir,
+    realisation_name,
+    perturbed_additional_options,
+    unperturbed_additional_options,
+):
+    # Save the extra args to a yaml file
+    additional_args_fname = os.path.join(
+        out_dir, simulation_structure.get_source_params_location(realisation_name)
+    )
+    utils.setup_dir(os.path.dirname(additional_args_fname))
+    # Sort the parameters by their component.
+    output_additional_options = {}
+    for key, value in unperturbed_additional_options.items():
+        if value["component"] not in output_additional_options:
+            output_additional_options.update({value["component"]: {}})
+        output_additional_options[value["component"]].update(
+            {key: perturbed_additional_options[key]}
+        )
+    with open(additional_args_fname, "w") as yamlf:
+        yaml.dump(output_additional_options, yamlf)
 
 
 def randomise_rupdelay(delay, var, deps):
