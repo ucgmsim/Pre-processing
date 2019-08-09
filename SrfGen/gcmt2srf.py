@@ -12,8 +12,8 @@ import yaml
 
 from qcore import qclogging
 
-from SrfGen.createSRF import CreateSRF_ps, gen_meta
-from SrfGen.createSourceRealisation import create_ps_realisation
+from createSRF import CreateSRF_ps, gen_meta
+from createSourceRealisation import create_ps_realisation
 
 
 def run_create_srf(

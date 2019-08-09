@@ -35,8 +35,8 @@ from qcore.validate_vm import validate_vm
 from empirical.util.classdef import GMM, Site, Fault
 from empirical.util.empirical_factory import compute_gmm
 
-from SrfGen.createSRF import leonard, mag2mom, mom2mag
-from SrfGen.gen_coords import gen_coords
+from createSRF import leonard, mag2mom, mom2mag
+from gen_coords import gen_coords
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")

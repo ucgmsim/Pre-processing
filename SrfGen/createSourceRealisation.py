@@ -25,7 +25,7 @@ import numpy as np
 
 from qcore import qclogging, simulation_structure, utils
 
-from SrfGen.createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
+from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
 
 mag2mom = lambda mw: np.exp(1.5 * (mw + 10.7) * np.log(10.0))
 mom2mag = lambda mom: (2 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7

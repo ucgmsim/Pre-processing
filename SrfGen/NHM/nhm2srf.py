@@ -20,7 +20,7 @@ import numpy as np
 from qcore.pool_wrapper import PoolWrapper
 from qcore import geo, simulation_structure, qclogging
 
-from SrfGen.createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
+from createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
 
 MAGNITUDE_ROUNDING_THRESHOLD = 7.5
 
