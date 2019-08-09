@@ -308,7 +308,7 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                                 "tect_type": tect_type,
                                 "plot": args.plot,
                             },
-                            qclogging.get_realisation_logger(logger, name),
+                            logger.name,
                         )
                     )
                     # store parameters
@@ -337,7 +337,8 @@ def round_subfault_size(dist, mag):
         return round(dist * 10) / 10
 
 
-def run_create_srf(fault, logger: Logger = qclogging.get_basic_logger()):
+def run_create_srf(fault, logger_name: str = "run_create_srf"):
+    logger = qclogging.get_realisation_logger(qclogging.get_logger(logger_name), fault["name"])
     t0 = time()
     #    sys.stdout = open(str(os.getpid())+".out","w")
     logger.info("Creating SRF: {}".format(fault["name"]))
