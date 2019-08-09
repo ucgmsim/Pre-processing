@@ -8,16 +8,14 @@ PYTHONPATH contains createSRF and qcore
 import math
 import os
 from logging import Logger
+from multiprocessing.pool import Pool
 from subprocess import call
 import sys
 from time import time
-import queue
 import logging
-from logging.handlers import QueueHandler, QueueListener
 
 import numpy as np
 
-from qcore.pool_wrapper import PoolWrapper
 from qcore import geo, simulation_structure, qclogging
 
 from createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
@@ -279,38 +277,6 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                     )[:-4]
                     # create SRF from description
                     msgs.append(
-                        {
-                            "nseg": nseg,
-                            "seg_delay": seg_delay,
-                            "mag": mag,
-                            "mom": mom,
-                            "rvfac_seg": rvfac_seg,
-                            "gwid": gwid,
-                            "rup_delay": rup_delay,
-                            "flen": flen,
-                            "dlen": dlen,
-                            "fwid": fwid,
-                            "dwid": dwid,
-                            "dtop": dtop,
-                            "stk": stk,
-                            "rake": rake,
-                            "dip": dip,
-                            "elon": elon,
-                            "elat": elat,
-                            "shypo": shypo,
-                            "dhypo": dhypo,
-                            "dt": dt,
-                            "seed": seed,
-                            "prefix": prefix,
-                            "cases": cases,
-                            "dip_dir": dip_dir,
-                            "stoch": "%s/%s/Stoch" % (args.out_dir, name),
-                            "name": name,
-                            "tect_type": tect_type,
-                            "plot": args.plot,
-                        }
-                    )
-                    msgs.append(
                         (
                             {
                                 "nseg": nseg,
@@ -506,12 +472,9 @@ if __name__ == "__main__":
         print("No matches found.")
         sys.exit(1)
 
-    def run_create_srf_star(params):
-        run_create_srf(*params)
-
     # distribute work
-    p = PoolWrapper(args.nproc)
-    p.map(run_create_srf_star, msg_list)
+    p = Pool(args.nproc)
+    p.starmap(run_create_srf, msg_list)
 
     # debug friendly alternative
     # [run_create_srf(msg) for msg in msg_list]
