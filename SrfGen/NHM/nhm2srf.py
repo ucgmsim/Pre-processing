@@ -85,7 +85,7 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
         # skip if not wanted
         if name not in fault_names:
             logging.log(
-                logging.DEBUG / 2,
+                logging.DEBUG // 2,
                 "{} not in the list of fault names, continuing".format(name),
             )
             dbi += skip
