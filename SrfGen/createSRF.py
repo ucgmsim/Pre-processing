@@ -304,7 +304,7 @@ def focal_mechanism_2_finite_fault(
 
 
 ###########################################################################
-def MwScalingRelation(Mw, MwScalingRel):
+def MwScalingRelation(Mw, MwScalingRel, logger: Logger = qclogging.get_basic_logger()):
     """
     Return the fault Area from the Mw and a Mw Scaling relation.
     """
@@ -313,6 +313,12 @@ def MwScalingRelation(Mw, MwScalingRel):
             # only small magnitude case
             assert Mw <= 6.71
         except AssertionError as e:
+            logger.log(
+                qclogging.NOPRINTERROR,
+                "Cannot use HanksBakun2002 scaling relation for Mw = {} > 6.71".format(
+                    Mw
+                ),
+            )
             e.args += ("Cannot use HanksAndBakun2002 equation for Mw > 6.71",)
             raise
         A = 10 ** (Mw - 3.98)
@@ -328,14 +334,33 @@ def MwScalingRelation(Mw, MwScalingRel):
         # updated probabilistic seismic hazard assessment for the Canterbury region, GNS Science Consultancy Report 2007/232, ECan Report Number U06/6. 58pp.
 
     else:
-        print("Invalid MwScalingRel. Exiting.")
+        logger.error("Invalid MwScalingRel: {}. Exiting.".format(MwScalingRel))
         exit()
 
     # length, width
+    logger.debug(
+        "MwScalingRel {} determined a fault area of {} square kilometres".format(
+            MwScalingRel, A
+        )
+    )
     return math.sqrt(A), math.sqrt(A)
 
 
-def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
+def gen_gsf(
+    gsf_file,
+    lon,
+    lat,
+    dtop,
+    strike,
+    dip,
+    rake,
+    flen,
+    fwid,
+    nx,
+    ny,
+    logger: Logger = qclogging.get_basic_logger(),
+):
+    logger.debug("Saving gsf to {}".format(gsf_file))
     with open(gsf_file, "w") as gsfp:
         gexec = Popen(
             [
@@ -417,7 +442,7 @@ def gen_srf(
             cmd.append("alpha_rough=%s" % (rough))
         if slip_cov is not None:
             cmd.append("slip_sigma=%s" % (slip_cov))
-        logger.info("Creating SRF: {}".format(" ".join(cmd)))
+        logger.info("Creating SRF with command: {}".format(" ".join(cmd)))
         call(cmd, stdout=srfp)
 
 
@@ -768,7 +793,9 @@ def CreateSRF_ff(
     out_dir = os.path.dirname(srf_file)
     mkdir_p(out_dir, logger=logger)
 
-    gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny)
+    gen_gsf(
+        gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny, logger=logger
+    )
     gen_srf(
         srf_file,
         gsf_file,
@@ -805,6 +832,7 @@ def CreateSRF_ff(
             shypo=shypo + 0.5 * flen,
             dhypo=dhypo,
             vm=srf_config.VELOCITY_MODEL,
+            logger=logger,
         )
     else:
         gen_meta(
@@ -819,6 +847,7 @@ def CreateSRF_ff(
             dhypo=dhypo,
             tect_type=tect_type,
             vm=srf_config.VELOCITY_MODEL,
+            logger=logger,
         )
 
     # location of resulting SRF

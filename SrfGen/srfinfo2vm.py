@@ -118,7 +118,7 @@ def auto_time2(
     # magnitude is in faultprop
     ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
     logger.debug("ds: {}".format(ds))
-    logger.debug("ds_multiplyer: {}".format(ds_multiplier))
+    logger.debug("ds_multiplier: {}".format(ds_multiplier))
     return s_wave_arrival + ds_multiplier * ds
 
 

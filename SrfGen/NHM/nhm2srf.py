@@ -433,6 +433,7 @@ def run_create_srf(fault, logger: Logger = qclogging.get_basic_logger()):
         dhypo=[d[0] for d in fault["dhypo"]],
         tect_type=fault["tect_type"],
         file_name=os.path.join(args.out_dir, fault["name"], fault["name"]),
+        logger=logger,
     )
 
 

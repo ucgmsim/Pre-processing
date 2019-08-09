@@ -3,13 +3,13 @@
 from argparse import ArgumentParser
 import os
 from logging import Logger
+from multiprocessing.pool import Pool
 from subprocess import call
 
 import numpy as np
 import pandas as pd
 import yaml
 
-from qcore.pool_wrapper import PoolWrapper
 from qcore import qclogging
 
 from SrfGen.createSRF import CreateSRF_ps, gen_meta
@@ -95,10 +95,6 @@ def run_create_srf(
     if args.plot:
         fault_logger.debug("Plotting srf map")
         call(["plot_srf_map.py", "%s.srf" % (prefix)])
-
-
-def run_create_srf_star(args_t_vs_rho):
-    return run_create_srf(*args_t_vs_rho)
 
 
 if __name__ == "__main__":
@@ -217,7 +213,8 @@ if __name__ == "__main__":
     rho = vmodel.rho[depth_bins]
 
     # distribute work
-    p = PoolWrapper(args.nproc)
-    p.map(
-        run_create_srf_star, list(zip([args] * len(sources), sources, vs, rho, n_sims))
+    p = Pool(args.nproc)
+    p.starmap(
+        run_create_srf,
+        list(zip([args] * len(sources), sources, vs, rho, n_sims, logger)),
     )
