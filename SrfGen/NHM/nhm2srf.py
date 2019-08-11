@@ -316,8 +316,9 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                             "%s.srf\t%s\t%s\t%s\n"
                             % (prefix, shypo[0][0], dhypo[0][0], seed)
                         )
-            # Initialise the logger so each process can get the local copy
-            qclogging.get_realisation_logger(logger, name)
+        # Initialise the logger so each process can get the local copy
+        f_logger = qclogging.get_realisation_logger(logger, name)
+        f_logger.propagate = False
 
         # store fault traces
         with open(out_gmt, "a") as traces:
