@@ -308,7 +308,6 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                                 "tect_type": tect_type,
                                 "plot": args.plot,
                             },
-                            logger.name,
                         )
                     )
                     # store parameters
@@ -317,6 +316,8 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                             "%s.srf\t%s\t%s\t%s\n"
                             % (prefix, shypo[0][0], dhypo[0][0], seed)
                         )
+            # Initialise the logger so each process can get the local copy
+            qclogging.get_realisation_logger(logger, name)
 
         # store fault traces
         with open(out_gmt, "a") as traces:
@@ -337,8 +338,8 @@ def round_subfault_size(dist, mag):
         return round(dist * 10) / 10
 
 
-def run_create_srf(fault, logger_name: str = "run_create_srf"):
-    logger = qclogging.get_realisation_logger(qclogging.get_logger(logger_name), fault["name"])
+def run_create_srf(fault):
+    logger = qclogging.get_logger(fault["name"])
     t0 = time()
     #    sys.stdout = open(str(os.getpid())+".out","w")
     logger.info("Creating SRF: {}".format(fault["name"]))
@@ -371,14 +372,15 @@ def run_create_srf(fault, logger_name: str = "run_create_srf"):
         stoch=fault["stoch"],
         tect_type=fault["tect_type"],
         silent=True,
+        logger=logger,
     )
-    print("created SRF: %s (%.2fs)" % (fault["name"], time() - t0))
+    logger.debug("created SRF: {} ({:.2f}s)".format(fault["name"], time() - t0))
     if fault["plot"]:
         t0 = time()
-        print("plotting SRF: %s" % (fault["name"]))
-        call(["plot_srf_square.py", "%s.srf" % (fault["prefix"])])
-        call(["plot_srf_map.py", "%s.srf" % (fault["prefix"])])
-        print("plotted SRF: %s (%.2fs)" % (fault["name"], time() - t0))
+        logger.info("plotting SRF: {}".format(fault["name"]))
+        call(["plot_srf_square.py", "{}.srf".format(fault["prefix"])])
+        call(["plot_srf_map.py", "{}.srf".format(fault["prefix"])])
+        logger.info("plotted SRF: {} (:.2fs)".format(fault["name"], time() - t0))
     srf_file = os.path.join(
         args.out_dir, fault["name"], "Srf", "{}_REL01.srf".format(fault["name"])
     )
@@ -470,12 +472,9 @@ if __name__ == "__main__":
     # load wanted fault information
     msg_list = load_msgs(args, fault_names, faults, logger=logger)
     if len(msg_list) == 0:
-        print("No matches found.")
+        logger.info("No matches found in the NHM file, exiting.")
         sys.exit(1)
 
     # distribute work
     p = Pool(args.nproc)
     p.starmap(run_create_srf, msg_list)
-
-    # debug friendly alternative
-    # [run_create_srf(msg) for msg in msg_list]
