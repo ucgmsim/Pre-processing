@@ -658,6 +658,7 @@ def CreateSRF_ps(
     gsf_file = "%s.gsf" % (prefix)
     srf_file = "%s.srf" % (prefix)
     mkdir_p(os.path.dirname(srf_file), logger=logger)
+    qclogging.remove_buffer_handler(logger)
 
     ###
     ### create GSF

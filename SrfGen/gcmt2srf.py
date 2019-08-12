@@ -121,9 +121,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     # validate parameters
-    qclogging.add_general_file_handler(
-        logger, os.path.join(args.out_dir, "gcmt2srf_log.txt")
-    )
+    out_dir = os.path.abspath(args.out_dir)
+    if os.path.isdir(out_dir):
+        qclogging.add_general_file_handler(
+            logger, os.path.join(args.out_dir, "gcmt2srf_log.txt")
+        )
+    else:
+        qclogging.add_buffer_handler(logger, file_name=os.path.join(args.out_dir, "gcmt2srf_log.txt"))
 
     error_messages = []
     if not os.path.exists(args.csv_file):
@@ -216,5 +220,5 @@ if __name__ == "__main__":
     p = Pool(args.nproc)
     p.starmap(
         run_create_srf,
-        list(zip([args] * len(sources), sources, vs, rho, n_sims, logger)),
+        list(zip([args] * len(sources), sources, vs, rho, n_sims, [logger]*len(sources))),
     )
