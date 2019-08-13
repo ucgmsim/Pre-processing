@@ -17,8 +17,9 @@ from createSourceRealisation import create_ps_realisation
 
 
 def run_create_srf(
-    args, t, vs, rho, n_sims, logger: Logger = qclogging.get_basic_logger()
+    args, t, vs, rho, n_sims, logger_name: str = "Basic"
 ):
+    logger = qclogging.get_logger(logger_name)
     mom = -1
     try:
         pid = t.pid.decode()  # t.pid is originally numpy.bytes_
@@ -28,6 +29,7 @@ def run_create_srf(
         "Entered run_create_srf. pid is {}. Switching to fault logger".format(pid)
     )
     fault_logger = qclogging.get_realisation_logger(logger, pid)
+    fault_logger.propagate = False
 
     prefix = os.path.join(args.out_dir, pid, "Srf", pid)
     fault_logger.debug("Using prefix: {}".format(prefix))
@@ -220,5 +222,5 @@ if __name__ == "__main__":
     p = Pool(args.nproc)
     p.starmap(
         run_create_srf,
-        list(zip([args] * len(sources), sources, vs, rho, n_sims, [logger]*len(sources))),
+        list(zip([args] * len(sources), sources, vs, rho, n_sims, [logger.name]*len(sources))),
     )
