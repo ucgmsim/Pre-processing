@@ -301,7 +301,7 @@ def focal_mechanism_2_finite_fault(
 
 
 ###########################################################################
-def MwScalingRelation(Mw, MwScalingRel):
+def MwScalingRelation(Mw, MwScalingRel, rake=None, leonard_ds=4.00, leonard_ss=3.99):
     """
     Return the fault Area from the Mw and a Mw Scaling relation.
     """
@@ -323,6 +323,12 @@ def MwScalingRelation(Mw, MwScalingRel):
         A = 10 ** (0.75 * (Mw - 3.39))
         # i.e. Eqn 2 in [1] Stirling, MW, Gerstenberger, M, Litchfield, N, McVerry, GH, Smith, WD, Pettinga, JR, Barnes, P. 2007.
         # updated probabilistic seismic hazard assessment for the Canterbury region, GNS Science Consultancy Report 2007/232, ECan Report Number U06/6. 58pp.
+
+    elif MwScalingRel == "Leonard2014":
+        if round(rake % 360 / 90.0) % 2:
+            A = 10 ** Mw - leonard_ds
+        else:
+            A = 10 ** Mw - leonard_ss
 
     else:
         print("Invalid MwScalingRel. Exiting.")

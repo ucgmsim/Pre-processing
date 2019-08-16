@@ -264,6 +264,12 @@ def create_ps2ff_realisation(
 
     # Generate standard options dictionary
 
+    flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
+        lat, lon, depth, mw_mean, strike, rake, dip, mwsr
+    )[
+        3:
+    ]
+
     unperturbed_standard_options = {
         "depth": {"mean": depth, "distribution": "none"},
         "mw": {"mean": mw_mean, "distribution": "none"},
@@ -273,19 +279,16 @@ def create_ps2ff_realisation(
         "rvfrac": {"mean": rvfrac, "distribution": "none"},
         "rough": {"mean": rough, "distribution": "none"},
         "slip_cov": {"mean": slip_cov, "distribution": "none"},
+        "flen": {"mean": flen, "distribution": "none"},
+        "dlen": {"mean": dlen, "distribution": "none"},
+        "fwid": {"mean": fwid, "distribution": "none"},
+        "dwid": {"mean": dwid, "distribution": "none"},
+        "dtop": {"mean": dtop, "distribution": "none"},
+        "dhypo": {"mean": dhypo, "distribution": "none"},
     }
 
-    unperturbed_additional_options, unperturbed_standard_options, unperturbed_focal_mechanism_options = set_up_parameter_dicts(
-        additional_options,
-        unperturbed_standard_options,
-        {
-            "flen": {"distribution": "none"},
-            "dlen": {"distribution": "none"},
-            "fwid": {"distribution": "none"},
-            "dwid": {"distribution": "none"},
-            "dtop": {"distribution": "none"},
-            "dhypo": {"distribution": "none"},
-        },
+    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
+        additional_options, unperturbed_standard_options
     )
 
     for ns in range(1, n_realisations + 1):
@@ -316,28 +319,6 @@ def create_ps2ff_realisation(
         # print("and additional dict:")
         # print(perturbed_additional_options)
 
-        flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
-            lat,
-            lon,
-            perturbed_standard_options["depth"],
-            perturbed_standard_options["mw"],
-            perturbed_standard_options["strike"],
-            perturbed_standard_options["rake"],
-            perturbed_standard_options["dip"],
-            mwsr,
-        )[
-            3:
-        ]
-        for name, val in zip(
-            ["flen", "dlen", "fwid", "dwid", "dtop", "dhypo"],
-            [flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo],
-        ):
-            unperturbed_focal_mechanism_options[name]["mean"] = val
-        perturbed_focal_mechanism_options, _ = perturbate_parameters(
-            unperturbed_focal_mechanism_options, {}
-        )
-        perturbed_standard_options.update(perturbed_focal_mechanism_options)
-
         create_srf_psff(
             lat0,
             lon0,
@@ -365,17 +346,12 @@ def create_ps2ff_realisation(
         )
 
 
-def set_up_parameter_dicts(
-    additional_options, unperturbed_standard_options, excluded_options={}
-):
+def set_up_parameter_dicts(additional_options, unperturbed_standard_options):
     unperturbed_standard_options = unperturbed_standard_options
     unperturbed_additional_options = {}
-    unperturbed_excluded_options = {}
     # Set default unperturbed values for all options,
     # including updating distributions for any standard options to be perturbated.
     for key, val in additional_options.items():
-        if key in excluded_options.keys():
-            unperturbed_excluded_options.update({key: val})
         if key in ["bb", "hf", "emod3d"]:
             for parameter, value in val.items():
                 unperturbed_additional_options.update({parameter: value})
@@ -383,11 +359,7 @@ def set_up_parameter_dicts(
                 unperturbed_additional_options[parameter].update({"component": key})
         elif key in unperturbed_standard_options:
             unperturbed_standard_options[key].update(val)
-    return (
-        unperturbed_additional_options,
-        unperturbed_standard_options,
-        unperturbed_excluded_options,
-    )
+    return (unperturbed_additional_options, unperturbed_standard_options)
 
 
 def create_ps_realisation(
