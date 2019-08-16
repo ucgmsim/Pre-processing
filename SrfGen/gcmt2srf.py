@@ -164,10 +164,9 @@ def main():
     parser.add_argument("-n", "--nproc", type=int, default=1)
     parser.add_argument("-p", "--plot", action="store_true")
     parser.add_argument(
-        "-t",
-        "--type",
+        "type",
         help="The type of fault for the source being produced. 1 for point source, 2 for finite fault from point source",
-        options=[1, 2],
+        choices=[1, 2],
     )
     uncertainty_group = parser.add_argument_group(
         "Uncertainty options",
