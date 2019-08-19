@@ -17,7 +17,10 @@ from createSRF import (
     create_srf_psff,
     focal_mechanism_2_finite_fault,
 )
-from createSourceRealisation import create_ps_realisation, create_ps2ff_realisation
+from createSourceRealisation import (
+    create_ps_realisation,
+    create_ps2ff_realisation,
+)
 
 
 def run_create_ps_srf(args, t, vs, rho, n_sims):
@@ -112,6 +115,7 @@ def run_create_psff_srf(args, t, n_sims):
             dt=args.dt,
             mwsr=args.mwsr,
             seed=args.seed,
+            genslip_version=args.genslip_version,
             silent=True,
         )
         srf_file = os.path.join(args.out_dir, pid, "Srf", "{}_REL01.srf".format(pid))
@@ -128,7 +132,7 @@ def run_create_psff_srf(args, t, n_sims):
             args.dt,
             lon=t.lon,
             lat=t.lat,
-            vm=None,
+            vm=args.velocity_model,
             shypo=shypo,
             dhypo=dhypo,
             file_name=os.path.join(args.out_dir, pid, pid),
@@ -143,10 +147,13 @@ def run_create_psff_srf(args, t, n_sims):
             t.strike,
             t.rake,
             t.dip,
+            t.depth,
             args.dt,
-            pid,
-            12345,
+            prefix,
+            seed=args.seed,
             stoch=stoch,
+            genslip_version=args.genslip_version,
+            mwsr=args.mwsr,
         )
     if args.plot:
         call(["plot_srf_map.py", "%s.srf" % (prefix)])
@@ -158,16 +165,17 @@ def main():
     parser.add_argument("csv_file", help="path to CMT solutions CSV")
     parser.add_argument("velocity_model", help="path to 1D velocity model")
     parser.add_argument(
+        "type",
+        help="The type of fault for the source being produced. 1 for point source, 2 for finite fault from point source",
+        choices=[1, 2],
+        type=int,
+    )
+    parser.add_argument(
         "-o", "--out-dir", help="directory to place outputs", default="./autosrf"
     )
     parser.add_argument("--dt", help="SRF timestep", type=float, default=0.005)
     parser.add_argument("-n", "--nproc", type=int, default=1)
     parser.add_argument("-p", "--plot", action="store_true")
-    parser.add_argument(
-        "type",
-        help="The type of fault for the source being produced. 1 for point source, 2 for finite fault from point source",
-        choices=[1, 2],
-    )
     uncertainty_group = parser.add_argument_group(
         "Uncertainty options",
         "Options to be used when SRFs are to be generated with uncertainty factors",
@@ -184,14 +192,19 @@ def main():
     elif args.type == 2:
         psff_parser = ArgumentParser(parents=[parser])
         psff_parser.add_argument(
-            "--mwsr", help="Magnitude scaling relation. Only used for type 2 faults."
+            "-m",
+            "--mwsr",
+            help="Magnitude scaling relation. Only used for type 2 faults.",
         )
         psff_parser.add_argument(
-            "--seed",
+            "-s" "--seed",
             help="The seed to be passed to the srf generation binary. Only used for type 2 faults.",
             default=None,
         )
-        psff_parser.parse_args(extra_args)
+        parser.add_argument(
+            "-g", "--genslip_version", type=str, default="3.3", options=["3.3", "5.4"]
+        )
+        psff_parser.parse_args()
 
     # validate parameters
     if not os.path.exists(args.csv_file):

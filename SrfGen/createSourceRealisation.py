@@ -258,6 +258,7 @@ def create_ps2ff_realisation(
     rvfrac=None,
     rough=None,
     slip_cov=None,
+    genslip_version="3.3",
     silent=False,
 ):
     """Creates an srf for a type 2 fault, a finite fault created from point source parameters"""
@@ -284,6 +285,7 @@ def create_ps2ff_realisation(
         "fwid": {"mean": fwid, "distribution": "none"},
         "dwid": {"mean": dwid, "distribution": "none"},
         "dtop": {"mean": dtop, "distribution": "none"},
+        "shypo": {"mean": shypo, "distribution": "none"},
         "dhypo": {"mean": dhypo, "distribution": "none"},
     }
 
@@ -327,7 +329,7 @@ def create_ps2ff_realisation(
             rake=perturbed_standard_options["rake"],
             dip=perturbed_standard_options["dip"],
             dt=dt,
-            prefix0=realisation_srf_path[:-4],
+            prefix=realisation_srf_path[:-4],
             stoch=realisation_stoch_path,
             seed=seed,
             flen=perturbed_standard_options["flen"],
@@ -342,6 +344,7 @@ def create_ps2ff_realisation(
             rvfrac=perturbed_standard_options["rvfrac"],
             rough=perturbed_standard_options["rough"],
             slip_cov=perturbed_standard_options["slip_cov"],
+            genslip_version=genslip_version,
             silent=silent,
         )
 

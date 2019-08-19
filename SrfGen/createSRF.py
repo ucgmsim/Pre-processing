@@ -3,6 +3,7 @@
 import math
 import os
 from shutil import copyfile
+from subprocess import call, Popen, PIPE
 import sys
 from random import randint
 
@@ -228,7 +229,7 @@ def focal_mechanism_2_finite_fault(
     SHYPO = 0.00
 
     # get the fault geometry (square edge length)
-    fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel)
+    fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel, rake)
     # number of subfaults
     Nx = int(round(fault_length / DLEN))
     Ny = int(round(fault_width / DWID))
@@ -326,13 +327,12 @@ def MwScalingRelation(Mw, MwScalingRel, rake=None, leonard_ds=4.00, leonard_ss=3
 
     elif MwScalingRel == "Leonard2014":
         if round(rake % 360 / 90.0) % 2:
-            A = 10 ** Mw - leonard_ds
+            A = 10 ** (Mw - leonard_ds)
         else:
-            A = 10 ** Mw - leonard_ss
+            A = 10 ** (Mw - leonard_ss)
 
     else:
-        print("Invalid MwScalingRel. Exiting.")
-        exit()
+        raise ValueError("Invalid MwScalingRel: {}. Exiting.".format(MwScalingRel))
 
     # length, width
     return math.sqrt(A), math.sqrt(A)
@@ -349,9 +349,9 @@ def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
             stdout=gsfp,
         )
         gexec.communicate(
-            "1\n%f %f %f %d %d %d %f %f %s %s"
-            % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny),
-            "utf-8",
+            "1\n{:f} {:f} {:f} {} {} {} {:f} {:f} {:s} {:s}".format(
+                lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny
+            ).encode("utf-8")
         )
         gexec.wait()
 
@@ -621,21 +621,20 @@ def CreateSRF_ps(
         stderr = PIPE
     else:
         stderr = None
-    call(
-        [
-            binary_version.get_unversioned_bin(GENERICSLIP2SRF),
-            "infile=%s" % (gsf_file),
-            "outfile=%s" % (srf_file),
-            "outbin=0",
-            "stype=%s" % (stype),
-            "dt=%f" % (dt),
-            "plane_header=1",
-            "risetime=%f" % (rise_time),
-            "risetimefac=1.0",
-            "risetimedep=0.0",
-        ],
-        stderr=stderr,
-    )
+    cmds = [
+        binary_version.get_unversioned_bin(GENERICSLIP2SRF),
+        "infile=%s" % (gsf_file),
+        "outfile=%s" % (srf_file),
+        "outbin=0",
+        "stype=%s" % (stype),
+        "dt=%f" % (dt),
+        "plane_header=1",
+        "risetime=%f" % (rise_time),
+        "risetimefac=1.0",
+        "risetimedep=0.0",
+    ]
+    print("Creating SRF: {}".format(" ".join(cmds)))
+    call(cmds, stderr=stderr)
 
     ###
     ### save STOCH
@@ -673,6 +672,7 @@ def create_srf_psff(
     strike,
     rake,
     dip,
+    depth,
     dt,
     prefix,
     seed=None,
@@ -684,7 +684,6 @@ def create_srf_psff(
     shypo=None,
     dhypo=None,
     stoch=None,
-    depth=None,
     mwsr=None,
     corners_file="cnrs.txt",
     genslip_version="3.3",
@@ -715,16 +714,8 @@ def create_srf_psff(
             seed = get_seed()
 
     srf_type = 2
-    all_none = (flen, dlen, fwid, dwid, dtop, shypo, dhypo) is (
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-    )
-    any_none = None in (flen, dlen, fwid, dwid, dtop, shypo, dhypo)
+    all_none = all(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
+    any_none = any(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
     if all_none:
         flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = focal_mechanism_2_finite_fault(
             lat, lon, depth, mw, strike, rake, dip, mwsr
@@ -1134,10 +1125,10 @@ if __name__ == "__main__":
             STK,
             RAK,
             DIP,
+            DEPTH,
             DT,
             PREFIX,
             SEED,
-            depth=DEPTH,
             mwsr=MWSR,
             stoch=STOCH,
             genslip_version=GENSLIP,
@@ -1216,7 +1207,6 @@ if __name__ == "__main__":
         exit(0)
 
     # start plotting
-    from subprocess import call, Popen, PIPE
 
     for script in ["plot_srf_square.py", "plot_srf_map.py"]:
         path_tester = Popen(["which", script], stdout=PIPE)
