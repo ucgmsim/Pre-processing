@@ -17,10 +17,7 @@ from createSRF import (
     create_srf_psff,
     focal_mechanism_2_finite_fault,
 )
-from createSourceRealisation import (
-    create_ps_realisation,
-    create_ps2ff_realisation,
-)
+from createSourceRealisation import create_ps_realisation, create_ps2ff_realisation
 
 
 def run_create_ps_srf(args, t, vs, rho, n_sims):
