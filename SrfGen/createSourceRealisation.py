@@ -413,7 +413,7 @@ def create_ps_realisation(
         "rise_time": {"mean": rise_time, "distribution": "none"},
     }
 
-    unperturbed_additional_options, unperturbed_standard_options, _ = set_up_parameter_dicts(
+    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
         additional_options, unperturbed_standard_options
     )
 
