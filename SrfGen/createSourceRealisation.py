@@ -45,6 +45,13 @@ def uniform_distribution(mean, half_range, **kwargs):
     return uniform(mean - half_range, mean + half_range)
 
 
+def duplicate_value(targets, *perturbated_dicts, **kwargs):
+    for p_dict in perturbated_dicts:
+        if targets in p_dict.keys():
+            return p_dict[targets]
+    raise ValueError("Unable to find target to duplicate")
+
+
 def perturbate_parameters(unperturbed_standard_options, unperturbed_additional_options):
     # Dictionary of distribution functions. 'none' is required for unperturbated options.
     # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
@@ -71,13 +78,16 @@ def perturbate_parameters(unperturbed_standard_options, unperturbed_additional_o
                 ).rvs()
             )
         ),
+        "duplicate": duplicate_value,
     }
 
     perturbed_standard_options = {}
     perturbed_additional_options = {}
-    for key in list(unperturbed_standard_options.keys()) + list(
+
+    options_to_perturbate = list(unperturbed_standard_options.keys()) + list(
         unperturbed_additional_options.keys()
-    ):
+    )
+    for key in options_to_perturbate:
 
         # Load the correct dictionaries to be read from/written to
         if key in unperturbed_standard_options:
@@ -92,10 +102,46 @@ def perturbate_parameters(unperturbed_standard_options, unperturbed_additional_o
         # Do this after checking the key will be used
         distribution = dict_to_read_from[key]["distribution"]
 
+        additional_parameters = {}
+        if "targets" in dict_to_read_from[key].keys():
+            target = dict_to_read_from[key]["targets"]
+            for var in target:
+                if var in perturbed_standard_options:
+                    additional_parameters[var] = perturbed_standard_options[var]
+                elif var in perturbed_additional_options:
+                    additional_parameters[var] = perturbed_additional_options[var]
+                else:
+                    if var in unperturbed_standard_options:
+                        if (
+                            "targets" in unperturbed_standard_options[var]
+                            and key in unperturbed_standard_options[var]["targets"]
+                        ):
+                            raise ValueError("Circular targets detected, exiting")
+                    elif var in unperturbed_additional_options:
+                        if (
+                            "targets" in unperturbed_additional_options[var]
+                            and key in unperturbed_additional_options[var]["targets"]
+                        ):
+                            raise ValueError("Circular targets detected, exiting")
+                    options_to_perturbate.append(key)
+                    continue
+
         # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
         dict_to_update[key] = random_distribution_functions[distribution](
-            **dict_to_read_from[key]
+            **dict_to_read_from[key], **additional_parameters
         )
+
+    # Patch for rvfac/rvfrac
+    if (
+        "rvfac" in perturbed_additional_options.keys()
+        and "rvfrac" not in perturbed_standard_options.keys()
+    ):
+        perturbed_standard_options["rvfrac"] = perturbed_additional_options["rvfac"]
+    elif (
+        "rvfac" in perturbed_standard_options.keys()
+        and "rvfrac" not in perturbed_additional_options.keys()
+    ):
+        perturbed_additional_options["rvfrac"] = perturbed_standard_options["rvfac"]
 
     return perturbed_standard_options, perturbed_additional_options
 
