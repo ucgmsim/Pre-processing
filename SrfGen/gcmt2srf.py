@@ -197,11 +197,12 @@ def main():
             "-s" "--seed",
             help="The seed to be passed to the srf generation binary. Only used for type 2 faults.",
             default=None,
+            type=int,
         )
-        parser.add_argument(
+        psff_parser.add_argument(
             "-g", "--genslip_version", type=str, default="3.3", options=["3.3", "5.4"]
         )
-        psff_parser.parse_args()
+        args = psff_parser.parse_args()
 
     # validate parameters
     if not os.path.exists(args.csv_file):
