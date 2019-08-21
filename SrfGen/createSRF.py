@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import math
 import os
@@ -6,6 +6,7 @@ from logging import Logger
 from shutil import copyfile
 from subprocess import call, Popen, PIPE
 import sys
+from random import randint
 
 from h5py import File as h5open
 import numpy as np
@@ -19,6 +20,11 @@ import srf_config
 SRF2STOCH = "srf2stoch"
 GENERICSLIP2SRF = "generic_slip2srf"
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
+
+
+def get_seed():
+    """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
+    return randint(0, 2 ** 31 - 1)
 
 
 def mkdir_p(out_dir, logger: Logger = qclogging.get_basic_logger()):
@@ -233,7 +239,7 @@ def focal_mechanism_2_finite_fault(
     SHYPO = 0.00
 
     # get the fault geometry (square edge length)
-    fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel)
+    fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel, rake)
     # number of subfaults
     Nx = int(round(fault_length / DLEN))
     Ny = int(round(fault_width / DWID))
@@ -243,8 +249,10 @@ def focal_mechanism_2_finite_fault(
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
-    xPos = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
-    yPos = np.arange(DWID / 2.0, fault_width, DWID)[::-1] - fault_width / 2.0
+    xPos: np.ndarray = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
+    yPos: np.ndarray = np.arange(DWID / 2.0, fault_width, DWID)[
+        ::-1
+    ] - fault_width / 2.0
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
@@ -258,7 +266,7 @@ def focal_mechanism_2_finite_fault(
     )
     eastLocRelative, northLocRelative = np.dot(
         RotMatrix, [np.tile(xPos, Ny), yPosSurfProj.repeat(Ny)]
-    ).reshape(2, Nx, Ny)
+    ).reshape((2, Nx, Ny))
     depthLocRelative = (
         (-yPos * math.sin(math.radians(dip))).repeat(Ny).reshape((Nx, Ny))
     )
@@ -304,7 +312,7 @@ def focal_mechanism_2_finite_fault(
 
 
 ###########################################################################
-def MwScalingRelation(Mw, MwScalingRel, logger: Logger = qclogging.get_basic_logger()):
+def MwScalingRelation(Mw, MwScalingRel, rake=None, leonard_ds=4.00, leonard_ss=3.99, logger: Logger = qclogging.get_basic_logger()):
     """
     Return the fault Area from the Mw and a Mw Scaling relation.
     """
@@ -333,9 +341,14 @@ def MwScalingRelation(Mw, MwScalingRel, logger: Logger = qclogging.get_basic_log
         # i.e. Eqn 2 in [1] Stirling, MW, Gerstenberger, M, Litchfield, N, McVerry, GH, Smith, WD, Pettinga, JR, Barnes, P. 2007.
         # updated probabilistic seismic hazard assessment for the Canterbury region, GNS Science Consultancy Report 2007/232, ECan Report Number U06/6. 58pp.
 
+    elif MwScalingRel == "Leonard2014":
+        if round(rake % 360 / 90.0) % 2:
+            A = 10 ** (Mw - leonard_ds)
+        else:
+            A = 10 ** (Mw - leonard_ss)
+
     else:
-        logger.error("Invalid MwScalingRel: {}. Exiting.".format(MwScalingRel))
-        exit()
+        raise ValueError("Invalid MwScalingRel: {}. Exiting.".format(MwScalingRel))
 
     # length, width
     logger.debug(
@@ -371,9 +384,9 @@ def gen_gsf(
             stdout=gsfp,
         )
         gexec.communicate(
-            "1\n%f %f %f %d %d %d %f %f %s %s"
-            % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny),
-            "utf-8",
+            "1\n{:f} {:f} {:f} {} {} {} {:f} {:f} {:s} {:s}".format(
+                lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny
+            ).encode("utf-8")
         )
         gexec.wait()
 
@@ -730,16 +743,17 @@ def CreateSRF_ps(
     return srf_file
 
 
-def CreateSRF_ff(
+def create_srf_psff(
     lat,
     lon,
     mw,
     strike,
     rake,
     dip,
+    depth,
     dt,
-    prefix0,
-    seed,
+    prefix,
+    seed=None,
     flen=None,
     dlen=None,
     fwid=None,
@@ -748,9 +762,7 @@ def CreateSRF_ff(
     shypo=None,
     dhypo=None,
     stoch=None,
-    depth=None,
     mwsr=None,
-    corners=True,
     corners_file="cnrs.txt",
     genslip_version="3.3",
     rvfrac=None,
@@ -758,6 +770,7 @@ def CreateSRF_ff(
     slip_cov=None,
     tect_type=None,
     logger: Logger = qclogging.get_basic_logger(),
+    silent=False,
 ):
     """
     Create a Finite Fault SRF.
@@ -765,20 +778,36 @@ def CreateSRF_ff(
     NOTE: depth is focal mech depth and only used when calculating flen etc...
     """
 
-    # do not change input variables
-    prefix = prefix0
+    seed_file = "{}.SEED".format(prefix)
+    if seed is None:
+        if os.path.isfile(seed_file):
+            try:
+                with open(seed_file) as sf:
+                    seed = int(sf.readline())
+            except IOError:
+                raise IOError(
+                    "Unable to read seed from seed file {}. Please remove this before restarting".format(
+                        seed_file
+                    )
+                )
+        else:
+            seed = get_seed()
 
-    # only given point source parameters? calculate rest using scaling relation
-    if flen is None:
-        srf_type = 2
+    srf_type = 2
+    all_none = all(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
+    any_none = any(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
+    if all_none:
         flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = focal_mechanism_2_finite_fault(
             lat, lon, depth, mw, strike, rake, dip, mwsr
         )[
             3:
         ]
-    else:
-        srf_type = 3
-    logger.debug("Generating srf for type {} fault".format(srf_type))
+    elif any_none:
+        raise ValueError(
+            "If any of (flen, dlen, fwid, dwid, dtop, shypo, dhypo) are given, the rest must be given. Got: {}".format(
+                (flen, dlen, fwid, dwid, dtop, shypo, dhypo)
+            )
+        )
 
     # write corners file
     corners = get_corners(lat, lon, flen, fwid, dip, strike)
@@ -788,9 +817,9 @@ def CreateSRF_ff(
     nx = get_nx(flen, dlen)
     ny = get_ny(fwid, dwid)
     if prefix[-1] == "_":
-        prefix = "%s%s" % (prefix, get_fileroot(mw, flen, fwid, seed))
-    gsf_file = "%s.gsf" % (prefix)
-    srf_file = "%s.srf" % (prefix)
+        prefix = "{}{}".format(prefix, get_fileroot(mw, flen, fwid, seed))
+    gsf_file = "{}.gsf".format(prefix)
+    srf_file = "{}.srf".format(prefix)
     out_dir = os.path.dirname(srf_file)
     mkdir_p(out_dir, logger=logger)
 
@@ -812,44 +841,120 @@ def CreateSRF_ff(
         slip_cov=slip_cov,
         rough=rough,
     )
+    with open(seed_file, "w") as sf:
+        sf.write("{}".format(seed))
     if stoch is not None:
         stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file, single_segment=True, logger=logger)
+        gen_stoch(stoch_file, srf_file, single_segment=True, silent=silent, logger=logger)
 
     # save INFO
-    if srf_type == 2:
-        gen_meta(
-            srf_file,
-            srf_type,
-            mw,
-            strike,
-            rake,
-            dip,
-            dt,
-            lon=lon,
-            lat=lat,
-            centroid_depth=depth,
-            mwsr=mwsr,
-            shypo=shypo + 0.5 * flen,
-            dhypo=dhypo,
-            vm=srf_config.VELOCITY_MODEL,
-            logger=logger,
-        )
-    else:
-        gen_meta(
-            srf_file,
-            srf_type,
-            mw,
-            strike,
-            rake,
-            dip,
-            dt,
-            shypo=shypo + 0.5 * flen,
-            dhypo=dhypo,
-            tect_type=tect_type,
-            vm=srf_config.VELOCITY_MODEL,
-            logger=logger,
-        )
+    gen_meta(
+        srf_file,
+        srf_type,
+        mw,
+        strike,
+        rake,
+        dip,
+        dt,
+        lon=lon,
+        lat=lat,
+        centroid_depth=depth,
+        mwsr=mwsr,
+        shypo=shypo + 0.5 * flen,
+        dhypo=dhypo,
+        vm=srf_config.VELOCITY_MODEL,
+    )
+
+    # location of resulting SRF
+    return srf_file
+
+
+def CreateSRF_ff(
+    lat,
+    lon,
+    mw,
+    strike,
+    rake,
+    dip,
+    dt,
+    prefix0,
+    seed,
+    flen,
+    dlen,
+    fwid,
+    dwid,
+    dtop,
+    shypo,
+    dhypo,
+    stoch=None,
+    depth=None,
+    corners=True,
+    corners_file="cnrs.txt",
+    genslip_version="3.3",
+    rvfrac=None,
+    rough=None,
+    slip_cov=None,
+    tect_type=None,
+):
+    """
+    Create a Finite Fault SRF.
+    Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
+    NOTE: depth is focal mech depth and only used when calculating flen etc...
+    """
+
+    # do not change input variables
+    prefix = prefix0
+
+    # only given point source parameters? calculate rest using scaling relation
+    srf_type = 3
+
+    # write corners file
+    corners = get_corners(lat, lon, flen, fwid, dip, strike)
+    hypocentre = get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip)
+    write_corners(corners_file, hypocentre, corners)
+
+    nx = get_nx(flen, dlen)
+    ny = get_ny(fwid, dwid)
+    if prefix[-1] == "_":
+        prefix = "%s%s" % (prefix, get_fileroot(mw, flen, fwid, seed))
+    gsf_file = "%s.gsf" % (prefix)
+    srf_file = "%s.srf" % (prefix)
+    out_dir = os.path.dirname(srf_file)
+    mkdir_p(out_dir)
+
+    gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny)
+    gen_srf(
+        srf_file,
+        gsf_file,
+        mw,
+        dt,
+        nx,
+        ny,
+        seed,
+        shypo,
+        dhypo,
+        genslip_version=genslip_version,
+        rvfrac=rvfrac,
+        slip_cov=slip_cov,
+        rough=rough,
+    )
+    if stoch is not None:
+        stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
+        gen_stoch(stoch_file, srf_file, single_segment=True)
+
+    gen_meta(
+        srf_file,
+        srf_type,
+        mw,
+        strike,
+        rake,
+        dip,
+        dt,
+        shypo=shypo + 0.5 * flen,
+        dhypo=dhypo,
+        tect_type=tect_type,
+        vm=srf_config.VELOCITY_MODEL,
+    )
 
     # location of resulting SRF
     return srf_file
@@ -1147,20 +1252,19 @@ if __name__ == "__main__":
         )
     elif TYPE == 2:
         # point source to finite fault srf
-        srf = CreateSRF_ff(
+        srf = create_srf_psff(
             LAT,
             LON,
             MAG,
             STK,
             RAK,
             DIP,
+            DEPTH,
             DT,
             PREFIX,
             SEED,
-            depth=DEPTH,
             mwsr=MWSR,
             stoch=STOCH,
-            corners=True,
             genslip_version=GENSLIP,
             rvfrac=RVFRAC,
             slip_cov=SLIP_COV,
@@ -1240,7 +1344,6 @@ if __name__ == "__main__":
         exit(0)
 
     # start plotting
-    from subprocess import call, Popen, PIPE
 
     for script in ["plot_srf_square.py", "plot_srf_map.py"]:
         path_tester = Popen(["which", script], stdout=PIPE)

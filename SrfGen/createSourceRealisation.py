@@ -25,7 +25,13 @@ import numpy as np
 
 from qcore import qclogging, simulation_structure, utils
 
-from createSRF import CreateSRF_ff, CreateSRF_multi, CreateSRF_ps
+from createSRF import (
+    CreateSRF_ff,
+    CreateSRF_multi,
+    CreateSRF_ps,
+    create_srf_psff,
+    focal_mechanism_2_finite_fault,
+)
 
 mag2mom = lambda mw: np.exp(1.5 * (mw + 10.7) * np.log(10.0))
 mom2mag = lambda mom: (2 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
@@ -38,6 +44,107 @@ def relative_uniform_distribution(mean, scale_factor, **kwargs):
 
 def uniform_distribution(mean, half_range, **kwargs):
     return uniform(mean - half_range, mean + half_range)
+
+
+def duplicate_value(targets, *perturbated_dicts, **kwargs):
+    for p_dict in perturbated_dicts:
+        if targets in p_dict.keys():
+            return p_dict[targets]
+    raise ValueError("Unable to find target to duplicate")
+
+
+def perturbate_parameters(unperturbed_standard_options, unperturbed_additional_options):
+    # Dictionary of distribution functions. 'none' is required for unperturbated options.
+    # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
+    random_distribution_functions = {
+        "none": lambda mean, **kwargs: mean,
+        "uniform": uniform_distribution,
+        "normal": lambda mean, std_dev, **kwargs: normalvariate(mean, std_dev),
+        "uniform_relative": relative_uniform_distribution,
+        "log_normal": lambda mean, std_dev, **kwargs: np.random.lognormal(
+            mean, std_dev, 1
+        ),
+        "weibull": lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor
+        * np.random.weibull(k),
+        "truncated_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            truncnorm(-std_dev_limit, std_dev_limit, loc=mean, scale=std_dev).rvs()
+        ),
+        "truncated_log_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
+            np.exp(
+                truncnorm(
+                    -std_dev_limit,
+                    std_dev_limit,
+                    loc=np.log(float(mean[4:-1])),
+                    scale=std_dev,
+                ).rvs()
+            )
+        ),
+        "duplicate": duplicate_value,
+    }
+
+    perturbed_standard_options = {}
+    perturbed_additional_options = {}
+
+    options_to_perturbate = list(unperturbed_standard_options.keys()) + list(
+        unperturbed_additional_options.keys()
+    )
+    for key in options_to_perturbate:
+
+        # Load the correct dictionaries to be read from/written to
+        if key in unperturbed_standard_options:
+            dict_to_read_from = unperturbed_standard_options
+            dict_to_update = perturbed_standard_options
+        elif key in unperturbed_additional_options:
+            dict_to_read_from = unperturbed_additional_options
+            dict_to_update = perturbed_additional_options
+        else:
+            continue
+
+        # Do this after checking the key will be used
+        distribution = dict_to_read_from[key]["distribution"]
+
+        additional_parameters = {}
+        if "targets" in dict_to_read_from[key].keys():
+            target = dict_to_read_from[key]["targets"]
+            for var in target:
+                if var in perturbed_standard_options:
+                    additional_parameters[var] = perturbed_standard_options[var]
+                elif var in perturbed_additional_options:
+                    additional_parameters[var] = perturbed_additional_options[var]
+                else:
+                    if var in unperturbed_standard_options:
+                        if (
+                            "targets" in unperturbed_standard_options[var]
+                            and key in unperturbed_standard_options[var]["targets"]
+                        ):
+                            raise ValueError("Circular targets detected, exiting")
+                    elif var in unperturbed_additional_options:
+                        if (
+                            "targets" in unperturbed_additional_options[var]
+                            and key in unperturbed_additional_options[var]["targets"]
+                        ):
+                            raise ValueError("Circular targets detected, exiting")
+                    options_to_perturbate.append(key)
+                    continue
+
+        # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
+        dict_to_update[key] = random_distribution_functions[distribution](
+            **dict_to_read_from[key], **additional_parameters
+        )
+
+    # Patch for rvfac/rvfrac
+    if (
+        "rvfac" in perturbed_additional_options.keys()
+        and "rvfrac" not in perturbed_standard_options.keys()
+    ):
+        perturbed_standard_options["rvfrac"] = perturbed_additional_options["rvfac"]
+    elif (
+        "rvfac" in perturbed_standard_options.keys()
+        and "rvfrac" not in perturbed_additional_options.keys()
+    ):
+        perturbed_additional_options["rvfrac"] = perturbed_standard_options["rvfac"]
+
+    return perturbed_standard_options, perturbed_additional_options
 
 
 def param_as_string(param):
@@ -180,6 +287,131 @@ def CreateSRF_ffdStoch():
             of.write("\n")
 
 
+def create_ps2ff_realisation(
+    out_dir,
+    fault_name,
+    lat,
+    lon,
+    depth,
+    mw_mean,
+    strike,
+    rake,
+    dip,
+    mwsr,
+    n_realisations=50,
+    additional_options={},
+    dt=0.005,
+    seed=None,
+    rvfrac=None,
+    rough=None,
+    slip_cov=None,
+    genslip_version="3.3",
+    silent=False,
+):
+    """Creates an srf for a type 2 fault, a finite fault created from point source parameters"""
+
+    # Generate standard options dictionary
+
+    flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
+        lat, lon, depth, mw_mean, strike, rake, dip, mwsr
+    )[
+        3:
+    ]
+
+    unperturbed_standard_options = {
+        "depth": {"mean": depth, "distribution": "none"},
+        "mw": {"mean": mw_mean, "distribution": "none"},
+        "strike": {"mean": strike, "distribution": "none"},
+        "rake": {"mean": rake, "distribution": "none"},
+        "dip": {"mean": dip, "distribution": "none"},
+        "rvfrac": {"mean": rvfrac, "distribution": "none"},
+        "rough": {"mean": rough, "distribution": "none"},
+        "slip_cov": {"mean": slip_cov, "distribution": "none"},
+        "flen": {"mean": flen, "distribution": "none"},
+        "dlen": {"mean": dlen, "distribution": "none"},
+        "fwid": {"mean": fwid, "distribution": "none"},
+        "dwid": {"mean": dwid, "distribution": "none"},
+        "dtop": {"mean": dtop, "distribution": "none"},
+        "shypo": {"mean": shypo, "distribution": "none"},
+        "dhypo": {"mean": dhypo, "distribution": "none"},
+    }
+
+    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
+        additional_options, unperturbed_standard_options
+    )
+
+    for ns in range(1, n_realisations + 1):
+
+        realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
+        realisation_srf_path = os.path.join(
+            out_dir, simulation_structure.get_srf_location(realisation_name)
+        )
+        realisation_stoch_path = os.path.dirname(
+            os.path.join(
+                out_dir, simulation_structure.get_stoch_location(realisation_name)
+            )
+        )
+
+        perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
+            unperturbed_standard_options, unperturbed_additional_options
+        )
+
+        save_sim_params(
+            out_dir,
+            realisation_name,
+            perturbed_additional_options,
+            unperturbed_additional_options,
+        )
+
+        # print("Making srf with standard dict:")
+        # print(perturbed_standard_options)
+        # print("and additional dict:")
+        # print(perturbed_additional_options)
+
+        create_srf_psff(
+            lat0,
+            lon0,
+            mw=perturbed_standard_options["mw"],
+            strike=perturbed_standard_options["strike"],
+            rake=perturbed_standard_options["rake"],
+            dip=perturbed_standard_options["dip"],
+            dt=dt,
+            prefix=realisation_srf_path[:-4],
+            stoch=realisation_stoch_path,
+            seed=seed,
+            flen=perturbed_standard_options["flen"],
+            dlen=perturbed_standard_options["dlen"],
+            fwid=perturbed_standard_options["fwid"],
+            dwid=perturbed_standard_options["dwid"],
+            dtop=perturbed_standard_options["dtop"],
+            shypo=perturbed_standard_options["shypo"],
+            dhypo=perturbed_standard_options["dhypo"],
+            depth=perturbed_standard_options["depth"],
+            mwsr=mwsr,
+            rvfrac=perturbed_standard_options["rvfrac"],
+            rough=perturbed_standard_options["rough"],
+            slip_cov=perturbed_standard_options["slip_cov"],
+            genslip_version=genslip_version,
+            silent=silent,
+        )
+
+
+def set_up_parameter_dicts(additional_options, unperturbed_standard_options):
+    unperturbed_standard_options = unperturbed_standard_options
+    unperturbed_additional_options = {}
+    # Set default unperturbed values for all options,
+    # including updating distributions for any standard options to be perturbated.
+    for key, val in additional_options.items():
+        if key in ["bb", "hf", "emod3d"]:
+            for parameter, value in val.items():
+                unperturbed_additional_options.update({parameter: value})
+                # Store the workflow component that the parameter is for so it can easily be accessed later
+                unperturbed_additional_options[parameter].update({"component": key})
+        elif key in unperturbed_standard_options:
+            unperturbed_standard_options[key].update(val)
+    return (unperturbed_additional_options, unperturbed_standard_options)
+
+
 def create_ps_realisation(
     out_dir,
     fault_name,
@@ -216,33 +448,6 @@ def create_ps_realisation(
     """
     logger.debug("Creating point source realisation with perturbated parameters")
 
-    # Dictionary of distribution functions. 'none' is required for unperturbated options.
-    # **kwargs allows for extra arguments to be passed from the dictionary and ignored without crashing
-    random_distribution_functions = {
-        "none": lambda mean, **kwargs: mean,
-        "uniform": uniform_distribution,
-        "normal": lambda mean, std_dev, **kwargs: normalvariate(mean, std_dev),
-        "uniform_relative": relative_uniform_distribution,
-        "log_normal": lambda mean, std_dev, **kwargs: np.random.lognormal(
-            mean, std_dev, 1
-        ),
-        "weibull": lambda k=3.353, scale_factor=0.612, **kwargs: scale_factor
-        * np.random.weibull(k),
-        "truncated_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
-            truncnorm(-std_dev_limit, std_dev_limit, loc=mean, scale=std_dev).rvs()
-        ),
-        "truncated_log_normal": lambda mean, std_dev, std_dev_limit=2, **kwargs: float(
-            np.exp(
-                truncnorm(
-                    -std_dev_limit,
-                    std_dev_limit,
-                    loc=np.log(float(mean[4:-1])),
-                    scale=std_dev,
-                ).rvs()
-            )
-        ),
-    }
-
     # Generate standard options dictionary
 
     unperturbed_standard_options = {
@@ -257,22 +462,9 @@ def create_ps_realisation(
         "rise_time": {"mean": rise_time, "distribution": "none"},
     }
 
-    unperturbed_additional_options = dict()
-
-    # Set default unperturbed values for all options,
-    # including updating distributions for any standard options to be perturbated.
-    for key, val in additional_options.items():
-        if key in ["bb", "hf", "emod3d"]:
-            for parameter, value in val.items():
-                unperturbed_additional_options.update({parameter: value})
-                # Store the workflow component that the parameter is for so it can easily be accessed later
-                unperturbed_additional_options[parameter].update({"component": key})
-        elif key in unperturbed_standard_options:
-            unperturbed_standard_options[key].update(val)
-
-    # Dictionaries that are to be (key:perturbated value) pairs
-    perturbed_standard_options = {}
-    perturbed_additional_options = {}
+    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
+        additional_options, unperturbed_standard_options
+    )
 
     for ns in range(1, n_realisations + 1):
         logger.debug("Creating realisation {}".format(ns))
@@ -287,53 +479,16 @@ def create_ps_realisation(
             )
         )
 
-        for key in list(unperturbed_standard_options.keys()) + list(
-            unperturbed_additional_options.keys()
-        ):
-
-            # Load the correct dictionaries to be read from/written to
-            if key in unperturbed_standard_options:
-                dict_to_read_from = unperturbed_standard_options
-                dict_to_update = perturbed_standard_options
-            elif key in unperturbed_additional_options:
-                dict_to_read_from = unperturbed_additional_options
-                dict_to_update = perturbed_additional_options
-            else:
-                continue
-
-            # Do this after checking the key will be used
-            distribution = dict_to_read_from[key]["distribution"]
-            logger.debug(
-                "Perturbating variable {} with distribution {}".format(
-                    key, distribution
-                )
-            )
-            # Apply the random variable. Unperterbated parameters are already set before the realisations loop.
-            dict_to_update[key] = random_distribution_functions[distribution](
-                **dict_to_read_from[key]
-            )
-            logger.debug(
-                "Value of perturbated variable: {}".format(dict_to_update[key])
-            )
-
-        # Save the extra args to a yaml file
-        additional_args_fname = os.path.join(
-            out_dir, simulation_structure.get_source_params_location(realisation_name)
+        perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
+            unperturbed_standard_options, unperturbed_additional_options
         )
-        utils.setup_dir(os.path.dirname(additional_args_fname))
 
-        # Sort the parameters by their component.
-        output_additional_options = {}
-        for key, value in unperturbed_additional_options.items():
-            if value["component"] not in output_additional_options:
-                output_additional_options.update({value["component"]: {}})
-            output_additional_options[value["component"]].update(
-                {key: perturbed_additional_options[key]}
-            )
-
-        logger.debug("Saving additional parameters to {}".format(additional_args_fname))
-        with open(additional_args_fname, "w") as yamlf:
-            yaml.dump(output_additional_options, yamlf)
+        save_sim_params(
+            out_dir,
+            realisation_name,
+            perturbed_additional_options,
+            unperturbed_additional_options,
+        )
 
         # print("Making srf with standard dict:")
         # print(perturbed_standard_options)
@@ -362,6 +517,29 @@ def create_ps_realisation(
             silent=silent,
             logger=logger,
         )
+
+
+def save_sim_params(
+    out_dir,
+    realisation_name,
+    perturbed_additional_options,
+    unperturbed_additional_options,
+):
+    # Save the extra args to a yaml file
+    additional_args_fname = os.path.join(
+        out_dir, simulation_structure.get_source_params_location(realisation_name)
+    )
+    utils.setup_dir(os.path.dirname(additional_args_fname))
+    # Sort the parameters by their component.
+    output_additional_options = {}
+    for key, value in unperturbed_additional_options.items():
+        if value["component"] not in output_additional_options:
+            output_additional_options.update({value["component"]: {}})
+        output_additional_options[value["component"]].update(
+            {key: perturbed_additional_options[key]}
+        )
+    with open(additional_args_fname, "w") as yamlf:
+        yaml.dump(output_additional_options, yamlf)
 
 
 def randomise_rupdelay(delay, var, deps):
