@@ -307,11 +307,14 @@ def create_ps2ff_realisation(
     slip_cov=None,
     genslip_version="3.3",
     silent=False,
+logger: Logger = qclogging.get_basic_logger(),
 ):
     """Creates an srf for a type 2 fault, a finite fault created from point source parameters"""
 
     # Generate standard options dictionary
+    logger.debug("Creating type 2 fault realisation with perturbated parameters")
 
+    logger.debug("Getting parameters from focal mechanism function, using magnitude scaling relation: {}".format(mwsr))
     flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
         lat, lon, depth, mw_mean, strike, rake, dip, mwsr
     )[
@@ -341,6 +344,7 @@ def create_ps2ff_realisation(
     )
 
     for ns in range(1, n_realisations + 1):
+        logger.debug("Creating realisation {}".format(ns))
 
         realisation_name = simulation_structure.get_realisation_name(fault_name, ns)
         realisation_srf_path = os.path.join(
@@ -352,6 +356,7 @@ def create_ps2ff_realisation(
             )
         )
 
+        logger.debug("Perturbating parameters")
         perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
             unperturbed_standard_options, unperturbed_additional_options
         )
@@ -361,6 +366,7 @@ def create_ps2ff_realisation(
             realisation_name,
             perturbed_additional_options,
             unperturbed_additional_options,
+            logger=logger,
         )
 
         # print("Making srf with standard dict:")
@@ -393,6 +399,7 @@ def create_ps2ff_realisation(
             slip_cov=perturbed_standard_options["slip_cov"],
             genslip_version=genslip_version,
             silent=silent,
+            logger=logger,
         )
 
 
@@ -479,6 +486,7 @@ def create_ps_realisation(
             )
         )
 
+        logger.debug("Perturbating parameters")
         perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
             unperturbed_standard_options, unperturbed_additional_options
         )
@@ -488,6 +496,7 @@ def create_ps_realisation(
             realisation_name,
             perturbed_additional_options,
             unperturbed_additional_options,
+            logger=logger,
         )
 
         # print("Making srf with standard dict:")
@@ -524,7 +533,9 @@ def save_sim_params(
     realisation_name,
     perturbed_additional_options,
     unperturbed_additional_options,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
+    logger.debug("Compiling sim params to save")
     # Save the extra args to a yaml file
     additional_args_fname = os.path.join(
         out_dir, simulation_structure.get_source_params_location(realisation_name)
@@ -538,6 +549,8 @@ def save_sim_params(
         output_additional_options[value["component"]].update(
             {key: perturbed_additional_options[key]}
         )
+        logger.debug("Saving parameter {} with value {}".format(key, value))
+    logger.debug("Saving sim_params to {}".format(additional_args_fname))
     with open(additional_args_fname, "w") as yamlf:
         yaml.dump(output_additional_options, yamlf)
 

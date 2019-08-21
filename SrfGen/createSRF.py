@@ -769,8 +769,8 @@ def create_srf_psff(
     rough=None,
     slip_cov=None,
     tect_type=None,
-    logger: Logger = qclogging.get_basic_logger(),
     silent=False,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Create a Finite Fault SRF.
@@ -785,13 +785,16 @@ def create_srf_psff(
                 with open(seed_file) as sf:
                     seed = int(sf.readline())
             except IOError:
-                raise IOError(
-                    "Unable to read seed from seed file {}. Please remove this before restarting".format(
+                message = "Unable to read seed from seed file {}. Please remove this before restarting".format(
                         seed_file
                     )
-                )
+                logger.log(qclogging.NOPRINTCRITICAL, message)
+                raise IOError(message)
+            else:
+                logger.debug("Loaded seed from seed file, seed is: {}".format(seed))
         else:
             seed = get_seed()
+            logger.debug("Seed")
 
     srf_type = 2
     all_none = all(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
@@ -803,6 +806,10 @@ def create_srf_psff(
             3:
         ]
     elif any_none:
+        message = "If any of (flen, dlen, fwid, dwid, dtop, shypo, dhypo) are given, the rest must be given. Got: {}".format(
+            (flen, dlen, fwid, dwid, dtop, shypo, dhypo)
+        )
+        logger.log(qclogging.NOPRINTCRITICAL, message)
         raise ValueError(
             "If any of (flen, dlen, fwid, dwid, dtop, shypo, dhypo) are given, the rest must be given. Got: {}".format(
                 (flen, dlen, fwid, dwid, dtop, shypo, dhypo)
@@ -810,8 +817,10 @@ def create_srf_psff(
         )
 
     # write corners file
+    logger.debug("Getting corners")
     corners = get_corners(lat, lon, flen, fwid, dip, strike)
     hypocentre = get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip)
+    logger.debug("Saving corners")
     write_corners(corners_file, hypocentre, corners)
 
     nx = get_nx(flen, dlen)
@@ -840,6 +849,7 @@ def create_srf_psff(
         rvfrac=rvfrac,
         slip_cov=slip_cov,
         rough=rough,
+        logger=logger,
     )
     with open(seed_file, "w") as sf:
         sf.write("{}".format(seed))
@@ -863,6 +873,7 @@ def create_srf_psff(
         shypo=shypo + 0.5 * flen,
         dhypo=dhypo,
         vm=srf_config.VELOCITY_MODEL,
+        logger=logger,
     )
 
     # location of resulting SRF
