@@ -782,7 +782,7 @@ def create_vm(args, srf_meta):
     # zlen is independent from xlen and ylen
     zlen = round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / args.hh) * args.hh
     # modified sim time
-    vm_corners = np.asarray(c1, c2, c3, c4)
+    vm_corners = np.asarray([c1, c2, c3, c4])
     initial_time = auto_time2(
         vm_corners, np.concatenate(srf_meta["corners"], axis=0), 1.2
     )
