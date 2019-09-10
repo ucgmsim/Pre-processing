@@ -773,7 +773,7 @@ def create_srf_psff(
     return srf_file
 
 
-def load_seed(prefix, seed = None):
+def load_seed(prefix, seed=None):
     """If the seed is not None, pass it back, otherwise check for a seed file and load it if present, otherwise create a new seed and save it to a seed file"""
     if seed is None:
         seed_file = "{}.SEED".format(prefix)
