@@ -192,6 +192,7 @@ def main():
             "-m",
             "--mwsr",
             help="Magnitude scaling relation. Only used for type 2 faults.",
+            choices=["HanksBakun2002", "BerrymanEtAl2002", "VillamorEtAl2001", "Leonard2014"],
         )
         psff_parser.add_argument(
             "-s" "--seed",
@@ -203,6 +204,8 @@ def main():
             "-g", "--genslip_version", type=str, default="3.3", options=["3.3", "5.4"]
         )
         args = psff_parser.parse_args()
+    else:
+        parser.error("Invalid type specified, please check the valid options. Fault type given: {}, variable type: {}".format(args.type, type(args.type)))
 
     # validate parameters
     if not os.path.exists(args.csv_file):
