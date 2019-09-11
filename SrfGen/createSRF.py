@@ -874,8 +874,9 @@ def create_srf_psff(
 
 def load_seed(prefix, seed=None, logger: Logger = qclogging.get_basic_logger()):
     """If the seed is not None, pass it back, otherwise check for a seed file and load it if present, otherwise create a new seed and save it to a seed file"""
+    seed_file = "{}.SEED".format(prefix)
+    os.makedirs(os.path.dirname(seed_file), exist_ok=True)
     if seed is None:
-        seed_file = "{}.SEED".format(prefix)
         if os.path.isfile(seed_file):
             try:
                 with open(seed_file) as sf:
