@@ -257,15 +257,11 @@ def main():
         )
 
     # validate parameters
-    out_dir = os.path.abspath(args.out_dir)
-    if os.path.isdir(out_dir):
-        qclogging.add_general_file_handler(
-            logger, os.path.join(args.out_dir, "gcmt2srf_log.txt")
-        )
-    else:
-        qclogging.add_buffer_handler(
-            logger, file_name=os.path.join(args.out_dir, "gcmt2srf_log.txt")
-        )
+    args.out_dir = os.path.abspath(args.out_dir)
+    os.makedirs(args.out_dir)
+    qclogging.add_general_file_handler(
+        logger, os.path.join(args.out_dir, "gcmt2srf_log.txt")
+    )
 
     error_messages = []
     if not os.path.exists(args.csv_file):
@@ -378,10 +374,10 @@ def main():
         rho = vmodel.rho[depth_bins]
 
         source_gen_function = run_create_ps_srf
-        messages = list(zip([args] * len(sources), sources, vs, rho, n_sims))
+        messages = list(zip([args] * len(sources), sources, vs, rho, n_sims, [logger.name]*len(sources)))
     elif args.type == 2:
         source_gen_function = run_create_psff_srf
-        messages = list(zip([args] * len(sources), sources, n_sims))
+        messages = list(zip([args] * len(sources), sources, n_sims, [logger.name]*len(sources)))
     else:
         source_gen_function = lambda: 0
         messages = []
