@@ -778,23 +778,7 @@ def create_srf_psff(
     NOTE: depth is focal mech depth and only used when calculating flen etc...
     """
 
-    seed_file = "{}.SEED".format(prefix)
-    if seed is None:
-        if os.path.isfile(seed_file):
-            try:
-                with open(seed_file) as sf:
-                    seed = int(sf.readline())
-            except IOError:
-                message = "Unable to read seed from seed file {}. Please remove this before restarting".format(
-                        seed_file
-                    )
-                logger.log(qclogging.NOPRINTCRITICAL, message)
-                raise IOError(message)
-            else:
-                logger.debug("Loaded seed from seed file, seed is: {}".format(seed))
-        else:
-            seed = get_seed()
-            logger.debug("Seed")
+    seed = load_seed(prefix, seed, logger)
 
     srf_type = 2
     all_none = all(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
@@ -851,8 +835,7 @@ def create_srf_psff(
         rough=rough,
         logger=logger,
     )
-    with open(seed_file, "w") as sf:
-        sf.write("{}".format(seed))
+
     if stoch is not None:
         stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file, single_segment=True, silent=silent, logger=logger)
@@ -878,6 +861,33 @@ def create_srf_psff(
 
     # location of resulting SRF
     return srf_file
+
+
+def load_seed(prefix, seed=None, logger: Logger = qclogging.get_basic_logger()):
+    """If the seed is not None, pass it back, otherwise check for a seed file and load it if present, otherwise create a new seed and save it to a seed file"""
+    if seed is None:
+        seed_file = "{}.SEED".format(prefix)
+        if os.path.isfile(seed_file):
+            try:
+                with open(seed_file) as sf:
+                    seed = int(sf.readline())
+            except IOError:
+                message = "Unable to read seed from seed file {}. Please remove this before restarting".format(
+                    seed_file
+                )
+                logger.log(qclogging.NOPRINTCRITICAL, message)
+                raise IOError(message)
+            else:
+                logger.debug("Loaded seed from seed file, seed is: {}".format(seed))
+        else:
+            seed = get_seed()
+            with open(seed_file, "w") as sf:
+                sf.write("{}".format(seed))
+            logger.debug("SEED: {}".format(seed))
+    else:
+        with open(seed_file, "w") as sf:
+            sf.write("{}".format(seed))
+    return seed
 
 
 def CreateSRF_ff(

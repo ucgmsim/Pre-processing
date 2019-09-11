@@ -233,17 +233,30 @@ def main():
             "-m",
             "--mwsr",
             help="Magnitude scaling relation. Only used for type 2 faults.",
+            choices=[
+                "HanksBakun2002",
+                "BerrymanEtAl2002",
+                "VillamorEtAl2001",
+                "Leonard2014",
+            ],
         )
         psff_parser.add_argument(
-            "-s" "--seed",
+            "-s",
+            "--seed",
             help="The seed to be passed to the srf generation binary. Only used for type 2 faults.",
             default=None,
             type=int,
         )
         psff_parser.add_argument(
-            "-g", "--genslip_version", type=str, default="3.3", options=["3.3", "5.4"]
+            "-g", "--genslip_version", type=str, default="3.3", choices=["3.3", "5.4"]
         )
         args = psff_parser.parse_args()
+    else:
+        parser.error(
+            "Invalid type specified, please check the valid options. Fault type given: {}, variable type: {}".format(
+                args.type, type(args.type)
+            )
+        )
 
     # validate parameters
     out_dir = os.path.abspath(args.out_dir)
@@ -298,7 +311,6 @@ def main():
 
     if all_opts:
         # Sort the array by pid to match the pandas array
-        sources = np.sort(sources, order="pid")
 
         with open(args.cs_file) as cs_f:
             cs_file_pd = pd.read_csv(
@@ -314,8 +326,33 @@ def main():
         )
 
         # Remove all values that failed the filter function
+        removed = cs_file_pd[cs_file_pd.N_Rels == 0]
+        if len(removed) > 0:
+            print(
+                "{} fault(s) were removed from the cybershake fault file as they do not have a valid number of realisations".format(
+                    len(removed)
+                )
+            )
         cs_file_pd = cs_file_pd[cs_file_pd.N_Rels != 0]
+        if len(cs_file_pd) == 0:
+            print(
+                "None of the lines in the cybershake fault file had a valid number of realisations"
+            )
 
+        # Remove sources that don't have at least one realisation
+        not_in = sources[~np.isin(sources.pid, cs_file_pd.pid)]
+        if len(not_in) > 0:
+            print(
+                "{} fault(s) were removed from the sources file as they do not appear in the filtered list of faults with realisations to run".format(
+                    len(not_in)
+                )
+            )
+        sources = sources[np.isin(sources.pid, cs_file_pd.pid)]
+        if len(sources) == 0:
+            print("All sources have been filtered out")
+
+        # Sort both by pid to ensure they match up
+        sources = np.sort(sources, order="pid")
         n_sims = list(cs_file_pd.sort_values("pid")["N_Rels"])
     else:
         logger.debug(
@@ -349,9 +386,12 @@ def main():
         source_gen_function = lambda: 0
         messages = []
 
-    # distribute work
-    p = Pool(args.nproc)
-    p.starmap(source_gen_function, messages)
+    if len(messages) == 0:
+        print("No work found to do, please check your inputs")
+    else:
+        # distribute work
+        p = Pool(args.nproc)
+        p.starmap(source_gen_function, messages)
 
 
 if __name__ == "__main__":
