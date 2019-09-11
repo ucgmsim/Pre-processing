@@ -374,10 +374,21 @@ def main():
         rho = vmodel.rho[depth_bins]
 
         source_gen_function = run_create_ps_srf
-        messages = list(zip([args] * len(sources), sources, vs, rho, n_sims, [logger.name]*len(sources)))
+        messages = list(
+            zip(
+                [args] * len(sources),
+                sources,
+                vs,
+                rho,
+                n_sims,
+                [logger.name] * len(sources),
+            )
+        )
     elif args.type == 2:
         source_gen_function = run_create_psff_srf
-        messages = list(zip([args] * len(sources), sources, n_sims, [logger.name]*len(sources)))
+        messages = list(
+            zip([args] * len(sources), sources, n_sims, [logger.name] * len(sources))
+        )
     else:
         source_gen_function = lambda: 0
         messages = []
