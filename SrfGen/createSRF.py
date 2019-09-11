@@ -312,7 +312,14 @@ def focal_mechanism_2_finite_fault(
 
 
 ###########################################################################
-def MwScalingRelation(Mw, MwScalingRel, rake=None, leonard_ds=4.00, leonard_ss=3.99, logger: Logger = qclogging.get_basic_logger()):
+def MwScalingRelation(
+    Mw,
+    MwScalingRel,
+    rake=None,
+    leonard_ds=4.00,
+    leonard_ss=3.99,
+    logger: Logger = qclogging.get_basic_logger(),
+):
     """
     Return the fault Area from the Mw and a Mw Scaling relation.
     """
@@ -838,7 +845,9 @@ def create_srf_psff(
 
     if stoch is not None:
         stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file, single_segment=True, silent=silent, logger=logger)
+        gen_stoch(
+            stoch_file, srf_file, single_segment=True, silent=silent, logger=logger
+        )
 
     # save INFO
     gen_meta(

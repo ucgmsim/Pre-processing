@@ -32,9 +32,7 @@ def get_fault_name(name):
     return name
 
 
-def run_create_ps_srf(
-    args, t, vs, rho, n_sims, logger_name: str = "Basic"
-):
+def run_create_ps_srf(args, t, vs, rho, n_sims, logger_name: str = "Basic"):
     parent_logger = qclogging.get_logger(logger_name)
     mom = -1
 
@@ -265,7 +263,9 @@ def main():
             logger, os.path.join(args.out_dir, "gcmt2srf_log.txt")
         )
     else:
-        qclogging.add_buffer_handler(logger, file_name=os.path.join(args.out_dir, "gcmt2srf_log.txt"))
+        qclogging.add_buffer_handler(
+            logger, file_name=os.path.join(args.out_dir, "gcmt2srf_log.txt")
+        )
 
     error_messages = []
     if not os.path.exists(args.csv_file):

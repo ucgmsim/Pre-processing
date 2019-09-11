@@ -307,14 +307,18 @@ def create_ps2ff_realisation(
     slip_cov=None,
     genslip_version="3.3",
     silent=False,
-logger: Logger = qclogging.get_basic_logger(),
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """Creates an srf for a type 2 fault, a finite fault created from point source parameters"""
 
     # Generate standard options dictionary
     logger.debug("Creating type 2 fault realisation with perturbated parameters")
 
-    logger.debug("Getting parameters from focal mechanism function, using magnitude scaling relation: {}".format(mwsr))
+    logger.debug(
+        "Getting parameters from focal mechanism function, using magnitude scaling relation: {}".format(
+            mwsr
+        )
+    )
     flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
         lat, lon, depth, mw_mean, strike, rake, dip, mwsr
     )[
