@@ -57,7 +57,9 @@ def main():
     args = load_args()
     faults = load_fault_selection_file(args.station_file)
     gcmt_data = pd.read_csv(
-        args.gcmt_file
+        args.gcmt_file,
+        usecols=(0, 2, 3, 13, 11, 4, 5, 6),
+        names=('pid', 'lat', 'lon', 'depth', 'mag', 'strike', 'dip', 'rake'),
     )
 
     gcmt_lines = gcmt_data[gcmt_data['PublicID'].isin(faults.keys())].itertuples(index=False)

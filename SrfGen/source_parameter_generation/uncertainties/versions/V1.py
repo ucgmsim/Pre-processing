@@ -15,7 +15,7 @@ def generate_source_params(sources_line: pd.Series) -> Dict[str, Any]:
       - sources_line.pid: name of the event
       - sources_line.lat: latitude
       - sources_line.lon: longitude
-      - sources_line.depth: depth
+      - sources_line.depth
       - sources_line.mag: magnitude
       - sources_line.strike
       - sources_line.dip
