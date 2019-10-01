@@ -2,11 +2,11 @@
 import numpy as np
 from typing import Any, Dict
 
-from SrfGen.source_parameter_generation.uncertainties.common import (
+from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_params,
     GCMT_PARAMS,
 )
-from SrfGen.source_parameter_generation.uncertainties.mag_scaling import (
+from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mw_2_a_scaling_relation,
     MagnitudeScalingRelations,
     mag2mom,

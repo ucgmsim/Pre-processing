@@ -1,3 +1,5 @@
+#! /usr/bin/python3
+
 import argparse
 from logging import Logger
 from multiprocessing import pool
@@ -18,11 +20,11 @@ from qcore.qclogging import (
 )
 
 # from SrfGen.source_parameter_generation.uncertainties.versions import PERTURBATORS
-from SrfGen.source_parameter_generation.uncertainties.common import (
+from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
     GCMT_PARAMS,
 )
-from SrfGen.source_parameter_generation.uncertainties.versions import (
+from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
 
