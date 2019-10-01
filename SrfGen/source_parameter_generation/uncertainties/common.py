@@ -1,6 +1,11 @@
+from collections import namedtuple
 from typing import Any, Dict
 
-SRFGEN_PARAMS = [
+GCMT_PARAM_NAMES = ["pid", "lat", "lon", "depth", "mag", "strike", "dip", "rake"]
+GCMT_PARAMS = namedtuple("GCMT_Source", GCMT_PARAM_NAMES)
+
+
+SRFGEN_TYPE_1_PARAMS = [
     "name",
     "latitude",
     "longitude",
@@ -27,6 +32,6 @@ SRFGEN_PARAMS = [
 
 
 def verify_params(params: Dict[str, Any]):
-    mismatch = [name for name in params.keys() if name not in SRFGEN_PARAMS]
+    mismatch = [name for name in params.keys() if name not in SRFGEN_TYPE_1_PARAMS]
     if mismatch:
         raise ValueError(f"Unexpected parameters found: {mismatch}")

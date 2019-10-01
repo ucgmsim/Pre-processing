@@ -36,5 +36,3 @@ def trunc_log_normal(mean, std_dev, std_dev_limit=2):
             -std_dev_limit, std_dev_limit, loc=np.log(float(mean[4:-1])), scale=std_dev
         ).rvs()
     )
-
-
