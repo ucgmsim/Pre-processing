@@ -30,9 +30,9 @@ def duplicate_value(targets, *perturbated_dicts):
     raise ValueError("Unable to find target to duplicate")
 
 
-def trunc_log_normal(mean, std_dev, std_dev_limit=2):
+def truncated_log_normal(mean, std_dev, std_dev_limit=2) -> float:
     return np.exp(
         truncnorm(
-            -std_dev_limit, std_dev_limit, loc=np.log(float(mean[4:-1])), scale=std_dev
+            -std_dev_limit, std_dev_limit, loc=np.log(float(mean)), scale=std_dev
         ).rvs()
     )

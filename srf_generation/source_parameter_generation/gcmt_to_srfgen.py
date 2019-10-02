@@ -5,7 +5,7 @@ from logging import Logger
 from multiprocessing import pool
 from os import makedirs
 from os.path import abspath, isfile, dirname, join
-from typing import Callable
+from typing import Callable, Union
 
 import pandas as pd
 import yaml
@@ -22,7 +22,7 @@ from qcore.qclogging import (
 # from SrfGen.source_parameter_generation.uncertainties.versions import PERTURBATORS
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
-    GCMT_PARAMS,
+    GCMT_Source,
 )
 from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
@@ -37,16 +37,20 @@ def load_args(primary_logger: Logger):
     parser.add_argument("gcmt_file")
     parser.add_argument("-n", "--n_processes", default=1)
     parser.add_argument("-c", "--cybershake_root", type=str, default=".")
+    parser.add_argument("-a", "--aggregate_file", type=str)
 
     args = parser.parse_args()
 
     args.fault_selection_file = abspath(args.fault_selection_file)
     args.gcmt_file = abspath(args.gcmt_file)
+    args.cybershake_root = abspath(args.cybershake_root)
+    if args.aggregate_file is not None:
+        args.aggregate_file = abspath(args.aggregate_file)
 
     errors = []
 
-    if not isfile(args.station_file):
-        errors.append(f"Specified station file not found: {args.station_file}")
+    if not isfile(args.fault_selection_file):
+        errors.append(f"Specified station file not found: {args.fault_selection_file}")
     if not isfile(args.gcmt_file):
         errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
 
@@ -68,12 +72,14 @@ def load_args(primary_logger: Logger):
 
 
 def generate_uncertainties(
-    data: GCMT_PARAMS,
+    data: GCMT_Source,
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
-    primary_logger: Logger,
+    aggregate_file: Union[str, None],
+    primary_logger_name: str,
 ):
+    primary_logger = get_logger(name=primary_logger_name)
     fault_logger = get_realisation_logger(primary_logger, data.pid)
     fault_logger.debug(f"Fault {data.pid} had data {data}")
     for i in range(realisation_count):
@@ -93,8 +99,14 @@ def generate_uncertainties(
         fault_logger.debug(
             f"Created Srf directory and attempting to save perturbated source generation parameters there: {file_name}"
         )
-        with open(file_name) as params_file:
+        with open(file_name, "w") as params_file:
             yaml.dump(perturbed_realisation, params_file)
+        if aggregate_file is not None:
+            rel_df = pd.DataFrame(perturbed_realisation, index=[i])
+            if not isfile(aggregate_file):
+                rel_df.to_csv(aggregate_file)
+            else:
+                rel_df.to_csv(aggregate_file, mode="a", header=False)
         fault_logger.debug(
             f"Parameters saved succesfully. Continuing to next realisation if one exists."
         )
@@ -110,35 +122,65 @@ def main():
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
+    types = [
+        "object",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+        "float64",
+    ]
+    dtype = {GCMT_PARAM_NAMES[i]: types[i] for i in range(len(types))}
+
     gcmt_data = pd.read_csv(
-        args.gcmt_file, usecols=(0, 2, 3, 13, 11, 4, 5, 6), names=GCMT_PARAM_NAMES
-    )
+        args.gcmt_file,
+        usecols=[
+            "PublicID",
+            "Latitude",
+            "Longitude",
+            "strike1",
+            "dip1",
+            "rake1",
+            "Mw",
+            "CD",
+        ],
+        dtype=dtype,
+    )[["PublicID", "Latitude", "Longitude", "CD", "Mw", "strike1", "dip1", "rake1"]]
+    gcmt_data.columns = GCMT_PARAM_NAMES
+
     primary_logger.debug(
         f"{len(faults.keys())} faults were selected and gcmt data for {len(gcmt_data)} faults were loaded. "
         f"Running cross comparison now."
     )
 
-    gcmt_lines = gcmt_data[gcmt_data["PublicID"].isin(faults.keys())].itertuples(
-        name="GCMT_Source", index=False
+    gcmt_lines = list(
+        gcmt_data[gcmt_data["pid"].isin(faults.keys())].itertuples(
+            name=None, index=False
+        )
     )
-    missing_faults = [
-        fault for fault in faults.keys() if fault not in gcmt_lines["PublicID"]
-    ]
+
+    pids = [gcmt[0] for gcmt in gcmt_lines]
+    missing_faults = [fault for fault in faults.keys() if fault not in pids]
+
     if missing_faults:
         message = f"Some fault(s) in the fault selection were not found in the gcmt file: {missing_faults}"
         primary_logger.log(NOPRINTCRITICAL, message)
         raise ValueError(message)
+
     primary_logger.debug(
         f"All {len(gcmt_lines)} faults specified in the fault selection file were found"
     )
 
     messages = [
         (
-            gcmt_lines[i],
-            faults[gcmt_lines[i].PublicID],
+            GCMT_Source(*gcmt_lines[i]),
+            faults[gcmt_lines[i][0]],
             args.cybershake_root,
             perturbation_function,
-            primary_logger,
+            args.aggregate_file,
+            primary_logger.name,
         )
         for i in range(len(faults))
     ]

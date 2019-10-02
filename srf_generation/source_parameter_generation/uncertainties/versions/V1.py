@@ -1,10 +1,16 @@
 """A basic perturbator as an example and starting point"""
 import numpy as np
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_params,
-    GCMT_PARAMS,
+    GCMT_Source,
+    NHM_Source,
+)
+from srf_generation.source_parameter_generation.uncertainties.distributions import (
+    truncated_normal,
+    truncated_log_normal,
+    uniform_distribution,
 )
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mw_2_a_scaling_relation,
@@ -13,22 +19,23 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
 )
 
 
-def generate_source_params(sources_line: GCMT_PARAMS) -> Dict[str, Any]:
-    """sources_line should have the following parameters available via . notation:
-      - sources_line.pid: name of the event
-      - sources_line.lat: latitude
-      - sources_line.lon: longitude
-      - sources_line.depth
-      - sources_line.mag: magnitude
-      - sources_line.strike
-      - sources_line.dip
-      - sources_line.rake
+def generate_source_params(
+    sources_line: Union[GCMT_Source, NHM_Source]
+) -> Dict[str, Any]:
+    """source_data should have the following parameters available via . notation:
+      - source_data.pid: name of the event
+      - source_data.lat: latitude
+      - source_data.lon: longitude
+      - source_data.depth
+      - source_data.mag: magnitude
+      - source_data.strike
+      - source_data.dip
+      - source_data.rake
     """
 
+    magnitude = truncated_normal(mean=sources_line.mag, std_dev=0.05, std_dev_limit=2)
     area = mw_2_a_scaling_relation(
-        sources_line.mag,
-        MagnitudeScalingRelations.LEONARD2014.value,
-        sources_line.strike,
+        magnitude, MagnitudeScalingRelations.LEONARD2014.value, sources_line.strike
     )
 
     params = {
@@ -37,13 +44,15 @@ def generate_source_params(sources_line: GCMT_PARAMS) -> Dict[str, Any]:
         "latitude": sources_line.lat,
         "longitude": sources_line.lon,
         "depth": sources_line.depth,
-        "magnitude": sources_line.mag,
-        "moment": mag2mom(sources_line.mag),
+        "magnitude": magnitude,
+        "moment": float(mag2mom(magnitude)),
         "strike": sources_line.strike,
         "dip": sources_line.dip,
         "rake": sources_line.rake,
-        "width": np.sqrt(area),
-        "length": np.sqrt(area),
+        "fwid": float(np.sqrt(area)),
+        "flen": float(np.sqrt(area)),
+        "sdrop": float(truncated_log_normal(mean=50, std_dev=0.3, std_dev_limit=2)),
+        "risetime": float(uniform_distribution(mean=0.8, half_range=0.075)),
     }
 
     verify_params(params)
