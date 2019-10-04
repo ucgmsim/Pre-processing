@@ -4,9 +4,10 @@ import numpy as np
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mw_2_a_scaling_relation,
     a_2_mw_scaling_relation,
+    MagnitudeScalingRelations,
 )
 
-mwsrs = ["HanksBakun2002", "BerrymanEtAl2002", "VillamorEtAl2001", "Leonard2014"]
+mwsrs = MagnitudeScalingRelations
 
 
 @pytest.mark.parametrize(

@@ -35,7 +35,7 @@ def generate_source_params(
 
     magnitude = truncated_normal(mean=sources_line.mag, std_dev=0.05, std_dev_limit=2)
     area = mw_2_a_scaling_relation(
-        magnitude, MagnitudeScalingRelations.LEONARD2014.value, sources_line.strike
+        magnitude, MagnitudeScalingRelations.LEONARD2014, sources_line.strike
     )
 
     params = {

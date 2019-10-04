@@ -53,6 +53,10 @@ def load_args(primary_logger: Logger):
         errors.append(f"Specified station file not found: {args.fault_selection_file}")
     if not isfile(args.gcmt_file):
         errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
+    if args.aggregate_file is not None and isfile(args.aggregate_file):
+        errors.append(
+            f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
+        )
 
     if errors:
         message = (
@@ -94,19 +98,22 @@ def generate_uncertainties(
             f"Got results from perturbation_function: {perturbed_realisation}"
         )
 
-        file_name = get_srf_path(cybershake_root, rel_name).replace(".srf", ".yaml")
+        file_name = get_srf_path(cybershake_root, rel_name).replace(".srf", ".csv")
         makedirs(dirname(file_name), exist_ok=True)
         fault_logger.debug(
             f"Created Srf directory and attempting to save perturbated source generation parameters there: {file_name}"
         )
+        rel_df = pd.DataFrame(perturbed_realisation, index=[i])
+
         with open(file_name, "w") as params_file:
-            yaml.dump(perturbed_realisation, params_file)
+            rel_df.to_csv(file_name)
+
         if aggregate_file is not None:
-            rel_df = pd.DataFrame(perturbed_realisation, index=[i])
             if not isfile(aggregate_file):
                 rel_df.to_csv(aggregate_file)
             else:
                 rel_df.to_csv(aggregate_file, mode="a", header=False)
+
         fault_logger.debug(
             f"Parameters saved succesfully. Continuing to next realisation if one exists."
         )

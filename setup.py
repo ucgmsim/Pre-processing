@@ -1,7 +1,7 @@
 from setuptools import setup, find_namespace_packages
 
 setup(
-    name="Pre-processing",
+    name="SRF generation",
     version="19.9.1",
     packages=find_namespace_packages(include=["srf_generation.*"]),
     url="https://github.com/ucgmsim/Pre-processing",
