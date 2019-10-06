@@ -2,10 +2,10 @@ Pre processing
 # Changelog
 (Based on https://wiki.canterbury.ac.nz/download/attachments/58458136/CodeVersioning_v18p2.pdf?version=1&modificationDate=1519269238437&api=v2 )
 
-## [19.5.3] - 2019-09-11 -- Added logging and type 2 source generation
+## [19.5.3] - 2019-10-07 -- Added logging and versioned uncertainty source generation
 ### Added
     - Added logging for gcmt2srf, nhm2srf and srfinfo2vm workflows
-    - Added type 2 fault srf generation to gcmt2srf workflow
+    - Added versioned uncertainty source params to srf gen params script
 
 ## [19.5.2] - 2019-08-14 -- Added MIT License
 ### Added
