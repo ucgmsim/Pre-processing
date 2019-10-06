@@ -4,13 +4,13 @@ import numpy as np
 from scipy.stats import truncnorm
 
 
-def relative_uniform_distribution(mean, scale_factor):
+def relative_uniform(mean, scale_factor):
     """Returns a value from a uniform distribution where the min and max
     are scaled relative to the middle value given as the mean"""
     return uniform(mean * (1 - scale_factor), mean * (1 + scale_factor))
 
 
-def uniform_distribution(mean, half_range):
+def uniform(mean, half_range):
     return uniform(mean - half_range, mean + half_range)
 
 
