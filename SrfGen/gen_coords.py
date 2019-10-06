@@ -1,15 +1,24 @@
 #!/usr/bin/env python2
 
 import os
+from logging import Logger
 from subprocess import check_call
 import sys
 
+from qcore import qclogging
 from qcore.binary_version import get_unversioned_bin
 from qcore.constants import VM_PARAMS_FILE_NAME
 from qcore.utils import load_yaml
 
 
-def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origin="1"):
+def gen_coords(
+    vm_dir=".",
+    debug=False,
+    geoproj="1",
+    do_coords="1",
+    centre_origin="1",
+    logger: Logger = qclogging.get_basic_logger(),
+):
     """
     Generate coordinate files for an emod3d domain (set of grid points).
     outdir: directory to store coordinate files in
@@ -17,6 +26,8 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
     geoproj: 
     do_coords: 
     """
+
+    logger.debug("Generating coords. VM directory: {}".format(vm_dir))
 
     # load params for velocity model
     vm = load_yaml(os.path.join(vm_dir, VM_PARAMS_FILE_NAME))
@@ -42,7 +53,10 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
             gridf.write("zlen=%f\n" % (ZLEN))
             gridf.write("%10.4f %10.4f %13.6e\n" % (0.0, ZLEN, vm["hh"]))
     except IOError:
-        raise IOError("Cannot write GRIDFILE: %s" % (GRIDFILE))
+        message = "Cannot write GRIDFILE: {}".format(GRIDFILE)
+        logger.log(qclogging.NOPRINTERROR, message)
+        raise IOError(message)
+    logger.debug("Wrote grid file to {}".format(GRIDFILE))
 
     # generate model_params
     cmd = (
@@ -53,9 +67,8 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
         "modellon={vm[MODEL_LON]} modellat={vm[MODEL_LAT]} "
         "modelrot={vm[MODEL_ROT]} 1> '{MODEL_PARAMS}'"
     ).format(get_unversioned_bin("gen_model_cords"), **dict(locals(), **globals()))
-    if debug:
-        print(cmd)
-    else:
+    logger.log(qclogging.logging.DEBUG * (1 + int(debug)), cmd)
+    if not debug:
         cmd += " 2>/dev/null"
     check_call(cmd, shell=True)
 
@@ -74,7 +87,9 @@ def gen_coords(vm_dir=".", debug=False, geoproj="1", do_coords="1", centre_origi
                     if x in x_bounds or y in y_bounds:
                         boundf.write(line)
     except IOError:
-        raise IOError("Cannot write MODEL_BOUNDS: %s" % (MODEL_BOUNDS))
+        message = "Cannot write MODEL_BOUNDS: {}".format(MODEL_BOUNDS)
+        logger.log(qclogging.NOPRINTERROR, message)
+        raise IOError(message)
 
 
 # allow running from shell

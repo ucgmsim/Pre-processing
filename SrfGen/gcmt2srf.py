@@ -2,6 +2,8 @@
 
 from argparse import ArgumentParser
 import os
+from logging import Logger
+from multiprocessing.pool import Pool
 from subprocess import call
 import sys
 from multiprocessing import Pool
@@ -10,6 +12,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from qcore import qclogging
 from createSRF import (
     leonard,
     CreateSRF_ps,
@@ -19,16 +22,34 @@ from createSRF import (
 )
 from createSourceRealisation import create_ps_realisation, create_ps2ff_realisation
 
+from createSRF import CreateSRF_ps, gen_meta
+from createSourceRealisation import create_ps_realisation
 
-def run_create_ps_srf(args, t, vs, rho, n_sims):
+
+def get_fault_name(name):
+    if not isinstance(name, str):
+        name = name.decode()
+    return name
+
+
+def run_create_ps_srf(args, t, vs, rho, n_sims, logger_name: str = "Basic"):
+    parent_logger = qclogging.get_logger(logger_name)
     mom = -1
-    try:
-        pid = t.pid.decode()  # t.pid is originally numpy.bytes_
-    except AttributeError:
-        pid = t.pid
+
+    pid = get_fault_name(t.pid)
+
+    parent_logger.debug(
+        "Entered run_create_srf. pid is {}. Switching to fault logger".format(pid)
+    )
+    fault_logger = qclogging.get_realisation_logger(parent_logger, pid)
+    fault_logger.propagate = False
 
     prefix = os.path.join(args.out_dir, pid, "Srf", pid)
+    fault_logger.debug("Using prefix: {}".format(prefix))
     if args.uncertainty_file:
+        fault_logger.debug(
+            "Uncertainty file found. Generating perturbated realisations"
+        )
         with open(args.uncertainty_file) as ao_f:
             add_opts = yaml.load(ao_f)
         create_ps_realisation(
@@ -48,6 +69,7 @@ def run_create_ps_srf(args, t, vs, rho, n_sims):
             vs=vs,
             rho=rho,
             silent=True,
+            logger=fault_logger,
         )
         srf_file = os.path.join(args.out_dir, pid, "Srf", "{}_REL01.srf".format(pid))
         gen_meta(
@@ -64,6 +86,7 @@ def run_create_ps_srf(args, t, vs, rho, n_sims):
             rho=rho,
             centroid_depth=t.depth,
             file_name=os.path.join(args.out_dir, pid, pid),
+            logger=fault_logger,
         )
     else:
         stoch = os.path.join(args.out_dir, pid, "Stoch")
@@ -82,19 +105,30 @@ def run_create_ps_srf(args, t, vs, rho, n_sims):
             vs=vs,
             rho=rho,
             silent=True,
+            logger=fault_logger,
         )
     if args.plot:
+        fault_logger.debug("Plotting srf map")
         call(["plot_srf_map.py", "%s.srf" % (prefix)])
 
 
-def run_create_psff_srf(args, t, n_sims):
-    try:
-        pid = t.pid.decode()  # t.pid is originally numpy.bytes_
-    except AttributeError:
-        pid = t.pid
+def run_create_psff_srf(args, t, n_sims, logger_name: str = "Basic"):
+    parent_logger = qclogging.get_logger(logger_name)
+
+    pid = get_fault_name(t.pid)
+
+    parent_logger.debug(
+        "Entered run_create_srf. pid is {}. Switching to fault logger".format(pid)
+    )
+    fault_logger = qclogging.get_realisation_logger(parent_logger, pid)
+    fault_logger.propagate = False
 
     prefix = os.path.join(args.out_dir, pid, "Srf", pid)
+    fault_logger.debug("Using prefix: {}".format(prefix))
     if args.uncertainty_file:
+        fault_logger.debug(
+            "Uncertainty file found. Generating perturbated realisations"
+        )
         with open(args.uncertainty_file) as ao_f:
             add_opts = yaml.load(ao_f)
         create_ps2ff_realisation(
@@ -114,6 +148,7 @@ def run_create_psff_srf(args, t, n_sims):
             seed=args.seed,
             genslip_version=args.genslip_version,
             silent=True,
+            logger=fault_logger,
         )
         srf_file = os.path.join(args.out_dir, pid, "Srf", "{}_REL01.srf".format(pid))
         shypo, dhypo = focal_mechanism_2_finite_fault(
@@ -134,6 +169,7 @@ def run_create_psff_srf(args, t, n_sims):
             dhypo=dhypo,
             file_name=os.path.join(args.out_dir, pid, pid),
             mwsr=args.mwsr,
+            logger=fault_logger,
         )
     else:
         stoch = os.path.join(args.out_dir, pid, "Stoch")
@@ -151,13 +187,16 @@ def run_create_psff_srf(args, t, n_sims):
             stoch=stoch,
             genslip_version=args.genslip_version,
             mwsr=args.mwsr,
+            logger=fault_logger,
         )
     if args.plot:
+        fault_logger.debug("Plotting srf map")
         call(["plot_srf_map.py", "%s.srf" % (prefix)])
 
 
 def main():
     # load parameters
+    logger = qclogging.get_logger("gcmt2srf")
     parser = ArgumentParser(add_help=False)
     parser.add_argument("csv_file", help="path to CMT solutions CSV")
     parser.add_argument("velocity_model", help="path to 1D velocity model")
@@ -218,18 +257,33 @@ def main():
         )
 
     # validate parameters
+    args.out_dir = os.path.abspath(args.out_dir)
+    os.makedirs(args.out_dir)
+    qclogging.add_general_file_handler(
+        logger, os.path.join(args.out_dir, "gcmt2srf_log.txt")
+    )
+
+    error_messages = []
     if not os.path.exists(args.csv_file):
-        sys.exit("CMT solutions CSV file not found: %s" % (args.csv_file))
+        error_messages.append(
+            "CMT solutions CSV file not found: {}".format(args.csv_file)
+        )
+
     if not os.path.exists(args.velocity_model):
-        sys.exit("Velocity model file not found: %s" % (args.velocity_model))
-    all_opts = bool(args.uncertainty_file) and bool(args.cs_file)
-    any_opts = bool(args.uncertainty_file) or bool(args.cs_file)
+        error_messages.append(
+            "Velocity model file not found: {}".format(args.velocity_model)
+        )
+    all_opts = all((args.uncertainty_file, args.cs_file))
+    any_opts = any((args.uncertainty_file, args.cs_file))
     if any_opts and not all_opts:
-        parser.error(
+        error_messages.append(
             "If realisation uncertainty or a cybershake fault file is given then the other must be given also."
         )
-        exit(1)
 
+    if len(error_messages) > 0:
+        for message in error_messages:
+            logger.log(qclogging.NOPRINTERROR, message)
+        parser.error("\n".join(error_messages))
     # load CMT CSV
     sources = np.rec.array(
         np.loadtxt(
@@ -249,6 +303,7 @@ def main():
             usecols=(0, 2, 3, 13, 11, 4, 5, 6),
         )
     )
+    logger.debug("Loaded {} sources".format(len(sources)))
 
     if all_opts:
         # Sort the array by pid to match the pandas array
@@ -296,6 +351,9 @@ def main():
         sources = np.sort(sources, order="pid")
         n_sims = list(cs_file_pd.sort_values("pid")["N_Rels"])
     else:
+        logger.debug(
+            "No cybershake file given, creating one realisation for each source"
+        )
         n_sims = np.ones(len(sources))
 
     if args.type == 1:
@@ -316,10 +374,21 @@ def main():
         rho = vmodel.rho[depth_bins]
 
         source_gen_function = run_create_ps_srf
-        messages = list(zip([args] * len(sources), sources, vs, rho, n_sims))
+        messages = list(
+            zip(
+                [args] * len(sources),
+                sources,
+                vs,
+                rho,
+                n_sims,
+                [logger.name] * len(sources),
+            )
+        )
     elif args.type == 2:
         source_gen_function = run_create_psff_srf
-        messages = list(zip([args] * len(sources), sources, n_sims))
+        messages = list(
+            zip([args] * len(sources), sources, n_sims, [logger.name] * len(sources))
+        )
     else:
         source_gen_function = lambda: 0
         messages = []

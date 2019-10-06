@@ -7,15 +7,18 @@ PYTHONPATH contains createSRF and qcore
 
 import math
 import os
+from logging import Logger
+from multiprocessing.pool import Pool
 from subprocess import call
 import sys
 from time import time
+import logging
 
 import numpy as np
 
+from qcore import geo, simulation_structure, qclogging
 
 from createSRF import leonard, skarlatoudis, CreateSRF_multi, gen_meta
-from qcore import geo, simulation_structure
 
 MAGNITUDE_ROUNDING_THRESHOLD = 7.5
 
@@ -43,15 +46,19 @@ def rand_shyp_dhyp(length=1.0, width=1.0):
 ### PREPARE TASKS
 ###
 # most work is trivial, only need to run CreateSRF_multi parallel
-def load_msgs(args, fault_names, faults):
+def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_logger()):
     # adjust outputs
     out_gmt = os.path.join(args.out_dir, "fault_traces.gmt")
     out_log = os.path.join(args.out_dir, "logfile.txt")
     # prepare file system
     if not os.path.isdir(args.out_dir):
+        logger.debug("Making out_dir: {}".format(args.out_dir))
         os.makedirs(args.out_dir)
+        qclogging.remove_buffer_handler(logger)
     if os.path.exists(out_gmt):
+        logger.debug("Removing GMT directory: {}".format(out_gmt))
         os.remove(out_gmt)
+    logger.debug("Using {} as the srfgen variable log".format(out_log))
     with open(out_log, "w") as log:
         log.write("filename\tshyp\tdhyp\tseed\n")
 
@@ -62,6 +69,10 @@ def load_msgs(args, fault_names, faults):
     dbl = len(db)
 
     # compile messages (parameters for CreateSRF_multi)
+    if fault_names is None:
+
+        return []
+
     msgs = []
     while dbi < dbl:
         name = db[dbi]
@@ -70,9 +81,14 @@ def load_msgs(args, fault_names, faults):
         n_pt = int(db[dbi + 11])
         skip = 13 + n_pt
         # skip if not wanted
-        if fault_names != None and name not in fault_names:
+        if name not in fault_names:
+            logging.log(
+                logging.DEBUG // 2,
+                "{} not in the list of fault names, continuing".format(name),
+            )
             dbi += skip
             continue
+        logger.debug("Found {}, procceding to add to messages".format(name))
 
         # load trace
         pts = [list(map(float, ll.split())) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
@@ -119,9 +135,10 @@ def load_msgs(args, fault_names, faults):
                 strikes.append((bearing + 180) % 360)
                 stk_rev += 1
         if stk_norm and stk_rev:
-            print(
-                "WARNING: FAULT GOES BACK "
-                "IN REVERSE OF ORIGINAL DIRECTION: %s" % (name)
+            logger.critical(
+                "WARNING: FAULT GOES BACK IN REVERSE OF ORIGINAL DIRECTION: {}".format(
+                    name
+                )
             )
         # assuming no reverse angles and ordering in one direction
         if stk_rev:
@@ -135,7 +152,7 @@ def load_msgs(args, fault_names, faults):
         n_hypo = args.nhypo
         n_slip = args.nslip
         dhypos = args.dhypo
-        if faults != None:
+        if faults is not None:
             fault = faults[fault_names.index(name)]
             if len(fault) >= 2:
                 # given as hypocentre every x km
@@ -148,22 +165,40 @@ def load_msgs(args, fault_names, faults):
                         z_hypo = trace_length / 2.0
                     else:
                         z_hypo = (trace_length % hyp_step) / 2.0
+                    logger.debug(
+                        "Fault found in fault selection file, making {} realisations with equally spaced hypocenters".format(
+                            hyp_step
+                        )
+                    )
 
                 # given as number of randomly placed hypocentres
                 elif fault[1][-1] == "r":
                     t_hypo = "r"
                     n_hypo = int(fault[1][:-1])
+                    logger.debug(
+                        "Fault found in fault selection file. Making {} realisations with randomised parameters".format(
+                            n_hypo
+                        )
+                    )
 
                 # given as number of hypocentres
                 else:
                     n_hypo = int(fault[1])
+                    logger.debug(
+                        "Fault found in fault selection file. Making {} realisations".format(
+                            n_hypo
+                        )
+                    )
 
             if len(fault) >= 3:
                 n_slip = int(fault[2])
+                logger.debug("n_slip set to {}".format(n_slip))
             if len(fault) >= 4:
                 dhypos = list(map(float, fault[3].split(",")))
+                logger.debug("dhypos set to {}".format(dhypos))
         if t_hypo == "n":
             hyp_step = trace_length / (n_hypo * 2.0)
+            logger.debug("hyp_step set to {}".format(hyp_step))
         seed = args.seed
 
         # fixed values
@@ -201,8 +236,14 @@ def load_msgs(args, fault_names, faults):
             fwid.append([round_subfault_size(f, mag) for f in segment])
 
         if tect_type == "SUBDUCTION_INTERFACE":
+            logger.debug(
+                "Subduction interface tectonic type, using Skarlatoudis formula to determine magnitude"
+            )
             mag = [skarlatoudis(fwid[0][0] * trace_length)]
         else:
+            logger.debug(
+                "Non subduction interface tectonic type, using Leonard formula to determine magnitude"
+            )
             mag = [leonard(rake[0][0], fwid[0][0] * trace_length)]
         dwid = dlen
         stk = [strikes]
@@ -217,6 +258,7 @@ def load_msgs(args, fault_names, faults):
                 shyp_shift = z_hypo + hyp_step * n_shyp
             elif t_hypo == "r":
                 shyp_shift, dhyp_shift = rand_shyp_dhyp(trace_length, fwid[0][0])
+            logger.debug("shyp_shift set to: {}".format(shyp_shift))
             # NOTE: this shypo is relative to the first combined fault
             # if not adjusted later, must be relative to full length
             shypo = [[shyp_shift - (lengths[0] / 2.0)]]
@@ -235,36 +277,38 @@ def load_msgs(args, fault_names, faults):
                     )[:-4]
                     # create SRF from description
                     msgs.append(
-                        {
-                            "nseg": nseg,
-                            "seg_delay": seg_delay,
-                            "mag": mag,
-                            "mom": mom,
-                            "rvfac_seg": rvfac_seg,
-                            "gwid": gwid,
-                            "rup_delay": rup_delay,
-                            "flen": flen,
-                            "dlen": dlen,
-                            "fwid": fwid,
-                            "dwid": dwid,
-                            "dtop": dtop,
-                            "stk": stk,
-                            "rake": rake,
-                            "dip": dip,
-                            "elon": elon,
-                            "elat": elat,
-                            "shypo": shypo,
-                            "dhypo": dhypo,
-                            "dt": dt,
-                            "seed": seed,
-                            "prefix": prefix,
-                            "cases": cases,
-                            "dip_dir": dip_dir,
-                            "stoch": "%s/%s/Stoch" % (args.out_dir, name),
-                            "name": name,
-                            "tect_type": tect_type,
-                            "plot": args.plot,
-                        }
+                        (
+                            {
+                                "nseg": nseg,
+                                "seg_delay": seg_delay,
+                                "mag": mag,
+                                "mom": mom,
+                                "rvfac_seg": rvfac_seg,
+                                "gwid": gwid,
+                                "rup_delay": rup_delay,
+                                "flen": flen,
+                                "dlen": dlen,
+                                "fwid": fwid,
+                                "dwid": dwid,
+                                "dtop": dtop,
+                                "stk": stk,
+                                "rake": rake,
+                                "dip": dip,
+                                "elon": elon,
+                                "elat": elat,
+                                "shypo": shypo,
+                                "dhypo": dhypo,
+                                "dt": dt,
+                                "seed": seed,
+                                "prefix": prefix,
+                                "cases": cases,
+                                "dip_dir": dip_dir,
+                                "stoch": "%s/%s/Stoch" % (args.out_dir, name),
+                                "name": name,
+                                "tect_type": tect_type,
+                                "plot": args.plot,
+                            },
+                        )
                     )
                     # store parameters
                     with open(out_log, "a") as log:
@@ -272,6 +316,9 @@ def load_msgs(args, fault_names, faults):
                             "%s.srf\t%s\t%s\t%s\n"
                             % (prefix, shypo[0][0], dhypo[0][0], seed)
                         )
+        # Initialise the logger so each process can get the local copy
+        f_logger = qclogging.get_realisation_logger(logger, name)
+        f_logger.propagate = False
 
         # store fault traces
         with open(out_gmt, "a") as traces:
@@ -281,7 +328,7 @@ def load_msgs(args, fault_names, faults):
 
         # move to next fault definition
         dbi += skip
-
+    logger.debug("{} messages collected".format(len(msgs)))
     return msgs
 
 
@@ -293,9 +340,10 @@ def round_subfault_size(dist, mag):
 
 
 def run_create_srf(fault):
+    logger = qclogging.get_logger(fault["name"])
     t0 = time()
     #    sys.stdout = open(str(os.getpid())+".out","w")
-    print("creating SRF: %s" % (fault["name"]))
+    logger.info("Creating SRF: {}".format(fault["name"]))
     # all of the work, rest of the script is complete under 1 second
     CreateSRF_multi(
         fault["nseg"],
@@ -325,14 +373,15 @@ def run_create_srf(fault):
         stoch=fault["stoch"],
         tect_type=fault["tect_type"],
         silent=True,
+        logger=logger,
     )
-    print("created SRF: %s (%.2fs)" % (fault["name"], time() - t0))
+    logger.debug("created SRF: {} ({:.2f}s)".format(fault["name"], time() - t0))
     if fault["plot"]:
         t0 = time()
-        print("plotting SRF: %s" % (fault["name"]))
-        call(["plot_srf_square.py", "%s.srf" % (fault["prefix"])])
-        call(["plot_srf_map.py", "%s.srf" % (fault["prefix"])])
-        print("plotted SRF: %s (%.2fs)" % (fault["name"], time() - t0))
+        logger.info("plotting SRF: {}".format(fault["name"]))
+        call(["plot_srf_square.py", "{}.srf".format(fault["prefix"])])
+        call(["plot_srf_map.py", "{}.srf".format(fault["prefix"])])
+        logger.info("plotted SRF: {} (:.2fs)".format(fault["name"], time() - t0))
     srf_file = os.path.join(
         args.out_dir, fault["name"], "Srf", "{}_REL01.srf".format(fault["name"])
     )
@@ -354,6 +403,7 @@ def run_create_srf(fault):
         dhypo=[d[0] for d in fault["dhypo"]],
         tect_type=fault["tect_type"],
         file_name=os.path.join(args.out_dir, fault["name"], fault["name"]),
+        logger=logger,
     )
 
 
@@ -362,8 +412,8 @@ def run_create_srf(fault):
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
-    from multiprocessing import Pool
 
+    logger = qclogging.get_logger("nhm2srf")
     # parameters
     parser = ArgumentParser()
     arg = parser.add_argument
@@ -393,30 +443,39 @@ if __name__ == "__main__":
     arg("-p", "--plot", help="plot results", action="store_true")
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
+    if os.path.isdir(args.out_dir):
+        qclogging.add_general_file_handler(logger, os.path.join("nhm2srf_log.txt"))
+    else:
+        qclogging.add_buffer_handler(logger, file_name=os.path.join("nhm2srf_log.txt"))
+
     # selection file or ALL
     if args.selection_file == "ALL":
         faults = None
         fault_names = None
+        logger.debug("Creating realisations for all faults")
     elif not os.path.exists(args.selection_file):
-        print("Fault selecion file not found: %s" % (args.selection_file))
+        logger.error("Fault selecion file not found: {}".format(args.selection_file))
         sys.exit(1)
     else:
         with open(args.selection_file, "r") as select:
             faults = list(map(str.split, select.readlines()))
         fault_names = [f[0] for f in faults]
+        logger.debug(
+            "Creating realisations for the following faults: {}".format(
+                ", ".join(fault_names)
+            )
+        )
     # default value
     if args.dhypo is None:
         args.dhypo = [0.6]
+        logger.debug("dhypo not set, using {}".format(args.dhypo))
 
     # load wanted fault information
-    msg_list = load_msgs(args, fault_names, faults)
+    msg_list = load_msgs(args, fault_names, faults, logger=logger)
     if len(msg_list) == 0:
-        print("No matches found.")
+        logger.info("No matches found in the NHM file, exiting.")
         sys.exit(1)
 
     # distribute work
     p = Pool(args.nproc)
-    p.map(run_create_srf, msg_list)
-
-    # debug friendly alternative
-    # [run_create_srf(msg) for msg in msg_list]
+    p.starmap(run_create_srf, msg_list)
