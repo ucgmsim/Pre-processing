@@ -12,7 +12,7 @@ from qcore import geo
 
 PLOT = True
 
-this_file_path = os.path.dirname(os.path.abspath(__file__))
+this_file_path= os.path.dirname(os.path.abspath(__file__))
 NHM_FILE = os.path.join(this_file_path,'NZ_FLTmodel_2010.txt')
 NHM_START = 15
 GMT_FILE = 'fault_traces.gmt'
@@ -69,7 +69,7 @@ def load_msgs(fault_names, faults, out):
             continue
 
         # load trace
-        pts = [map(float, ll.split()) for ll in db[dbi + 12 : dbi + 12 + n_pt]]
+        pts = [map(float, ll.split()) for ll in db[dbi + 12: dbi + 12 + n_pt]]
         # clean points (remove duplicates)
         for i in xrange(n_pt - 2, -1, -1):
             if geo.ll_dist(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]) \
@@ -244,7 +244,7 @@ if rank == MASTER:
         else:
             out = os.path.abspath('autosrf')
 
-
+    
         # load wanted fault information
         msg_list = load_msgs(fault_names, faults, out)
 
@@ -254,7 +254,7 @@ if rank == MASTER:
             sys.exit(1)
 
         status = MPI.Status()
-        #         # distribute work to slaves who ask
+#         # distribute work to slaves who ask
         nproc = size - 1
 
         while nproc:
@@ -269,7 +269,7 @@ if rank == MASTER:
 
             # next job
             msg = msg_list[0]
-            del (msg_list[0])
+            del(msg_list[0])
             comm.send(obj=msg, dest=slave_id)
 
         # gather, reports aren't used
@@ -289,9 +289,9 @@ else:
             details = run_create_srf(task)
         except Exception as e:
            print('FAILED TASK: %s' % (task['name'])),
-            print(e)
+           print(e)
 
-            continue
+           continue
         # store
         logbook.append(details)
 
