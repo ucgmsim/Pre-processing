@@ -8,10 +8,9 @@ from os.path import abspath, isfile, dirname, join
 from typing import Callable, Union
 
 import pandas as pd
-import yaml
 
 from qcore.formats import load_fault_selection_file
-from qcore.simulation_structure import get_realisation_name, get_srf_path
+from qcore.simulation_structure import get_realisation_name, get_srf_path, get_fault_VM_dir
 from qcore.qclogging import (
     get_logger,
     add_general_file_handler,
@@ -33,19 +32,14 @@ def load_args(primary_logger: Logger):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("version", type=str)
-    parser.add_argument("fault_selection_file")
-    parser.add_argument("gcmt_file")
+    parser.add_argument("fault_selection_file", type=abspath)
+    parser.add_argument("gcmt_file", type=abspath)
+    parser.add_argument("--vel_mod_1d", type=abspath)
     parser.add_argument("-n", "--n_processes", default=1)
-    parser.add_argument("-c", "--cybershake_root", type=str, default=".")
-    parser.add_argument("-a", "--aggregate_file", type=str)
+    parser.add_argument("-c", "--cybershake_root", type=abspath, default=".")
+    parser.add_argument("-a", "--aggregate_file", type=abspath)
 
     args = parser.parse_args()
-
-    args.fault_selection_file = abspath(args.fault_selection_file)
-    args.gcmt_file = abspath(args.gcmt_file)
-    args.cybershake_root = abspath(args.cybershake_root)
-    if args.aggregate_file is not None:
-        args.aggregate_file = abspath(args.aggregate_file)
 
     errors = []
 
@@ -56,6 +50,10 @@ def load_args(primary_logger: Logger):
     if args.aggregate_file is not None and isfile(args.aggregate_file):
         errors.append(
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
+        )
+    if args.vel_mod_1d is not None and not isfile(args.vel_mod_1d):
+        errors.append(
+            f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
         )
 
     if errors:
@@ -75,17 +73,31 @@ def load_args(primary_logger: Logger):
     return args
 
 
+def save_velocity_model(perturbed_realisation: pd.DataFrame, vel_mod_1d_dir, realisation_name):
+    file_name = join(vel_mod_1d_dir, f"{realisation_name}.v1d")
+    with open(file_name, 'w') as v1d:
+        v1d.write(f"{len(perturbed_realisation)}\n")
+        for line in perturbed_realisation.itertuples():
+            v1d.write(f"{line.depth} {line.vp} {line.vs} {line.rho} {line.qp} {line.qs}\n")
+
+
 def generate_uncertainties(
     data: GCMT_Source,
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
     aggregate_file: Union[str, None],
+    vel_mod_1d: pd.DataFrame,
     primary_logger_name: str,
 ):
     primary_logger = get_logger(name=primary_logger_name)
     fault_logger = get_realisation_logger(primary_logger, data.pid)
     fault_logger.debug(f"Fault {data.pid} had data {data}")
+
+    vel_mod_1d_dir = None
+    if vel_mod_1d is not None:
+        vel_mod_1d_dir = get_fault_VM_dir(cybershake_root, data.pid)
+
     for i in range(realisation_count):
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {data.pid}"
@@ -93,9 +105,12 @@ def generate_uncertainties(
         rel_name = get_realisation_name(data.pid, i)
 
         fault_logger.debug("Calling perturbation function.")
-        perturbed_realisation = perturbation_function(data)
+        perturbed_realisation = perturbation_function(data, vel_mod_1d)
+
+        perturbed_srf_gen_params = perturbed_realisation["srf_gen_params"]
+
         fault_logger.debug(
-            f"Got results from perturbation_function: {perturbed_realisation}"
+            f"Got results from perturbation_function: {perturbed_srf_gen_params}"
         )
 
         file_name = get_srf_path(cybershake_root, rel_name).replace(".srf", ".csv")
@@ -103,10 +118,9 @@ def generate_uncertainties(
         fault_logger.debug(
             f"Created Srf directory and attempting to save perturbated source generation parameters there: {file_name}"
         )
-        rel_df = pd.DataFrame(perturbed_realisation, index=[i])
 
-        with open(file_name, "w") as params_file:
-            rel_df.to_csv(file_name)
+        rel_df = pd.DataFrame(perturbed_srf_gen_params, index=[i])
+        rel_df.to_csv(file_name)
 
         if aggregate_file is not None:
             if not isfile(aggregate_file):
@@ -114,9 +128,23 @@ def generate_uncertainties(
             else:
                 rel_df.to_csv(aggregate_file, mode="a", header=False)
 
+        if vel_mod_1d is not None and vel_mod_1d_dir is not None:
+            perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
+            save_velocity_model(perturbed_vel_mod_1d, vel_mod_1d_dir, rel_name)
+
         fault_logger.debug(
             f"Parameters saved succesfully. Continuing to next realisation if one exists."
         )
+
+
+def load_1d_vel_mod(vel_mod_1d):
+    return pd.read_csv(
+        vel_mod_1d,
+        delim_whitespace=True,
+        header=None,
+        skiprows=1,
+        names=["depth", "vp", "vs", "rho", "qp", "qs"],
+    )
 
 
 def main():
@@ -180,17 +208,24 @@ def main():
         f"All {len(gcmt_lines)} faults specified in the fault selection file were found"
     )
 
-    messages = [
-        (
-            GCMT_Source(*gcmt_lines[i]),
-            faults[gcmt_lines[i][0]],
+    vel_mod_1d = None
+    if args.vel_mod_1d is not None:
+        vel_mod_1d = load_1d_vel_mod(args.vel_mod_1d)
+
+    def generate_uncertainties_with_constants(
+            gcmt_data: GCMT_Source,
+    ):
+        generate_uncertainties(
+            gcmt_data,
+            faults[gcmt_data.pid],
             args.cybershake_root,
             perturbation_function,
             args.aggregate_file,
+            vel_mod_1d,
             primary_logger.name,
         )
-        for i in range(len(faults))
-    ]
+
+    messages = [GCMT_Source(*line) for line in gcmt_lines]
 
     if len(messages) < args.n_processes:
         n_processes = len(messages)
@@ -206,7 +241,7 @@ def main():
     )
 
     worker_pool = pool.Pool(processes=n_processes)
-    worker_pool.starmap(generate_uncertainties, messages)
+    worker_pool.map(generate_uncertainties_with_constants, messages)
 
 
 if __name__ == "__main__":

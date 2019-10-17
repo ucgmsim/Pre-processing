@@ -1,6 +1,7 @@
 """The template for future perturbation versions.
 Update this docstring with information about the version"""
 import numpy as np
+import pandas as pd
 from typing import Any, Dict, Union
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -15,8 +16,14 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
 )
 
 
+def verify_1d_vel_mod(vel_mod_1d: pd.DataFrame):
+    for line in vel_mod_1d.itertuples():
+        assert line._fields == ('depth', 'vp', 'vs', 'rho', 'qp', 'qs')
+
+
 def generate_source_params(
-    source_data: Union[GCMT_Source, NHM_Source]
+    source_data: Union[GCMT_Source, NHM_Source],
+    vel_mod_1d: pd.DataFrame = None,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
       - source_data.pid: name of the event
@@ -38,10 +45,23 @@ def generate_source_params(
     else:
         raise ValueError("Not a valid type")
 
+    if vel_mod_1d is not None:
+        pass
+        # Perturbate vel_mod_1d
+
     ### End of custom code area
 
     verify_params(params)
-    return params
+    if vel_mod_1d is not None:
+        verify_1d_vel_mod(vel_mod_1d)
+
+    return_dict = {
+        "srf_gen_params": params,
+    }
+    if vel_mod_1d is not None:
+        return_dict["vel_mod_1d"] = vel_mod_1d
+
+    return return_dict
 
 
 def generate_from_gcmt(sources_line: GCMT_Source):

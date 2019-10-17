@@ -740,8 +740,9 @@ def plot_vm(
         )
 
 
-def create_vm(args, srf_meta, logger: Logger = qclogging.get_basic_logger()):
+def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     # temp directory for current process
+    logger = qclogging.get_realisation_logger(qclogging.get_logger(logger_name), args.name)
     ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
 
     # properties stored in classes (fault of external code)
@@ -1030,7 +1031,7 @@ def load_msgs_nhm(args, logger: Logger = qclogging.get_basic_logger()):
                     "mag": mag,
                     "hdepth": dtop + 0.5 * (dbottom - dtop),
                 },
-                qclogging.get_realisation_logger(logger, n),
+                logger.name,
             )
         )
 

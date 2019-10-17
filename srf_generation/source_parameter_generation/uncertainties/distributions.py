@@ -10,7 +10,7 @@ def relative_uniform(mean, scale_factor):
     return uniform(mean * (1 - scale_factor), mean * (1 + scale_factor))
 
 
-def uniform(mean, half_range):
+def uniform_halfrange(mean, half_range):
     return uniform(mean - half_range, mean + half_range)
 
 

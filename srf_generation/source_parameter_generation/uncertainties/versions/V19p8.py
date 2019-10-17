@@ -10,7 +10,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 from srf_generation.source_parameter_generation.uncertainties.distributions import (
     truncated_normal,
     truncated_log_normal,
-    uniform_distribution,
+    uniform_halfrange,
 )
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mw_2_a_scaling_relation,
@@ -20,7 +20,8 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
 
 
 def generate_source_params(
-    sources_line: Union[GCMT_Source, NHM_Source]
+    sources_line: Union[GCMT_Source, NHM_Source],
+    **kwargs,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
       - source_data.pid: name of the event
@@ -52,7 +53,7 @@ def generate_source_params(
         "fwid": float(np.sqrt(area)),
         "flen": float(np.sqrt(area)),
         "sdrop": float(truncated_log_normal(mean=50, std_dev=0.3, std_dev_limit=2)),
-        "risetime": float(uniform_distribution(mean=0.8, half_range=0.075)),
+        "risetime": float(uniform_halfrange(mean=0.8, half_range=0.075)),
     }
 
     verify_params(params)
