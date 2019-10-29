@@ -1,4 +1,4 @@
-from random import uniform
+import random
 
 import numpy as np
 from scipy.stats import truncnorm
@@ -7,11 +7,11 @@ from scipy.stats import truncnorm
 def relative_uniform(mean, scale_factor):
     """Returns a value from a uniform distribution where the min and max
     are scaled relative to the middle value given as the mean"""
-    return uniform(mean * (1 - scale_factor), mean * (1 + scale_factor))
+    return random.uniform(mean * (1 - scale_factor), mean * (1 + scale_factor))
 
 
 def uniform(mean, half_range):
-    return uniform(mean - half_range, mean + half_range)
+    return random.uniform(mean - half_range, mean + half_range)
 
 
 def truncated_normal(mean, std_dev, std_dev_limit=2):
