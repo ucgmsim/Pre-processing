@@ -246,7 +246,7 @@ def load_args():
 def main():
     args = load_args()
     rel_df: pd.DataFrame = pd.read_csv(args.srfgenparams_file)
-    realisation = rel_df.to_dict()
+    realisation = rel_df.to_dict(orient='records')[0]
     if realisation["type"] == 1:
         create_ps_srf(cs_root=args.cybershake_root, **realisation)
 

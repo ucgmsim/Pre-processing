@@ -11,7 +11,7 @@ from srf_generation.input_file_generation.srfgenparams_to_srf import create_ps_s
 
 def process_srfgenparams_file(cybershake_root, srfgenparams_file):
     rel_df: pd.DataFrame = pd.read_csv(srfgenparams_file)
-    realisation = rel_df.to_dict()
+    realisation = rel_df.to_dict(orient='records')[0]
     if realisation["type"] == 1:
         create_ps_srf(cs_root=cybershake_root, **realisation)
 
