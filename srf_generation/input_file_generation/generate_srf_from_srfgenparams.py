@@ -18,7 +18,7 @@ def process_srfgenparams_file(cybershake_root, srfgenparams_file):
 
 def load_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("cybershake_root", type=path.abspath, default=path.abspath(""))
+    parser.add_argument("cybershake_root", type=path.abspath)
     parser.add_argument("-n", "--n_processes", default=1, type=int)
     return parser.parse_args()
 
@@ -30,7 +30,15 @@ def main():
     srfgenparams_files = glob.glob(srfgenparams_path)
 
     worker_pool = Pool(args.n_processes)
+
+    def wrapped_processing_function(filename):
+        process_srfgenparams_file(args.cybershake_root, filename)
+
     worker_pool.map(
-        lambda filename: process_srfgenparams_file(args.cybershake_root, filename),
+        wrapped_processing_function,
         srfgenparams_files
     )
+
+
+if __name__ == '__main__':
+    main()
