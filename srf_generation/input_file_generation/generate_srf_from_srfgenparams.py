@@ -31,12 +31,9 @@ def main():
 
     worker_pool = Pool(args.n_processes)
 
-    def wrapped_processing_function(filename):
-        process_srfgenparams_file(args.cybershake_root, filename)
-
-    worker_pool.map(
-        wrapped_processing_function,
-        srfgenparams_files
+    worker_pool.starmap(
+        process_srfgenparams_file,
+        [(args.cybershake_root, filename) for filename in srfgenparams_files],
     )
 
 
