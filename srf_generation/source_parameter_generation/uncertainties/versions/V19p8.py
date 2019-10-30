@@ -52,7 +52,7 @@ def generate_source_params(
         "fwid": float(np.sqrt(area)),
         "flen": float(np.sqrt(area)),
         "sdrop": float(truncated_log_normal(mean=50, std_dev=0.3, std_dev_limit=2)),
-        "risetime": float(uniform_distribution(mean=0.8, half_range=0.075)),
+        "risetime": float(uniform(mean=0.8, half_range=0.075)),
     }
 
     verify_params(params)
