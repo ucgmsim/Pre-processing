@@ -3,9 +3,8 @@ from subprocess import call, PIPE
 from h5py import File as h5open
 import numpy as np
 from os import makedirs, path
-from os.path import abspath, dirname, basename
 import pandas as pd
-from qcore import binary_version, srf, geo
+from qcore import binary_version, srf, geo, simulation_structure
 
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
 
@@ -129,16 +128,17 @@ def gen_meta(
 
 
 def create_ps_srf(
-    lat,
-    lon,
+    name,
+    latitude,
+    longitude,
     depth,
     magnitude,
     strike,
     rake,
     dip,
-    moment = 0,
+    cs_root,
+    moment=0,
     dt=0.005,
-    prefix="source",
     stoch=None,
     vs=3.20,
     rho=2.44,
@@ -168,11 +168,9 @@ def create_ps_srf(
     ###
     ### file names
     ###
-    if prefix[-1] == "_":
-        prefix = "%s_%s" % (prefix, ("m%f" % (magnitude)).replace(".", "pt"))
-    gsf_file = "%s.gsf" % (prefix)
-    srf_file = "%s.srf" % (prefix)
-    makedirs(dirname(srf_file), exist_ok=True)
+    srf_file = simulation_structure.get_srf_path(cs_root, name)
+    gsf_file = srf_file.replace(".srf", ".gsf")
+    makedirs(path.dirname(srf_file), exist_ok=True)
 
     ###
     ### create GSF
@@ -185,7 +183,7 @@ def create_ps_srf(
         )
         gsfp.write("1\n")
         gsfp.write(
-            f"{lon:11.5f} {lat:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} "
+            f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} "
             f"{strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2} {init_time:8.3f}    0\n"
         )
 
@@ -213,9 +211,8 @@ def create_ps_srf(
     ###
     ### save STOCH
     ###
-    if stoch is not None:
-        stoch_file = f"{stoch}/{basename(prefix)}.stoch"
-        gen_stoch(stoch_file, srf_file)
+    stoch_file = simulation_structure.get_stoch_path(cs_root, name)
+    gen_stoch(stoch_file, srf_file)
 
     ###
     ### save INFO
@@ -229,8 +226,8 @@ def create_ps_srf(
         vs=vs,
         rho=rho,
         centroid_depth=depth,
-        lon=lon,
-        lat=lat,
+        lon=longitude,
+        lat=latitude,
     )
 
     # location of resulting SRF file
@@ -239,8 +236,10 @@ def create_ps_srf(
 
 def load_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("srfgenparams_file", type=abspath)
-    parser.add_argument("-c", "--cybershake_root", type=abspath, default=abspath("."))
+    parser.add_argument("srfgenparams_file", type=path.abspath)
+    parser.add_argument(
+        "-c", "--cybershake_root", type=path.abspath, default=path.abspath(".")
+    )
     return parser.parse_args()
 
 
@@ -249,7 +248,7 @@ def main():
     rel_df: pd.DataFrame = pd.read_csv(args.srfgenparams_file)
     realisation = rel_df.to_dict()
     if realisation["type"] == 1:
-        create_ps_srf(**realisation)
+        create_ps_srf(cs_root=args.cybershake_root, **realisation)
 
 
 if __name__ == "__main__":

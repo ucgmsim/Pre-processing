@@ -86,7 +86,7 @@ def generate_uncertainties(
     primary_logger = get_logger(name=primary_logger_name)
     fault_logger = get_realisation_logger(primary_logger, data.pid)
     fault_logger.debug(f"Fault {data.pid} had data {data}")
-    for i in range(realisation_count):
+    for i in range(1, realisation_count + 1):
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {data.pid}"
         )
@@ -97,6 +97,7 @@ def generate_uncertainties(
         fault_logger.debug(
             f"Got results from perturbation_function: {perturbed_realisation}"
         )
+        perturbed_realisation["name"] = rel_name
 
         file_name = get_srf_path(cybershake_root, rel_name).replace(".srf", ".csv")
         makedirs(dirname(file_name), exist_ok=True)
