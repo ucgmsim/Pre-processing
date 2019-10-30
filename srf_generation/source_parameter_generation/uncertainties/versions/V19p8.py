@@ -10,7 +10,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 from srf_generation.source_parameter_generation.uncertainties.distributions import (
     truncated_normal,
     truncated_log_normal,
-    uniform_distribution,
+    uniform,
 )
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mw_2_a_scaling_relation,

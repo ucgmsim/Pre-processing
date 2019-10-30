@@ -4,3 +4,4 @@ numpy
 pandas
 PyYAML
 scipy
+setuptools>=40.1.0
