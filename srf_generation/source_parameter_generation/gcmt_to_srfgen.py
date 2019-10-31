@@ -130,7 +130,7 @@ def generate_uncertainties(
         unperturbated_realisation = unperturbated_function(data)
         rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         file_name = join(get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv")
-        rel_df.to_csv(file_name)
+        rel_df.to_csv(file_name, index=False)
 
 
 def main():
