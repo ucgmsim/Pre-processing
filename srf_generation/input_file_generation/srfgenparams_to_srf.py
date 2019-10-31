@@ -285,6 +285,8 @@ def main():
             f"Type {realisation['type']} faults are not currently supported. "
             f"Contact the software team if you believe this is an error."
         )
+    realisation.pop("name", None)
+    realisation.pop("type", None)
     generate_sim_params_yaml(args.cybershake_root, realisation)
 
 

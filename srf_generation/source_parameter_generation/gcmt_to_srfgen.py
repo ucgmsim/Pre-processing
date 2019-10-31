@@ -22,7 +22,6 @@ from qcore.qclogging import (
     get_realisation_logger,
 )
 
-# from SrfGen.source_parameter_generation.uncertainties.versions import PERTURBATORS
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
     GCMT_Source,
@@ -114,7 +113,7 @@ def generate_uncertainties(
         )
         rel_df = pd.DataFrame(perturbed_realisation, index=[i])
 
-        rel_df.to_csv(file_name)
+        rel_df.to_csv(file_name, index=False)
 
         if aggregate_file is not None:
             if not isfile(aggregate_file):
@@ -129,7 +128,7 @@ def generate_uncertainties(
     unperturbated_function = load_perturbation_function(UNPERTURBATED)
     if perturbation_function != unperturbated_function:
         unperturbated_realisation = unperturbated_function(data)
-        rel_df = pd.DataFrame(unperturbated_realisation)
+        rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         file_name = join(get_sources_dir(cybershake_root), f"{fault_name}.csv")
         rel_df.to_csv(file_name)
 

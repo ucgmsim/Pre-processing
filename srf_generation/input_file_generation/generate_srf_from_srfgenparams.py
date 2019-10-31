@@ -15,6 +15,8 @@ def process_srfgenparams_file(cybershake_root, srfgenparams_file):
     realisation = rel_df.to_dict(orient="records")[0]
     if realisation["type"] == 1:
         create_ps_srf(cybershake_root, realisation)
+    realisation.pop("name", None)
+    realisation.pop("type", None)
     generate_sim_params_yaml(cybershake_root, realisation)
 
 
