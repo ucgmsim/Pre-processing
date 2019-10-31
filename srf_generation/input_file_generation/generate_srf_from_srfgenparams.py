@@ -45,6 +45,7 @@ def process_common_srfgenparams_file(cybershake_root, srfgenparams_file):
             file_name=info_filename,
             lon=realisation["longitude"],
             lat=realisation["latitude"],
+            centroid_depth=realisation["depth"],
         )
     else:
         raise ValueError(
