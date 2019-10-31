@@ -7,7 +7,11 @@ import pandas as pd
 
 from qcore import simulation_structure
 
-from srf_generation.input_file_generation.srfgenparams_to_srf import create_ps_srf, generate_sim_params_yaml, create_info_file
+from srf_generation.input_file_generation.srfgenparams_to_srf import (
+    create_ps_srf,
+    generate_sim_params_yaml,
+    create_info_file,
+)
 
 
 def process_srfgenparams_file(cybershake_root, srfgenparams_file):
@@ -26,7 +30,7 @@ def process_common_srfgenparams_file(cybershake_root, srfgenparams_file):
     realisation = rel_df.to_dict(orient="records")[0]
     srf_file = simulation_structure.get_srf_path(
         cybershake_root,
-        simulation_structure.get_realisation_name(realisation["name"], 1)
+        simulation_structure.get_realisation_name(realisation["name"], 1),
     )
     info_filename = srfgenparams_file.replace(".csv", ".info")
     if realisation["type"] == 1:
@@ -71,6 +75,18 @@ def main():
 
     worker_pool.starmap(
         process_srfgenparams_file,
+        [(args.cybershake_root, filename) for filename in srfgenparams_files],
+    )
+
+    srfgenparams_path = path.join(
+        simulation_structure.get_sources_dir(args.cybershake_root), "*", "*.csv"
+    )
+    srfgenparams_files = glob.glob(srfgenparams_path)
+
+    worker_pool = Pool(args.n_processes)
+
+    worker_pool.starmap(
+        process_common_srfgenparams_file,
         [(args.cybershake_root, filename) for filename in srfgenparams_files],
     )
 
