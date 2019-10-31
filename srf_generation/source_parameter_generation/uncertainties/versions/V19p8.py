@@ -34,9 +34,6 @@ def generate_source_params(
     """
 
     magnitude = truncated_normal(mean=sources_line.mag, std_dev=0.05, std_dev_limit=2)
-    area = mw_2_a_scaling_relation(
-        magnitude, MagnitudeScalingRelations.LEONARD2014, sources_line.strike
-    )
 
     params = {
         "type": 1,
@@ -49,8 +46,6 @@ def generate_source_params(
         "strike": sources_line.strike,
         "dip": sources_line.dip,
         "rake": sources_line.rake,
-        "fwid": float(np.sqrt(area)),
-        "flen": float(np.sqrt(area)),
         "sdrop": float(truncated_log_normal(mean=50, std_dev=0.3, std_dev_limit=2)),
         "risetime": float(uniform(mean=0.8, half_range=0.075)),
     }

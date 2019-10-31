@@ -97,14 +97,13 @@ def generate_uncertainties(
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {data.pid}"
         )
-        if perturbation_function.__module__ is not UNPERTURBATED:
-            data.pid = get_realisation_name(fault_name, i)
 
         fault_logger.debug("Calling perturbation function.")
         perturbed_realisation = perturbation_function(data)
         fault_logger.debug(
             f"Got results from perturbation_function: {perturbed_realisation}"
         )
+        perturbed_realisation["name"] = get_realisation_name(fault_name, i)
 
         file_name = get_srf_path(
             cybershake_root, perturbed_realisation["name"]
