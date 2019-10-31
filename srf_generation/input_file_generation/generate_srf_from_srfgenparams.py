@@ -61,7 +61,7 @@ def process_common_srfgenparams_file(cybershake_root, srfgenparams_file):
 
 def load_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("cybershake_root", type=path.abspath)
+    parser.add_argument("--cybershake_root", type=path.abspath, default=path.abspath("."))
     parser.add_argument("-n", "--n_processes", default=1, type=int)
     return parser.parse_args()
 
