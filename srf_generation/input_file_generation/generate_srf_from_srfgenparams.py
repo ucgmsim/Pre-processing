@@ -43,6 +43,8 @@ def process_common_srfgenparams_file(cybershake_root, srfgenparams_file):
             vs=realisation.get("vs", 3.2),
             rho=realisation.get("rho", 2.44),
             file_name=info_filename,
+            lon=realisation["longitude"],
+            lat=realisation["latitude"],
         )
     else:
         raise ValueError(
