@@ -37,7 +37,7 @@ def process_common_srfgenparams_file(cybershake_root, srfgenparams_file):
         create_info_file(
             srf_file=srf_file,
             srf_type=realisation["type"],
-            mag=realisation["mag"],
+            mag=realisation["magnitude"],
             rake=realisation["rake"],
             dt=realisation.get("dt", 0.005),
             vs=realisation.get("vs", 3.2),
