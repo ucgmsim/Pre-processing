@@ -49,7 +49,7 @@ def gen_stoch(stoch_file, srf_file, single_segment=False):
             )
 
 
-def gen_meta(
+def create_info_file(
     srf_file,
     srf_type,
     mag,
@@ -100,8 +100,8 @@ def gen_meta(
         dbottom.append(p["dtop"] + p["width"] * np.sin(np.radians(p["dip"])))
 
     if file_name is None:
-        file_name = path.splitext(srf_file)[0]
-    file_name = f"{file_name}.info"
+        file_name = srf_file.replace(".srf", ".info")
+
     with h5open(file_name, "w") as h:
         a = h.attrs
         # only taken from given parameters
@@ -218,7 +218,7 @@ def create_ps_srf(cs_root: str, parameter_dictionary: Dict[str, Any]):
     ###
     ### save INFO
     ###
-    gen_meta(
+    create_info_file(
         srf_file,
         1,
         magnitude,
@@ -235,10 +235,7 @@ def create_ps_srf(cs_root: str, parameter_dictionary: Dict[str, Any]):
     return srf_file
 
 
-def generate_sim_params_yaml(cybershake_root: str, parameters: Dict[str, Any]):
-    sim_params_file = simulation_structure.get_source_params_path(
-        cybershake_root, parameters["name"]
-    )
+def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
     makedirs(path.dirname(sim_params_file), exist_ok=True)
 
     sim_params = {}
@@ -285,9 +282,10 @@ def main():
             f"Type {realisation['type']} faults are not currently supported. "
             f"Contact the software team if you believe this is an error."
         )
-    realisation.pop("name", None)
-    realisation.pop("type", None)
-    generate_sim_params_yaml(args.cybershake_root, realisation)
+    sim_params_file = simulation_structure.get_source_params_path(
+        args.cybershake_root, realisation["name"]
+    )
+    generate_sim_params_yaml(sim_params_file, realisation)
 
 
 if __name__ == "__main__":
