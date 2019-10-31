@@ -52,23 +52,42 @@ SRFGEN_TYPE_1_PARAMS = [
     "vs",
     "rho",
     "risetime",
-    "rvfac",
-    "rough",
-    "slip_cov",
-    "flen",
-    "dlen",
-    "fwid",
-    "dwid",
-    "dtop",
-    "shypo",
-    "dhypo",
+    "dt",
+    "stype",
+    "inittime",
+    "target_slip_cm",
+    "target_area_km",
 ]
 
-HF_RUN_PARAMS = ["sdrop"]
+HF_RUN_PARAMS = [
+    "sdrop",
+    "t-sec",
+    "rayset",
+    "seed",
+    "duration",
+    "dt",
+    "fmax",
+    "kappa",
+    "qfexp",
+    "rvfac",
+    "rvfac_shallow",
+    "rvfac_deep",
+    "czero",
+    "calpha",
+    "mom",
+    "rupv",
+    "velocity-model",
+    "site-vm-dir",
+    "vs-moho",
+    "fa_sig1",
+    "fa_sig2",
+    "rv_sig1",
+    "hf_path_dur",
+]
 
 LF_RUN_PARAMS = []
 
-BB_RUN_PARAMS = []
+BB_RUN_PARAMS = ["flo", "fmin", "fmidbot", "lfvsref"]
 
 RUN_TIME_PARAMS = HF_RUN_PARAMS + LF_RUN_PARAMS + BB_RUN_PARAMS
 

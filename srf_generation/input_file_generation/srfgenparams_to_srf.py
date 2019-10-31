@@ -1,10 +1,18 @@
 import argparse
 from subprocess import call, PIPE
+from typing import Dict, Any
+
+import yaml
 from h5py import File as h5open
 import numpy as np
 from os import makedirs, path
 import pandas as pd
 from qcore import binary_version, srf, geo, simulation_structure
+from srf_generation.source_parameter_generation.uncertainties.common import (
+    HF_RUN_PARAMS,
+    BB_RUN_PARAMS,
+    LF_RUN_PARAMS,
+)
 
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
 
@@ -93,7 +101,7 @@ def gen_meta(
 
     if file_name is None:
         file_name = path.splitext(srf_file)[0]
-    file_name = "{}.info".format(file_name)
+    file_name = f"{file_name}.info"
     with h5open(file_name, "w") as h:
         a = h.attrs
         # only taken from given parameters
@@ -127,29 +135,26 @@ def gen_meta(
         a["dbottom"] = dbottom
 
 
-def create_ps_srf(
-    name,
-    latitude,
-    longitude,
-    depth,
-    magnitude,
-    strike,
-    rake,
-    dip,
-    cs_root,
-    moment=0,
-    dt=0.005,
-    stoch=None,
-    vs=3.20,
-    rho=2.44,
-    target_area_km=None,
-    target_slip_cm=None,
-    stype="cos",
-    rise_time=0.5,
-    init_time=0.0,
-    silent=False,
-    **kwargs,
-):
+def create_ps_srf(cs_root: str, parameter_dictionary: Dict[str, Any]):
+    name = parameter_dictionary.get("name")
+
+    latitude = parameter_dictionary.pop("latitude")
+    longitude = parameter_dictionary.pop("longitude")
+    depth = parameter_dictionary.pop("depth")
+    magnitude = parameter_dictionary.pop("magnitude")
+    strike = parameter_dictionary.pop("strike")
+    rake = parameter_dictionary.pop("rake")
+    dip = parameter_dictionary.pop("dip")
+    moment = parameter_dictionary.pop("moment", 0)
+    dt = parameter_dictionary.pop("dt", 0.005)
+    vs = parameter_dictionary.pop("vs", 3.20)
+    rho = parameter_dictionary.pop("rho", 2.44)
+    target_area_km = parameter_dictionary.pop("target_area_km", None)
+    target_slip_cm = parameter_dictionary.pop("target_slip_cm", None)
+    stype = parameter_dictionary.pop("stype", "cos")
+    risetime = parameter_dictionary.pop("risetime", 0.5)
+    inittime = parameter_dictionary.pop("inittime", 0.0)
+
     if moment <= 0:
         moment = mag2mom(magnitude)
 
@@ -161,7 +166,7 @@ def create_ps_srf(
         dd = np.sqrt(moment * 1.0e-20) / (target_slip_cm * vs * vs * rho)
         slip = target_slip_cm
     else:
-        aa = np.exp(2.0 * np.log(moment) / 3.0 - 14.7 * np.log(10.0))
+        aa = np.exp(2.0 / 3.0 * np.log(moment) - 14.7 * np.log(10.0))
         dd = np.sqrt(aa)
         slip = (moment * 1.0e-20) / (aa * vs * vs * rho)
 
@@ -184,16 +189,12 @@ def create_ps_srf(
         gsfp.write("1\n")
         gsfp.write(
             f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} "
-            f"{strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2} {init_time:8.3f}    0\n"
+            f"{strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2} {inittime:8.3f}    0\n"
         )
 
     ###
     ### create SRF
     ###
-    if silent:
-        stderr = PIPE
-    else:
-        stderr = None
     commands = [
         binary_version.get_unversioned_bin(GENERICSLIP2SRF),
         f"infile={gsf_file}",
@@ -202,11 +203,11 @@ def create_ps_srf(
         f"stype={stype}",
         f"dt={dt}",
         "plane_header=1",
-        f"risetime={rise_time}",
+        f"risetime={risetime}",
         "risetimefac=1.0",
         "risetimedep=0.0",
     ]
-    call(commands, stderr=stderr)
+    call(commands, stderr=PIPE)
 
     ###
     ### save STOCH
@@ -234,6 +235,36 @@ def create_ps_srf(
     return srf_file
 
 
+def generate_sim_params_yaml(cybershake_root: str, parameters: Dict[str, Any]):
+    sim_params_file = simulation_structure.get_source_params_path(
+        cybershake_root, parameters["name"]
+    )
+    makedirs(path.dirname(sim_params_file), exist_ok=True)
+
+    sim_params = {}
+    for key, value in parameters.items():
+        if key in HF_RUN_PARAMS:
+            if "hf" not in sim_params.keys():
+                sim_params["hf"] = {}
+            sim_params["hf"][key] = value
+
+        elif key in BB_RUN_PARAMS:
+            if "bb" not in sim_params.keys():
+                sim_params["bb"] = {}
+            sim_params["bb"][key] = value
+
+        elif key in LF_RUN_PARAMS:
+            if "emod3d" not in sim_params.keys():
+                sim_params["emod3d"] = {}
+            sim_params["emod3d"][key] = value
+
+        else:
+            sim_params[key] = value
+
+    with open(sim_params_file, "w") as spf:
+        yaml.dump(sim_params, spf)
+
+
 def load_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("srfgenparams_file", type=path.abspath)
@@ -246,9 +277,15 @@ def load_args():
 def main():
     args = load_args()
     rel_df: pd.DataFrame = pd.read_csv(args.srfgenparams_file)
-    realisation = rel_df.to_dict(orient='records')[0]
+    realisation = rel_df.to_dict(orient="records")[0]
     if realisation["type"] == 1:
-        create_ps_srf(cs_root=args.cybershake_root, **realisation)
+        create_ps_srf(args.cybershake_root, realisation)
+    else:
+        raise ValueError(
+            f"Type {realisation['type']} faults are not currently supported. "
+            f"Contact the software team if you believe this is an error."
+        )
+    generate_sim_params_yaml(args.cybershake_root, realisation)
 
 
 if __name__ == "__main__":

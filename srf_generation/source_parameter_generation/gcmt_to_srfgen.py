@@ -8,10 +8,13 @@ from os.path import abspath, isfile, dirname, join
 from typing import Callable, Union
 
 import pandas as pd
-import yaml
 
 from qcore.formats import load_fault_selection_file
-from qcore.simulation_structure import get_realisation_name, get_srf_path
+from qcore.simulation_structure import (
+    get_realisation_name,
+    get_srf_path,
+    get_sources_dir,
+)
 from qcore.qclogging import (
     get_logger,
     add_general_file_handler,
@@ -28,16 +31,18 @@ from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
 
+UNPERTURBATED = "unperturbated"
+
 
 def load_args(primary_logger: Logger):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("version", type=str)
-    parser.add_argument("fault_selection_file")
-    parser.add_argument("gcmt_file")
-    parser.add_argument("-n", "--n_processes", default=1)
-    parser.add_argument("-c", "--cybershake_root", type=str, default=".")
-    parser.add_argument("-a", "--aggregate_file", type=str)
+    parser.add_argument("fault_selection_file", type=abspath)
+    parser.add_argument("gcmt_file", type=abspath)
+    parser.add_argument("-n", "--n_processes", default=1, type=int)
+    parser.add_argument("-c", "--cybershake_root", type=abspath, default=abspath("."))
+    parser.add_argument("-a", "--aggregate_file", type=abspath)
 
     args = parser.parse_args()
 
@@ -86,28 +91,31 @@ def generate_uncertainties(
     primary_logger = get_logger(name=primary_logger_name)
     fault_logger = get_realisation_logger(primary_logger, data.pid)
     fault_logger.debug(f"Fault {data.pid} had data {data}")
+    fault_name = data.pid
+
     for i in range(1, realisation_count + 1):
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {data.pid}"
         )
-        rel_name = get_realisation_name(data.pid, i)
+        if perturbation_function.__module__ is not UNPERTURBATED:
+            data.pid = get_realisation_name(fault_name, i)
 
         fault_logger.debug("Calling perturbation function.")
         perturbed_realisation = perturbation_function(data)
         fault_logger.debug(
             f"Got results from perturbation_function: {perturbed_realisation}"
         )
-        perturbed_realisation["name"] = rel_name
 
-        file_name = get_srf_path(cybershake_root, rel_name).replace(".srf", ".csv")
+        file_name = get_srf_path(
+            cybershake_root, perturbed_realisation["name"]
+        ).replace(".srf", ".csv")
         makedirs(dirname(file_name), exist_ok=True)
         fault_logger.debug(
             f"Created Srf directory and attempting to save perturbated source generation parameters there: {file_name}"
         )
         rel_df = pd.DataFrame(perturbed_realisation, index=[i])
 
-        with open(file_name, "w") as params_file:
-            rel_df.to_csv(file_name)
+        rel_df.to_csv(file_name)
 
         if aggregate_file is not None:
             if not isfile(aggregate_file):
@@ -118,6 +126,13 @@ def generate_uncertainties(
         fault_logger.debug(
             f"Parameters saved succesfully. Continuing to next realisation if one exists."
         )
+
+    unperturbated_function = load_perturbation_function(UNPERTURBATED)
+    if perturbation_function != unperturbated_function:
+        unperturbated_realisation = unperturbated_function(data)
+        rel_df = pd.DataFrame(unperturbated_realisation)
+        file_name = join(get_sources_dir(cybershake_root), f"{fault_name}.csv")
+        rel_df.to_csv(file_name)
 
 
 def main():
