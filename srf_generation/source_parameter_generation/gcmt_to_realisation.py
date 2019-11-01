@@ -137,7 +137,7 @@ def generate_uncertainties(
 
 def main():
 
-    primary_logger = get_logger("GCMT_2_srfgen_params")
+    primary_logger = get_logger("GCMT_2_realisation")
 
     args = load_args(primary_logger)
 

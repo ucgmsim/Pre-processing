@@ -264,7 +264,7 @@ def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
 
 def load_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("srfgenparams_file", type=path.abspath)
+    parser.add_argument("realisation_file", type=path.abspath)
     parser.add_argument(
         "-c", "--cybershake_root", type=path.abspath, default=path.abspath(".")
     )
@@ -273,7 +273,7 @@ def load_args():
 
 def main():
     args = load_args()
-    rel_df: pd.DataFrame = pd.read_csv(args.srfgenparams_file)
+    rel_df: pd.DataFrame = pd.read_csv(args.realisation_file)
     realisation = rel_df.to_dict(orient="records")[0]
     if realisation["type"] == 1:
         create_ps_srf(args.cybershake_root, realisation)
