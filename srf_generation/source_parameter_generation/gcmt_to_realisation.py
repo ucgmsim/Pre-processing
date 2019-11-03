@@ -30,6 +30,17 @@ from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
 
+GCMT_FILE_COLUMNS = [
+    "PublicID",
+    "Latitude",
+    "Longitude",
+    "strike1",
+    "dip1",
+    "rake1",
+    "Mw",
+    "CD",
+]
+
 UNPERTURBATED = "unperturbated"
 
 
@@ -155,20 +166,11 @@ def main():
         "float64",
         "float64",
     ]
-    dtype = {GCMT_PARAM_NAMES[i]: types[i] for i in range(len(types))}
+    dtype = {GCMT_FILE_COLUMNS[i]: types[i] for i in range(len(types))}
 
     gcmt_data = pd.read_csv(
         args.gcmt_file,
-        usecols=[
-            "PublicID",
-            "Latitude",
-            "Longitude",
-            "strike1",
-            "dip1",
-            "rake1",
-            "Mw",
-            "CD",
-        ],
+        usecols=GCMT_FILE_COLUMNS,
         dtype=dtype,
     )[["PublicID", "Latitude", "Longitude", "CD", "Mw", "strike1", "dip1", "rake1"]]
     gcmt_data.columns = GCMT_PARAM_NAMES
