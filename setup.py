@@ -11,5 +11,5 @@ setup(
         "srf_generation/source_parameter_generation/gcmt_to_realisation.py",
         "srf_generation/input_file_generation/realisation_to_srf.py",
         "srf_generation/input_file_generation/generate_srf_from_realisations.py",
-     ],
+    ],
 )
