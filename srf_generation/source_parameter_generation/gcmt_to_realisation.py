@@ -168,11 +168,9 @@ def main():
     ]
     dtype = {GCMT_FILE_COLUMNS[i]: types[i] for i in range(len(types))}
 
-    gcmt_data = pd.read_csv(
-        args.gcmt_file,
-        usecols=GCMT_FILE_COLUMNS,
-        dtype=dtype,
-    )[["PublicID", "Latitude", "Longitude", "CD", "Mw", "strike1", "dip1", "rake1"]]
+    gcmt_data = pd.read_csv(args.gcmt_file, usecols=GCMT_FILE_COLUMNS, dtype=dtype)[
+        ["PublicID", "Latitude", "Longitude", "CD", "Mw", "strike1", "dip1", "rake1"]
+    ]
     gcmt_data.columns = GCMT_PARAM_NAMES
 
     primary_logger.debug(
