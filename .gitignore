@@ -1,6 +1,7 @@
 *.out
 *.*~
 *.pyc
+*.idea/
 OUTs
 VEL
 HobyObs

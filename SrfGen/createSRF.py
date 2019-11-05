@@ -2,15 +2,17 @@
 
 import math
 import os
+from logging import Logger
 from shutil import copyfile
 from subprocess import call, PIPE, Popen
 import sys
+from random import randint
 
 from h5py import File as h5open
 import numpy as np
 from pkg_resources import parse_version
 
-from qcore import geo, srf, binary_version
+from qcore import geo, srf, binary_version, qclogging
 
 # local srf_config has a higher priority
 sys.path.append(os.path.abspath(os.curdir))
@@ -21,13 +23,27 @@ GENERICSLIP2SRF = "generic_slip2srf"
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 
-def mkdir_p(out_dir):
+def get_seed():
+    """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
+    return randint(0, 2 ** 31 - 1)
+
+
+def mkdir_p(out_dir, logger: Logger = qclogging.get_basic_logger()):
+    logger.debug("Making directory {}".format(out_dir))
     if out_dir != "" and not os.path.isdir(out_dir):
         try:
             os.makedirs(out_dir)
         except OSError:
             if not os.path.exists(out_dir):
+                logger.log(
+                    qclogging.NOPRINTERROR,
+                    "OSError occured, unable to make directory. Exiting",
+                )
                 raise
+            logger.log(
+                qclogging.NOPRINTCRITICAL,
+                "OSError was raised, but directory exists, continuing",
+            )
 
 
 def srf_join(in1, in2, out):
@@ -224,7 +240,7 @@ def focal_mechanism_2_finite_fault(
     SHYPO = 0.00
 
     # get the fault geometry (square edge length)
-    fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel)
+    fault_length, fault_width = MwScalingRelation(Mw, MwScalingRel, rake)
     # number of subfaults
     Nx = int(round(fault_length / DLEN))
     Ny = int(round(fault_width / DWID))
@@ -234,8 +250,10 @@ def focal_mechanism_2_finite_fault(
 
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
-    xPos = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
-    yPos = np.arange(DWID / 2.0, fault_width, DWID)[::-1] - fault_width / 2.0
+    xPos: np.ndarray = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
+    yPos: np.ndarray = np.arange(DWID / 2.0, fault_width, DWID)[
+        ::-1
+    ] - fault_width / 2.0
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
@@ -249,7 +267,7 @@ def focal_mechanism_2_finite_fault(
     )
     eastLocRelative, northLocRelative = np.dot(
         RotMatrix, [np.tile(xPos, Ny), yPosSurfProj.repeat(Ny)]
-    ).reshape(2, Nx, Ny)
+    ).reshape((2, Nx, Ny))
     depthLocRelative = (
         (-yPos * math.sin(math.radians(dip))).repeat(Ny).reshape((Nx, Ny))
     )
@@ -295,7 +313,14 @@ def focal_mechanism_2_finite_fault(
 
 
 ###########################################################################
-def MwScalingRelation(Mw, MwScalingRel):
+def MwScalingRelation(
+    Mw,
+    MwScalingRel,
+    rake=None,
+    leonard_ds=4.00,
+    leonard_ss=3.99,
+    logger: Logger = qclogging.get_basic_logger(),
+):
     """
     Return the fault Area from the Mw and a Mw Scaling relation.
     """
@@ -304,6 +329,12 @@ def MwScalingRelation(Mw, MwScalingRel):
             # only small magnitude case
             assert Mw <= 6.71
         except AssertionError as e:
+            logger.log(
+                qclogging.NOPRINTERROR,
+                "Cannot use HanksBakun2002 scaling relation for Mw = {} > 6.71".format(
+                    Mw
+                ),
+            )
             e.args += ("Cannot use HanksAndBakun2002 equation for Mw > 6.71",)
             raise
         A = 10 ** (Mw - 3.98)
@@ -318,15 +349,39 @@ def MwScalingRelation(Mw, MwScalingRel):
         # i.e. Eqn 2 in [1] Stirling, MW, Gerstenberger, M, Litchfield, N, McVerry, GH, Smith, WD, Pettinga, JR, Barnes, P. 2007.
         # updated probabilistic seismic hazard assessment for the Canterbury region, GNS Science Consultancy Report 2007/232, ECan Report Number U06/6. 58pp.
 
+    elif MwScalingRel == "Leonard2014":
+        if round(rake % 360 / 90.0) % 2:
+            A = 10 ** (Mw - leonard_ds)
+        else:
+            A = 10 ** (Mw - leonard_ss)
+
     else:
-        print("Invalid MwScalingRel. Exiting.")
-        exit()
+        raise ValueError("Invalid MwScalingRel: {}. Exiting.".format(MwScalingRel))
 
     # length, width
+    logger.debug(
+        "MwScalingRel {} determined a fault area of {} square kilometres".format(
+            MwScalingRel, A
+        )
+    )
     return math.sqrt(A), math.sqrt(A)
 
 
-def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
+def gen_gsf(
+    gsf_file,
+    lon,
+    lat,
+    dtop,
+    strike,
+    dip,
+    rake,
+    flen,
+    fwid,
+    nx,
+    ny,
+    logger: Logger = qclogging.get_basic_logger(),
+):
+    logger.debug("Saving gsf to {}".format(gsf_file))
     with open(gsf_file, "w") as gsfp:
         gexec = Popen(
             [
@@ -337,9 +392,9 @@ def gen_gsf(gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny):
             stdout=gsfp,
         )
         gexec.communicate(
-            "1\n%f %f %f %d %d %d %f %f %s %s"
-            % (lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny),
-            "utf-8",
+            "1\n{:f} {:f} {:f} {} {} {} {:f} {:f} {:s} {:s}".format(
+                lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny
+            ).encode("utf-8")
         )
         gexec.wait()
 
@@ -359,16 +414,27 @@ def gen_srf(
     rough=None,
     slip_cov=None,
     velocity_model=None,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
-    if velocity_model == None:
+    if velocity_model is None:
+        logger.debug(
+            "Velocity model not explicitly provided, using value from srf config"
+        )
         velocity_model = srf_config.VELOCITY_MODEL
+    logger.debug("Velocity model: {}".format(velocity_model))
 
     with open(srf_file, "w") as srfp:
         genslip_bin = binary_version.get_genslip_bin(genslip_version)
         if int(genslip_version[0]) < 5:
+            logger.debug(
+                "Using genslip version {}. Using nxand ny".format(genslip_version)
+            )
             xstk = "nx"
             ydip = "ny"
         else:
+            logger.debug(
+                "Using genslip version {}. Using nstk and ndip".format(genslip_version)
+            )
             xstk = "nstk"
             ydip = "ndip"
         cmd = [
@@ -391,50 +457,64 @@ def gen_srf(
             "plane_header=1",
             "srf_version=2.0",
         ]
-        if rvfrac != None:
+        if rvfrac is not None:
             cmd.append("rvfrac=%s" % (rvfrac))
-        if rough != None:
+        if rough is not None:
             cmd.append("alpha_rough=%s" % (rough))
-        if slip_cov != None:
+        if slip_cov is not None:
             cmd.append("slip_sigma=%s" % (slip_cov))
-        print("Creating SRF:\n%s" % " ".join(cmd))
+        logger.info("Creating SRF with command: {}".format(" ".join(cmd)))
         call(cmd, stdout=srfp)
 
 
-def gen_stoch(stoch_file, srf_file, silent=False, single_segment=False):
+def gen_stoch(
+    stoch_file,
+    srf_file,
+    silent=False,
+    single_segment=False,
+    logger: Logger = qclogging.get_basic_logger(),
+):
     """
     Creates stoch file from srf file.
     """
+    logger.debug("Generating stoch file: {}".format(stoch_file))
     out_dir = os.path.dirname(stoch_file)
-    mkdir_p(out_dir)
+    mkdir_p(out_dir, logger=logger)
     stderr = None
     if silent:
         stderr = PIPE
     dx, dy = 2.0, 2.0
     if not srf.is_ff(srf_file):
         dx, dy = srf.srf_dxy(srf_file)
-    with open(stoch_file, "w") as stochp:
-        with open(srf_file, "r") as srfp:
-            if single_segment:
-                call(
-                    [
-                        binary_version.get_unversioned_bin(SRF2STOCH),
-                        "target_dx={}".format(dx),
-                        "target_dy={}".format(dy),
-                    ],
-                    stdin=srfp,
-                    stdout=stochp,
+    with open(stoch_file, "w") as stochp, open(srf_file, "r") as srfp:
+        if single_segment:
+            logger.debug(
+                "Fault is single segment, passing target_dx, target_dy. Stdin file: {}".format(
+                    srfp
                 )
-            else:
-                call(
-                    [
-                        binary_version.get_unversioned_bin(SRF2STOCH),
-                        "dx={}".format(dx),
-                        "dy={}".format(dy),
-                    ],
-                    stdin=srfp,
-                    stdout=stochp,
-                )
+            )
+            call(
+                [
+                    binary_version.get_unversioned_bin(SRF2STOCH),
+                    "target_dx={}".format(dx),
+                    "target_dy={}".format(dy),
+                ],
+                stdin=srfp,
+                stdout=stochp,
+            )
+        else:
+            logger.debug(
+                "Fault is multi segment, passing dx, dy. Stdin file: {}".format(srfp)
+            )
+            call(
+                [
+                    binary_version.get_unversioned_bin(SRF2STOCH),
+                    "dx={}".format(dx),
+                    "dy={}".format(dy),
+                ],
+                stdin=srfp,
+                stdout=stochp,
+            )
 
 
 def gen_meta(
@@ -462,11 +542,13 @@ def gen_meta(
     tect_type=None,
     dip_dir=None,
     file_name=None,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Stores SRF metadata as hdf5.
     srf_file: SRF path used as basename for info file and additional metadata
     """
+    logger.debug("Generating srf info file")
     planes = srf.read_header(srf_file, idx=True)
     hlon, hlat, hdepth = srf.get_hypo(srf_file, depth=True)
 
@@ -496,7 +578,9 @@ def gen_meta(
 
     if file_name is None:
         file_name = os.path.splitext(srf_file)[0]
-    with h5open("%s.info" % (file_name), "w") as h:
+    file_name = "{}.info".format(file_name)
+    logger.debug("Saving info file to {}".format(file_name))
+    with h5open(file_name, "w") as h:
         a = h.attrs
         # only taken from given parameters
         a["type"] = srf_type
@@ -549,6 +633,7 @@ def CreateSRF_ps(
     rise_time=0.5,
     init_time=0.0,
     silent=False,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Must specify either magnitude or moment (mw, mom).
@@ -564,19 +649,27 @@ def CreateSRF_ps(
     # moment from magnitude
     if mom <= 0:
         mom = mag2mom(mw)
+        logger.debug(
+            "Determining moment from magnitude. Magnitude: {}. Moment: {}.".format(
+                mw, mom
+            )
+        )
     # size (dd) and slip
-    if target_area_km != None:
+    if target_area_km is not None:
         dd = math.sqrt(target_area_km)
         slip = (mom * 1.0e-20) / (target_area_km * vs * vs * rho)
-    elif target_slip_cm != None:
+        logger.debug("Determining slip from target_area_km. Slip: {}".format(slip))
+    elif target_slip_cm is not None:
         dd = math.sqrt(mom * 1.0e-20) / (target_slip_cm * vs * vs * rho)
         slip = target_slip_cm
+        logger.debug("Determining slip from target_slip_cm. Slip: {}".format(slip))
     else:
         aa = math.exp(2.0 * math.log(mom) / 3.0 - 14.7 * math.log(10.0))
         dd = math.sqrt(aa)
         slip = (mom * 1.0e-20) / (aa * vs * vs * rho)
-    if not silent:
-        print("FLEN/FWID: %s" % (dd))
+        logger.debug("Determining slip from moment. Slip: {}".format(slip))
+
+    logger.log(qclogging.logging.DEBUG * (1 + silent), "FLEN/FWID: {}".format(dd))
 
     ###
     ### file names
@@ -585,11 +678,13 @@ def CreateSRF_ps(
         prefix = "%s_%s" % (prefix, ("m%f" % (mw)).replace(".", "pt"))
     gsf_file = "%s.gsf" % (prefix)
     srf_file = "%s.srf" % (prefix)
-    mkdir_p(os.path.dirname(srf_file))
+    mkdir_p(os.path.dirname(srf_file), logger=logger)
+    qclogging.remove_buffer_handler(logger)
 
     ###
     ### create GSF
     ###
+    logger.debug("Creating gsf file. Save location: {}".format(gsf_file))
     with open(gsf_file, "w") as gsfp:
         gsfp.write("# nstk= 1 ndip= 1\n")
         gsfp.write("# flen= %10.4f fwid= %10.4f\n" % (dd, dd))
@@ -609,28 +704,29 @@ def CreateSRF_ps(
         stderr = PIPE
     else:
         stderr = None
-    call(
-        [
-            binary_version.get_unversioned_bin(GENERICSLIP2SRF),
-            "infile=%s" % (gsf_file),
-            "outfile=%s" % (srf_file),
-            "outbin=0",
-            "stype=%s" % (stype),
-            "dt=%f" % (dt),
-            "plane_header=1",
-            "risetime=%f" % (rise_time),
-            "risetimefac=1.0",
-            "risetimedep=0.0",
-        ],
-        stderr=stderr,
-    )
+    commands = [
+        binary_version.get_unversioned_bin(GENERICSLIP2SRF),
+        "infile=%s" % (gsf_file),
+        "outfile=%s" % (srf_file),
+        "outbin=0",
+        "stype=%s" % (stype),
+        "dt=%f" % (dt),
+        "plane_header=1",
+        "risetime=%f" % (rise_time),
+        "risetimefac=1.0",
+        "risetimedep=0.0",
+    ]
+    logger.debug('Calling slip2srf with command: "{}"'.format(" ".join(commands)))
+    call(commands, stderr=stderr)
 
     ###
     ### save STOCH
     ###
-    if stoch != None:
+    if stoch is not None:
         stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
-        gen_stoch(stoch_file, srf_file, silent=silent)
+        gen_stoch(stoch_file, srf_file, silent=silent, logger=logger)
+    else:
+        logger.debug("Not making stoch file")
 
     ###
     ### save INFO
@@ -648,10 +744,161 @@ def CreateSRF_ps(
         vs=vs,
         rho=rho,
         centroid_depth=depth,
+        logger=logger,
     )
 
     # location of resulting SRF file
     return srf_file
+
+
+def create_srf_psff(
+    lat,
+    lon,
+    mw,
+    strike,
+    rake,
+    dip,
+    depth,
+    dt,
+    prefix,
+    seed=None,
+    flen=None,
+    dlen=None,
+    fwid=None,
+    dwid=None,
+    dtop=None,
+    shypo=None,
+    dhypo=None,
+    stoch=None,
+    mwsr=None,
+    corners_file="cnrs.txt",
+    genslip_version="3.3",
+    rvfrac=None,
+    rough=None,
+    slip_cov=None,
+    tect_type=None,
+    silent=False,
+    logger: Logger = qclogging.get_basic_logger(),
+):
+    """
+    Create a Finite Fault SRF.
+    Calculates flen, dlen... if not supplied given depth and mwsr are keywords.
+    NOTE: depth is focal mech depth and only used when calculating flen etc...
+    """
+
+    seed = load_seed(prefix, seed, logger)
+
+    srf_type = 2
+    all_none = all(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
+    any_none = any(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
+    if all_none:
+        flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = focal_mechanism_2_finite_fault(
+            lat, lon, depth, mw, strike, rake, dip, mwsr
+        )[
+            3:
+        ]
+    elif any_none:
+        message = "If any of (flen, dlen, fwid, dwid, dtop, shypo, dhypo) are given, the rest must be given. Got: {}".format(
+            (flen, dlen, fwid, dwid, dtop, shypo, dhypo)
+        )
+        logger.log(qclogging.NOPRINTCRITICAL, message)
+        raise ValueError(
+            "If any of (flen, dlen, fwid, dwid, dtop, shypo, dhypo) are given, the rest must be given. Got: {}".format(
+                (flen, dlen, fwid, dwid, dtop, shypo, dhypo)
+            )
+        )
+
+    # write corners file
+    logger.debug("Getting corners")
+    corners = get_corners(lat, lon, flen, fwid, dip, strike)
+    hypocentre = get_hypocentre(lat, lon, flen, fwid, shypo, dhypo, strike, dip)
+    logger.debug("Saving corners")
+    write_corners(corners_file, hypocentre, corners)
+
+    nx = get_nx(flen, dlen)
+    ny = get_ny(fwid, dwid)
+    if prefix[-1] == "_":
+        prefix = "{}{}".format(prefix, get_fileroot(mw, flen, fwid, seed))
+    gsf_file = "{}.gsf".format(prefix)
+    srf_file = "{}.srf".format(prefix)
+    out_dir = os.path.dirname(srf_file)
+    mkdir_p(out_dir, logger=logger)
+
+    gen_gsf(
+        gsf_file, lon, lat, dtop, strike, dip, rake, flen, fwid, nx, ny, logger=logger
+    )
+    gen_srf(
+        srf_file,
+        gsf_file,
+        mw,
+        dt,
+        nx,
+        ny,
+        seed,
+        shypo,
+        dhypo,
+        genslip_version=genslip_version,
+        rvfrac=rvfrac,
+        slip_cov=slip_cov,
+        rough=rough,
+        logger=logger,
+    )
+
+    if stoch is not None:
+        stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
+        gen_stoch(
+            stoch_file, srf_file, single_segment=True, silent=silent, logger=logger
+        )
+
+    # save INFO
+    gen_meta(
+        srf_file,
+        srf_type,
+        mw,
+        strike,
+        rake,
+        dip,
+        dt,
+        lon=lon,
+        lat=lat,
+        centroid_depth=depth,
+        mwsr=mwsr,
+        shypo=shypo + 0.5 * flen,
+        dhypo=dhypo,
+        vm=srf_config.VELOCITY_MODEL,
+        logger=logger,
+    )
+
+    # location of resulting SRF
+    return srf_file
+
+
+def load_seed(prefix, seed=None, logger: Logger = qclogging.get_basic_logger()):
+    """If the seed is not None, pass it back, otherwise check for a seed file and load it if present, otherwise create a new seed and save it to a seed file"""
+    seed_file = "{}.SEED".format(prefix)
+    os.makedirs(os.path.dirname(seed_file), exist_ok=True)
+    if seed is None:
+        if os.path.isfile(seed_file):
+            try:
+                with open(seed_file) as sf:
+                    seed = int(sf.readline())
+            except IOError:
+                message = "Unable to read seed from seed file {}. Please remove this before restarting".format(
+                    seed_file
+                )
+                logger.log(qclogging.NOPRINTCRITICAL, message)
+                raise IOError(message)
+            else:
+                logger.debug("Loaded seed from seed file, seed is: {}".format(seed))
+        else:
+            seed = get_seed()
+            with open(seed_file, "w") as sf:
+                sf.write("{}".format(seed))
+            logger.debug("SEED: {}".format(seed))
+    else:
+        with open(seed_file, "w") as sf:
+            sf.write("{}".format(seed))
+    return seed
 
 
 def CreateSRF_ff(
@@ -664,16 +911,15 @@ def CreateSRF_ff(
     dt,
     prefix0,
     seed,
-    flen=None,
-    dlen=None,
-    fwid=None,
-    dwid=None,
-    dtop=None,
-    shypo=None,
-    dhypo=None,
+    flen,
+    dlen,
+    fwid,
+    dwid,
+    dtop,
+    shypo,
+    dhypo,
     stoch=None,
     depth=None,
-    mwsr=None,
     corners=True,
     corners_file="cnrs.txt",
     genslip_version="3.3",
@@ -693,13 +939,6 @@ def CreateSRF_ff(
 
     # only given point source parameters? calculate rest using scaling relation
     srf_type = 3
-    if flen == None:
-        srf_type = 2
-        flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = focal_mechanism_2_finite_fault(
-            lat, lon, depth, mw, strike, rake, dip, mwsr
-        )[
-            3:
-        ]
 
     # write corners file
     corners = get_corners(lat, lon, flen, fwid, dip, strike)
@@ -731,42 +970,23 @@ def CreateSRF_ff(
         slip_cov=slip_cov,
         rough=rough,
     )
-    if stoch != None:
+    if stoch is not None:
         stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
         gen_stoch(stoch_file, srf_file, single_segment=True)
 
-    # save INFO
-    if srf_type == 2:
-        gen_meta(
-            srf_file,
-            srf_type,
-            mw,
-            strike,
-            rake,
-            dip,
-            dt,
-            lon=lon,
-            lat=lat,
-            centroid_depth=depth,
-            mwsr=mwsr,
-            shypo=shypo + 0.5 * flen,
-            dhypo=dhypo,
-            vm=srf_config.VELOCITY_MODEL,
-        )
-    else:
-        gen_meta(
-            srf_file,
-            srf_type,
-            mw,
-            strike,
-            rake,
-            dip,
-            dt,
-            shypo=shypo + 0.5 * flen,
-            dhypo=dhypo,
-            tect_type=tect_type,
-            vm=srf_config.VELOCITY_MODEL,
-        )
+    gen_meta(
+        srf_file,
+        srf_type,
+        mw,
+        strike,
+        rake,
+        dip,
+        dt,
+        shypo=shypo + 0.5 * flen,
+        dhypo=dhypo,
+        tect_type=tect_type,
+        vm=srf_config.VELOCITY_MODEL,
+    )
 
     # location of resulting SRF
     return srf_file
@@ -805,6 +1025,7 @@ def CreateSRF_multi(
     silent=False,
     velocity_model=None,
     tect_type=None,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     if parse_version(genslip_version) < parse_version("5.4.2") and tect_type == "SUBDUCTION_INTERFACE":
         raise RuntimeError(
@@ -817,27 +1038,53 @@ def CreateSRF_multi(
     prefix = prefix0
 
     if velocity_model is None:
+        logger.debug(
+            "No velocity model explicitly passed in, using {}".format(
+                srf_config.VELOCITY_MODEL
+            )
+        )
         velocity_model = srf_config.VELOCITY_MODEL
 
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
     if int(genslip_version[0]) < 5:
+        logger.debug(
+            "Using genslip version {}. Using nx, ny and rup_delay".format(
+                genslip_version
+            )
+        )
         xstk = "nx"
         ydip = "ny"
         rup_name = "rup_delay"
     else:
+        logger.debug(
+            "Using genslip version {}. Using nstk, ndip and rupture_delay".format(
+                genslip_version
+            )
+        )
         xstk = "nstk"
         ydip = "ndip"
         rup_name = "rupture_delay"
     out_dir = os.path.dirname(prefix)
-    mkdir_p(out_dir)
+    mkdir_p(out_dir, logger=logger)
 
     casefiles = []
     for c, case in enumerate(cases):
+        logger.debug("Generating realisation {}".format(c))
 
         if mom[c] <= 0:
             mom[c] = mag2mom(mag[c])
+            logger.debug(
+                "Given moment is negative, determining from magnitude. Magnitude: {}. Moment: {}.".format(
+                    mag[c], mom[c]
+                )
+            )
         else:
             mag[c] = mom2mag(mom[c])
+            logger.debug(
+                "Determining magnitude from moment. Moment: {}. Magnitude: {}.".format(
+                    mom[c], mag[c]
+                )
+            )
 
         nx = list(map(int, [get_nx(flen[c][f], dlen[c][f]) for f in range(nseg[c])]))
         ny = list(map(int, [get_ny(fwid[c][f], dwid[c][f]) for f in range(nseg[c])]))
@@ -849,6 +1096,7 @@ def CreateSRF_multi(
 
         xseg = "-1"
         if int(nseg[c] > 1):
+            logger.debug("Multiple segments detected. Generating xseg argument")
             xseg = []
             sbound = 0.0
             for g in range(nseg[c]):
@@ -862,6 +1110,7 @@ def CreateSRF_multi(
         fsg_file = "{}_seg.in".format(case_root)
         casefiles.append(srf_file)
 
+        logger.debug("Saving segments file to {}".format(fsg_file))
         with open(fsg_file, "w") as fs:
             fs.write("{}\n".format(nseg[c]))
             for f in range(nseg[c]):
@@ -888,12 +1137,13 @@ def CreateSRF_multi(
         ]
         if dip_dir is not None:
             cmd.append("dipdir={}".format(dip_dir))
+        logger.info(
+            "Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd))
+        )
         call(cmd)
         os.remove(fsg_file)
+        logger.debug("Removed segments file")
 
-        # calling with outfile parameter will:
-        # append 's0000-h0000' to filename (v3.3)
-        # ns = slip realisations, nh = hypocentre realisations
         with open(srf_file, "w") as srfp:
             cmd = [
                 genslip_bin,
@@ -940,12 +1190,14 @@ def CreateSRF_multi(
                 cmd.append("alpha_rough={}".format(rough))
             if slip_cov is not None:
                 cmd.append("slip_sigma={}".format(slip_cov))
+            logger.debug("Calling genslip with command {}".format(cmd))
             if silent:
                 with open("/dev/null", "a") as sink:
                     call(cmd, stdout=srfp, stderr=sink)
             else:
                 call(cmd, stdout=srfp)
         os.remove(gsf_file)
+        logger.debug("Removed gsf file")
         # print leonard Mw from A (SCR)
         if not silent:
             print("Leonard 2014 Mw: %s" % (leonard(rak[c][f], fwid[c][f] * flen[c][f])))
@@ -967,7 +1219,13 @@ def CreateSRF_multi(
         if nseg == 1:
             single_segment = True
         stoch_file = os.path.join(stoch, "{}.stoch".format(os.path.basename(prefix)))
-        gen_stoch(stoch_file, joined_srf, silent=silent, single_segment=single_segment)
+        gen_stoch(
+            stoch_file,
+            joined_srf,
+            silent=silent,
+            single_segment=single_segment,
+            logger=logger,
+        )
     # save INFO
     gen_meta(
         joined_srf,
@@ -982,6 +1240,7 @@ def CreateSRF_multi(
         shypo=[s[0] + 0.5 * flen[c][0] for s in shypo],
         dhypo=[d[0] for d in dhypo],
         tect_type=tect_type,
+        logger=logger,
     )
 
     # path to resulting SRF
@@ -989,13 +1248,15 @@ def CreateSRF_multi(
 
 
 if __name__ == "__main__":
+    logger = qclogging.get_logger("createSRF")
+    qclogging.add_general_file_handler(logger, "createSRF_log.txt")
     try:
         from setSrfParams import *
     except ImportError:
-        print("setSrfParams.py not found.")
+        logger.error("setSrfParams.py not found.")
         exit(1)
     except:
-        print("Error: setSrfParams.py has issues.")
+        logger.error("Error: setSrfParams.py has issues.")
         print(sys.exc_info()[0])
         raise
 
@@ -1020,28 +1281,39 @@ if __name__ == "__main__":
     if TYPE == 1:
         # point source to point source srf
         srf = CreateSRF_ps(
-            LAT, LON, DEPTH, MAG, MOM, STK, RAK, DIP, DT, PREFIX, stoch=STOCH
+            LAT,
+            LON,
+            DEPTH,
+            MAG,
+            MOM,
+            STK,
+            RAK,
+            DIP,
+            DT,
+            PREFIX,
+            stoch=STOCH,
+            logger=logger,
         )
     elif TYPE == 2:
         # point source to finite fault srf
-        srf = CreateSRF_ff(
+        srf = create_srf_psff(
             LAT,
             LON,
             MAG,
             STK,
             RAK,
             DIP,
+            DEPTH,
             DT,
             PREFIX,
             SEED,
-            depth=DEPTH,
             mwsr=MWSR,
             stoch=STOCH,
-            corners=True,
             genslip_version=GENSLIP,
             rvfrac=RVFRAC,
             slip_cov=SLIP_COV,
             rough=ROUGH,
+            logger=logger,
         )
     elif TYPE == 3:
         # finite fault descriptor to finite fault srf
@@ -1068,6 +1340,7 @@ if __name__ == "__main__":
             rvfrac=RVFRAC,
             slip_cov=SLIP_COV,
             rough=ROUGH,
+            logger=logger,
         )
     elif TYPE == 4:
         # multi segment finite fault srf
@@ -1100,6 +1373,7 @@ if __name__ == "__main__":
             slip_cov=SLIP_COV,
             stoch=STOCH,
             rough=ROUGH,
+            logger=logger,
         )
     else:
         print("Bad type of SRF generation specified. Check parameter file.")

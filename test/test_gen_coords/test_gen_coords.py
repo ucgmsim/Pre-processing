@@ -1,4 +1,5 @@
-""" Command to run this test: 'python -m pytest -v -s test_gen_coords.py' 
+#TODO This test is not working
+""" Command to run this test: 'python -m pytest -v -s test_gen_coords.py'
 If the test passed it will delete the files in the output folder. 
 Otherwise it would not delete files. 
  
@@ -55,6 +56,7 @@ def setup_module(scope="module"):
     sample_path = os.path.join(PATH_TO_SAMPLE_INPUT_DIR, VM_PARAMS_FILE_NAME)
     #    os.symlink(sample_path,SYMLINK_PATH)
     os.symlink(sample_path, os.path.join(PATH_UNDER_TEST, VM_PARAMS_FILE_NAME))
+    print(os.path.join(PATH_UNDER_TEST, VM_PARAMS_FILE_NAME))
 
 
 def test_gencoords():
