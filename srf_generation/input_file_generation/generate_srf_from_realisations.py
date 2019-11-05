@@ -15,7 +15,7 @@ from srf_generation.input_file_generation.realisation_to_srf import (
 
 
 def process_realisation_file(cybershake_root, realisation_file):
-    rel_df: pd.DataFrame = pd.read_csv(realisation_file)
+    rel_df: pd.DataFrame = pd.read_csv(realisation_file, dtype={"name": str})
     realisation = rel_df.to_dict(orient="records")[0]
     if realisation["type"] == 1:
         create_ps_srf(cybershake_root, realisation)
@@ -26,7 +26,7 @@ def process_realisation_file(cybershake_root, realisation_file):
 
 
 def process_common_realisation_file(cybershake_root, realisation_file):
-    rel_df: pd.DataFrame = pd.read_csv(realisation_file)
+    rel_df: pd.DataFrame = pd.read_csv(realisation_file, dtype={"name": str})
     realisation = rel_df.to_dict(orient="records")[0]
     srf_file = simulation_structure.get_srf_path(
         cybershake_root,
