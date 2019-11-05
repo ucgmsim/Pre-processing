@@ -1175,7 +1175,7 @@ def CreateSRF_multi(
                 "bot_taper=0.02",
                 "top_taper=0.0",
                 "{}={}".format(rup_name, rup_delay[c]),
-                "srf_version=1.0",
+                "srf_version=2.0",
             ]
             if tect_type == "SUBDUCTION_INTERFACE":
                 cmd.append("kmodel=-1")
