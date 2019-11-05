@@ -1026,7 +1026,10 @@ def CreateSRF_multi(
     tect_type=None,
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    if utils.compare_versions(genslip_version, "5.4.2") < 0 and tect_type == "SUBDUCTION_INTERFACE":
+    if (
+        utils.compare_versions(genslip_version, "5.4.2") < 0
+        and tect_type == "SUBDUCTION_INTERFACE"
+    ):
         raise RuntimeError(
             "Subduction interface faults are only available for version 5.4.2 and above"
         )

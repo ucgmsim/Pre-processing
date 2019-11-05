@@ -171,10 +171,10 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                         )
                     )
 
-                elif fault[1][-1] == 'n':
-                    t_hypo = 'n'
+                elif fault[1][-1] == "n":
+                    t_hypo = "n"
                     n_hypo = int(fault[1][:-1])
-                    hyp_step = trace_length / (n_hypo * 2.)
+                    hyp_step = trace_length / (n_hypo * 2.0)
 
                 # given as number of randomly placed hypocentres
                 elif fault[1][-1] == "r":
@@ -199,7 +199,7 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                 n_slip = int(fault[2])
                 logger.debug("n_slip set to {}".format(n_slip))
             if len(fault) >= 4:
-                dhypos = list(map(float, fault[3].split(',')))
+                dhypos = list(map(float, fault[3].split(",")))
                 logger.debug("dhypos set to {}".format(dhypos))
         if t_hypo == "n":
             hyp_step = trace_length / (n_hypo * 2.0)
@@ -281,16 +281,39 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                         ),
                     )[:-4]
                     # create SRF from description
-                    msgs.append({'nseg':nseg, 'seg_delay':seg_delay, 'mag':mag, \
-                            'mom':mom, 'rvfac_seg':rvfac_seg, 'gwid':gwid, \
-                            'rup_delay':rup_delay, 'flen':flen, 'dlen':dlen, \
-                            'fwid':fwid, 'dwid':dwid, 'dtop':dtop, 'stk':stk, \
-                            'rake':rake, 'dip':dip, 'elon':elon, 'elat':elat, \
-                            'shypo':shypo, 'dhypo':dhypo, 'dt':dt, 'seed':seed, \
-                            'prefix':prefix, 'cases':cases, 'dip_dir':dip_dir, \
-                            'stoch':os.path.join(args.out_dir, name, "Stoch"), \
-                            'name':name, 'tect_type':tect_type, \
-                            'plot':args.plot, 'genslip_version': "3.3"})
+                    msgs.append(
+                        {
+                            "nseg": nseg,
+                            "seg_delay": seg_delay,
+                            "mag": mag,
+                            "mom": mom,
+                            "rvfac_seg": rvfac_seg,
+                            "gwid": gwid,
+                            "rup_delay": rup_delay,
+                            "flen": flen,
+                            "dlen": dlen,
+                            "fwid": fwid,
+                            "dwid": dwid,
+                            "dtop": dtop,
+                            "stk": stk,
+                            "rake": rake,
+                            "dip": dip,
+                            "elon": elon,
+                            "elat": elat,
+                            "shypo": shypo,
+                            "dhypo": dhypo,
+                            "dt": dt,
+                            "seed": seed,
+                            "prefix": prefix,
+                            "cases": cases,
+                            "dip_dir": dip_dir,
+                            "stoch": os.path.join(args.out_dir, name, "Stoch"),
+                            "name": name,
+                            "tect_type": tect_type,
+                            "plot": args.plot,
+                            "genslip_version": "3.3",
+                        }
+                    )
                     if tect_type == "SUBDUCTION_INTERFACE":
                         msgs[-1].update({"genslip_version": "5.4.2"})
                     # store parameters
@@ -328,18 +351,37 @@ def run_create_srf(fault):
     #    sys.stdout = open(str(os.getpid())+".out","w")
     logger.info("Creating SRF: {}".format(fault["name"]))
     # all of the work, rest of the script is complete under 1 second
-    CreateSRF_multi(fault['nseg'], fault['seg_delay'], fault['mag'], fault['mom'],
-                    fault['rvfac_seg'], fault['gwid'], fault['rup_delay'], fault['flen'], fault['dlen'],
-                    fault['fwid'], fault['dwid'], fault['dtop'], fault['stk'], fault['rake'], fault['dip'],
-                    fault['elon'], fault['elat'], fault['shypo'], fault['dhypo'], fault['dt'], fault['seed'],
-                    fault['prefix'], fault['cases'],
-                    dip_dir=fault['dip_dir'],
-                    stoch=fault['stoch'],
-                    tect_type=fault['tect_type'],
-                    silent=True,
-                    genslip_version=fault["genslip_version"],
-                    logger=logger,
-                    )
+    CreateSRF_multi(
+        fault["nseg"],
+        fault["seg_delay"],
+        fault["mag"],
+        fault["mom"],
+        fault["rvfac_seg"],
+        fault["gwid"],
+        fault["rup_delay"],
+        fault["flen"],
+        fault["dlen"],
+        fault["fwid"],
+        fault["dwid"],
+        fault["dtop"],
+        fault["stk"],
+        fault["rake"],
+        fault["dip"],
+        fault["elon"],
+        fault["elat"],
+        fault["shypo"],
+        fault["dhypo"],
+        fault["dt"],
+        fault["seed"],
+        fault["prefix"],
+        fault["cases"],
+        dip_dir=fault["dip_dir"],
+        stoch=fault["stoch"],
+        tect_type=fault["tect_type"],
+        silent=True,
+        genslip_version=fault["genslip_version"],
+        logger=logger,
+    )
     logger.debug("created SRF: {} ({:.2f}s)".format(fault["name"], time() - t0))
     if fault["plot"]:
         t0 = time()
