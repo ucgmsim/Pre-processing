@@ -9,7 +9,8 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 
 
 def generate_source_params(
-    sources_line: Union[GCMT_Source, NHM_Source]
+    sources_line: Union[GCMT_Source, NHM_Source],
+    additional_source_parameters: Dict[str, Any],
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
       - source_data.pid: name of the event
@@ -33,6 +34,7 @@ def generate_source_params(
         "dip": sources_line.dip,
         "rake": sources_line.rake,
     }
+    params.update(additional_source_parameters)
 
     verify_params(params)
     return params
