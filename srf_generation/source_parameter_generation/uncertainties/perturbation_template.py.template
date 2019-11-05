@@ -47,9 +47,8 @@ def generate_source_params(
 
 
 def generate_from_gcmt(
-        sources_line: GCMT_Source,
-        additional_source_parameters: Dict[str, Any],
-    ):
+    sources_line: GCMT_Source, additional_source_parameters: Dict[str, Any]
+):
 
     params = {
         "type": 1,
@@ -67,8 +66,5 @@ def generate_from_gcmt(
     return params
 
 
-def generate_from_nhm(
-    source: NHM_Source,
-    additional_source_parameters: Dict[str, Any],
-    ):
+def generate_from_nhm(source: NHM_Source, additional_source_parameters: Dict[str, Any]):
     return None

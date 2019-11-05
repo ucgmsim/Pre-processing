@@ -107,7 +107,7 @@ def generate_uncertainties(
     perturbation_function: Callable,
     aggregate_file: Union[str, None],
     primary_logger_name: str,
-    additional_source_parameters: Dict[str, Any]
+    additional_source_parameters: Dict[str, Any],
 ):
     primary_logger = get_logger(name=primary_logger_name)
     fault_logger = get_realisation_logger(primary_logger, data.pid)
@@ -121,7 +121,9 @@ def generate_uncertainties(
 
         fault_logger.debug("Calling perturbation function.")
 
-        perturbed_realisation = perturbation_function(sources_line=data, additional_source_parameters=additional_source_parameters)
+        perturbed_realisation = perturbation_function(
+            sources_line=data, additional_source_parameters=additional_source_parameters
+        )
 
         fault_logger.debug(
             f"Got results from perturbation_function: {perturbed_realisation}"
@@ -213,12 +215,28 @@ def main():
 
     if args.source_parameters is not None:
         for i in range(len(args.source_parameters) // 2):
-            param, f_name = args.source_parameters[2 * i: 2 * i + 2]
-            parameter_df = pd.read_csv(f_name, delim_whitespace=True, header=None, index_col=0, names=[param], dtype={0: str})
-            additional_source_parameters = additional_source_parameters.join(parameter_df, how="outer")
+            param, f_name = args.source_parameters[2 * i : 2 * i + 2]
+            parameter_df = pd.read_csv(
+                f_name,
+                delim_whitespace=True,
+                header=None,
+                index_col=0,
+                names=[param],
+                dtype={0: str},
+            )
+            additional_source_parameters = additional_source_parameters.join(
+                parameter_df, how="outer"
+            )
 
-    messages = generate_messages(additional_source_parameters, args.aggregate_file, args.cybershake_root, faults, gcmt_lines, perturbation_function,
-                                 primary_logger)
+    messages = generate_messages(
+        additional_source_parameters,
+        args.aggregate_file,
+        args.cybershake_root,
+        faults,
+        gcmt_lines,
+        perturbation_function,
+        primary_logger,
+    )
 
     if len(messages) < args.n_processes:
         n_processes = len(messages)
@@ -237,7 +255,15 @@ def main():
     worker_pool.starmap(generate_uncertainties, messages)
 
 
-def generate_messages(additional_source_parameters: pd.DataFrame, aggregate_file, cybershake_root, faults, gcmt_lines, perturbation_function, primary_logger):
+def generate_messages(
+    additional_source_parameters: pd.DataFrame,
+    aggregate_file,
+    cybershake_root,
+    faults,
+    gcmt_lines,
+    perturbation_function,
+    primary_logger,
+):
     messages = []
     for i in range(len(faults)):
         gcmt_data = gcmt_lines[i]
@@ -245,7 +271,9 @@ def generate_messages(additional_source_parameters: pd.DataFrame, aggregate_file
         additional_source_specific_data = {}
         print(gcmt_data[0])
         if gcmt_data[0] in additional_source_parameters.index:
-            additional_source_specific_data = additional_source_parameters.loc[gcmt_data[0]].to_dict()
+            additional_source_specific_data = additional_source_parameters.loc[
+                gcmt_data[0]
+            ].to_dict()
             print(additional_source_specific_data)
 
         messages.append(
@@ -256,9 +284,8 @@ def generate_messages(additional_source_parameters: pd.DataFrame, aggregate_file
                 perturbation_function,
                 aggregate_file,
                 primary_logger.name,
-                additional_source_specific_data
+                additional_source_specific_data,
             )
-
         )
     return messages
 
