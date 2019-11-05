@@ -10,9 +10,8 @@ from random import randint
 
 from h5py import File as h5open
 import numpy as np
-from pkg_resources import parse_version
 
-from qcore import geo, srf, binary_version, qclogging
+from qcore import geo, srf, binary_version, qclogging, utils
 
 # local srf_config has a higher priority
 sys.path.append(os.path.abspath(os.curdir))
@@ -1027,7 +1026,7 @@ def CreateSRF_multi(
     tect_type=None,
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    if parse_version(genslip_version) < parse_version("5.4.2") and tect_type == "SUBDUCTION_INTERFACE":
+    if utils.compare_versions(genslip_version, "5.4.2") < 0 and tect_type == "SUBDUCTION_INTERFACE":
         raise RuntimeError(
             "Subduction interface faults are only available for version 5.4.2 and above"
         )
