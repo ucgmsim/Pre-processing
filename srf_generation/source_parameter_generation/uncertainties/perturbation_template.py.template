@@ -45,11 +45,6 @@ def generate_source_params(
 
 
 def generate_from_gcmt(sources_line: GCMT_Source):
-    area = mw_2_a_scaling_relation(
-        sources_line.mag,
-        MagnitudeScalingRelations.LEONARD2014.value,
-        sources_line.strike,
-    )
 
     params = {
         "type": 1,
@@ -62,8 +57,6 @@ def generate_from_gcmt(sources_line: GCMT_Source):
         "strike": sources_line.strike,
         "dip": sources_line.dip,
         "rake": sources_line.rake,
-        "flen": float(np.sqrt(area)),
-        "dlen": float(np.sqrt(area)),
     }
     return params
 
