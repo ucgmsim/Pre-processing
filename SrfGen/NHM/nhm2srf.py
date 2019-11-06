@@ -485,4 +485,4 @@ if __name__ == "__main__":
 
     # distribute work
     p = Pool(args.nproc)
-    p.starmap(run_create_srf, msg_list)
+    p.map(run_create_srf, msg_list)
