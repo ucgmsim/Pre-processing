@@ -35,7 +35,7 @@ def load_args(primary_logger: Logger):
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("gcmt_file", type=abspath)
     parser.add_argument("--vel_mod_1d", type=abspath)
-    parser.add_argument("-n", "--n_processes", default=1)
+    parser.add_argument("-n", "--n_processes", default=1, type=int)
     parser.add_argument("-c", "--cybershake_root", type=abspath, default=".")
     parser.add_argument("-a", "--aggregate_file", type=abspath)
 
