@@ -171,6 +171,11 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                         )
                     )
 
+                elif fault[1][-1] == "n":
+                    t_hypo = "n"
+                    n_hypo = int(fault[1][:-1])
+                    hyp_step = trace_length / (n_hypo * 2.0)
+
                 # given as number of randomly placed hypocentres
                 elif fault[1][-1] == "r":
                     t_hypo = "r"
@@ -277,39 +282,40 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
                     )[:-4]
                     # create SRF from description
                     msgs.append(
-                        (
-                            {
-                                "nseg": nseg,
-                                "seg_delay": seg_delay,
-                                "mag": mag,
-                                "mom": mom,
-                                "rvfac_seg": rvfac_seg,
-                                "gwid": gwid,
-                                "rup_delay": rup_delay,
-                                "flen": flen,
-                                "dlen": dlen,
-                                "fwid": fwid,
-                                "dwid": dwid,
-                                "dtop": dtop,
-                                "stk": stk,
-                                "rake": rake,
-                                "dip": dip,
-                                "elon": elon,
-                                "elat": elat,
-                                "shypo": shypo,
-                                "dhypo": dhypo,
-                                "dt": dt,
-                                "seed": seed,
-                                "prefix": prefix,
-                                "cases": cases,
-                                "dip_dir": dip_dir,
-                                "stoch": "%s/%s/Stoch" % (args.out_dir, name),
-                                "name": name,
-                                "tect_type": tect_type,
-                                "plot": args.plot,
-                            },
-                        )
+                        {
+                            "nseg": nseg,
+                            "seg_delay": seg_delay,
+                            "mag": mag,
+                            "mom": mom,
+                            "rvfac_seg": rvfac_seg,
+                            "gwid": gwid,
+                            "rup_delay": rup_delay,
+                            "flen": flen,
+                            "dlen": dlen,
+                            "fwid": fwid,
+                            "dwid": dwid,
+                            "dtop": dtop,
+                            "stk": stk,
+                            "rake": rake,
+                            "dip": dip,
+                            "elon": elon,
+                            "elat": elat,
+                            "shypo": shypo,
+                            "dhypo": dhypo,
+                            "dt": dt,
+                            "seed": seed,
+                            "prefix": prefix,
+                            "cases": cases,
+                            "dip_dir": dip_dir,
+                            "stoch": os.path.join(args.out_dir, name, "Stoch"),
+                            "name": name,
+                            "tect_type": tect_type,
+                            "plot": args.plot,
+                            "genslip_version": "3.3",
+                        }
                     )
+                    if tect_type == "SUBDUCTION_INTERFACE":
+                        msgs[-1].update({"genslip_version": "5.4.2"})
                     # store parameters
                     with open(out_log, "a") as log:
                         log.write(
@@ -373,6 +379,7 @@ def run_create_srf(fault):
         stoch=fault["stoch"],
         tect_type=fault["tect_type"],
         silent=True,
+        genslip_version=fault["genslip_version"],
         logger=logger,
     )
     logger.debug("created SRF: {} ({:.2f}s)".format(fault["name"], time() - t0))
@@ -478,4 +485,4 @@ if __name__ == "__main__":
 
     # distribute work
     p = Pool(args.nproc)
-    p.starmap(run_create_srf, msg_list)
+    p.map(run_create_srf, msg_list)
