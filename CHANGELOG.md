@@ -2,6 +2,12 @@ Pre processing
 # Changelog
 (Based on https://wiki.canterbury.ac.nz/download/attachments/58458136/CodeVersioning_v18p2.pdf?version=1&modificationDate=1519269238437&api=v2 )
 
+## [19.5.4] - 2019-11-06 -- Added subduction srf generation
+### Added
+    - Logic to generate srfs for subduction faults using genslip v5.4.2
+### Changed
+    - Fixed nhm 2 srf generation using 'n' randomisation method
+
 ## [19.5.3] - 2019-10-07 -- Added logging and versioned uncertainty source generation
 ### Added
     - Added logging for gcmt2srf, nhm2srf and srfinfo2vm workflows
