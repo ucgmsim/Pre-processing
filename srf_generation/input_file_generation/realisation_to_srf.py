@@ -1,6 +1,6 @@
 import argparse
 from subprocess import call, PIPE
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 import yaml
 from h5py import File as h5open
@@ -135,9 +135,7 @@ def create_info_file(
         a["dbottom"] = dbottom
 
 
-def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
-    name = parameter_dictionary.get("name")
-
+def create_ps_srf(realisation_file: str, parameter_dictionary: Dict[str, Any], stoch_file: Union[None, str]=None):
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
     depth = parameter_dictionary.pop("depth")
@@ -173,10 +171,8 @@ def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
     ###
     ### file names
     ###
-    srf_file = path.join(
-        fault_root, path.pardir, simulation_structure.get_srf_location(name)
-    )
-    gsf_file = srf_file.replace(".srf", ".gsf")
+    srf_file = realisation_file.replace(".csv", ".srf")
+    gsf_file = realisation_file.replace(".csv", ".gsf")
     makedirs(path.dirname(srf_file), exist_ok=True)
 
     ###
@@ -214,9 +210,8 @@ def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
     ###
     ### save STOCH
     ###
-    stoch_file = path.join(
-        fault_root, path.pardir, simulation_structure.get_stoch_location(name)
-    )
+    if stoch_file is None:
+        stoch_file = realisation_file.replace(".csv", ".stoch")
     gen_stoch(stoch_file, srf_file)
 
     ###
@@ -269,10 +264,7 @@ def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
 def load_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("realisation_file", type=path.abspath)
-    parser.add_argument("--fault_directory", type=path.abspath)
     args = parser.parse_args()
-    if args.fault_directory is None:
-        args.fault_directory = path.dirname(path.dirname(args.realisation_file))
     return parser.parse_args()
 
 
@@ -281,17 +273,13 @@ def main():
     rel_df: pd.DataFrame = pd.read_csv(args.realisation_file)
     realisation = rel_df.to_dict(orient="records")[0]
     if realisation["type"] == 1:
-        create_ps_srf(args.fault_directory, realisation)
+        create_ps_srf(args.realisation_file, realisation)
     else:
         raise ValueError(
             f"Type {realisation['type']} faults are not currently supported. "
             f"Contact the software team if you believe this is an error."
         )
-    sim_params_file = path.join(
-        args.fault_directory,
-        path.pardir,
-        simulation_structure.get_source_params_location(realisation["name"]),
-    )
+    sim_params_file = args.realisation_file.replace(".csv", ".yaml")
     generate_sim_params_yaml(sim_params_file, realisation)
 
 
