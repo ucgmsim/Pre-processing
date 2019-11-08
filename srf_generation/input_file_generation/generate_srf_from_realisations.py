@@ -17,7 +17,9 @@ from srf_generation.input_file_generation.realisation_to_srf import (
 def process_realisation_file(cybershake_root, realisation_file):
     rel_df: pd.DataFrame = pd.read_csv(realisation_file, dtype={"name": str})
     realisation = rel_df.to_dict(orient="records")[0]
-    stoch_file = simulation_structure.get_stoch_path(cybershake_root, realisation["name"])
+    stoch_file = simulation_structure.get_stoch_path(
+        cybershake_root, realisation["name"]
+    )
     if realisation["type"] == 1:
         create_ps_srf(realisation_file, realisation, stoch_file)
     sim_params_file = simulation_structure.get_source_params_path(

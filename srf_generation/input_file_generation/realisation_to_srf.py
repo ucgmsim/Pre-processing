@@ -135,7 +135,11 @@ def create_info_file(
         a["dbottom"] = dbottom
 
 
-def create_ps_srf(realisation_file: str, parameter_dictionary: Dict[str, Any], stoch_file: Union[None, str]=None):
+def create_ps_srf(
+    realisation_file: str,
+    parameter_dictionary: Dict[str, Any],
+    stoch_file: Union[None, str] = None,
+):
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
     depth = parameter_dictionary.pop("depth")
