@@ -135,7 +135,7 @@ def create_info_file(
         a["dbottom"] = dbottom
 
 
-def create_ps_srf(cs_root: str, parameter_dictionary: Dict[str, Any]):
+def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
     name = parameter_dictionary.get("name")
 
     latitude = parameter_dictionary.pop("latitude")
@@ -173,7 +173,9 @@ def create_ps_srf(cs_root: str, parameter_dictionary: Dict[str, Any]):
     ###
     ### file names
     ###
-    srf_file = simulation_structure.get_srf_path(cs_root, name)
+    srf_file = path.join(
+        fault_root, path.pardir, simulation_structure.get_srf_location(name)
+    )
     gsf_file = srf_file.replace(".srf", ".gsf")
     makedirs(path.dirname(srf_file), exist_ok=True)
 
@@ -212,7 +214,9 @@ def create_ps_srf(cs_root: str, parameter_dictionary: Dict[str, Any]):
     ###
     ### save STOCH
     ###
-    stoch_file = simulation_structure.get_stoch_path(cs_root, name)
+    stoch_file = path.join(
+        fault_root, path.pardir, simulation_structure.get_stoch_location(name)
+    )
     gen_stoch(stoch_file, srf_file)
 
     ###
@@ -265,9 +269,10 @@ def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
 def load_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("realisation_file", type=path.abspath)
-    parser.add_argument(
-        "-c", "--cybershake_root", type=path.abspath, default=path.abspath(".")
-    )
+    parser.add_argument("--fault_directory", type=path.abspath)
+    args = parser.parse_args()
+    if args.fault_directory is None:
+        args.fault_directory = path.dirname(path.dirname(args.realisation_file))
     return parser.parse_args()
 
 
@@ -276,14 +281,16 @@ def main():
     rel_df: pd.DataFrame = pd.read_csv(args.realisation_file)
     realisation = rel_df.to_dict(orient="records")[0]
     if realisation["type"] == 1:
-        create_ps_srf(args.cybershake_root, realisation)
+        create_ps_srf(args.fault_directory, realisation)
     else:
         raise ValueError(
             f"Type {realisation['type']} faults are not currently supported. "
             f"Contact the software team if you believe this is an error."
         )
-    sim_params_file = simulation_structure.get_source_params_path(
-        args.cybershake_root, realisation["name"]
+    sim_params_file = path.join(
+        args.fault_directory,
+        path.pardir,
+        simulation_structure.get_source_params_location(realisation["name"]),
     )
     generate_sim_params_yaml(sim_params_file, realisation)
 

@@ -968,7 +968,7 @@ def load_msgs(args, logger: Logger = qclogging.get_basic_logger()):
                         "mag": mag,
                         "hdepth": a["hdepth"],
                     },
-                    qclogging.get_realisation_logger(logger, name.decode()),
+                    qclogging.get_realisation_logger(logger, name),
                 )
             )
     return msgs

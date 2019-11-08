@@ -4,14 +4,14 @@ import math
 import os
 from logging import Logger
 from shutil import copyfile
-from subprocess import call, Popen, PIPE
+from subprocess import call, PIPE, Popen
 import sys
 from random import randint
 
 from h5py import File as h5open
 import numpy as np
 
-from qcore import geo, srf, binary_version, qclogging
+from qcore import geo, srf, binary_version, qclogging, utils
 
 # local srf_config has a higher priority
 sys.path.append(os.path.abspath(os.curdir))
@@ -1026,6 +1026,13 @@ def CreateSRF_multi(
     tect_type=None,
     logger: Logger = qclogging.get_basic_logger(),
 ):
+    if (
+        utils.compare_versions(genslip_version, "5.4.2") < 0
+        and tect_type == "SUBDUCTION_INTERFACE"
+    ):
+        raise RuntimeError(
+            "Subduction interface faults are only available for version 5.4.2 and above"
+        )
 
     # do not change any pointers
     mag = list(mag0)
@@ -1099,19 +1106,18 @@ def CreateSRF_multi(
                 xseg.append(sbound - 0.5 * flen_tot)
             xseg = ",".join(map(str, xseg))
 
-        case_root = "%s_%s" % (prefix.rstrip("_"), case)
-        gsf_file = "%s.gsf" % (case_root)
-        srf_file = "%s.srf" % (case_root)
-        fsg_file = "%s_seg.in" % (case_root)
+        case_root = "{}_{}".format(prefix.rstrip("_"), case)
+        gsf_file = "{}.gsf".format(case_root)
+        srf_file = "{}.srf".format(case_root)
+        fsg_file = "{}_seg.in".format(case_root)
         casefiles.append(srf_file)
 
         logger.debug("Saving segments file to {}".format(fsg_file))
         with open(fsg_file, "w") as fs:
-            fs.write("%d\n" % (nseg[c]))
+            fs.write("{}\n".format(nseg[c]))
             for f in range(nseg[c]):
                 fs.write(
-                    "%f %f %f %.4f %.4f %.4f %.4f %.4f %i %i\n"
-                    % (
+                    "{:f} {:f} {:f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:d} {:d}\n".format(
                         elon[c][f],
                         elat[c][f],
                         dtop[c][f],
@@ -1128,11 +1134,11 @@ def CreateSRF_multi(
         cmd = [
             binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR),
             "read_slip_vals=0",
-            "infile=%s" % (fsg_file),
-            "outfile=%s" % (gsf_file),
+            "infile={}".format(fsg_file),
+            "outfile={}".format(gsf_file),
         ]
         if dip_dir is not None:
-            cmd.append("dipdir=%s" % (dip_dir))
+            cmd.append("dipdir={}".format(dip_dir))
         logger.info(
             "Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd))
         )
@@ -1145,38 +1151,47 @@ def CreateSRF_multi(
                 genslip_bin,
                 "read_erf=0",
                 "write_srf=1",
-                "seg_delay=%s" % (seg_delay[c]),
+                "seg_delay={}".format(seg_delay[c]),
                 "read_gsf=1",
                 "write_gsf=1",
-                "infile=%s" % (gsf_file),
-                "nseg=%s" % (nseg[c]),
-                "nseg_bounds=%d" % (nseg[c] - 1),
-                "xseg=%s" % (xseg),
-                "rvfac_seg=%s" % (rvfac_seg[c]),
-                "gwid=%s" % (gwid[c]),
-                "mag=%f" % (mag[c]),
-                "%s=%f" % (xstk, nx_tot),
-                "%s=%f" % (ydip, ny[0]),
+                "infile={}".format(gsf_file),
+                "nseg={}".format(nseg[c]),
+                "nseg_bounds={}".format(nseg[c] - 1),
+                "xseg={}".format(xseg),
+                "rvfac_seg={}".format(rvfac_seg[c]),
+                "gwid={}".format(gwid[c]),
+                "mag={}".format(mag[c]),
+                "{}={}".format(xstk, nx_tot),
+                "{}={}".format(ydip, ny[0]),
                 "ns=1",
                 "nh=1",
-                "seed=%d" % (seed),
-                "velfile=%s" % (velocity_model),
-                "shypo=%f" % (shyp_tot),
-                "dhypo=%f" % (dhypo[c][0]),
-                "dt=%f" % (dt),
+                "seed={}".format(seed),
+                "velfile={}".format(velocity_model),
+                "shypo={}".format(shyp_tot),
+                "dhypo={}".format(dhypo[c][0]),
+                "dt={}".format(dt),
                 "plane_header=1",
                 "side_taper=0.02",
                 "bot_taper=0.02",
                 "top_taper=0.0",
-                "%s=%s" % (rup_name, rup_delay[c]),
-                "srf_version=2.0",
+                "{}={}".format(rup_name, rup_delay[c]),
+                "srf_version=1.0",
             ]
+            if tect_type == "SUBDUCTION_INTERFACE":
+                cmd.append("kmodel=-1")
+                cmd.append("xmag_exp=0.5")
+                cmd.append("ymag_exp=0.5")
+                cmd.append("kx_corner=2.5482")
+                cmd.append("ky_corner=2.3882")
+                cmd.append("tsfac_slope=-0.5")
+                cmd.append("tsfac_bzero=-0.1")
+                cmd.append("risetime_coef=1.95")
             if rvfrac is not None:
-                cmd.append("rvfrac=%s" % (rvfrac))
+                cmd.append("rvfrac={}".format(rvfrac))
             if rough is not None:
-                cmd.append("alpha_rough=%s" % (rough))
+                cmd.append("alpha_rough={}".format(rough))
             if slip_cov is not None:
-                cmd.append("slip_sigma=%s" % (slip_cov))
+                cmd.append("slip_sigma={}".format(slip_cov))
             logger.debug("Calling genslip with command {}".format(cmd))
             if silent:
                 with open("/dev/null", "a") as sink:
@@ -1191,8 +1206,8 @@ def CreateSRF_multi(
 
     # joined filename
     if prefix[-1] == "_":
-        prefix = "%ss%d" % (prefix, seed)
-    joined_srf = "%s.srf" % (prefix)
+        prefix = "{}s{}".format(prefix, seed)
+    joined_srf = "{}.srf".format(prefix)
     # joined case files stored in separate file
     copyfile(casefiles[0], joined_srf)
     # join rest of cases into the first
@@ -1205,7 +1220,7 @@ def CreateSRF_multi(
         single_segment = False
         if nseg == 1:
             single_segment = True
-        stoch_file = "%s/%s.stoch" % (stoch, os.path.basename(prefix))
+        stoch_file = os.path.join(stoch, "{}.stoch".format(os.path.basename(prefix)))
         gen_stoch(
             stoch_file,
             joined_srf,
@@ -1373,8 +1388,6 @@ if __name__ == "__main__":
     if TYPE == 1:
         print("Point source plotting not yet implemented.")
         exit(0)
-
-    # start plotting
 
     for script in ["plot_srf_square.py", "plot_srf_map.py"]:
         path_tester = Popen(["which", script], stdout=PIPE)
