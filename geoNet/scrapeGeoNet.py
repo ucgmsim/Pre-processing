@@ -2,7 +2,7 @@ import numpy as np
 import os
 from os import system as sys
 import csv
-import urllib2
+import urllib.request
 from glob import glob
 import datetime
 import subprocess as sp
@@ -36,7 +36,7 @@ def save_GeoNet_dataPlots(FILE_NAMES, BASE_URL, num_vol=4):
             url = "/".join([BASE_URL,vol,"data",station + "." + data_ext])
             stat_data = None
             try:
-                stat_data = urllib2.urlopen(url)
+                stat_data = urllib.request.urlopen(url)
             except Exception as  e:
                 print("Remove station field below from .CSV file")
                 print(e)
@@ -101,7 +101,7 @@ def get_geoNet_data(loc=None, geoNet_dir='data', geoNet_url=None, wget_options='
     os.chdir(DirData)
 
     Prog = "wget"
-    wget_default_options = " -r -np -nd -nH "
+    wget_default_options = " -np -nH "
     wget_options += wget_default_options
     wget_input = "%s %s %s -P %s" %(Prog, wget_options, geoNet_url, geoNet_dir)
     wget = sp.Popen(wget_input, 

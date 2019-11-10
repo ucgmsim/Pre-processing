@@ -28,7 +28,7 @@ class SMD(object):
         self.lowcut=lowcut
         self.highcut=highcut
         self.fs = fs
-        self.ft =ft
+        self.ft = ft
         self.order=order
         self.output=output
 
@@ -36,8 +36,8 @@ class SMD(object):
 
         self.g = 9810. #mm/s^2
 
-        if fs < 2.*highcut:
-            self.highcut = fs/2.
+        #if fs < 2.*highcut:
+            #self.highcut = fs/2.
     @property
     def accBB(self):
         if self._acc['BB'] is None:
@@ -164,7 +164,7 @@ class Process(object):
                           'order':4, 'ft':1., 'output':None}
 
             SMD_kwargs['fs']= 1./self.delta_t
-            SMD_kwargs['highcut'] = min(0.5 / self.delta_t, 50)
+            SMD_kwargs['highcut'] = min(1.0 / (2.5*self.delta_t), 50)
             for key, value in SMD_kwargs.items():
                 kwargs.setdefault(key, value)
             

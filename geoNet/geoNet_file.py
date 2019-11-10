@@ -193,7 +193,7 @@ def read_geoNet_list(lines, line_width = 80, width=8):
                 data.append(float(line[i:i+width]))
 
     last_line = lines[-1].rstrip()
-    for i in xrange(0, len(last_line), width):
+    for i in range(0, len(last_line), width):
         if(last_line[i:i+width] == "999999.9"):
             return np.asarray(data, dtype=float)
         else:

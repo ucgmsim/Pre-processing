@@ -6,12 +6,12 @@ import numpy as np
 import os
 from glob import glob
 import datetime
-from itertools import izip
+#from itertools import izip
 from scipy.interpolate import UnivariateSpline as US
 from scipy.integrate import cumtrapz
 from scipy import signal, fftpack
 #https://docs.python.org/2.5/whatsnew/pep-328.html
-from geoNet.rspectra import Response_Spectra
+#from geoNet.rspectra import Response_Spectra
 from geoNet.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
 from geoNet.gmpe.calculateGMPE import set_siteprop
 from geoNet.gmpe import readStationFile as rsf
@@ -65,17 +65,17 @@ def writeGP(loc, fname, data, header, ncol=6):
     Convinience function for writing files in the Graves and Pitarka format
     """
     size = len(data)
-    nrow = size / ncol
+    nrow = int(size / ncol)
     size_last_row = size % ncol
     
     lines = ""
-    for line in np.reshape(xrange(nrow*ncol), (nrow, ncol)):
+    for line in np.reshape(range(nrow*ncol), (nrow, ncol)):
         for val in line:
             lines += "{:^20.6e}".format(data[val]) + 3*" "
         lines = lines.rstrip(3*" ") + "\n"
 
     if size_last_row:
-        for i in xrange(1, size_last_row+1):
+        for i in range(1, size_last_row+1):
             lines += "{:^20.6e}".format(data[-i]) + 3*" "
     lines = lines.rstrip(3*" ")
 
@@ -367,7 +367,7 @@ def get_empIM_v2(Rrup, period, faultprop, Rjb=None, Rtvz=0., V30measured=0., V30
 
     empIM_values = np.empty((Rrup.size, period.size))
     empIM_sigmas = np.empty((Rrup.size, period.size))
-    for i, (x,y,z) in enumerate(izip(Rrup, Rjb, V30)):
+    for i, (x,y,z) in enumerate(zip(Rrup, Rjb, V30)):
         #x,y = Rrup[i], Rjb[i]
         siteprop = set_siteprop(faultprop, period=np.nan, Rrup=x, Rjb=y,
                                 Rtvz=Rtvz, V30measured=V30measured, V30=z)

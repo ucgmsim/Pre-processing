@@ -61,7 +61,7 @@ def readStationCordsFile(station_file):
     try:
         fp = open(station_file, 'r')
     except IOError:
-        print 'Station filename is not valid. Returning from function readStationCordsFile'
+        print ('Station filename is not valid. Returning from function readStationCordsFile')
         raise
         return
 
@@ -196,7 +196,7 @@ def computeRrup(stationFile, srfFile):
     try:
         stations = readStationCordsFile(stationFile)      #dodgy var name from matlab
     except IOError:
-        print 'Station filename is not valid. Returning from function computeRrup'
+        print ('Station filename is not valid. Returning from function computeRrup')
         raise
         return
 
@@ -204,7 +204,7 @@ def computeRrup(stationFile, srfFile):
     try:
         FiniteFault = readSrfFile(srfFile)
     except IOError:
-        print 'SRF filename is not valid. Returning from function computeRrup'
+        print ('SRF filename is not valid. Returning from function computeRrup')
         raise
         return
 
@@ -243,7 +243,7 @@ def computeRrup_np(stationFile, srfFile):
     try:
         stations = readStationCordsFile(stationFile)      #dodgy var name from matlab
     except IOError:
-        print 'Station filename is not valid. Returning from function computeRrup'
+        print ('Station filename is not valid. Returning from function computeRrup')
         raise
         return
 
@@ -251,7 +251,7 @@ def computeRrup_np(stationFile, srfFile):
     try:
         FiniteFault = readSrfFile(srfFile)
     except IOError:
-        print 'SRF filename is not valid. Returning from function computeRrup'
+        print ('SRF filename is not valid. Returning from function computeRrup')
         raise
         return
 

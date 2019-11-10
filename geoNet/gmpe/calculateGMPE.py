@@ -159,7 +159,7 @@ def calculateGMPE(parms,ImName,period):     ##need to pass the ImName and the pe
         elif parms.plotGMPE.SiteClassForPrediction[i]=='E':
             Vs30.append(parms.plotGMPE.Vs30[4])
         else:
-            print parms.plotGMPE.SiteClassForPrediction[i], 'is an invalid siteClass for Prediciton. Must be A, B, C, D, E.'
+            print (parms.plotGMPE.SiteClassForPrediction[i], 'is an invalid siteClass for Prediciton. Must be A, B, C, D, E.')
 
     #initialise the outputs as arrays of zeros
     IM_Rscaling=np.zeros((len(Vs30),parms.plotGMPE.nVal))
