@@ -1,19 +1,20 @@
 import argparse
 from subprocess import call, PIPE
 from typing import Dict, Any, Union
+from tempfile import NamedTemporaryFile
 
 import yaml
 from h5py import File as h5open
 import numpy as np
-from os import makedirs, path
+from os import makedirs, path, remove
 import pandas as pd
-from qcore import binary_version, srf, geo, simulation_structure
+from qcore import binary_version, srf, geo
+
 from srf_generation.source_parameter_generation.uncertainties.common import (
     HF_RUN_PARAMS,
     BB_RUN_PARAMS,
     LF_RUN_PARAMS,
 )
-
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
 
 SRF2STOCH = "srf2stoch"
@@ -176,13 +177,12 @@ def create_ps_srf(
     ### file names
     ###
     srf_file = realisation_file.replace(".csv", ".srf")
-    gsf_file = realisation_file.replace(".csv", ".gsf")
-    makedirs(path.dirname(srf_file), exist_ok=True)
+    gsf_file = NamedTemporaryFile(mode='w', delete=False)
 
     ###
     ### create GSF
     ###
-    with open(gsf_file, "w") as gsfp:
+    with gsf_file as gsfp:
         gsfp.write("# nstk= 1 ndip= 1\n")
         gsfp.write(f"# flen= {dd:10.4f} fwid= {dd:10.4f}\n")
         gsfp.write(
@@ -199,7 +199,7 @@ def create_ps_srf(
     ###
     commands = [
         binary_version.get_unversioned_bin(GENERICSLIP2SRF),
-        f"infile={gsf_file}",
+        f"infile={gsf_file.name}",
         f"outfile={srf_file}",
         "outbin=0",
         f"stype={stype}",
@@ -210,6 +210,8 @@ def create_ps_srf(
         "risetimedep=0.0",
     ]
     call(commands, stderr=PIPE)
+
+    remove(gsf_file)
 
     ###
     ### save STOCH
@@ -233,9 +235,6 @@ def create_ps_srf(
         lon=longitude,
         lat=latitude,
     )
-
-    # location of resulting SRF file
-    return srf_file
 
 
 def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
@@ -268,7 +267,6 @@ def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
 def load_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("realisation_file", type=path.abspath)
-    args = parser.parse_args()
     return parser.parse_args()
 
 
