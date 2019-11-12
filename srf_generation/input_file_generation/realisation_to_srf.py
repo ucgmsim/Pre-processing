@@ -177,7 +177,7 @@ def create_ps_srf(
     ### file names
     ###
     srf_file = realisation_file.replace(".csv", ".srf")
-    gsf_file = NamedTemporaryFile(mode='w', delete=False)
+    gsf_file = NamedTemporaryFile(mode="w", delete=False)
 
     ###
     ### create GSF
