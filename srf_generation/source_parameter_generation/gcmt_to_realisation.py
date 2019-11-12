@@ -52,9 +52,22 @@ def load_args(primary_logger: Logger):
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("gcmt_file", type=abspath)
     parser.add_argument("--version", type=str, default="unperturbated")
-    parser.add_argument("-n", "--n_processes", default=1, type=int)
+    parser.add_argument(
+        "-n",
+        "--n_processes",
+        default=1,
+        type=int,
+        help="Number of processes to generate realisations with. "
+        "Setting this higher than the number of faults will not have any additional effect.",
+    )
     parser.add_argument("-c", "--cybershake_root", type=abspath, default=abspath("."))
-    parser.add_argument("-a", "--aggregate_file", type=abspath)
+    parser.add_argument(
+        "-a",
+        "--aggregate_file",
+        type=abspath,
+        help="A filepath to the location an aggregate file should be stored. "
+        "There should not be a file already present.",
+    )
     parser.add_argument(
         "--source_parameter",
         type=str,
@@ -65,7 +78,9 @@ def load_args(primary_logger: Logger):
         "The first argument should be the name of the value, "
         "the second the filepath to the space separated file containing the values. "
         "The file should have two columns, the name of a station followed by the value for that station, "
-        "seperated by some number of spaces.",
+        "seperated by some number of spaces. "
+        "If multiple source parameters are required this argument should be repeated.",
+        default=[],
     )
 
     args = parser.parse_args()
@@ -80,15 +95,14 @@ def load_args(primary_logger: Logger):
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
         )
 
-    if args.source_parameter is not None:
-        for i, (param_name, filepath) in enumerate(args.source_parameter):
-            if not isfile(filepath):
-                errors.append(
-                    f"The file {filepath} given for parameter "
-                    f"{param_name} does not exist"
-                )
-            else:
-                args.source_parameter[i][1] = filepath
+    for i, (param_name, filepath) in enumerate(args.source_parameter):
+        if not isfile(filepath):
+            errors.append(
+                f"The file {filepath} given for parameter "
+                f"{param_name} does not exist"
+            )
+        else:
+            args.source_parameter[i][1] = filepath
 
     if errors:
         message = (
@@ -222,19 +236,18 @@ def main():
 
     additional_source_parameters = pd.DataFrame()
 
-    if args.source_parameter is not None:
-        for param_name, filepath in args.source_parameter:
-            parameter_df = pd.read_csv(
-                filepath,
-                delim_whitespace=True,
-                header=None,
-                index_col=0,
-                names=[param_name],
-                dtype={0: str},
-            )
-            additional_source_parameters = additional_source_parameters.join(
-                parameter_df, how="outer"
-            )
+    for param_name, filepath in args.source_parameter:
+        parameter_df = pd.read_csv(
+            filepath,
+            delim_whitespace=True,
+            header=None,
+            index_col=0,
+            names=[param_name],
+            dtype={0: str},
+        )
+        additional_source_parameters = additional_source_parameters.join(
+            parameter_df, how="outer"
+        )
 
     messages = generate_messages(
         additional_source_parameters,
