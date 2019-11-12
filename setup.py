@@ -7,5 +7,9 @@ setup(
     url="https://github.com/ucgmsim/Pre-processing",
     description="Srf generation code",
     install_requires=["numpy>=1.14.3", "scipy>=1.1.0"],
-    scripts=["srf_generation/source_parameter_generation/gcmt_to_srfgen.py"],
+    scripts=[
+        "srf_generation/source_parameter_generation/gcmt_to_realisation.py",
+        "srf_generation/input_file_generation/realisation_to_srf.py",
+        "srf_generation/input_file_generation/generate_srf_from_realisations.py",
+    ],
 )

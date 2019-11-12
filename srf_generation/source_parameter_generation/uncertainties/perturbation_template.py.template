@@ -23,7 +23,9 @@ def verify_1d_vel_mod(vel_mod_1d: pd.DataFrame):
 
 def generate_source_params(
     source_data: Union[GCMT_Source, NHM_Source],
+    additional_source_parameters: Dict[str, Any],
     vel_mod_1d: pd.DataFrame = None,
+    **kwargs,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
       - source_data.pid: name of the event
@@ -39,9 +41,9 @@ def generate_source_params(
     ### Start of custom code area
 
     if isinstance(source_data, GCMT_Source):
-        params = generate_from_gcmt(source_data)
+        params = generate_from_gcmt(source_data, additional_source_parameters)
     elif isinstance(source_data, NHM_Source):
-        params = generate_from_nhm(source_data)
+        params = generate_from_nhm(source_data, additional_source_parameters)
     else:
         raise ValueError("Not a valid type")
 
@@ -64,12 +66,9 @@ def generate_source_params(
     return return_dict
 
 
-def generate_from_gcmt(sources_line: GCMT_Source):
-    area = mw_2_a_scaling_relation(
-        sources_line.mag,
-        MagnitudeScalingRelations.LEONARD2014.value,
-        sources_line.strike,
-    )
+def generate_from_gcmt(
+    sources_line: GCMT_Source, additional_source_parameters: Dict[str, Any]
+):
 
     params = {
         "type": 1,
@@ -82,11 +81,10 @@ def generate_from_gcmt(sources_line: GCMT_Source):
         "strike": sources_line.strike,
         "dip": sources_line.dip,
         "rake": sources_line.rake,
-        "flen": float(np.sqrt(area)),
-        "dlen": float(np.sqrt(area)),
     }
+    params.update(additional_source_parameters)
     return params
 
 
-def generate_from_nhm(source: NHM_Source):
+def generate_from_nhm(source: NHM_Source, additional_source_parameters: Dict[str, Any]):
     return None

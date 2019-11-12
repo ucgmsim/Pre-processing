@@ -969,7 +969,7 @@ def load_msgs(args, logger: Logger = qclogging.get_basic_logger()):
                         "mag": mag,
                         "hdepth": a["hdepth"],
                     },
-                    qclogging.get_realisation_logger(logger, name.decode()),
+                    qclogging.get_realisation_logger(logger, name).name,
                 )
             )
     return msgs
@@ -1031,7 +1031,7 @@ def load_msgs_nhm(args, logger: Logger = qclogging.get_basic_logger()):
                     "mag": mag,
                     "hdepth": dtop + 0.5 * (dbottom - dtop),
                 },
-                logger.name,
+                qclogging.get_realisation_logger(logger, n).name,
             )
         )
 
@@ -1202,27 +1202,14 @@ if __name__ == "__main__":
         )
         os.makedirs(args.out_dir)
 
-    # proxy function for mapping
-    def create_vm_star(args_meta):
-        return create_vm(*args_meta)
-
     # distribute work
-    if args.nproc > 1:
-        logger.debug(
-            "Number of processes to use given as {}, using multiple threads for the {} tasks to perform.".format(
-                args.nproc, len(msg_list)
-            )
+    logger.debug(
+        "Number of processes to use given as {}, number of tasks: {}.".format(
+            args.nproc, len(msg_list)
         )
-        p = Pool(processes=args.nproc)
-        reports = p.map(create_vm_star, msg_list)
-    else:
-        # debug friendly alternative
-        logger.debug(
-            "Number of processes to use given as {}, using one thread for the {} tasks to perform.".format(
-                args.nproc, len(msg_list)
-            )
-        )
-        reports = [create_vm_star(msg) for msg in msg_list]
+    )
+    p = Pool(processes=args.nproc)
+    reports = p.starmap(create_vm, msg_list)
 
     # nhm selection formatted file and list of excluded VMs
     if args.selection:

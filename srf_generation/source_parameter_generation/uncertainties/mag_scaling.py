@@ -37,7 +37,7 @@ def mw_2_a_scaling_relation(
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
 
     # Area
-    return A
+    return float(A)
 
 
 def mw_to_a_hanksbakum(mw):
@@ -92,7 +92,7 @@ def a_2_mw_scaling_relation(
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
 
     # magnitude
-    return mw
+    return float(mw)
 
 
 def a_to_mw_leonard(a, leonard_ds, leonard_ss, rake):
@@ -125,9 +125,9 @@ def a_to_mw_hanksbakum(a):
 
 def mag2mom(mw):
     """Converts magnitude to moment"""
-    return np.exp(1.5 * (mw + 10.7) * np.log(10.0))
+    return np.exp(3.0 / 2.0 * (mw + 10.7) * np.log(10.0))
 
 
 def mom2mag(mom):
     """Converts moment to magnitude"""
-    return (2 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
+    return (2.0 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
