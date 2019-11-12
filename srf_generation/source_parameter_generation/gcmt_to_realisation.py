@@ -96,6 +96,7 @@ def load_args(primary_logger: Logger):
         )
 
     for i, (param_name, filepath) in enumerate(args.source_parameter):
+        filepath = abspath(filepath)
         if not isfile(filepath):
             errors.append(
                 f"The file {filepath} given for parameter "
