@@ -1,19 +1,20 @@
 import argparse
 from subprocess import call, PIPE
-from typing import Dict, Any
+from typing import Dict, Any, Union
+from tempfile import NamedTemporaryFile
 
 import yaml
 from h5py import File as h5open
 import numpy as np
-from os import makedirs, path
+from os import makedirs, path, remove
 import pandas as pd
-from qcore import binary_version, srf, geo, simulation_structure
+from qcore import binary_version, srf, geo
+
 from srf_generation.source_parameter_generation.uncertainties.common import (
     HF_RUN_PARAMS,
     BB_RUN_PARAMS,
     LF_RUN_PARAMS,
 )
-
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
 
 SRF2STOCH = "srf2stoch"
@@ -135,9 +136,11 @@ def create_info_file(
         a["dbottom"] = dbottom
 
 
-def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
-    name = parameter_dictionary.get("name")
-
+def create_ps_srf(
+    realisation_file: str,
+    parameter_dictionary: Dict[str, Any],
+    stoch_file: Union[None, str] = None,
+):
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
     depth = parameter_dictionary.pop("depth")
@@ -173,16 +176,13 @@ def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
     ###
     ### file names
     ###
-    srf_file = path.join(
-        fault_root, path.pardir, simulation_structure.get_srf_location(name)
-    )
-    gsf_file = srf_file.replace(".srf", ".gsf")
-    makedirs(path.dirname(srf_file), exist_ok=True)
+    srf_file = realisation_file.replace(".csv", ".srf")
+    gsf_file = NamedTemporaryFile(mode="w", delete=False)
 
     ###
     ### create GSF
     ###
-    with open(gsf_file, "w") as gsfp:
+    with gsf_file as gsfp:
         gsfp.write("# nstk= 1 ndip= 1\n")
         gsfp.write(f"# flen= {dd:10.4f} fwid= {dd:10.4f}\n")
         gsfp.write(
@@ -199,7 +199,7 @@ def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
     ###
     commands = [
         binary_version.get_unversioned_bin(GENERICSLIP2SRF),
-        f"infile={gsf_file}",
+        f"infile={gsf_file.name}",
         f"outfile={srf_file}",
         "outbin=0",
         f"stype={stype}",
@@ -211,12 +211,13 @@ def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
     ]
     call(commands, stderr=PIPE)
 
+    remove(gsf_file)
+
     ###
     ### save STOCH
     ###
-    stoch_file = path.join(
-        fault_root, path.pardir, simulation_structure.get_stoch_location(name)
-    )
+    if stoch_file is None:
+        stoch_file = realisation_file.replace(".csv", ".stoch")
     gen_stoch(stoch_file, srf_file)
 
     ###
@@ -234,9 +235,6 @@ def create_ps_srf(fault_root: str, parameter_dictionary: Dict[str, Any]):
         lon=longitude,
         lat=latitude,
     )
-
-    # location of resulting SRF file
-    return srf_file
 
 
 def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
@@ -269,10 +267,6 @@ def generate_sim_params_yaml(sim_params_file: str, parameters: Dict[str, Any]):
 def load_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("realisation_file", type=path.abspath)
-    parser.add_argument("--fault_directory", type=path.abspath)
-    args = parser.parse_args()
-    if args.fault_directory is None:
-        args.fault_directory = path.dirname(path.dirname(args.realisation_file))
     return parser.parse_args()
 
 
@@ -281,17 +275,13 @@ def main():
     rel_df: pd.DataFrame = pd.read_csv(args.realisation_file)
     realisation = rel_df.to_dict(orient="records")[0]
     if realisation["type"] == 1:
-        create_ps_srf(args.fault_directory, realisation)
+        create_ps_srf(args.realisation_file, realisation)
     else:
         raise ValueError(
             f"Type {realisation['type']} faults are not currently supported. "
             f"Contact the software team if you believe this is an error."
         )
-    sim_params_file = path.join(
-        args.fault_directory,
-        path.pardir,
-        simulation_structure.get_source_params_location(realisation["name"]),
-    )
+    sim_params_file = args.realisation_file.replace(".csv", ".yaml")
     generate_sim_params_yaml(sim_params_file, realisation)
 
 
