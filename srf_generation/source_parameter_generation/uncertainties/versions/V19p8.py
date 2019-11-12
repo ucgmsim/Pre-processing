@@ -1,5 +1,4 @@
 """A basic perturbator as an example and starting point"""
-import numpy as np
 from typing import Any, Dict, Union
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -12,11 +11,7 @@ from srf_generation.source_parameter_generation.uncertainties.distributions impo
     truncated_log_normal,
     uniform,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    mw_2_a_scaling_relation,
-    MagnitudeScalingRelations,
-    mag2mom,
-)
+from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
 
 
 def generate_source_params(

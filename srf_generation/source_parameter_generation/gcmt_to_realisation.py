@@ -45,7 +45,9 @@ UNPERTURBATED = "unperturbated"
 
 
 def load_args(primary_logger: Logger):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        "Generates realisation files from gcmt and other input data."
+    )
 
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("gcmt_file", type=abspath)
@@ -53,7 +55,18 @@ def load_args(primary_logger: Logger):
     parser.add_argument("-n", "--n_processes", default=1, type=int)
     parser.add_argument("-c", "--cybershake_root", type=abspath, default=abspath("."))
     parser.add_argument("-a", "--aggregate_file", type=abspath)
-    parser.add_argument("--source_parameters", type=str, nargs="+")
+    parser.add_argument(
+        "--source_parameter",
+        type=str,
+        nargs=2,
+        action="append",
+        metavar=("name", "filepath"),
+        help="Values to be passed to be added to each realisation, with one value per fault. "
+        "The first argument should be the name of the value, "
+        "the second the filepath to the space separated file containing the values. "
+        "The file should have two columns, the name of a station followed by the value for that station, "
+        "seperated by some number of spaces.",
+    )
 
     args = parser.parse_args()
 
@@ -67,21 +80,15 @@ def load_args(primary_logger: Logger):
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
         )
 
-    if args.source_parameters is not None:
-        if len(args.source_parameters) % 2 != 0:
-            errors.append(
-                f"An odd number of source parameters was given. Source parameters must be given as a name-file pair"
-            )
-        else:
-            for i in range(len(args.source_parameters) // 2):
-                f_name = abspath(args.source_parameters[2 * i + 1])
-                if not isfile(f_name):
-                    errors.append(
-                        f"The file {args.source_parameters[2*i+1]} given for parameter "
-                        f"{args.source_parameters[2*i]} does not exist"
-                    )
-                else:
-                    args.source_parameters[2 * i + 1] = f_name
+    if args.source_parameter is not None:
+        for i, (param_name, filepath) in enumerate(args.source_parameter):
+            if not isfile(filepath):
+                errors.append(
+                    f"The file {filepath} given for parameter "
+                    f"{param_name} does not exist"
+                )
+            else:
+                args.source_parameter[i][1] = filepath
 
     if errors:
         message = (
@@ -153,7 +160,9 @@ def generate_uncertainties(
 
     unperturbated_function = load_perturbation_function(UNPERTURBATED)
     if perturbation_function != unperturbated_function:
-        unperturbated_realisation = unperturbated_function(data)
+        unperturbated_realisation = unperturbated_function(
+            sources_line=data, additional_source_parameters=additional_source_parameters
+        )
         rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         file_name = join(
             get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
@@ -213,15 +222,14 @@ def main():
 
     additional_source_parameters = pd.DataFrame()
 
-    if args.source_parameters is not None:
-        for i in range(len(args.source_parameters) // 2):
-            param, f_name = args.source_parameters[2 * i : 2 * i + 2]
+    if args.source_parameter is not None:
+        for param_name, filepath in args.source_parameter:
             parameter_df = pd.read_csv(
-                f_name,
+                filepath,
                 delim_whitespace=True,
                 header=None,
                 index_col=0,
-                names=[param],
+                names=[param_name],
                 dtype={0: str},
             )
             additional_source_parameters = additional_source_parameters.join(
@@ -269,12 +277,10 @@ def generate_messages(
         gcmt_data = gcmt_lines[i]
 
         additional_source_specific_data = {}
-        print(gcmt_data[0])
         if gcmt_data[0] in additional_source_parameters.index:
             additional_source_specific_data = additional_source_parameters.loc[
                 gcmt_data[0]
             ].to_dict()
-            print(additional_source_specific_data)
 
         messages.append(
             (
