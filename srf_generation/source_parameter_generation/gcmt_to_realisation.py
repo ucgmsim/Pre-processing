@@ -5,7 +5,7 @@ from logging import Logger
 from multiprocessing import pool
 from os import makedirs
 from os.path import abspath, isfile, dirname, join
-from typing import Callable, Union
+from typing import Callable, Union, Dict, Any
 
 import pandas as pd
 
@@ -45,25 +45,47 @@ UNPERTURBATED = "unperturbated"
 
 
 def load_args(primary_logger: Logger):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        "Generates realisation files from gcmt and other input data."
+    )
 
-    parser.add_argument("version", type=str)
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument("-n", "--n_processes", default=1, type=int)
+    parser.add_argument("--version", type=str, default="unperturbated")
+    parser.add_argument(
+        "-n",
+        "--n_processes",
+        default=1,
+        type=int,
+        help="Number of processes to generate realisations with. "
+        "Setting this higher than the number of faults will not have any additional effect.",
+    )
     parser.add_argument("-c", "--cybershake_root", type=abspath, default=abspath("."))
-    parser.add_argument("-a", "--aggregate_file", type=abspath)
+    parser.add_argument(
+        "-a",
+        "--aggregate_file",
+        type=abspath,
+        help="A filepath to the location an aggregate file should be stored. "
+        "There should not be a file already present.",
+    )
+    parser.add_argument(
+        "--source_parameter",
+        type=str,
+        nargs=2,
+        action="append",
+        metavar=("name", "filepath"),
+        help="Values to be passed to be added to each realisation, with one value per fault. "
+        "The first argument should be the name of the value, "
+        "the second the filepath to the space separated file containing the values. "
+        "The file should have two columns, the name of a station followed by the value for that station, "
+        "seperated by some number of spaces. "
+        "If multiple source parameters are required this argument should be repeated.",
+        default=[],
+    )
 
     args = parser.parse_args()
 
-    args.fault_selection_file = abspath(args.fault_selection_file)
-    args.gcmt_file = abspath(args.gcmt_file)
-    args.cybershake_root = abspath(args.cybershake_root)
-    if args.aggregate_file is not None:
-        args.aggregate_file = abspath(args.aggregate_file)
-
     errors = []
-
     if not isfile(args.fault_selection_file):
         errors.append(f"Specified station file not found: {args.fault_selection_file}")
     if not isfile(args.gcmt_file):
@@ -72,6 +94,16 @@ def load_args(primary_logger: Logger):
         errors.append(
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
         )
+
+    for i, (param_name, filepath) in enumerate(args.source_parameter):
+        filepath = abspath(filepath)
+        if not isfile(filepath):
+            errors.append(
+                f"The file {filepath} given for parameter "
+                f"{param_name} does not exist"
+            )
+        else:
+            args.source_parameter[i][1] = filepath
 
     if errors:
         message = (
@@ -97,6 +129,7 @@ def generate_uncertainties(
     perturbation_function: Callable,
     aggregate_file: Union[str, None],
     primary_logger_name: str,
+    additional_source_parameters: Dict[str, Any],
 ):
     primary_logger = get_logger(name=primary_logger_name)
     fault_logger = get_realisation_logger(primary_logger, data.pid)
@@ -109,7 +142,11 @@ def generate_uncertainties(
         )
 
         fault_logger.debug("Calling perturbation function.")
-        perturbed_realisation = perturbation_function(data)
+
+        perturbed_realisation = perturbation_function(
+            sources_line=data, additional_source_parameters=additional_source_parameters
+        )
+
         fault_logger.debug(
             f"Got results from perturbation_function: {perturbed_realisation}"
         )
@@ -138,7 +175,9 @@ def generate_uncertainties(
 
     unperturbated_function = load_perturbation_function(UNPERTURBATED)
     if perturbation_function != unperturbated_function:
-        unperturbated_realisation = unperturbated_function(data)
+        unperturbated_realisation = unperturbated_function(
+            sources_line=data, additional_source_parameters=additional_source_parameters
+        )
         rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         file_name = join(
             get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
@@ -196,17 +235,30 @@ def main():
         f"All {len(gcmt_lines)} faults specified in the fault selection file were found"
     )
 
-    messages = [
-        (
-            GCMT_Source(*gcmt_lines[i]),
-            faults[gcmt_lines[i][0]],
-            args.cybershake_root,
-            perturbation_function,
-            args.aggregate_file,
-            primary_logger.name,
+    additional_source_parameters = pd.DataFrame()
+
+    for param_name, filepath in args.source_parameter:
+        parameter_df = pd.read_csv(
+            filepath,
+            delim_whitespace=True,
+            header=None,
+            index_col=0,
+            names=[param_name],
+            dtype={0: str},
         )
-        for i in range(len(faults))
-    ]
+        additional_source_parameters = additional_source_parameters.join(
+            parameter_df, how="outer"
+        )
+
+    messages = generate_messages(
+        additional_source_parameters,
+        args.aggregate_file,
+        args.cybershake_root,
+        faults,
+        gcmt_lines,
+        perturbation_function,
+        primary_logger,
+    )
 
     if len(messages) < args.n_processes:
         n_processes = len(messages)
@@ -223,6 +275,39 @@ def main():
 
     worker_pool = pool.Pool(processes=n_processes)
     worker_pool.starmap(generate_uncertainties, messages)
+
+
+def generate_messages(
+    additional_source_parameters: pd.DataFrame,
+    aggregate_file,
+    cybershake_root,
+    faults,
+    gcmt_lines,
+    perturbation_function,
+    primary_logger,
+):
+    messages = []
+    for i in range(len(faults)):
+        gcmt_data = gcmt_lines[i]
+
+        additional_source_specific_data = {}
+        if gcmt_data[0] in additional_source_parameters.index:
+            additional_source_specific_data = additional_source_parameters.loc[
+                gcmt_data[0]
+            ].to_dict()
+
+        messages.append(
+            (
+                GCMT_Source(*gcmt_data),
+                faults[gcmt_data[0]],
+                cybershake_root,
+                perturbation_function,
+                aggregate_file,
+                primary_logger.name,
+                additional_source_specific_data,
+            )
+        )
+    return messages
 
 
 if __name__ == "__main__":
