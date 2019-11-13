@@ -2,6 +2,11 @@ Pre processing
 # Changelog
 (Based on https://wiki.canterbury.ac.nz/download/attachments/58458136/CodeVersioning_v18p2.pdf?version=1&modificationDate=1519269238437&api=v2 )
 
+## [19.5.5] - 2019-11-13 -- Added gcmt to srf generation workflow with versioned perturbation system
+### Added
+- Script to generate realisation files for one or more gcmt based events
+- Script to generate type 1 srfs from realisation files, either one at a time, or an entire simulation
+
 ## [19.5.4] - 2019-11-06 -- Added subduction srf generation
 ### Added
     - Logic to generate srfs for subduction faults using genslip v5.4.2
