@@ -742,7 +742,9 @@ def plot_vm(
 
 def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     # temp directory for current process
-    logger = qclogging.get_realisation_logger(qclogging.get_logger(logger_name), args.name)
+    logger = qclogging.get_realisation_logger(
+        qclogging.get_logger(logger_name), args.name
+    )
     ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
 
     # properties stored in classes (fault of external code)
