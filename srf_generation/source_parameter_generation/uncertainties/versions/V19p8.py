@@ -1,8 +1,9 @@
 """A basic perturbator as an example and starting point"""
 from typing import Any, Dict, Union
 
+from pandas import DataFrame
 from srf_generation.source_parameter_generation.uncertainties.common import (
-    verify_params,
+    verify_realisation_params,
     GCMT_Source,
     NHM_Source,
 )
@@ -17,6 +18,7 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
 def generate_source_params(
     sources_line: Union[GCMT_Source, NHM_Source],
     additional_source_parameters: Dict[str, Any],
+    vel_mod_1d: DataFrame,
     **kwargs,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
@@ -30,9 +32,11 @@ def generate_source_params(
       - source_data.rake
     """
 
+    realisation = kwargs
+
     magnitude = truncated_normal(mean=sources_line.mag, std_dev=0.05, std_dev_limit=2)
 
-    params = {
+    realisation["params"] = {
         "type": 1,
         "name": sources_line.pid,
         "latitude": sources_line.lat,
@@ -46,6 +50,9 @@ def generate_source_params(
         "sdrop": float(truncated_log_normal(mean=50, std_dev=0.3, std_dev_limit=2)),
         "risetime": float(uniform(mean=0.8, half_range=0.075)),
     }
+    realisation["params"].update(additional_source_parameters)
+    if vel_mod_1d is not None:
+        realisation["vel_mod_1d"] = vel_mod_1d
 
-    verify_params(params)
-    return params
+    verify_realisation_params(realisation["params"])
+    return realisation

@@ -4,7 +4,7 @@ import math
 
 from qcore import geo
 
-nhm = "NZ_FLTmodel_2010.txt"
+nhm = "NZ_FLTmodel_2010_v18p6.txt"
 
 # Leonard 2014 Relations
 def leonard(rake, A):
