@@ -64,10 +64,10 @@ def load_args(primary_logger: Logger):
     parser.add_argument("--version", type=str, default="unperturbated")
     parser.add_argument("--vel_mod_1d", type=abspath)
     parser.add_argument("--vel_mod_1d_out", type=abspath)
-    parser.add_argument("-o", "--output_dir", type=abspath, default=abspath("."))
+    parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
     parser.add_argument(
-        "-a",
         "--aggregate_file",
+        "-a",
         type=abspath,
         help="A filepath to the location an aggregate file should be stored. "
         "There should not be a file already present.",
@@ -82,7 +82,7 @@ def load_args(primary_logger: Logger):
         "The first argument should be the name of the value, "
         "the second the filepath to the space separated file containing the values. "
         "The file should have two columns, the name of a station followed by the value for that station, "
-        "seperated by some number of spaces. "
+        "separated by some number of spaces. "
         "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )

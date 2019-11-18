@@ -60,6 +60,7 @@ SRFGEN_TYPE_1_PARAMS = [
 ]
 
 HF_RUN_PARAMS = [
+    "sim_bin",
     "sdrop",
     "t-sec",
     "rayset",

@@ -58,6 +58,8 @@ def combine_layers(layers, nx, ny, out_file):
     ret_code = call(command, stderr=DEVNULL)
     if ret_code == 0:
         remove(filelist.name)
+    else:
+        print(f"Non zero return code returned by layer combiner. Error code: {ret_code}")
 
 
 def load_parameter_file(parameter_file):

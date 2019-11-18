@@ -51,17 +51,16 @@ def load_args(primary_logger: Logger):
     parser.add_argument("--vel_mod_1d", type=abspath)
     parser.add_argument("--cybershake_root", type=abspath, default=abspath("."))
     parser.add_argument(
-        "-n",
         "--n_processes",
+        "-n",
         default=1,
         type=int,
         help="Number of processes to generate realisations with. "
         "Setting this higher than the number of faults will not have any additional effect.",
     )
-    parser.add_argument("-c", "--output_directory", type=abspath, default=abspath("."))
     parser.add_argument(
-        "-a",
         "--aggregate_file",
+        "-a",
         type=abspath,
         help="A filepath to the location an aggregate file should be stored. "
         "There should not be a file already present.",
