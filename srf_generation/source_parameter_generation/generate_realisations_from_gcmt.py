@@ -4,7 +4,7 @@ import argparse
 from logging import Logger
 from multiprocessing import pool
 from os import makedirs
-from os.path import abspath, isfile, join, dirname
+from os.path import abspath, isfile, join
 from typing import Callable, Union, Dict, Any
 
 import pandas as pd
@@ -29,7 +29,7 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     GCMT_FILE_COLUMNS,
     generate_realisation,
     UNPERTURBATED,
-)
+    DEFAULT_1D_VELOCITY_MODEL_PATH)
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
@@ -52,7 +52,7 @@ def load_args(primary_logger: Logger):
     parser.add_argument(
         "--vel_mod_1d",
         type=abspath,
-        default=join(dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod"),
+        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
     )
     parser.add_argument("--cybershake_root", type=abspath, default=abspath("."))
     parser.add_argument(

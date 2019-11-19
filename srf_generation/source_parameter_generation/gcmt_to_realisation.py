@@ -24,6 +24,8 @@ from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
 
+DEFAULT_1D_VELOCITY_MODEL_PATH = join(dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod")
+
 GCMT_FILE_COLUMNS = [
     "PublicID",
     "Latitude",
@@ -65,7 +67,7 @@ def load_args(primary_logger: Logger):
     parser.add_argument(
         "--vel_mod_1d",
         type=abspath,
-        default=join(dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod"),
+        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
     )
     parser.add_argument("--vel_mod_1d_out", type=abspath)
     parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
