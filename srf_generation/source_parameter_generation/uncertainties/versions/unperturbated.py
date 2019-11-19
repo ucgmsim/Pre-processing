@@ -1,4 +1,5 @@
 """A basic perturbator as an example and starting point"""
+import pandas as pd
 from typing import Any, Dict, Union
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -11,6 +12,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 def generate_source_params(
     sources_line: Union[GCMT_Source, NHM_Source],
     additional_source_parameters: Dict[str, Any],
+    vel_mod_1d: pd.DataFrame,
     **kwargs
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:

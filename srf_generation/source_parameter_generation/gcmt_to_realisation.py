@@ -62,12 +62,16 @@ def load_args(primary_logger: Logger):
     parser.add_argument("realisation_count", type=int)
     parser.add_argument("gcmt_file", type=abspath)
     parser.add_argument("--version", type=str, default="unperturbated")
-    parser.add_argument("--vel_mod_1d", type=abspath)
-    parser.add_argument("--vel_mod_1d_out", type=abspath)
-    parser.add_argument("-o", "--output_dir", type=abspath, default=abspath("."))
     parser.add_argument(
-        "-a",
+        "--vel_mod_1d",
+        type=abspath,
+        default=join(dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod"),
+    )
+    parser.add_argument("--vel_mod_1d_out", type=abspath)
+    parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
+    parser.add_argument(
         "--aggregate_file",
+        "-a",
         type=abspath,
         help="A filepath to the location an aggregate file should be stored. "
         "There should not be a file already present.",
@@ -98,20 +102,9 @@ def load_args(primary_logger: Logger):
         errors.append(
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
         )
-    if args.vel_mod_1d is not None and not isfile(args.vel_mod_1d):
+    if not isfile(args.vel_mod_1d):
         errors.append(
             f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
-        )
-    if (args.vel_mod_1d is not None and args.vel_mod_1d_out is None) or (
-        args.vel_mod_1d is not None and args.vel_mod_1d_out is None
-    ):
-        if args.vel_mod_1d is None:
-            given = "vel_mod_1d_out"
-        else:
-            given = "vel_mod_1d"
-        errors.append(
-            f"If either of the arguments vel_mod_1d and vel_mod_1d_out are given the other must also be given. "
-            f"{given} was given"
         )
 
     for i, (param_name, filepath) in enumerate(args.source_parameter):
@@ -161,6 +154,7 @@ def save_1d_velocity_model(
             v1d.write(
                 f"{line.depth} {line.vp} {line.vs} {line.rho} {line.qp} {line.qs}\n"
             )
+    return file_name
 
 
 def generate_fault_realisations(
@@ -200,7 +194,9 @@ def generate_fault_realisations(
     unperturbated_function = load_perturbation_function(UNPERTURBATED)
     if perturbation_function != unperturbated_function:
         unperturbated_realisation = unperturbated_function(
-            sources_line=data, additional_source_parameters=additional_source_parameters
+            sources_line=data,
+            additional_source_parameters=additional_source_parameters,
+            vel_mod_1d=None,
         )
         rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         realisation_file_name = join(output_directory, f"{fault_name}.csv")
@@ -228,6 +224,19 @@ def generate_realisation(
         f"Got results from perturbation_function: {perturbed_realisation}"
     )
     perturbed_realisation["params"]["name"] = realisation_name
+
+    if (
+        vel_mod_1d_dir is not None
+        and "vel_mod_1d" in perturbed_realisation.keys()
+        and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
+    ):
+        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
+        makedirs(vel_mod_1d_dir, exist_ok=True)
+        file_name_1d_vel_mod = save_1d_velocity_model(
+            perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
+        )
+        perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
+
     makedirs(dirname(realisation_file_name), exist_ok=True)
     fault_logger.debug(
         f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
@@ -240,10 +249,6 @@ def generate_realisation(
             rel_df.to_csv(aggregate_file)
         else:
             rel_df.to_csv(aggregate_file, mode="a", header=False)
-
-    if vel_mod_1d is not None and vel_mod_1d_dir is not None:
-        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
-        save_1d_velocity_model(perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name)
 
     fault_logger.debug(
         f"Parameters saved succesfully. Continuing to next realisation if one exists."
@@ -300,10 +305,7 @@ def main():
             gcmt_line[0]
         ].to_dict()
 
-    if args.vel_mod_1d is not None:
-        vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
-    else:
-        vel_mod_1d_layers = None
+    vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
     if args.realisation_count > 1:
         generate_fault_realisations(

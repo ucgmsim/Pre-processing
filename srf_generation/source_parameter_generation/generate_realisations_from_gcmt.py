@@ -4,10 +4,11 @@ import argparse
 from logging import Logger
 from multiprocessing import pool
 from os import makedirs
-from os.path import abspath, isfile, join
+from os.path import abspath, isfile, join, dirname
 from typing import Callable, Union, Dict, Any
 
 import pandas as pd
+from numpy import digitize
 
 from qcore.formats import load_fault_selection_file
 from qcore.simulation_structure import (
@@ -48,20 +49,23 @@ def load_args(primary_logger: Logger):
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("gcmt_file", type=abspath)
     parser.add_argument("--version", type=str, default="unperturbated")
-    parser.add_argument("--vel_mod_1d", type=abspath)
+    parser.add_argument(
+        "--vel_mod_1d",
+        type=abspath,
+        default=join(dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod"),
+    )
     parser.add_argument("--cybershake_root", type=abspath, default=abspath("."))
     parser.add_argument(
-        "-n",
         "--n_processes",
+        "-n",
         default=1,
         type=int,
         help="Number of processes to generate realisations with. "
         "Setting this higher than the number of faults will not have any additional effect.",
     )
-    parser.add_argument("-c", "--output_directory", type=abspath, default=abspath("."))
     parser.add_argument(
-        "-a",
         "--aggregate_file",
+        "-a",
         type=abspath,
         help="A filepath to the location an aggregate file should be stored. "
         "There should not be a file already present.",
@@ -94,7 +98,7 @@ def load_args(primary_logger: Logger):
         errors.append(
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
         )
-    if args.vel_mod_1d is not None and not isfile(args.vel_mod_1d):
+    if not isfile(args.vel_mod_1d):
         errors.append(
             f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
         )
@@ -144,9 +148,10 @@ def generate_fault_realisations(
     for i in range(1, realisation_count + 1):
         realisation_name = get_realisation_name(fault_name, i)
 
-        realisation_file_name = get_srf_path(cybershake_root, realisation_name)
+        realisation_file_name = get_srf_path(cybershake_root, realisation_name).replace(
+            ".srf", ".csv"
+        )
         vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
-        makedirs(vel_mod_1d_dir, exist_ok=True)
 
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
@@ -167,7 +172,9 @@ def generate_fault_realisations(
     unperturbated_function = load_perturbation_function(UNPERTURBATED)
     if perturbation_function != unperturbated_function:
         unperturbated_realisation = unperturbated_function(
-            sources_line=data, additional_source_parameters=additional_source_parameters
+            sources_line=data,
+            additional_source_parameters=additional_source_parameters,
+            vel_mod_1d=None,
         )
         rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         realisation_file_name = join(
@@ -198,11 +205,6 @@ def generate_messages(
                 fault_name
             ].to_dict()
 
-        if vel_mod_1d is not None:
-            vel_mod_1d_layers = load_1d_velocity_mod(vel_mod_1d)
-        else:
-            vel_mod_1d_layers = None
-
         messages.append(
             (
                 GCMT_Source(*gcmt_data),
@@ -210,7 +212,7 @@ def generate_messages(
                 cybershake_root,
                 perturbation_function,
                 aggregate_file,
-                vel_mod_1d_layers,
+                vel_mod_1d,
                 primary_logger.name,
                 additional_source_specific_data,
             )
@@ -257,7 +259,15 @@ def main():
         f"All {len(gcmt_lines)} faults specified in the fault selection file were found"
     )
 
-    additional_source_parameters = pd.DataFrame()
+    velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
+
+    depth_bins = digitize(
+        gcmt_data["depth"].round(5), velocity_model_1d["depth"].cumsum().round(5)
+    )
+
+    additional_source_parameters = pd.DataFrame(
+        {"vs": velocity_model_1d["vs"].iloc[depth_bins].values}, gcmt_data["pid"].values
+    )
 
     for param_name, filepath in args.source_parameter:
         parameter_df = pd.read_csv(
@@ -279,7 +289,7 @@ def main():
         faults,
         gcmt_lines,
         perturbation_function,
-        args.vel_mod_1d,
+        velocity_model_1d,
         primary_logger,
     )
 
