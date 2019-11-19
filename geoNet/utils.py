@@ -12,9 +12,9 @@ from scipy.integrate import cumtrapz
 from scipy import signal, fftpack
 #https://docs.python.org/2.5/whatsnew/pep-328.html
 #from geoNet.rspectra import Response_Spectra
-from geoNet.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
-from geoNet.gmpe.calculateGMPE import set_siteprop
-from geoNet.gmpe import readStationFile as rsf
+#from geoNet.gmpe.Bradley_2010_Sa import Bradley_2010_Sa
+#from geoNet.gmpe.calculateGMPE import set_siteprop
+#from geoNet.gmpe import readStationFile as rsf
 
 def readGP(loc, fname):
     """
