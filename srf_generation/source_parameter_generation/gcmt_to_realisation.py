@@ -4,9 +4,10 @@ import argparse
 from logging import Logger
 from os import makedirs
 from os.path import abspath, isfile, dirname, join
-from typing import Callable, Union, Dict, Any
+from typing import Callable, Union, Dict, Any, Tuple, List
 
 import pandas as pd
+from numpy import digitize
 
 from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
@@ -22,6 +23,10 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 )
 from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
+)
+
+DEFAULT_1D_VELOCITY_MODEL_PATH = join(
+    dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod"
 )
 
 GCMT_FILE_COLUMNS = [
@@ -62,12 +67,14 @@ def load_args(primary_logger: Logger):
     parser.add_argument("realisation_count", type=int)
     parser.add_argument("gcmt_file", type=abspath)
     parser.add_argument("--version", type=str, default="unperturbated")
-    parser.add_argument("--vel_mod_1d", type=abspath)
-    parser.add_argument("--vel_mod_1d_out", type=abspath)
-    parser.add_argument("-o", "--output_dir", type=abspath, default=abspath("."))
     parser.add_argument(
-        "-a",
+        "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
+    )
+    parser.add_argument("--vel_mod_1d_out", type=abspath)
+    parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
+    parser.add_argument(
         "--aggregate_file",
+        "-a",
         type=abspath,
         help="A filepath to the location an aggregate file should be stored. "
         "There should not be a file already present.",
@@ -98,20 +105,9 @@ def load_args(primary_logger: Logger):
         errors.append(
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
         )
-    if args.vel_mod_1d is not None and not isfile(args.vel_mod_1d):
+    if not isfile(args.vel_mod_1d):
         errors.append(
             f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
-        )
-    if (args.vel_mod_1d is not None and args.vel_mod_1d_out is None) or (
-        args.vel_mod_1d is not None and args.vel_mod_1d_out is None
-    ):
-        if args.vel_mod_1d is None:
-            given = "vel_mod_1d_out"
-        else:
-            given = "vel_mod_1d"
-        errors.append(
-            f"If either of the arguments vel_mod_1d and vel_mod_1d_out are given the other must also be given. "
-            f"{given} was given"
         )
 
     for i, (param_name, filepath) in enumerate(args.source_parameter):
@@ -161,6 +157,7 @@ def save_1d_velocity_model(
             v1d.write(
                 f"{line.depth} {line.vp} {line.vs} {line.rho} {line.qp} {line.qs}\n"
             )
+    return file_name
 
 
 def generate_fault_realisations(
@@ -200,7 +197,9 @@ def generate_fault_realisations(
     unperturbated_function = load_perturbation_function(UNPERTURBATED)
     if perturbation_function != unperturbated_function:
         unperturbated_realisation = unperturbated_function(
-            sources_line=data, additional_source_parameters=additional_source_parameters
+            sources_line=data,
+            additional_source_parameters=additional_source_parameters,
+            vel_mod_1d=None,
         )
         rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         realisation_file_name = join(output_directory, f"{fault_name}.csv")
@@ -228,6 +227,19 @@ def generate_realisation(
         f"Got results from perturbation_function: {perturbed_realisation}"
     )
     perturbed_realisation["params"]["name"] = realisation_name
+
+    if (
+        vel_mod_1d_dir is not None
+        and "vel_mod_1d" in perturbed_realisation.keys()
+        and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
+    ):
+        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
+        makedirs(vel_mod_1d_dir, exist_ok=True)
+        file_name_1d_vel_mod = save_1d_velocity_model(
+            perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
+        )
+        perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
+
     makedirs(dirname(realisation_file_name), exist_ok=True)
     fault_logger.debug(
         f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
@@ -241,13 +253,44 @@ def generate_realisation(
         else:
             rel_df.to_csv(aggregate_file, mode="a", header=False)
 
-    if vel_mod_1d is not None and vel_mod_1d_dir is not None:
-        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
-        save_1d_velocity_model(perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name)
-
     fault_logger.debug(
         f"Parameters saved succesfully. Continuing to next realisation if one exists."
     )
+
+
+def get_additional_source_parameters(
+    source_parameters: List[Tuple[str, str]],
+    gcmt_data: pd.DataFrame,
+    vel_mod_1d_layers: pd.DataFrame,
+):
+    """Gets the shear wave velocities at the point source depth and
+    also takes in the source parameter name-filepath pairs passed as arguments,
+    extracting the values for each event
+    :param source_parameters: A list of tuples containing name, filepath pairs
+    :param gcmt_data:
+    :param vel_mod_1d_layers: A dataframe containing a row for every layer of the velocity model
+    """
+    # For each event get the layer it corresponds to by taking the cumulative sum of the layer depths and finding
+    # the layer with bottom depth lower than the event
+    depth_bins = digitize(
+        gcmt_data["depth"].round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
+    )
+    additional_source_parameters = pd.DataFrame(
+        {"vs": vel_mod_1d_layers["vs"].iloc[depth_bins].values}, gcmt_data["pid"].values
+    )
+    for param_name, filepath in source_parameters:
+        parameter_df = pd.read_csv(
+            filepath,
+            delim_whitespace=True,
+            header=None,
+            index_col=0,
+            names=[param_name],
+            dtype={0: str},
+        )
+        additional_source_parameters = additional_source_parameters.join(
+            parameter_df, how="outer"
+        )
+    return additional_source_parameters
 
 
 def main():
@@ -279,31 +322,20 @@ def main():
         primary_logger.debug(gcmt_data.index)
         raise ValueError(message)
 
-    additional_source_parameters = pd.DataFrame()
+    vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
-    for param_name, filepath in args.source_parameter:
-        parameter_df = pd.read_csv(
-            filepath,
-            delim_whitespace=True,
-            header=None,
-            index_col=0,
-            names=[param_name],
-            dtype={0: str},
-        )
-        additional_source_parameters = additional_source_parameters.join(
-            parameter_df, how="outer"
-        )
+    additional_source_parameters = get_additional_source_parameters(
+        args.source_parameter, gcmt_data, vel_mod_1d_layers
+    )
 
-    additional_source_specific_data = {}
     if gcmt_line[0] in additional_source_parameters.index:
         additional_source_specific_data = additional_source_parameters.loc[
             gcmt_line[0]
         ].to_dict()
-
-    if args.vel_mod_1d is not None:
-        vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
     else:
-        vel_mod_1d_layers = None
+        additional_source_specific_data = {}
+
+    vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
     if args.realisation_count > 1:
         generate_fault_realisations(
