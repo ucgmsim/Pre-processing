@@ -4,9 +4,10 @@ import argparse
 from logging import Logger
 from os import makedirs
 from os.path import abspath, isfile, dirname, join
-from typing import Callable, Union, Dict, Any
+from typing import Callable, Union, Dict, Any, Tuple, List
 
 import pandas as pd
+from numpy import digitize
 
 from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
@@ -24,7 +25,9 @@ from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
 
-DEFAULT_1D_VELOCITY_MODEL_PATH = join(dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod")
+DEFAULT_1D_VELOCITY_MODEL_PATH = join(
+    dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod"
+)
 
 GCMT_FILE_COLUMNS = [
     "PublicID",
@@ -65,9 +68,7 @@ def load_args(primary_logger: Logger):
     parser.add_argument("gcmt_file", type=abspath)
     parser.add_argument("--version", type=str, default="unperturbated")
     parser.add_argument(
-        "--vel_mod_1d",
-        type=abspath,
-        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
+        "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
     parser.add_argument("--vel_mod_1d_out", type=abspath)
     parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
@@ -257,6 +258,41 @@ def generate_realisation(
     )
 
 
+def get_additional_source_parameters(
+    source_parameters: List[Tuple[str, str]],
+    gcmt_data: pd.DataFrame,
+    vel_mod_1d_layers: pd.DataFrame,
+):
+    """Gets the sheer wave velocities at the point source depth and
+    also takes in the source parameter name-filepath pairs passed as arguments,
+    extracting the values for each event
+    :param source_parameters: A list of tuples containing name, filepath pairs
+    :param gcmt_data:
+    :param vel_mod_1d_layers: A dataframe containing a row for every layer of the velocity model
+    """
+    # For each event get the layer it corresponds to by taking the cumulative sum of the layer depths and finding
+    # the layer with bottom depth lower than the event
+    depth_bins = digitize(
+        gcmt_data["depth"].round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
+    )
+    additional_source_parameters = pd.DataFrame(
+        {"vs": vel_mod_1d_layers["vs"].iloc[depth_bins].values}, gcmt_data["pid"].values
+    )
+    for param_name, filepath in source_parameters:
+        parameter_df = pd.read_csv(
+            filepath,
+            delim_whitespace=True,
+            header=None,
+            index_col=0,
+            names=[param_name],
+            dtype={0: str},
+        )
+        additional_source_parameters = additional_source_parameters.join(
+            parameter_df, how="outer"
+        )
+    return additional_source_parameters
+
+
 def main():
 
     primary_logger = get_logger("GCMT_2_realisation")
@@ -286,26 +322,18 @@ def main():
         primary_logger.debug(gcmt_data.index)
         raise ValueError(message)
 
-    additional_source_parameters = pd.DataFrame()
+    vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
-    for param_name, filepath in args.source_parameter:
-        parameter_df = pd.read_csv(
-            filepath,
-            delim_whitespace=True,
-            header=None,
-            index_col=0,
-            names=[param_name],
-            dtype={0: str},
-        )
-        additional_source_parameters = additional_source_parameters.join(
-            parameter_df, how="outer"
-        )
+    additional_source_parameters = get_additional_source_parameters(
+        args.source_parameter, gcmt_data, vel_mod_1d_layers
+    )
 
-    additional_source_specific_data = {}
     if gcmt_line[0] in additional_source_parameters.index:
         additional_source_specific_data = additional_source_parameters.loc[
             gcmt_line[0]
         ].to_dict()
+    else:
+        additional_source_specific_data = {}
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 

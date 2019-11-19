@@ -29,7 +29,9 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     GCMT_FILE_COLUMNS,
     generate_realisation,
     UNPERTURBATED,
-    DEFAULT_1D_VELOCITY_MODEL_PATH)
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+    get_additional_source_parameters,
+)
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
@@ -50,9 +52,7 @@ def load_args(primary_logger: Logger):
     parser.add_argument("gcmt_file", type=abspath)
     parser.add_argument("--version", type=str, default="unperturbated")
     parser.add_argument(
-        "--vel_mod_1d",
-        type=abspath,
-        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
+        "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
     parser.add_argument("--cybershake_root", type=abspath, default=abspath("."))
     parser.add_argument(
@@ -261,26 +261,9 @@ def main():
 
     velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
 
-    depth_bins = digitize(
-        gcmt_data["depth"].round(5), velocity_model_1d["depth"].cumsum().round(5)
+    additional_source_parameters = get_additional_source_parameters(
+        args.source_parameter, gcmt_data, velocity_model_1d
     )
-
-    additional_source_parameters = pd.DataFrame(
-        {"vs": velocity_model_1d["vs"].iloc[depth_bins].values}, gcmt_data["pid"].values
-    )
-
-    for param_name, filepath in args.source_parameter:
-        parameter_df = pd.read_csv(
-            filepath,
-            delim_whitespace=True,
-            header=None,
-            index_col=0,
-            names=[param_name],
-            dtype={0: str},
-        )
-        additional_source_parameters = additional_source_parameters.join(
-            parameter_df, how="outer"
-        )
 
     messages = generate_messages(
         additional_source_parameters,
