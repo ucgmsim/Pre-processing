@@ -263,7 +263,7 @@ def get_additional_source_parameters(
     gcmt_data: pd.DataFrame,
     vel_mod_1d_layers: pd.DataFrame,
 ):
-    """Gets the sheer wave velocities at the point source depth and
+    """Gets the shear wave velocities at the point source depth and
     also takes in the source parameter name-filepath pairs passed as arguments,
     extracting the values for each event
     :param source_parameters: A list of tuples containing name, filepath pairs
