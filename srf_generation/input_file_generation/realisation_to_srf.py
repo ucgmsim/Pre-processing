@@ -211,7 +211,7 @@ def create_ps_srf(
     ]
     call(commands, stderr=PIPE)
 
-    remove(gsf_file)
+    remove(gsf_file.name)
 
     ###
     ### save STOCH
