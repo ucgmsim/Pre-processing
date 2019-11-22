@@ -280,7 +280,7 @@ def get_additional_source_parameters(
             "vs": vel_mod_1d_layers["vs"].iloc[depth_bins].values, 
             "rho": vel_mod_1d_layers["rho"].iloc[depth_bins].values,
         }, 
-        gcmt_data["pid"].values
+        gcmt_data["pid"].values,
     )
     for param_name, filepath in source_parameters:
         parameter_df = pd.read_csv(
