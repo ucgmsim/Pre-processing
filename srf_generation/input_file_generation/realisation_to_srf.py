@@ -191,7 +191,7 @@ def create_ps_srf(
         gsfp.write("1\n")
         gsfp.write(
             f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} "
-            f"{strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2} {inittime:8.3f}    0\n"
+            f"{strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2f} {inittime:8.3f}    0\n"
         )
 
     ###
