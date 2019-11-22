@@ -66,7 +66,12 @@ def load_args(primary_logger: Logger):
     parser.add_argument("fault_name")
     parser.add_argument("realisation_count", type=int)
     parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument("--version", type=str, default="unperturbated")
+    parser.add_argument("--version", type=str)
+    parser.add_argument(
+        "--type",
+        type=str,
+        help="The type of srf to generate. Ignored if version is given.",
+    )
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
@@ -89,7 +94,19 @@ def load_args(primary_logger: Logger):
         "The first argument should be the name of the value, "
         "the second the filepath to the space separated file containing the values. "
         "The file should have two columns, the name of a station followed by the value for that station, "
-        "seperated by some number of spaces. "
+        "separated by some number of spaces. "
+        "If multiple source parameters are required this argument should be repeated.",
+        default=[],
+    )
+    parser.add_argument(
+        "--common_source_parameter",
+        type=str,
+        nargs=2,
+        action="append",
+        metavar=("name", "parameter"),
+        help="Values to be passed to be added to each realisation, with the same value for every event. "
+        "The first argument should be the name of the value, the second should be the value. "
+        "If the value is a valid number it will be treated as a float, otherwise it will be a string"
         "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
@@ -97,6 +114,12 @@ def load_args(primary_logger: Logger):
     args = parser.parse_args()
 
     errors = []
+
+    if args.version is None:
+        if args.type is None:
+            args.version = f"gcmt_1"
+        else:
+            args.version = f"gcmt_{args.type}"
 
     if not isfile(args.gcmt_file):
         errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
@@ -260,6 +283,7 @@ def generate_realisation(
 
 def get_additional_source_parameters(
     source_parameters: List[Tuple[str, str]],
+    common_source_parameters: List[Tuple[str, str]],
     gcmt_data: pd.DataFrame,
     vel_mod_1d_layers: pd.DataFrame,
 ):
@@ -267,6 +291,7 @@ def get_additional_source_parameters(
     also takes in the source parameter name-filepath pairs passed as arguments,
     extracting the values for each event
     :param source_parameters: A list of tuples containing name, filepath pairs
+    :param common_source_parameters: A list of tuples containing name, value pairs
     :param gcmt_data:
     :param vel_mod_1d_layers: A dataframe containing a row for every layer of the velocity model
     """
@@ -290,6 +315,15 @@ def get_additional_source_parameters(
         additional_source_parameters = additional_source_parameters.join(
             parameter_df, how="outer"
         )
+    for param_name, value in common_source_parameters:
+        try:
+            value = int(value)
+        except:
+            try:
+                value = float(value)
+            except:
+                pass
+        additional_source_parameters[param_name] = value
     return additional_source_parameters
 
 
@@ -325,7 +359,10 @@ def main():
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
     additional_source_parameters = get_additional_source_parameters(
-        args.source_parameter, gcmt_data, vel_mod_1d_layers
+        args.source_parameter,
+        args.common_source_parameter,
+        gcmt_data,
+        vel_mod_1d_layers,
     )
 
     if gcmt_line[0] in additional_source_parameters.index:

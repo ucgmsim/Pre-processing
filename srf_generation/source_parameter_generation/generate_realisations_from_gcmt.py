@@ -8,7 +8,6 @@ from os.path import abspath, isfile, join
 from typing import Callable, Union, Dict, Any
 
 import pandas as pd
-from numpy import digitize
 
 from qcore.formats import load_fault_selection_file
 from qcore.simulation_structure import (
@@ -50,7 +49,12 @@ def load_args(primary_logger: Logger):
 
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument("--version", type=str, default="unperturbated")
+    parser.add_argument("--version", type=str)
+    parser.add_argument(
+        "--type",
+        type=str,
+        help="The type of srf to generate. Ignored if version is given.",
+    )
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
@@ -76,16 +80,38 @@ def load_args(primary_logger: Logger):
         nargs=2,
         action="append",
         metavar=("name", "filepath"),
-        help="Values to be passed to be added to each realisation, with one value per fault. "
+        help="Values to be passed to be added to each realisation, with one value per event. "
         "The first argument should be the name of the value, "
-        "the second the filepath to the space separated file containing the values. "
+        "the second should be the filepath to the space separated file containing the values. "
         "The file should have two columns, the name of a station followed by the value for that station, "
-        "seperated by some number of spaces. "
+        "separated by some number of spaces. "
+        "If multiple source parameters are required this argument should be repeated.",
+        default=[],
+    )
+    parser.add_argument(
+        "--common_source_parameter",
+        type=str,
+        nargs=2,
+        action="append",
+        metavar=("name", "parameter"),
+        help="Values to be passed to be added to each realisation, with the same value for every event. "
+        "The first argument should be the name of the value, the second should be the value. "
+        "If the value is a valid number it will be treated as a float, otherwise it will be a string"
         "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
 
     args = parser.parse_args()
+    primary_logger.debug(f"Raw arguments passed, beginning argument processing: {args}")
+
+    if args.version is None:
+        if args.type is not None:
+            args.version = f"gcmt_{args.type}"
+        else:
+            primary_logger.debug(
+                "No version or type given, generating type 1 realisations"
+            )
+            args.version = f"gcmt_1"
 
     errors = []
 
@@ -262,7 +288,10 @@ def main():
     velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
 
     additional_source_parameters = get_additional_source_parameters(
-        args.source_parameter, gcmt_data, velocity_model_1d
+        args.source_parameter,
+        args.common_source_parameter,
+        gcmt_data,
+        velocity_model_1d,
     )
 
     messages = generate_messages(

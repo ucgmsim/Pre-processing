@@ -5,3 +5,4 @@ pandas
 PyYAML
 scipy
 setuptools>=40.1.0
+h5py
