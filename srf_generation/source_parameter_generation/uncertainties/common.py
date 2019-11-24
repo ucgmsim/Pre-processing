@@ -121,8 +121,6 @@ BB_RUN_PARAMS = ["flo", "fmin", "fmidbot", "lfvsref"]
 
 RUN_TIME_PARAMS = HF_RUN_PARAMS + LF_RUN_PARAMS + BB_RUN_PARAMS
 
-ONE_DEG_LAT = np.radians(6371.0072)
-
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""

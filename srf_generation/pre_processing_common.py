@@ -1,7 +1,5 @@
 import numpy as np
 
-from srf_generation.source_parameter_generation.uncertainties.common import ONE_DEG_LAT
-
 
 def calculate_corners(dip, x_pos, y_pos, lat, lon, strike):
     # use cartesian coordinate system to define the along strike and downdip
@@ -42,3 +40,6 @@ def get_hypocentre(lat, lon, shypo, dhypo, strike, dip):
     lon_hyp = lon + (A[0][0] / ONE_DEG_LAT) / np.cos(np.radians(lat))
 
     return lon_hyp, lat_hyp
+
+
+ONE_DEG_LAT = np.radians(6371.0072)
