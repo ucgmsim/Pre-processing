@@ -21,7 +21,7 @@ def mw_2_a_scaling_relation(
     """
     Return the fault Area from the mw and a mw Scaling relation.
     """
-    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUM2002:
+    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
         A = mw_to_a_hanksbakum(mw)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
@@ -76,7 +76,7 @@ def a_2_mw_scaling_relation(
     """
     Return the fault Area from the mw and a mw Scaling relation.
     """
-    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUM2002:
+    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
         mw = a_to_mw_hanksbakum(a)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
