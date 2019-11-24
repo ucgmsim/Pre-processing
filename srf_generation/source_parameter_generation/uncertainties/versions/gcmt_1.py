@@ -10,7 +10,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 
 
 def generate_source_params(
-    sources_line: Union[GCMT_Source, NHM_Source],
+    source_data: Union[GCMT_Source, NHM_Source],
     additional_source_parameters: Dict[str, Any],
     vel_mod_1d: pd.DataFrame,
     **kwargs
@@ -30,14 +30,14 @@ def generate_source_params(
 
     realisation["params"] = {
         "type": 1,
-        "name": sources_line.pid,
-        "latitude": sources_line.lat,
-        "longitude": sources_line.lon,
-        "depth": sources_line.depth,
-        "magnitude": sources_line.mag,
-        "strike": sources_line.strike,
-        "dip": sources_line.dip,
-        "rake": sources_line.rake,
+        "name": source_data.pid,
+        "latitude": source_data.lat,
+        "longitude": source_data.lon,
+        "depth": source_data.depth,
+        "magnitude": source_data.mag,
+        "strike": source_data.strike,
+        "dip": source_data.dip,
+        "rake": source_data.rake,
     }
     realisation["params"].update(additional_source_parameters)
 

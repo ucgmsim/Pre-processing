@@ -242,7 +242,7 @@ def generate_realisation(
 ):
     fault_logger.debug("Calling perturbation function.")
     perturbed_realisation = perturbation_function(
-        sources_line=data,
+        source_data=data,
         additional_source_parameters=additional_source_parameters,
         vel_mod_1d=vel_mod_1d,
     )
