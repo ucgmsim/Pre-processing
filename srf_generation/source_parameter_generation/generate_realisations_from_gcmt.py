@@ -237,6 +237,7 @@ def generate_messages(
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
+                unperturbation_function,
                 aggregate_file,
                 vel_mod_1d,
                 primary_logger.name,
