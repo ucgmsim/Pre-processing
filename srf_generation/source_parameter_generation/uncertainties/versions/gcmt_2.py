@@ -34,7 +34,7 @@ def generate_source_params(
       - source_data.dip
       - source_data.rake
     """
-    filter_realisation_input_params(TYPE, additional_source_parameters)
+    additional_source_parameters = filter_realisation_input_params(TYPE, additional_source_parameters)
 
     realisation = kwargs
 

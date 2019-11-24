@@ -27,7 +27,6 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     load_1d_velocity_mod,
     GCMT_FILE_COLUMNS,
     generate_realisation,
-    UNPERTURBATED,
     DEFAULT_1D_VELOCITY_MODEL_PATH,
     get_additional_source_parameters,
 )
@@ -49,12 +48,12 @@ def load_args(primary_logger: Logger):
 
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument("--version", type=str)
     parser.add_argument(
-        "--type",
+        "type",
         type=str,
-        help="The type of srf to generate. Ignored if version is given.",
+        help="The type of srf to generate.",
     )
+    parser.add_argument("--version", type=str)
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
@@ -161,6 +160,7 @@ def generate_fault_realisations(
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
+    unperturbation_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     primary_logger_name: str,
@@ -195,9 +195,8 @@ def generate_fault_realisations(
             fault_logger,
         )
 
-    unperturbated_function = load_perturbation_function(UNPERTURBATED)
-    if perturbation_function != unperturbated_function:
-        unperturbated_realisation = unperturbated_function(
+    if perturbation_function != unperturbation_function:
+        unperturbated_realisation = unperturbation_function(
             sources_line=data,
             additional_source_parameters=additional_source_parameters,
             vel_mod_1d=None,
@@ -216,6 +215,7 @@ def generate_messages(
     faults,
     gcmt_lines,
     perturbation_function,
+    unperturbation_function,
     vel_mod_1d,
     primary_logger,
 ):
@@ -253,6 +253,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
+    unperturbation_function = load_perturbation_function(f"gcmt_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
@@ -301,6 +302,7 @@ def main():
         faults,
         gcmt_lines,
         perturbation_function,
+        unperturbation_function,
         velocity_model_1d,
         primary_logger,
     )

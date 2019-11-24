@@ -40,7 +40,6 @@ GCMT_FILE_COLUMNS = [
     "CD",
 ]
 
-UNPERTURBATED = "unperturbated"
 GCMT_DTYPE = {
     GCMT_FILE_COLUMNS[i]: col_type
     for i, col_type in enumerate(
@@ -66,12 +65,12 @@ def load_args(primary_logger: Logger):
     parser.add_argument("fault_name")
     parser.add_argument("realisation_count", type=int)
     parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument("--version", type=str)
     parser.add_argument(
-        "--type",
+        "type",
         type=str,
-        help="The type of srf to generate. Ignored if version is given.",
+        help="The type of srf to generate.",
     )
+    parser.add_argument("--version", type=str)
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
@@ -188,6 +187,7 @@ def generate_fault_realisations(
     realisation_count: int,
     output_directory: str,
     perturbation_function: Callable,
+    unperturbation_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vel_mod_1d_dir: str,
@@ -217,9 +217,8 @@ def generate_fault_realisations(
             fault_logger,
         )
 
-    unperturbated_function = load_perturbation_function(UNPERTURBATED)
-    if perturbation_function != unperturbated_function:
-        unperturbated_realisation = unperturbated_function(
+    if perturbation_function != unperturbation_function:
+        unperturbated_realisation = unperturbation_function(
             sources_line=data,
             additional_source_parameters=additional_source_parameters,
             vel_mod_1d=None,
@@ -334,6 +333,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
+    unperturbation_function = load_perturbation_function(f"gcmt_{args.version}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     gcmt_data = pd.read_csv(args.gcmt_file, usecols=GCMT_FILE_COLUMNS, index_col=0)[
@@ -380,6 +380,7 @@ def main():
             args.realisation_count,
             args.output_dir,
             perturbation_function,
+            unperturbation_function,
             args.aggregate_file,
             vel_mod_1d_layers,
             args.vel_mod_1d_out,

@@ -46,7 +46,7 @@ NHM_PARAM_NAMES = [
 ]
 NHM_Source = namedtuple("NHM_Source", NHM_PARAM_NAMES)
 
-GENERAL_PARAMS = ["type"]
+GENERAL_PARAMS = ["name", "type", "genslip_version"]
 
 SRFGEN_TYPE_1_PARAMS = [
     "latitude",
@@ -219,7 +219,7 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
     shypo = 0.00
 
     # get the fault geometry (square edge length)
-    fault_length, fault_width = mw_2_a_scaling_relation(mag, mwsr, rake)
+    fault_length = fault_width = np.sqrt(mw_2_a_scaling_relation(mag, mwsr, rake))
 
     # number of subfaults
     nx = int(round(fault_length / dlen))
