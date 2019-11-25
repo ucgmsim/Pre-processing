@@ -1,6 +1,6 @@
 import argparse
 from logging import Logger
-from subprocess import call, PIPE, Popen
+from subprocess import run, PIPE, Popen
 from typing import Dict, Any, Union
 from tempfile import NamedTemporaryFile
 
@@ -13,13 +13,19 @@ from qcore import binary_version, srf, geo, qclogging
 from qcore.utils import compare_versions
 
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
+from srf_generation.source_parameter_generation.gcmt_to_realisation import (
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+)
 from srf_generation.source_parameter_generation.uncertainties.common import (
     HF_RUN_PARAMS,
     BB_RUN_PARAMS,
     LF_RUN_PARAMS,
     get_seed,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom, MagnitudeScalingRelations
+from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
+    mag2mom,
+    MagnitudeScalingRelations,
+)
 
 SRF2STOCH = "srf2stoch"
 GENERICSLIP2SRF = "generic_slip2srf"
@@ -51,23 +57,15 @@ def create_stoch(
     if not srf.is_ff(srf_file):
         dx, dy = srf.srf_dxy(srf_file)
     logger.debug(f"Saving stoch to {stoch_file}")
+    srf2stoch = binary_version.get_unversioned_bin(SRF2STOCH)
+    if single_segment:
+        command = [srf2stoch, f"target_dx={dx}", f"target_dy={dy}"]
+    else:
+        command = ([srf2stoch, f"dx={dx}", f"dy={dy}"],)
+    logger.debug(f"Creating stoch with command: {command}")
     with open(stoch_file, "w") as stochp, open(srf_file, "r") as srfp:
-        if single_segment:
-            call(
-                [
-                    binary_version.get_unversioned_bin(SRF2STOCH),
-                    f"target_dx={dx}",
-                    f"target_dy={dy}",
-                ],
-                stdin=srfp,
-                stdout=stochp,
-            )
-        else:
-            call(
-                [binary_version.get_unversioned_bin(SRF2STOCH), f"dx={dx}", f"dy={dy}"],
-                stdin=srfp,
-                stdout=stochp,
-            )
+        proc = run(command, stdin=srfp, stdout=stochp, stderr=PIPE)
+    logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
 def create_info_file(
@@ -218,7 +216,7 @@ def create_ps_srf(
     ###
     ### create GSF
     ###
-    with NamedTemporaryFile(mode="w+") as gsfp:
+    with NamedTemporaryFile(mode="w+", delete=False) as gsfp:
         gsfp.write("# nstk= 1 ndip= 1\n")
         gsfp.write(f"# flen= {dd:10.4f} fwid= {dd:10.4f}\n")
         gsfp.write(
@@ -229,24 +227,23 @@ def create_ps_srf(
             f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} "
             f"{strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2} {inittime:8.3f}    0\n"
         )
-        gsfp.flush()
 
-        ###
-        ### create SRF
-        ###
-        commands = [
-            binary_version.get_unversioned_bin(GENERICSLIP2SRF),
-            f"infile={gsfp.name}",
-            f"outfile={srf_file}",
-            "outbin=0",
-            f"stype={stype}",
-            f"dt={dt}",
-            "plane_header=1",
-            f"risetime={risetime}",
-            "risetimefac=1.0",
-            "risetimedep=0.0",
-        ]
-        call(commands, stderr=PIPE)
+    ###
+    ### create SRF
+    ###
+    commands = [
+        binary_version.get_unversioned_bin(GENERICSLIP2SRF),
+        f"infile={gsfp.name}",
+        f"outfile={srf_file}",
+        "outbin=0",
+        f"stype={stype}",
+        f"dt={dt}",
+        "plane_header=1",
+        f"risetime={risetime}",
+        "risetimefac=1.0",
+        "risetimedep=0.0",
+    ]
+    run(commands, stderr=PIPE)
 
     ###
     ### save STOCH
@@ -299,10 +296,10 @@ def create_ps_ff_srf(
     rough = parameter_dictionary.pop("rough", 0.005)
     seed = parameter_dictionary.pop("seed", get_seed())
 
-    mwsr =  MagnitudeScalingRelations(parameter_dictionary.pop("mwsr"))
+    mwsr = MagnitudeScalingRelations(parameter_dictionary.pop("mwsr"))
 
     # gets
-    vel_mod_1d = parameter_dictionary.get("vel_mod_1d")
+    vel_mod_1d = parameter_dictionary.get("vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH)
     rvfac = parameter_dictionary.get("rvfac", 0.005)
 
     logger.debug(
@@ -343,24 +340,24 @@ def create_ps_ff_srf(
             ny,
             logger=logger,
         )
-        gsfp.flush()
-        gen_srf(
-            srf_file,
-            gsfp,
-            magnitude,
-            dt,
-            nx,
-            ny,
-            seed,
-            shypo,
-            dhypo,
-            vel_mod_1d,
-            genslip_version=genslip_version,
-            rvfac=rvfac,
-            slip_cov=slip_cov,
-            rough=rough,
-            logger=logger,
-        )
+
+    gen_srf(
+        srf_file,
+        gsfp.name,
+        magnitude,
+        dt,
+        nx,
+        ny,
+        seed,
+        shypo,
+        dhypo,
+        vel_mod_1d,
+        genslip_version=genslip_version,
+        rvfac=rvfac,
+        slip_cov=slip_cov,
+        rough=rough,
+        logger=logger,
+    )
 
     if stoch_file is None:
         stoch_file = realisation_file.replace(".csv", ".stoch")
@@ -456,7 +453,7 @@ def gen_srf(
         "write_srf=1",
         "read_gsf=1",
         "write_gsf=0",
-        f"infile={gsf_file.name}",
+        f"infile={gsf_file}",
         f"mag={magnitude}",
         f"{xstk}={nx}",
         f"{ydip}={ny}",
@@ -478,7 +475,7 @@ def gen_srf(
         cmd.append(f"slip_sigma={slip_cov}")
     logger.info("Creating SRF with command: {}".format(" ".join(cmd)))
     with open(srf_file, "w") as srfp:
-        call(cmd, stdout=srfp)
+        run(cmd, stdout=srfp)
 
 
 def gen_gsf(
