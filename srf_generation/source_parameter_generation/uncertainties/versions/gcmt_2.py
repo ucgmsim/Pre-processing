@@ -41,7 +41,7 @@ def generate_source_params(
     # Start of custom code area
     mwsr = MagnitudeScalingRelations.LEONARD2014
     if "mwsr" in additional_source_parameters.keys():
-        mwsr = MagnitudeScalingRelations(additional_source_parameters["mwsr"])
+        mwsr = MagnitudeScalingRelations(additional_source_parameters.pop("mwsr"))
 
     flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
         source_data.lat,
@@ -76,7 +76,7 @@ def generate_source_params(
         "dt": 0.005,
         "seed": get_seed(),
         "genslip_version": "3.3",
-        "mwsr": mwsr,
+        "mwsr": mwsr.name,
     }
 
     params.update(additional_source_parameters)

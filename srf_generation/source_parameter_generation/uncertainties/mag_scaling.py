@@ -5,10 +5,10 @@ import numpy as np
 
 
 class MagnitudeScalingRelations(Enum):
-    HANKSBAKUN2002 = "hanksbakun2002"
-    BERRYMANETAL2002 = "berrymanetal2002"
-    VILLAMORETAL2001 = "villamoretal2001"
-    LEONARD2014 = "leonard2014"
+    HANKSBAKUN2002 = "HANKSBAKUN2002"
+    BERRYMANETAL2002 = "BERRYMANETAL2002"
+    VILLAMORETAL2001 = "VILLAMORETAL2001"
+    LEONARD2014 = "LEONARD2014"
 
 
 def mw_2_a_scaling_relation(

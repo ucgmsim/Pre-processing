@@ -19,7 +19,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
     LF_RUN_PARAMS,
     get_seed,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
+from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom, MagnitudeScalingRelations
 
 SRF2STOCH = "srf2stoch"
 GENERICSLIP2SRF = "generic_slip2srf"
@@ -294,11 +294,12 @@ def create_ps_ff_srf(
     dtop = parameter_dictionary.pop("dtop")
     shypo = parameter_dictionary.pop("shypo")
     dhypo = parameter_dictionary.pop("dhypo")
-    mwsr = parameter_dictionary.pop("mwsr")
-    genslip_version = parameter_dictionary.pop("genslip_version")
+    genslip_version = str(parameter_dictionary.pop("genslip_version"))
     slip_cov = parameter_dictionary.pop("slip_cov", 0.005)
     rough = parameter_dictionary.pop("rough", 0.005)
     seed = parameter_dictionary.pop("seed", get_seed())
+
+    mwsr =  MagnitudeScalingRelations(parameter_dictionary.pop("mwsr"))
 
     # gets
     vel_mod_1d = parameter_dictionary.get("vel_mod_1d")

@@ -31,6 +31,7 @@ def process_realisation_file(
     realisation_logger = qclogging.get_realisation_logger(
         primary_logger, realisation["name"]
     )
+    realisation_logger.debug(f"Got realisation file info: {realisation}")
     stoch_file = simulation_structure.get_stoch_path(
         cybershake_root, realisation["name"]
     )

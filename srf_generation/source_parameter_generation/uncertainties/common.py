@@ -124,7 +124,7 @@ RUN_TIME_PARAMS = HF_RUN_PARAMS + LF_RUN_PARAMS + BB_RUN_PARAMS
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
-    return randint(0, 2 ** 31 - 1)
+    return randint(0, 2 ** 31 - 1).rvs()
 
 
 def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
