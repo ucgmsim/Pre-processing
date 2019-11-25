@@ -475,7 +475,8 @@ def gen_srf(
         cmd.append(f"slip_sigma={slip_cov}")
     logger.info("Creating SRF with command: {}".format(" ".join(cmd)))
     with open(srf_file, "w") as srfp:
-        run(cmd, stdout=srfp)
+        proc = run(cmd, stdout=srfp, stderr=PIPE)
+    logger.debug(f"{genslip_bin} stderr: {proc.stderr}")
 
 
 def gen_gsf(
