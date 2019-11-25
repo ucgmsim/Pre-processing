@@ -300,7 +300,11 @@ def get_additional_source_parameters(
         gcmt_data["depth"].round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
     )
     additional_source_parameters = pd.DataFrame(
-        {"vs": vel_mod_1d_layers["vs"].iloc[depth_bins].values}, gcmt_data["pid"].values
+        {
+            "vs": vel_mod_1d_layers["vs"].iloc[depth_bins].values,
+            "rho": vel_mod_1d_layers["rho"].iloc[depth_bins].values,
+        },
+        gcmt_data["pid"].values,
     )
     for param_name, filepath in source_parameters:
         parameter_df = pd.read_csv(
