@@ -323,7 +323,7 @@ def create_ps_ff_srf(
     write_corners(corners_file, hypocentre, corners)
 
     def get_n(fault_size, sub_fault_size):
-        return f"{fault_size / sub_fault_size:0f}"
+        return str(int(round(fault_size / sub_fault_size)))
 
     nx = get_n(flen, dlen)
     ny = get_n(fwid, dwid)

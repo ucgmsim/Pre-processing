@@ -8,7 +8,7 @@ from typing import Dict
 import pandas as pd
 
 from qcore import simulation_structure, qclogging
-from qcore.qclogging import NOPRINTCRITICAL
+from qcore.qclogging import NOPRINTCRITICAL, add_general_file_handler
 
 from srf_generation.input_file_generation.realisation_to_srf import (
     create_ps_srf,
@@ -127,6 +127,8 @@ def load_args():
 def main():
     primary_logger = qclogging.get_logger("generate_srf_from_realisations")
     args = load_args()
+    log_file = path.join(args.cybershake_root, primary_logger.name + "_log.txt")
+    add_general_file_handler(primary_logger, log_file)
     primary_logger.debug(f"Args parsed: {args}")
 
     realisations_path = simulation_structure.get_srf_path(
