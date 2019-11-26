@@ -8,6 +8,7 @@ from os.path import abspath, isfile, join
 from typing import Callable, Union, Dict, Any
 
 import pandas as pd
+from numpy import digitize
 
 from qcore.formats import load_fault_selection_file
 from qcore.simulation_structure import (
@@ -28,6 +29,8 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     GCMT_FILE_COLUMNS,
     generate_realisation,
     UNPERTURBATED,
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+    get_additional_source_parameters,
 )
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -45,11 +48,41 @@ def load_args(primary_logger: Logger):
         "Intended to be used with the standard qcore simultaion structure."
     )
 
-    parser.add_argument("fault_selection_file", type=abspath)
-    parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument("--version", type=str, default="unperturbated")
-    parser.add_argument("--vel_mod_1d", type=abspath)
-    parser.add_argument("--cybershake_root", type=abspath, default=abspath("."))
+    parser.add_argument(
+        "fault_selection_file",
+        type=abspath,
+        help="The path to a white space delimited two column file containing a list of events, "
+        "followed by the number of realisations for that event. "
+        "If any events are missing from the gcmt file the program will stop. "
+        "If any events have only one realisation they will not have the _RELXX suffix attached.",
+    )
+    parser.add_argument(
+        "gcmt_file",
+        type=abspath,
+        help="The path to a geonet cmt solutions file. "
+        "Must have entries for all events named in the fault selection file. "
+        "Additional events not named will be ignored.",
+    )
+    parser.add_argument(
+        "--version",
+        type=str,
+        default="unperturbated",
+        help="The name of the version to perturbate the input parameters with. "
+        "By default no perturbation will occur. "
+        "Should be the name of the file without the .py suffix.",
+    )
+    parser.add_argument(
+        "--vel_mod_1d",
+        type=abspath,
+        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
+        help="The path to the 1d velocity model to be used for obtaining the shear wave velocity of the srf plane.",
+    )
+    parser.add_argument(
+        "--cybershake_root",
+        type=abspath,
+        default=abspath("."),
+        help="The path to the root of the simulation root directory. Defaults to the current directory.",
+    )
     parser.add_argument(
         "--n_processes",
         "-n",
@@ -93,7 +126,7 @@ def load_args(primary_logger: Logger):
         errors.append(
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
         )
-    if args.vel_mod_1d is not None and not isfile(args.vel_mod_1d):
+    if not isfile(args.vel_mod_1d):
         errors.append(
             f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
         )
@@ -140,12 +173,28 @@ def generate_fault_realisations(
     fault_logger.debug(f"Fault {data.pid} had data {data}")
     fault_name = data.pid
 
+    if realisation_count == 1:
+        fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
+        generate_realisation(
+            get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
+            fault_name,
+            perturbation_function,
+            data,
+            additional_source_parameters,
+            aggregate_file,
+            vel_mod_1d,
+            get_realisation_VM_dir(cybershake_root, fault_name),
+            fault_logger,
+        )
+        return
+
     for i in range(1, realisation_count + 1):
         realisation_name = get_realisation_name(fault_name, i)
 
-        realisation_file_name = get_srf_path(cybershake_root, realisation_name)
+        realisation_file_name = get_srf_path(cybershake_root, realisation_name).replace(
+            ".srf", ".csv"
+        )
         vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
-        makedirs(vel_mod_1d_dir, exist_ok=True)
 
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
@@ -166,7 +215,9 @@ def generate_fault_realisations(
     unperturbated_function = load_perturbation_function(UNPERTURBATED)
     if perturbation_function != unperturbated_function:
         unperturbated_realisation = unperturbated_function(
-            sources_line=data, additional_source_parameters=additional_source_parameters
+            sources_line=data,
+            additional_source_parameters=additional_source_parameters,
+            vel_mod_1d=None,
         )
         rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
         realisation_file_name = join(
@@ -197,11 +248,6 @@ def generate_messages(
                 fault_name
             ].to_dict()
 
-        if vel_mod_1d is not None:
-            vel_mod_1d_layers = load_1d_velocity_mod(vel_mod_1d)
-        else:
-            vel_mod_1d_layers = None
-
         messages.append(
             (
                 GCMT_Source(*gcmt_data),
@@ -209,7 +255,7 @@ def generate_messages(
                 cybershake_root,
                 perturbation_function,
                 aggregate_file,
-                vel_mod_1d_layers,
+                vel_mod_1d,
                 primary_logger.name,
                 additional_source_specific_data,
             )
@@ -256,20 +302,11 @@ def main():
         f"All {len(gcmt_lines)} faults specified in the fault selection file were found"
     )
 
-    additional_source_parameters = pd.DataFrame()
+    velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
 
-    for param_name, filepath in args.source_parameter:
-        parameter_df = pd.read_csv(
-            filepath,
-            delim_whitespace=True,
-            header=None,
-            index_col=0,
-            names=[param_name],
-            dtype={0: str},
-        )
-        additional_source_parameters = additional_source_parameters.join(
-            parameter_df, how="outer"
-        )
+    additional_source_parameters = get_additional_source_parameters(
+        args.source_parameter, gcmt_data, velocity_model_1d
+    )
 
     messages = generate_messages(
         additional_source_parameters,
@@ -278,7 +315,7 @@ def main():
         faults,
         gcmt_lines,
         perturbation_function,
-        args.vel_mod_1d,
+        velocity_model_1d,
         primary_logger,
     )
 
