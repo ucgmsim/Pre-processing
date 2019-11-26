@@ -9,7 +9,6 @@ import pandas as pd
 
 from qcore import simulation_structure, qclogging
 from qcore.qclogging import NOPRINTCRITICAL, add_general_file_handler
-
 from srf_generation.input_file_generation.realisation_to_srf import (
     create_ps_srf,
     generate_sim_params_yaml,
@@ -74,7 +73,7 @@ def process_common_realisation_file(
     if realisation["type"] == 1:
         create_info_file(
             srf_file=srf_file,
-            srf_type=realisation.get("type"),
+            srf_type=1,
             mag=realisation.get("magnitude"),
             rake=realisation.get("rake"),
             dt=realisation.get("dt", 0.005),

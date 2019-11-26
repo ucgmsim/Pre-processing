@@ -6,6 +6,7 @@ except ImportError:
         "Try running 'pip install -r requirements.txt' first"
     )
     from sys import exit
+
     exit(1)
 
 setup(

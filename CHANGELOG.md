@@ -9,7 +9,7 @@ Pre processing
 - Additional logging for srf generation scripts
 - Global and source specific parameters are usable with the realisation generation scripts
 ### Changed
-- If an only has one event the event will be realised without a _RELXX suffix, working in with the old perturbation workflow
+- If an only has one event the event will be realised without a \_RELXX suffix, working in with the old perturbation workflow
 - Type is now a required parameter for generate_realisation_from_gcmt
 - Some binary stderr output is now piped to the log file instead of stderr/stdout
 - Only printed output should be error messages and progress indicators
