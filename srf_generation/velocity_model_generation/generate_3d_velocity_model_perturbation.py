@@ -51,7 +51,7 @@ def combine_layers(layers, nx, ny, out_file):
         LAYER_COMBINE_BIN,
         f"nx={nx}",
         f"ny={ny}",
-        f"nz={nz}",
+        f"nz={depth}",
         f"filelist={filelist.name}",
         f"outfile={out_file}",
     ]
