@@ -48,13 +48,41 @@ def load_args(primary_logger: Logger):
         "Intended to be used with the standard qcore simultaion structure."
     )
 
-    parser.add_argument("fault_selection_file", type=abspath)
-    parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument("--version", type=str, default="unperturbated")
     parser.add_argument(
-        "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
+        "fault_selection_file",
+        type=abspath,
+        help="The path to a white space delimited two column file containing a list of events, "
+        "followed by the number of realisations for that event. "
+        "If any events are missing from the gcmt file the program will stop. "
+        "If any events have only one realisation they will not have the _RELXX suffix attached.",
     )
-    parser.add_argument("--cybershake_root", type=abspath, default=abspath("."))
+    parser.add_argument(
+        "gcmt_file",
+        type=abspath,
+        help="The path to a geonet cmt solutions file. "
+        "Must have entries for all events named in the fault selection file. "
+        "Additional events not named will be ignored.",
+    )
+    parser.add_argument(
+        "--version",
+        type=str,
+        default="unperturbated",
+        help="The name of the version to perturbate the input parameters with. "
+        "By default no perturbation will occur. "
+        "Should be the name of the file without the .py suffix.",
+    )
+    parser.add_argument(
+        "--vel_mod_1d",
+        type=abspath,
+        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
+        help="The path to the 1d velocity model to be used for obtaining the shear wave velocity of the srf plane.",
+    )
+    parser.add_argument(
+        "--cybershake_root",
+        type=abspath,
+        default=abspath("."),
+        help="The path to the root of the simulation root directory. Defaults to the current directory.",
+    )
     parser.add_argument(
         "--n_processes",
         "-n",
@@ -144,6 +172,21 @@ def generate_fault_realisations(
     fault_logger = get_realisation_logger(primary_logger, data.pid)
     fault_logger.debug(f"Fault {data.pid} had data {data}")
     fault_name = data.pid
+
+    if realisation_count == 1:
+        fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
+        generate_realisation(
+            get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
+            fault_name,
+            perturbation_function,
+            data,
+            additional_source_parameters,
+            aggregate_file,
+            vel_mod_1d,
+            get_realisation_VM_dir(cybershake_root, fault_name),
+            fault_logger,
+        )
+        return
 
     for i in range(1, realisation_count + 1):
         realisation_name = get_realisation_name(fault_name, i)
