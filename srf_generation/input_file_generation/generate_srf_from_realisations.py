@@ -155,8 +155,6 @@ def main():
     )
     realisation_files = glob.glob(realisations_path)
 
-    worker_pool = Pool(args.n_processes)
-
     worker_pool.starmap(
         process_common_realisation_file,
         [(args.cybershake_root, filename) for filename in realisation_files],

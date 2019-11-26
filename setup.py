@@ -3,7 +3,7 @@ try:
 except ImportError:
     print(
         "An error occurred while trying to import setuptools. "
-        "Try running pip with the additional flag '-r requirements.txt'"
+        "Try running 'pip install -r requirements.txt' first"
     )
     from sys import exit
     exit(1)

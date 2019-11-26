@@ -59,8 +59,8 @@ def generate_source_params(
     params = {
         "type": TYPE,
         "name": source_data.pid,
-        "latitude": source_data.lat,
-        "longitude": source_data.lon,
+        "latitude": lat0,
+        "longitude": lon0,
         "depth": source_data.depth,
         "magnitude": source_data.mag,
         "strike": source_data.strike,

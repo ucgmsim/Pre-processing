@@ -2,6 +2,18 @@ Pre processing
 # Changelog
 (Based on https://wiki.canterbury.ac.nz/download/attachments/58458136/CodeVersioning_v18p2.pdf?version=1&modificationDate=1519269238437&api=v2 )
 
+
+## [19.5.6] - 2019-11-26 -- Added type 2 and single realisation to new source generation workflow
+### Added
+- Type 2 unperturbated faults are now available in the new workflow
+- Additional logging for srf generation scripts
+- Global and source specific parameters are usable with the realisation generation scripts
+### Changed
+- If an only has one event the event will be realised without a _RELXX suffix, working in with the old perturbation workflow
+- Type is now a required parameter for generate_realisation_from_gcmt
+- Some binary stderr output is now piped to the log file instead of stderr/stdout
+- Only printed output should be error messages and progress indicators
+
 ## [19.5.5] - 2019-11-13 -- Added gcmt to srf generation workflow with versioned perturbation system
 ### Added
 - Script to generate realisation files for one or more gcmt based events

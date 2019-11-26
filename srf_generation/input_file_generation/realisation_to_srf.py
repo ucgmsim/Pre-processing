@@ -180,6 +180,9 @@ def create_ps_srf(
     risetime = parameter_dictionary.pop("risetime", 0.5)
     inittime = parameter_dictionary.pop("inittime", 0.0)
 
+    name = parameter_dictionary.pop("name")
+    logger.info(f"Generating srf for realisation {name}")
+
     logger.debug(
         "All srf generation parameters successfully obtained from the realisation file"
     )
@@ -473,7 +476,7 @@ def gen_srf(
         cmd.append(f"alpha_rough={rough}")
     if slip_cov is not None:
         cmd.append(f"slip_sigma={slip_cov}")
-    logger.info("Creating SRF with command: {}".format(" ".join(cmd)))
+    logger.debug("Creating SRF with command: {}".format(" ".join(cmd)))
     with open(srf_file, "w") as srfp:
         proc = run(cmd, stdout=srfp, stderr=PIPE)
     logger.debug(f"{genslip_bin} stderr: {proc.stderr}")

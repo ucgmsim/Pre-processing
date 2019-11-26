@@ -15,6 +15,7 @@ from qcore.qclogging import (
     add_general_file_handler,
     NOPRINTCRITICAL,
     get_realisation_logger,
+    get_basic_logger,
 )
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -237,7 +238,7 @@ def generate_realisation(
     aggregate_file,
     vel_mod_1d,
     vel_mod_1d_dir,
-    fault_logger,
+    fault_logger: Logger = get_basic_logger(),
 ):
     fault_logger.debug("Calling perturbation function.")
     perturbed_realisation = perturbation_function(

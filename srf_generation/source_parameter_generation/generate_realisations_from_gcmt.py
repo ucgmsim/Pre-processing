@@ -170,6 +170,7 @@ def generate_fault_realisations(
     fault_logger = get_realisation_logger(primary_logger, data.pid)
     fault_logger.debug(f"Fault {data.pid} had data {data}")
     fault_name = data.pid
+    fault_logger.info(f"Generating realisations for event {fault_name}")
 
     for i in range(1, realisation_count + 1):
         realisation_name = get_realisation_name(fault_name, i)
