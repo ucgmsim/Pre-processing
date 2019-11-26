@@ -66,11 +66,7 @@ def load_args(primary_logger: Logger):
     parser.add_argument("fault_name")
     parser.add_argument("realisation_count", type=int)
     parser.add_argument("gcmt_file", type=abspath)
-    parser.add_argument(
-        "type",
-        type=str,
-        help="The type of srf to generate.",
-    )
+    parser.add_argument("type", type=str, help="The type of srf to generate.")
     parser.add_argument("--version", type=str)
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
