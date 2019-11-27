@@ -5,10 +5,10 @@ import numpy as np
 
 
 class MagnitudeScalingRelations(Enum):
-    HANKSBAKUM2002 = "HanksBakun2002"
-    BERRYMANETAL2002 = "BerrymanEtAl2002"
-    VILLAMORETAL2001 = "VillamorEtAl2001"
-    LEONARD2014 = "Leonard2014"
+    HANKSBAKUN2002 = "HANKSBAKUN2002"
+    BERRYMANETAL2002 = "BERRYMANETAL2002"
+    VILLAMORETAL2001 = "VILLAMORETAL2001"
+    LEONARD2014 = "LEONARD2014"
 
 
 def mw_2_a_scaling_relation(
@@ -21,7 +21,7 @@ def mw_2_a_scaling_relation(
     """
     Return the fault Area from the mw and a mw Scaling relation.
     """
-    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUM2002:
+    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
         A = mw_to_a_hanksbakum(mw)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
@@ -76,7 +76,7 @@ def a_2_mw_scaling_relation(
     """
     Return the fault Area from the mw and a mw Scaling relation.
     """
-    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUM2002:
+    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
         mw = a_to_mw_hanksbakum(a)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:

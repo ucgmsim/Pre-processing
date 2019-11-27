@@ -8,7 +8,6 @@ from os.path import abspath, isfile, join
 from typing import Callable, Union, Dict, Any
 
 import pandas as pd
-from numpy import digitize
 
 from qcore.formats import load_fault_selection_file
 from qcore.simulation_structure import (
@@ -28,7 +27,6 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     load_1d_velocity_mod,
     GCMT_FILE_COLUMNS,
     generate_realisation,
-    UNPERTURBATED,
     DEFAULT_1D_VELOCITY_MODEL_PATH,
     get_additional_source_parameters,
 )
@@ -63,6 +61,7 @@ def load_args(primary_logger: Logger):
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
+    parser.add_argument("type", type=str, help="The type of srf to generate.")
     parser.add_argument(
         "--version",
         type=str,
@@ -104,16 +103,38 @@ def load_args(primary_logger: Logger):
         nargs=2,
         action="append",
         metavar=("name", "filepath"),
-        help="Values to be passed to be added to each realisation, with one value per fault. "
+        help="Values to be passed to be added to each realisation, with one value per event. "
         "The first argument should be the name of the value, "
-        "the second the filepath to the space separated file containing the values. "
+        "the second should be the filepath to the space separated file containing the values. "
         "The file should have two columns, the name of a station followed by the value for that station, "
-        "seperated by some number of spaces. "
+        "separated by some number of spaces. "
+        "If multiple source parameters are required this argument should be repeated.",
+        default=[],
+    )
+    parser.add_argument(
+        "--common_source_parameter",
+        type=str,
+        nargs=2,
+        action="append",
+        metavar=("name", "parameter"),
+        help="Values to be passed to be added to each realisation, with the same value for every event. "
+        "The first argument should be the name of the value, the second should be the value. "
+        "If the value is a valid number it will be treated as a float, otherwise it will be a string"
         "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
 
     args = parser.parse_args()
+    primary_logger.debug(f"Raw arguments passed, beginning argument processing: {args}")
+
+    if args.version is None:
+        if args.type is not None:
+            args.version = f"gcmt_{args.type}"
+        else:
+            primary_logger.debug(
+                "No version or type given, generating type 1 realisations"
+            )
+            args.version = f"gcmt_1"
 
     errors = []
 
@@ -163,6 +184,7 @@ def generate_fault_realisations(
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
+    unperturbation_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     primary_logger_name: str,
@@ -172,6 +194,7 @@ def generate_fault_realisations(
     fault_logger = get_realisation_logger(primary_logger, data.pid)
     fault_logger.debug(f"Fault {data.pid} had data {data}")
     fault_name = data.pid
+    fault_logger.info(f"Generating realisations for event {fault_name}")
 
     if realisation_count == 1:
         fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
@@ -212,9 +235,8 @@ def generate_fault_realisations(
             fault_logger,
         )
 
-    unperturbated_function = load_perturbation_function(UNPERTURBATED)
-    if perturbation_function != unperturbated_function:
-        unperturbated_realisation = unperturbated_function(
+    if perturbation_function != unperturbation_function:
+        unperturbated_realisation = unperturbation_function(
             sources_line=data,
             additional_source_parameters=additional_source_parameters,
             vel_mod_1d=None,
@@ -233,6 +255,7 @@ def generate_messages(
     faults,
     gcmt_lines,
     perturbation_function,
+    unperturbation_function,
     vel_mod_1d,
     primary_logger,
 ):
@@ -254,6 +277,7 @@ def generate_messages(
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
+                unperturbation_function,
                 aggregate_file,
                 vel_mod_1d,
                 primary_logger.name,
@@ -270,6 +294,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
+    unperturbation_function = load_perturbation_function(f"gcmt_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
@@ -305,7 +330,10 @@ def main():
     velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
 
     additional_source_parameters = get_additional_source_parameters(
-        args.source_parameter, gcmt_data, velocity_model_1d
+        args.source_parameter,
+        args.common_source_parameter,
+        gcmt_data,
+        velocity_model_1d,
     )
 
     messages = generate_messages(
@@ -315,6 +343,7 @@ def main():
         faults,
         gcmt_lines,
         perturbation_function,
+        unperturbation_function,
         velocity_model_1d,
         primary_logger,
     )

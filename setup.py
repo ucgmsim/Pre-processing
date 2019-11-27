@@ -1,4 +1,13 @@
-from setuptools import setup, find_namespace_packages
+try:
+    from setuptools import setup, find_namespace_packages, find_packages
+except ImportError:
+    print(
+        "An error occurred while trying to import setuptools. "
+        "Try running 'pip install -r requirements.txt' first"
+    )
+    from sys import exit
+
+    exit(1)
 
 setup(
     name="SRF generation",
