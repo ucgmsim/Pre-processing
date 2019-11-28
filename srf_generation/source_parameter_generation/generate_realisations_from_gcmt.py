@@ -77,15 +77,6 @@ def load_args(primary_logger: Logger):
     args = parser.parse_args()
     primary_logger.debug(f"Raw arguments passed, beginning argument processing: {args}")
 
-    if args.version is None:
-        if args.type is not None:
-            args.version = f"gcmt_{args.type}"
-        else:
-            primary_logger.debug(
-                "No version or type given, generating type 1 realisations"
-            )
-            args.version = f"gcmt_1"
-
     errors = []
 
     if not isfile(args.fault_selection_file):
@@ -93,13 +84,14 @@ def load_args(primary_logger: Logger):
             f"Specified selection file not found: {args.fault_selection_file}"
         )
 
-    verify_args(args, errors)
+    verify_args(args, errors, primary_logger)
 
     if errors:
         message = (
             "At least one error was detected when verifying arguments:\n"
             + "\n".join(errors)
         )
+        primary_logger.log(NOPRINTCRITICAL, message)
         raise ValueError(message)
 
     makedirs(args.cybershake_root, exist_ok=True)

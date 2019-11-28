@@ -79,24 +79,16 @@ def load_args(primary_logger: Logger):
 
     args = parser.parse_args()
 
-    if args.version is None:
-        if args.type is not None:
-            args.version = f"gcmt_{args.type}"
-        else:
-            primary_logger.debug(
-                "No version or type given, generating type 1 realisations"
-            )
-            args.version = f"gcmt_1"
-
     errors = []
 
-    verify_args(args, errors)
+    verify_args(args, errors, primary_logger)
 
     if errors:
         message = (
             "At least one error was detected when verifying arguments:\n"
             + "\n".join(errors)
         )
+        primary_logger.log(NOPRINTCRITICAL, message)
         raise ValueError(message)
 
     makedirs(args.output_dir, exist_ok=True)
@@ -109,7 +101,17 @@ def load_args(primary_logger: Logger):
     return args
 
 
-def verify_args(args, errors):
+def verify_args(args, errors, parser_logger=get_basic_logger()):
+
+    if args.version is None:
+        if args.type is not None:
+            args.version = f"gcmt_{args.type}"
+        else:
+            parser_logger.debug(
+                "No version or type given, generating type 1 realisations"
+            )
+            args.version = f"gcmt_1"
+
     if not isfile(args.gcmt_file):
         errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
     if args.aggregate_file is not None and isfile(args.aggregate_file):
