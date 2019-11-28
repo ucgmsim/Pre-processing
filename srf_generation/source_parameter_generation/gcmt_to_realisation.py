@@ -70,8 +70,8 @@ def load_args(primary_logger: Logger):
         "gcmt_file",
         type=abspath,
         help="The path to a geonet cmt solutions file. "
-             "Must have entries for all events named in the fault selection file. "
-             "Additional events not named will be ignored.",
+        "Must have entries for all events named in the fault selection file. "
+        "Additional events not named will be ignored.",
     )
     parser.add_argument("type", type=str, help="The type of srf to generate.")
     parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
@@ -145,7 +145,13 @@ def verify_args(args, errors):
 
 
 def add_common_arguments(parser):
-    parser.add_argument("--version", type=str)
+    parser.add_argument(
+        "--version",
+        type=str,
+        help="The name of the version to perturbate the input parameters with. "
+        "By default no perturbation will occur. "
+        "Should be the name of the file without the .py suffix.",
+    )
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
@@ -155,7 +161,7 @@ def add_common_arguments(parser):
         "-a",
         type=abspath,
         help="A filepath to the location an aggregate file should be stored. "
-             "There should not be a file already present.",
+        "There should not be a file already present.",
     )
     parser.add_argument(
         "--source_parameter",
@@ -164,11 +170,11 @@ def add_common_arguments(parser):
         action="append",
         metavar=("name", "filepath"),
         help="Values to be passed to be added to each realisation, with one value per fault. "
-             "The first argument should be the name of the value, "
-             "the second the filepath to the space separated file containing the values. "
-             "The file should have two columns, the name of a station followed by the value for that station, "
-             "separated by some number of spaces. "
-             "If multiple source parameters are required this argument should be repeated.",
+        "The first argument should be the name of the value, "
+        "the second the filepath to the space separated file containing the values. "
+        "The file should have two columns, the name of a station followed by the value for that station, "
+        "separated by some number of spaces. "
+        "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
     parser.add_argument(
@@ -178,9 +184,9 @@ def add_common_arguments(parser):
         action="append",
         metavar=("name", "parameter"),
         help="Values to be passed to be added to each realisation, with the same value for every event. "
-             "The first argument should be the name of the value, the second should be the value. "
-             "If the value is a valid number it will be treated as a float, otherwise it will be a string"
-             "If multiple source parameters are required this argument should be repeated.",
+        "The first argument should be the name of the value, the second should be the value. "
+        "If the value is a valid number it will be treated as a float, otherwise it will be a string"
+        "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
     vs30_parser = parser.add_argument_group(

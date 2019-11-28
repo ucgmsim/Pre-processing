@@ -30,7 +30,9 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
     get_additional_source_parameters,
     load_vs30_median_sigma,
-    add_common_arguments, verify_args)
+    add_common_arguments,
+    verify_args,
+)
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
