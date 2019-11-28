@@ -8,6 +8,7 @@ from typing import Callable, Union, Dict, Any, Tuple, List
 
 import pandas as pd
 from numpy import digitize
+from qcore.formats import load_vs30_file
 
 from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
@@ -106,6 +107,24 @@ def load_args(primary_logger: Logger):
         "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
+    vs30_parser = parser.add_argument_group(
+        title="vs30 arguments",
+        description="All arguments in this group must be given if any are given",
+    )
+    vs30_parser.add_argument(
+        "--vs30_median",
+        type=abspath,
+        help="The path to a file containing median VS30s.",
+    )
+    vs30_parser.add_argument(
+        "--vs30_sigma", type=abspath, help="The path to a file containing VS30 sigmas."
+    )
+    vs30_parser.add_argument(
+        "--vs30_out",
+        type=abspath,
+        help="The path to a file to save the perturbated VS30s to",
+        default=abspath("."),
+    )
 
     args = parser.parse_args()
 
@@ -139,6 +158,20 @@ def load_args(primary_logger: Logger):
         else:
             args.source_parameter[i][1] = filepath
 
+    if args.vs30_medians is not None:
+        if not isfile(args.vs30_median):
+            errors.append(
+                f"The file {args.vs30_median} given for parameter --vs30_median does not exist"
+            )
+        if args.vs30_sigma is not None and not isfile(args.vs30_sigma):
+            errors.append(
+                f"The file {args.vs30_sigma} given for parameter --vs30_sigma does not exist"
+            )
+    elif args.vs30_sigma is not None:
+        errors.append(
+            f"If the vs30 sigma file is given the median file should also be given"
+        )
+
     if errors:
         message = (
             "At least one error was detected when verifying arguments:\n"
@@ -154,6 +187,21 @@ def load_args(primary_logger: Logger):
     primary_logger.debug(f"Arguments parsed: {args}")
 
     return args
+
+
+def load_vs30_median_sigma(vs30_median, vs30_sigma):
+    if vs30_median is None:
+        return None
+    vs30_medians = load_vs30_file(vs30_median)
+    vs30_medians.columns = ["median"]
+    if vs30_sigma is not None:
+        vs30_sigmas: pd.DataFrame = load_vs30_file(vs30_sigma)
+        vs30_sigmas.columns = ["sigma"]
+        vs30 = vs30_medians.join(vs30_sigmas)
+    else:
+        vs30 = vs30_medians
+        vs30["sigma"] = 0.0
+    return vs30
 
 
 def load_1d_velocity_mod(vel_mod_1d):
@@ -188,6 +236,8 @@ def generate_fault_realisations(
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vel_mod_1d_dir: str,
+    vs30_data: pd.DataFrame,
+    vs30_out_file: str,
     primary_logger_name: str,
     additional_source_parameters: Dict[str, Any],
 ):
@@ -211,6 +261,8 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            vs30_data,
+            vs30_out_file,
             fault_logger,
         )
 
@@ -234,6 +286,8 @@ def generate_realisation(
     aggregate_file,
     vel_mod_1d,
     vel_mod_1d_dir,
+    vs30_data: pd.DataFrame,
+    vs30_out_file: str,
     fault_logger: Logger = get_basic_logger(),
 ):
     fault_logger.debug("Calling perturbation function.")
@@ -241,6 +295,7 @@ def generate_realisation(
         source_data=data,
         additional_source_parameters=additional_source_parameters,
         vel_mod_1d=vel_mod_1d,
+        vs30_data=vs30_data,
     )
     fault_logger.debug(
         f"Got results from perturbation_function: {perturbed_realisation}"
@@ -258,6 +313,13 @@ def generate_realisation(
             perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
         )
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
+
+    if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
+        perturbated_vs30: pd.DataFrame = perturbed_realisation["vs30"]
+        perturbated_vs30.to_csv(
+            vs30_out_file, columns="vs30", sep=" ", index=True, header=False
+        )
+        perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
 
     makedirs(dirname(realisation_file_name), exist_ok=True)
     fault_logger.debug(
@@ -366,6 +428,8 @@ def main():
         vel_mod_1d_layers,
     )
 
+    vs30 = load_vs30_median_sigma(args.vs30_median, args.vs30_sigma)
+
     if gcmt_line[0] in additional_source_parameters.index:
         additional_source_specific_data = additional_source_parameters.loc[
             gcmt_line[0]
@@ -385,6 +449,8 @@ def main():
             args.aggregate_file,
             vel_mod_1d_layers,
             args.vel_mod_1d_out,
+            vs30,
+            args.vs30_out,
             primary_logger.name,
             additional_source_specific_data,
         )
@@ -398,6 +464,8 @@ def main():
             args.aggregate_file,
             args.vel_mod_1d,
             args.vel_mod_1d_out,
+            vs30,
+            args.vs30_out,
             primary_logger,
         )
 

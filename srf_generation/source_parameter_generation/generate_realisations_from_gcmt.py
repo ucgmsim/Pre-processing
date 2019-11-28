@@ -9,7 +9,7 @@ from typing import Callable, Union, Dict, Any
 
 import pandas as pd
 
-from qcore.formats import load_fault_selection_file
+from qcore.formats import load_fault_selection_file, load_vs30_file
 from qcore.simulation_structure import (
     get_realisation_name,
     get_srf_path,
@@ -29,6 +29,7 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     generate_realisation,
     DEFAULT_1D_VELOCITY_MODEL_PATH,
     get_additional_source_parameters,
+    load_vs30_median_sigma,
 )
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -123,6 +124,18 @@ def load_args(primary_logger: Logger):
         "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
+    vs30_parser = parser.add_argument_group(
+        title="vs30 arguments",
+        description="All arguments in this group must be given if any are given",
+    )
+    vs30_parser.add_argument(
+        "--vs30_median",
+        type=abspath,
+        help="The path to a file containing median VS30s.",
+    )
+    vs30_parser.add_argument(
+        "--vs30_sigma", type=abspath, help="The path to a file containing VS30 sigmas."
+    )
 
     args = parser.parse_args()
     primary_logger.debug(f"Raw arguments passed, beginning argument processing: {args}")
@@ -139,7 +152,9 @@ def load_args(primary_logger: Logger):
     errors = []
 
     if not isfile(args.fault_selection_file):
-        errors.append(f"Specified station file not found: {args.fault_selection_file}")
+        errors.append(
+            f"Specified selection file not found: {args.fault_selection_file}"
+        )
     if not isfile(args.gcmt_file):
         errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
 
@@ -161,6 +176,20 @@ def load_args(primary_logger: Logger):
             )
         else:
             args.source_parameter[i][1] = filepath
+
+    if args.vs30_medians is not None:
+        if not isfile(args.vs30_median):
+            errors.append(
+                f"The file {args.vs30_median} given for parameter --vs30_median does not exist"
+            )
+        if args.vs30_sigma is not None and not isfile(args.vs30_sigma):
+            errors.append(
+                f"The file {args.vs30_sigma} given for parameter --vs30_sigma does not exist"
+            )
+    elif args.vs30_sigma is not None:
+        errors.append(
+            f"If the vs30 sigma file is given the median file should also be given"
+        )
 
     if errors:
         message = (
@@ -187,6 +216,7 @@ def generate_fault_realisations(
     unperturbation_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
+    vs30_data: pd.DataFrame,
     primary_logger_name: str,
     additional_source_parameters: Dict[str, Any],
 ):
@@ -198,6 +228,9 @@ def generate_fault_realisations(
 
     if realisation_count == 1:
         fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
+        vs30_out_file = join(
+            get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
+        )
         generate_realisation(
             get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
             fault_name,
@@ -207,6 +240,8 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             get_realisation_VM_dir(cybershake_root, fault_name),
+            vs30_data,
+            vs30_out_file,
             fault_logger,
         )
         return
@@ -218,6 +253,7 @@ def generate_fault_realisations(
             ".srf", ".csv"
         )
         vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
+        vs30_out_file = join(vel_mod_1d_dir, f"{realisation_name}.vs30")
 
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
@@ -232,6 +268,8 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            vs30_data,
+            vs30_out_file,
             fault_logger,
         )
 
@@ -257,6 +295,7 @@ def generate_messages(
     perturbation_function,
     unperturbation_function,
     vel_mod_1d,
+    vs30_data: pd.DataFrame,
     primary_logger,
 ):
     messages = []
@@ -280,6 +319,7 @@ def generate_messages(
                 unperturbation_function,
                 aggregate_file,
                 vel_mod_1d,
+                vs30_data,
                 primary_logger.name,
                 additional_source_specific_data,
             )
@@ -328,6 +368,7 @@ def main():
     )
 
     velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
+    vs30 = load_vs30_median_sigma(args.vs30_median, args.vs30_sigma)
 
     additional_source_parameters = get_additional_source_parameters(
         args.source_parameter,
@@ -345,6 +386,7 @@ def main():
         perturbation_function,
         unperturbation_function,
         velocity_model_1d,
+        vs30,
         primary_logger,
     )
 

@@ -1,12 +1,12 @@
 """The template for future perturbation versions.
 Update this docstring with information about the version"""
 import pandas as pd
-from typing import Any, Dict, Union
+from typing import Any, Dict
+import numpy as np
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
-    NHM_Source,
     focal_mechanism_2_finite_fault,
     get_seed,
     filter_realisation_input_params,
@@ -19,9 +19,10 @@ TYPE = 2
 
 
 def generate_source_params(
-    source_data: Union[GCMT_Source, NHM_Source],
+    source_data: GCMT_Source,
     additional_source_parameters: Dict[str, Any],
-    vel_mod_1d: pd.DataFrame = None,
+    vel_mod_1d: pd.DataFrame,
+    vs30_data: pd.DataFrame = None,
     **kwargs,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
@@ -83,6 +84,11 @@ def generate_source_params(
 
     params.update(additional_source_parameters)
     realisation["params"] = params
+
+    if vs30_data is not None:
+        realisation["vs30"] = vs30_data
+        realisation["vs30"]["vs30"] = vs30_data["median"]
+
     # End of custom code area
     verify_realisation_params(realisation["params"])
     return realisation
