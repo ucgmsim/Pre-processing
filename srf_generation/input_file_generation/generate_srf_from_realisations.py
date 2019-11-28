@@ -96,7 +96,7 @@ def process_common_realisation_file(
             lat=None,
             tect_type=None,
             dip_dir=None,
-            mwsr=realisation.get("depth"),
+            mwsr=realisation.get("mwsr"),
             shypo=realisation.get("shypo") + 0.5 * realisation.get("flen"),
             dhypo=realisation.get("dhypo"),
             vm=realisation.get("vel_mod_1d"),

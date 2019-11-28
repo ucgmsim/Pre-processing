@@ -295,15 +295,15 @@ def create_ps_ff_srf(
     shypo = parameter_dictionary.pop("shypo")
     dhypo = parameter_dictionary.pop("dhypo")
     genslip_version = str(parameter_dictionary.pop("genslip_version"))
-    slip_cov = parameter_dictionary.pop("slip_cov", 0.005)
-    rough = parameter_dictionary.pop("rough", 0.005)
     seed = parameter_dictionary.pop("seed", get_seed())
+    slip_cov = parameter_dictionary.pop("slip_cov", None)
+    rough = parameter_dictionary.pop("rough", None)
 
     mwsr = MagnitudeScalingRelations(parameter_dictionary.pop("mwsr"))
 
     # gets
     vel_mod_1d = parameter_dictionary.get("vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH)
-    rvfac = parameter_dictionary.get("rvfac", 0.005)
+    rvfac = parameter_dictionary.get("rvfac", None)
 
     logger.debug(
         "All srf generation parameters successfully obtained from the realisation file"
