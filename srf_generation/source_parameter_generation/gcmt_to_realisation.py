@@ -74,7 +74,7 @@ def load_args(primary_logger: Logger):
         "Additional events not named will be ignored.",
     )
     parser.add_argument("type", type=str, help="The type of srf to generate.")
-    parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
+
     add_common_arguments(parser)
 
     args = parser.parse_args()
@@ -146,7 +146,7 @@ def verify_args(args, errors, parser_logger=get_basic_logger()):
         )
 
 
-def add_common_arguments(parser):
+def add_common_arguments(parser, single_event=True):
     parser.add_argument(
         "--version",
         type=str,
@@ -157,7 +157,6 @@ def add_common_arguments(parser):
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
-    parser.add_argument("--vel_mod_1d_out", type=abspath)
     parser.add_argument(
         "--aggregate_file",
         "-a",
@@ -203,12 +202,22 @@ def add_common_arguments(parser):
     vs30_parser.add_argument(
         "--vs30_sigma", type=abspath, help="The path to a file containing VS30 sigmas."
     )
-    vs30_parser.add_argument(
-        "--vs30_out",
-        type=abspath,
-        help="The path to a file to save the perturbated VS30s to",
-        default=abspath("."),
-    )
+    if single_event:
+        parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
+        parser.add_argument("--vel_mod_1d_out", type=abspath)
+        vs30_parser.add_argument(
+            "--vs30_out",
+            type=abspath,
+            help="The path to a file to save the perturbated VS30s to",
+            default=abspath("."),
+        )
+    else:
+        parser.add_argument(
+            "--cybershake_root",
+            type=abspath,
+            default=abspath("."),
+            help="The path to the root of the simulation root directory. Defaults to the current directory.",
+        )
 
 
 def load_vs30_median_sigma(vs30_median, vs30_sigma):

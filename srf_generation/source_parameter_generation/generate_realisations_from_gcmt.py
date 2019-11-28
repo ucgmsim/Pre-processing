@@ -65,14 +65,8 @@ def load_args(primary_logger: Logger):
         "Additional events not named will be ignored.",
     )
     parser.add_argument("type", type=str, help="The type of srf to generate.")
-    parser.add_argument(
-        "--cybershake_root",
-        type=abspath,
-        default=abspath("."),
-        help="The path to the root of the simulation root directory. Defaults to the current directory.",
-    )
 
-    add_common_arguments(parser)
+    add_common_arguments(parser, single_event=False)
 
     args = parser.parse_args()
     primary_logger.debug(f"Raw arguments passed, beginning argument processing: {args}")
