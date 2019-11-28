@@ -65,7 +65,6 @@ def load_args(primary_logger: Logger):
     parser.add_argument(
         "--version",
         type=str,
-        default="unperturbated",
         help="The name of the version to perturbate the input parameters with. "
         "By default no perturbation will occur. "
         "Should be the name of the file without the .py suffix.",
