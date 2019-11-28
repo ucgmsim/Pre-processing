@@ -66,20 +66,96 @@ def load_args(primary_logger: Logger):
 
     parser.add_argument("fault_name")
     parser.add_argument("realisation_count", type=int)
-    parser.add_argument("gcmt_file", type=abspath)
+    parser.add_argument(
+        "gcmt_file",
+        type=abspath,
+        help="The path to a geonet cmt solutions file. "
+             "Must have entries for all events named in the fault selection file. "
+             "Additional events not named will be ignored.",
+    )
     parser.add_argument("type", type=str, help="The type of srf to generate.")
+    parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
+    add_common_arguments(parser)
+
+    args = parser.parse_args()
+
+    if args.version is None:
+        if args.type is not None:
+            args.version = f"gcmt_{args.type}"
+        else:
+            primary_logger.debug(
+                "No version or type given, generating type 1 realisations"
+            )
+            args.version = f"gcmt_1"
+
+    errors = []
+
+    verify_args(args, errors)
+
+    if errors:
+        message = (
+            "At least one error was detected when verifying arguments:\n"
+            + "\n".join(errors)
+        )
+        raise ValueError(message)
+
+    makedirs(args.output_dir, exist_ok=True)
+
+    log_file = join(args.output_dir, primary_logger.name + "_log.txt")
+    add_general_file_handler(primary_logger, log_file)
+
+    primary_logger.debug(f"Arguments parsed: {args}")
+
+    return args
+
+
+def verify_args(args, errors):
+    if not isfile(args.gcmt_file):
+        errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
+    if args.aggregate_file is not None and isfile(args.aggregate_file):
+        errors.append(
+            f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
+        )
+    if not isfile(args.vel_mod_1d):
+        errors.append(
+            f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
+        )
+    for i, (param_name, filepath) in enumerate(args.source_parameter):
+        filepath = abspath(filepath)
+        if not isfile(filepath):
+            errors.append(
+                f"The file {filepath} given for parameter "
+                f"{param_name} does not exist"
+            )
+        else:
+            args.source_parameter[i][1] = filepath
+    if args.vs30_medians is not None:
+        if not isfile(args.vs30_median):
+            errors.append(
+                f"The file {args.vs30_median} given for parameter --vs30_median does not exist"
+            )
+        if args.vs30_sigma is not None and not isfile(args.vs30_sigma):
+            errors.append(
+                f"The file {args.vs30_sigma} given for parameter --vs30_sigma does not exist"
+            )
+    elif args.vs30_sigma is not None:
+        errors.append(
+            f"If the vs30 sigma file is given the median file should also be given"
+        )
+
+
+def add_common_arguments(parser):
     parser.add_argument("--version", type=str)
     parser.add_argument(
         "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
     )
     parser.add_argument("--vel_mod_1d_out", type=abspath)
-    parser.add_argument("--output_dir", "-o", type=abspath, default=abspath("."))
     parser.add_argument(
         "--aggregate_file",
         "-a",
         type=abspath,
         help="A filepath to the location an aggregate file should be stored. "
-        "There should not be a file already present.",
+             "There should not be a file already present.",
     )
     parser.add_argument(
         "--source_parameter",
@@ -88,11 +164,11 @@ def load_args(primary_logger: Logger):
         action="append",
         metavar=("name", "filepath"),
         help="Values to be passed to be added to each realisation, with one value per fault. "
-        "The first argument should be the name of the value, "
-        "the second the filepath to the space separated file containing the values. "
-        "The file should have two columns, the name of a station followed by the value for that station, "
-        "separated by some number of spaces. "
-        "If multiple source parameters are required this argument should be repeated.",
+             "The first argument should be the name of the value, "
+             "the second the filepath to the space separated file containing the values. "
+             "The file should have two columns, the name of a station followed by the value for that station, "
+             "separated by some number of spaces. "
+             "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
     parser.add_argument(
@@ -102,9 +178,9 @@ def load_args(primary_logger: Logger):
         action="append",
         metavar=("name", "parameter"),
         help="Values to be passed to be added to each realisation, with the same value for every event. "
-        "The first argument should be the name of the value, the second should be the value. "
-        "If the value is a valid number it will be treated as a float, otherwise it will be a string"
-        "If multiple source parameters are required this argument should be repeated.",
+             "The first argument should be the name of the value, the second should be the value. "
+             "If the value is a valid number it will be treated as a float, otherwise it will be a string"
+             "If multiple source parameters are required this argument should be repeated.",
         default=[],
     )
     vs30_parser = parser.add_argument_group(
@@ -125,68 +201,6 @@ def load_args(primary_logger: Logger):
         help="The path to a file to save the perturbated VS30s to",
         default=abspath("."),
     )
-
-    args = parser.parse_args()
-
-    errors = []
-
-    if args.version is None:
-        if args.type is None:
-            args.version = f"gcmt_1"
-        else:
-            args.version = f"gcmt_{args.type}"
-
-    if not isfile(args.gcmt_file):
-        errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
-
-    if args.aggregate_file is not None and isfile(args.aggregate_file):
-        errors.append(
-            f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
-        )
-    if not isfile(args.vel_mod_1d):
-        errors.append(
-            f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
-        )
-
-    for i, (param_name, filepath) in enumerate(args.source_parameter):
-        filepath = abspath(filepath)
-        if not isfile(filepath):
-            errors.append(
-                f"The file {filepath} given for parameter "
-                f"{param_name} does not exist"
-            )
-        else:
-            args.source_parameter[i][1] = filepath
-
-    if args.vs30_medians is not None:
-        if not isfile(args.vs30_median):
-            errors.append(
-                f"The file {args.vs30_median} given for parameter --vs30_median does not exist"
-            )
-        if args.vs30_sigma is not None and not isfile(args.vs30_sigma):
-            errors.append(
-                f"The file {args.vs30_sigma} given for parameter --vs30_sigma does not exist"
-            )
-    elif args.vs30_sigma is not None:
-        errors.append(
-            f"If the vs30 sigma file is given the median file should also be given"
-        )
-
-    if errors:
-        message = (
-            "At least one error was detected when verifying arguments:\n"
-            + "\n".join(errors)
-        )
-        raise ValueError(message)
-
-    makedirs(args.output_dir, exist_ok=True)
-
-    log_file = join(args.output_dir, primary_logger.name + "_log.txt")
-    add_general_file_handler(primary_logger, log_file)
-
-    primary_logger.debug(f"Arguments parsed: {args}")
-
-    return args
 
 
 def load_vs30_median_sigma(vs30_median, vs30_sigma):
