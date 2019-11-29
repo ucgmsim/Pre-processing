@@ -9,7 +9,7 @@ from typing import Callable, Union, Dict, Any
 
 import pandas as pd
 
-from qcore.formats import load_fault_selection_file
+from qcore.formats import load_fault_selection_file, load_vs30_file
 from qcore.simulation_structure import (
     get_realisation_name,
     get_srf_path,
@@ -29,6 +29,9 @@ from srf_generation.source_parameter_generation.gcmt_to_realisation import (
     generate_realisation,
     DEFAULT_1D_VELOCITY_MODEL_PATH,
     get_additional_source_parameters,
+    load_vs30_median_sigma,
+    add_common_arguments,
+    verify_args,
 )
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -62,110 +65,27 @@ def load_args(primary_logger: Logger):
         "Additional events not named will be ignored.",
     )
     parser.add_argument("type", type=str, help="The type of srf to generate.")
-    parser.add_argument(
-        "--version",
-        type=str,
-        help="The name of the version to perturbate the input parameters with. "
-        "By default no perturbation will occur. "
-        "Should be the name of the file without the .py suffix.",
-    )
-    parser.add_argument(
-        "--vel_mod_1d",
-        type=abspath,
-        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
-        help="The path to the 1d velocity model to be used for obtaining the shear wave velocity of the srf plane.",
-    )
-    parser.add_argument(
-        "--cybershake_root",
-        type=abspath,
-        default=abspath("."),
-        help="The path to the root of the simulation root directory. Defaults to the current directory.",
-    )
-    parser.add_argument(
-        "--n_processes",
-        "-n",
-        default=1,
-        type=int,
-        help="Number of processes to generate realisations with. "
-        "Setting this higher than the number of faults will not have any additional effect.",
-    )
-    parser.add_argument(
-        "--aggregate_file",
-        "-a",
-        type=abspath,
-        help="A filepath to the location an aggregate file should be stored. "
-        "There should not be a file already present.",
-    )
-    parser.add_argument(
-        "--source_parameter",
-        type=str,
-        nargs=2,
-        action="append",
-        metavar=("name", "filepath"),
-        help="Values to be passed to be added to each realisation, with one value per event. "
-        "The first argument should be the name of the value, "
-        "the second should be the filepath to the space separated file containing the values. "
-        "The file should have two columns, the name of a station followed by the value for that station, "
-        "separated by some number of spaces. "
-        "If multiple source parameters are required this argument should be repeated.",
-        default=[],
-    )
-    parser.add_argument(
-        "--common_source_parameter",
-        type=str,
-        nargs=2,
-        action="append",
-        metavar=("name", "parameter"),
-        help="Values to be passed to be added to each realisation, with the same value for every event. "
-        "The first argument should be the name of the value, the second should be the value. "
-        "If the value is a valid number it will be treated as a float, otherwise it will be a string"
-        "If multiple source parameters are required this argument should be repeated.",
-        default=[],
-    )
+
+    add_common_arguments(parser, single_event=False)
 
     args = parser.parse_args()
     primary_logger.debug(f"Raw arguments passed, beginning argument processing: {args}")
 
-    if args.version is None:
-        if args.type is not None:
-            args.version = f"gcmt_{args.type}"
-        else:
-            primary_logger.debug(
-                "No version or type given, generating type 1 realisations"
-            )
-            args.version = f"gcmt_1"
-
     errors = []
 
     if not isfile(args.fault_selection_file):
-        errors.append(f"Specified station file not found: {args.fault_selection_file}")
-    if not isfile(args.gcmt_file):
-        errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
-
-    if args.aggregate_file is not None and isfile(args.aggregate_file):
         errors.append(
-            f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
-        )
-    if not isfile(args.vel_mod_1d):
-        errors.append(
-            f"Specified 1d velocity model file {args.vel_mod_1d} does not exist"
+            f"Specified selection file not found: {args.fault_selection_file}"
         )
 
-    for i, (param_name, filepath) in enumerate(args.source_parameter):
-        filepath = abspath(filepath)
-        if not isfile(filepath):
-            errors.append(
-                f"The file {filepath} given for parameter "
-                f"{param_name} does not exist"
-            )
-        else:
-            args.source_parameter[i][1] = filepath
+    verify_args(args, errors, primary_logger)
 
     if errors:
         message = (
             "At least one error was detected when verifying arguments:\n"
             + "\n".join(errors)
         )
+        primary_logger.log(NOPRINTCRITICAL, message)
         raise ValueError(message)
 
     makedirs(args.cybershake_root, exist_ok=True)
@@ -186,6 +106,7 @@ def generate_fault_realisations(
     unperturbation_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
+    vs30_data: pd.DataFrame,
     primary_logger_name: str,
     additional_source_parameters: Dict[str, Any],
 ):
@@ -197,6 +118,9 @@ def generate_fault_realisations(
 
     if realisation_count == 1:
         fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
+        vs30_out_file = join(
+            get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
+        )
         generate_realisation(
             get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
             fault_name,
@@ -206,6 +130,8 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             get_realisation_VM_dir(cybershake_root, fault_name),
+            vs30_data,
+            vs30_out_file,
             fault_logger,
         )
         return
@@ -217,6 +143,7 @@ def generate_fault_realisations(
             ".srf", ".csv"
         )
         vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
+        vs30_out_file = join(vel_mod_1d_dir, f"{realisation_name}.vs30")
 
         fault_logger.debug(
             f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
@@ -231,6 +158,8 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            vs30_data,
+            vs30_out_file,
             fault_logger,
         )
 
@@ -256,6 +185,7 @@ def generate_messages(
     perturbation_function,
     unperturbation_function,
     vel_mod_1d,
+    vs30_data: pd.DataFrame,
     primary_logger,
 ):
     messages = []
@@ -279,6 +209,7 @@ def generate_messages(
                 unperturbation_function,
                 aggregate_file,
                 vel_mod_1d,
+                vs30_data,
                 primary_logger.name,
                 additional_source_specific_data,
             )
@@ -327,6 +258,7 @@ def main():
     )
 
     velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
+    vs30 = load_vs30_median_sigma(args.vs30_median, args.vs30_sigma)
 
     additional_source_parameters = get_additional_source_parameters(
         args.source_parameter,
@@ -344,6 +276,7 @@ def main():
         perturbation_function,
         unperturbation_function,
         velocity_model_1d,
+        vs30,
         primary_logger,
     )
 
