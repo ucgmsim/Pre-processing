@@ -46,7 +46,7 @@ NHM_PARAM_NAMES = [
 ]
 NHM_Source = namedtuple("NHM_Source", NHM_PARAM_NAMES)
 
-GENERAL_PARAMS = ["name", "type", "genslip_version"]
+GENERAL_PARAMS = ["name", "type", "genslip_version", "srfgen_seed"]
 
 SRFGEN_TYPE_1_PARAMS = [
     "latitude",

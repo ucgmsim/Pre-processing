@@ -20,7 +20,6 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
     HF_RUN_PARAMS,
     BB_RUN_PARAMS,
     LF_RUN_PARAMS,
-    get_seed,
 )
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mag2mom,
@@ -180,6 +179,10 @@ def create_ps_srf(
     risetime = parameter_dictionary.pop("risetime", 0.5)
     inittime = parameter_dictionary.pop("inittime", 0.0)
 
+    # srfgen seed is not used by slip2srf (unless we pass rt_rand in),
+    # but we also don't need it to be in the sim_params.yaml file
+    parameter_dictionary.pop("srfgen_seed")
+
     name = parameter_dictionary.pop("name")
     logger.info(f"Generating srf for realisation {name}")
 
@@ -295,7 +298,7 @@ def create_ps_ff_srf(
     shypo = parameter_dictionary.pop("shypo")
     dhypo = parameter_dictionary.pop("dhypo")
     genslip_version = str(parameter_dictionary.pop("genslip_version"))
-    seed = parameter_dictionary.pop("seed", get_seed())
+    seed = parameter_dictionary.pop("srfgen_seed")
     slip_cov = parameter_dictionary.pop("slip_cov", None)
     rough = parameter_dictionary.pop("rough", None)
 

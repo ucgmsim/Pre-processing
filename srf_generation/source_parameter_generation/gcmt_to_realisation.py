@@ -22,7 +22,7 @@ from qcore.qclogging import (
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
     GCMT_Source,
-)
+    get_seed)
 from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
@@ -332,6 +332,8 @@ def generate_realisation(
         f"Got results from perturbation_function: {perturbed_realisation}"
     )
     perturbed_realisation["params"]["name"] = realisation_name
+    if "srfgen_seed" not in perturbed_realisation["params"]:
+        perturbed_realisation["params"]["srfgen_seed"] = get_seed()
 
     if (
         vel_mod_1d_dir is not None
