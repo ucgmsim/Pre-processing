@@ -22,7 +22,8 @@ from qcore.qclogging import (
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
     GCMT_Source,
-    get_seed)
+    get_seed,
+)
 from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
