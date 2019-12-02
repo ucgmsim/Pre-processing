@@ -22,7 +22,7 @@ def mw_2_a_scaling_relation(
     Return the fault Area from the mw and a mw Scaling relation.
     """
     if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
-        A = mw_to_a_hanksbakum(mw)
+        A = mw_to_a_hanksbakun(mw)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
         A = mw_to_a_berrymanetal(mw)
@@ -40,7 +40,7 @@ def mw_2_a_scaling_relation(
     return float(A)
 
 
-def mw_to_a_hanksbakum(mw):
+def mw_to_a_hanksbakun(mw):
     if mw > 6.71:
         raise ValueError("Cannot use HanksAndBakun2002 equation for mw > 6.71")
     return 10 ** (mw - 3.98)
@@ -77,7 +77,7 @@ def a_2_mw_scaling_relation(
     Return the fault Area from the mw and a mw Scaling relation.
     """
     if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
-        mw = a_to_mw_hanksbakum(a)
+        mw = a_to_mw_hanksbakun(a)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
         mw = a_to_mw_berrymanetal(a)
@@ -115,7 +115,7 @@ def a_to_mw_berrymanetal(a):
     return np.log10(a) + 4.18
 
 
-def a_to_mw_hanksbakum(a):
+def a_to_mw_hanksbakun(a):
     if a > 10 ** (6.71 - 3.98):
         raise ValueError(
             "Cannot use HanksAndBakun2002 equation for a > 537 km^2 (Which represents a rupture with 6.71 Mw)"
