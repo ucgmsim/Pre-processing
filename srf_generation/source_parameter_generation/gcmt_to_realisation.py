@@ -22,6 +22,7 @@ from qcore.qclogging import (
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
     GCMT_Source,
+    get_seed,
 )
 from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
@@ -332,6 +333,8 @@ def generate_realisation(
         f"Got results from perturbation_function: {perturbed_realisation}"
     )
     perturbed_realisation["params"]["name"] = realisation_name
+    if "srfgen_seed" not in perturbed_realisation["params"]:
+        perturbed_realisation["params"]["srfgen_seed"] = get_seed()
 
     if (
         vel_mod_1d_dir is not None
@@ -351,6 +354,10 @@ def generate_realisation(
             vs30_out_file, columns="vs30", sep=" ", index=True, header=False
         )
         perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
+
+    if "z_values" in perturbed_realisation.keys():
+        z_df = pd.DataFrame(perturbed_realisation["z_values"], index=[0])
+        z_df.to_csv(realisation_file_name.replace(".csv", "_z_values.csv"), index=False)
 
     makedirs(dirname(realisation_file_name), exist_ok=True)
     fault_logger.debug(
