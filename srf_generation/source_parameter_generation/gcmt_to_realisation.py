@@ -131,7 +131,7 @@ def verify_args(args, errors, parser_logger=get_basic_logger()):
             )
         else:
             args.source_parameter[i][1] = filepath
-    if args.vs30_medians is not None:
+    if args.vs30_median is not None:
         if not isfile(args.vs30_median):
             errors.append(
                 f"The file {args.vs30_median} given for parameter --vs30_median does not exist"

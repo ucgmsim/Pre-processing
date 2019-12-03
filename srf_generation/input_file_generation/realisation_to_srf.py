@@ -180,7 +180,7 @@ def create_ps_srf(
     risetime = parameter_dictionary.pop("risetime", 0.5)
     inittime = parameter_dictionary.pop("inittime", 0.0)
 
-    name = parameter_dictionary.pop("name")
+    name = parameter_dictionary.get("name")
     logger.info(f"Generating srf for realisation {name}")
 
     logger.debug(
@@ -278,6 +278,9 @@ def create_ps_ff_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
+    name = parameter_dictionary.get("name")
+    logger.info(f"Generating srf for realisation {name}")
+
     # pops
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
