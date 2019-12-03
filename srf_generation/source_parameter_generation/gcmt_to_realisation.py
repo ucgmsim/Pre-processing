@@ -355,6 +355,10 @@ def generate_realisation(
         )
         perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
 
+    if "z_values" in perturbed_realisation.keys():
+        z_df = pd.DataFrame(perturbed_realisation["z_values"], index=[0])
+        z_df.to_csv(realisation_file_name.replace(".csv", "_z_values.csv"), index=False)
+
     makedirs(dirname(realisation_file_name), exist_ok=True)
     fault_logger.debug(
         f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
