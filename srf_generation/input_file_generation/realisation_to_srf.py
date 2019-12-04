@@ -183,7 +183,7 @@ def create_ps_srf(
     # but we also don't need it to be in the sim_params.yaml file
     parameter_dictionary.pop("srfgen_seed")
 
-    name = parameter_dictionary.pop("name")
+    name = parameter_dictionary.get("name")
     logger.info(f"Generating srf for realisation {name}")
 
     logger.debug(
@@ -281,6 +281,9 @@ def create_ps_ff_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
+    name = parameter_dictionary.get("name")
+    logger.info(f"Generating srf for realisation {name}")
+
     # pops
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
