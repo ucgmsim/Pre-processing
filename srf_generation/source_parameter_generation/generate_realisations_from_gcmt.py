@@ -170,16 +170,24 @@ def generate_fault_realisations(
         )
 
     if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
-            sources_line=data,
-            additional_source_parameters=additional_source_parameters,
-            vel_mod_1d=None,
+        realisation_file_name = get_srf_path(cybershake_root, fault_name).replace(
+            ".srf", ".csv"
         )
-        rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
-        realisation_file_name = join(
-            get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
+        vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, fault_name)
+        vs30_out_file = join(vel_mod_1d_dir, f"{fault_name}.vs30")
+        generate_realisation(
+            realisation_file_name,
+            fault_name,
+            unperturbation_function,
+            data,
+            additional_source_parameters,
+            aggregate_file,
+            vel_mod_1d,
+            vel_mod_1d_dir,
+            vs30_data,
+            vs30_out_file,
+            fault_logger,
         )
-        rel_df.to_csv(realisation_file_name, index=False)
 
 
 def generate_messages(
