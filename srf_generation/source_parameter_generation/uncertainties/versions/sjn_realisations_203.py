@@ -23,9 +23,9 @@ def generate_source_params(source_data: GCMT_Source, **kwargs) -> Dict[str, Any]
       - source_data.rake
     """
 
-    params = generate_from_gcmt(source_data)
+    params = {"params": generate_from_gcmt(source_data)}
 
-    verify_realisation_params(params)
+    verify_realisation_params(params["params"])
     return params
 
 
