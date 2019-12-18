@@ -444,18 +444,21 @@ def gen_srf(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
-    if compare_versions(genslip_version, "5"):
-        logger.debug(
-            "Using genslip version {}. Using nx and ny".format(genslip_version)
-        )
-        xstk = "nx"
-        ydip = "ny"
-    else:
+    if compare_versions(genslip_version, "5") > 0:
+        # Positive so version greater than 5
         logger.debug(
             "Using genslip version {}. Using nstk and ndip".format(genslip_version)
         )
         xstk = "nstk"
         ydip = "ndip"
+    else:
+        # Not positive so version at most 5
+        logger.debug(
+            "Using genslip version {}. Using nx and ny".format(genslip_version)
+        )
+        xstk = "nx"
+        ydip = "ny"
+
     cmd = [
         genslip_bin,
         "read_erf=0",
