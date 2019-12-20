@@ -11,33 +11,31 @@ class MagnitudeScalingRelations(Enum):
     LEONARD2014 = "LEONARD2014"
 
 
-def mw_2_a_scaling_relation(
+def mw_2_lw_scaling_relation(
     mw: float,
     mw_scaling_rel: MagnitudeScalingRelations,
     rake: Union[None, float] = None,
-    leonard_ds: float = 4.00,
-    leonard_ss: float = 3.99,
 ):
     """
     Return the fault Area from the mw and a mw Scaling relation.
     """
     if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
-        A = mw_to_a_hanksbakun(mw)
+        l = w = np.sqrt(mw_to_a_hanksbakun(mw))
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
-        A = mw_to_a_berrymanetal(mw)
+        l = w = np.sqrt(mw_to_a_berrymanetal(mw))
 
     elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
-        A = mw_to_a_villamoretal(mw)
+        l = w = np.sqrt(mw_to_a_villamoretal(mw))
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
-        A = mw_to_a_leonard(leonard_ds, leonard_ss, mw, rake)
+        l, w = mw_to_lw_leonard(mw, rake)
 
     else:
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
 
     # Area
-    return float(A)
+    return l, w
 
 
 def mw_to_a_hanksbakun(mw):
@@ -66,27 +64,52 @@ def mw_to_a_leonard(leonard_ds, leonard_ss, mw, rake):
     return A
 
 
-def a_2_mw_scaling_relation(
-    a: float,
+def mw_to_lw_leonard(mw, rake):
+    if round(rake % 360 / 90.0) % 2:
+        A = 10 ** (mw - 4.0)
+        l = 10 ** ((mw - 4.0) / 2)
+        if l > 5.4:
+            l = 10 ** ((mw - 4.24) / 1.667)
+        w = 10 ** ((mw - 3.63) / 2.5)
+
+    else:
+        A = 10 ** (mw - 3.99)
+        l = 10 ** ((mw - 4.17) / 1.667)
+        if l > 45:
+            l = 10 ** (mw - 5.27)
+        w = 10 ** ((mw - 3.88) / 2.5)
+
+    r = max(l / w, 1)
+    w = np.sqrt(A / r)
+    l = r * w
+
+    return l, w
+
+
+def wl_to_mw_leonard(l, w, rake):
+    return a_to_mw_leonard(w * l, 4.00, 3.99, rake)
+
+
+def lw_2_mw_scaling_relation(
+    l: float,
+    w: float,
     mw_scaling_rel: MagnitudeScalingRelations,
     rake: Union[float, None] = None,
-    leonard_ds: float = 4.00,
-    leonard_ss: float = 3.99,
 ):
     """
     Return the fault Area from the mw and a mw Scaling relation.
     """
     if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
-        mw = a_to_mw_hanksbakun(a)
+        mw = a_to_mw_hanksbakun(l * w)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
-        mw = a_to_mw_berrymanetal(a)
+        mw = a_to_mw_berrymanetal(l * w)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
-        mw = a_to_mw_villamoretal(a)
+        mw = a_to_mw_villamoretal(l * w)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
-        mw = a_to_mw_leonard(a, leonard_ds, leonard_ss, rake)
+        mw = wl_to_mw_leonard(l, w, rake)
 
     else:
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))

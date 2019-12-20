@@ -10,7 +10,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
     NHM_Source,
 )
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    mw_2_a_scaling_relation,
+    mw_2_lw_scaling_relation,
     MagnitudeScalingRelations,
     mag2mom,
 )
