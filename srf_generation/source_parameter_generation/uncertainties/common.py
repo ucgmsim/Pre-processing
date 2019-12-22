@@ -238,7 +238,7 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
 
     lats, lons = calculate_corners(dip, x_pos, y_pos, lat, lon, strike)
 
-    depth_loc_relative = (-y_pos * np.sin(np.radians(dip))).repeat(ny).reshape((nx, ny))
+    depth_loc_relative = (-y_pos * np.sin(np.radians(dip))).repeat(nx).reshape((nx, ny))
     depths = np.maximum(depth + depth_loc_relative, 0)
     dhypo = fault_width / 2.0
 

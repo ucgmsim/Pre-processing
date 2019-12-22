@@ -65,25 +65,31 @@ def mw_to_a_leonard(leonard_ds, leonard_ss, mw, rake):
 
 
 def mw_to_lw_leonard(mw, rake):
+    """
+    Calculates fault width and length from Leonards 2014 magnitude scaling relations
+    :param mw: The magnitude of the fault or event
+    :param rake: The rake of the event, for classifying strike slip or dip slip
+    :return: The fault length and width
+    """
     if round(rake % 360 / 90.0) % 2:
-        A = 10 ** (mw - 4.0)
-        l = 10 ** ((mw - 4.0) / 2)
-        if l > 5.4:
-            l = 10 ** ((mw - 4.24) / 1.667)
-        w = 10 ** ((mw - 3.63) / 2.5)
+        farea = 10 ** (mw - 4.0)
+        flength = 10 ** ((mw - 4.0) / 2)
+        if flength > 5.4:
+            flength = 10 ** ((mw - 4.24) / 1.667)
+        fwidth = 10 ** ((mw - 3.63) / 2.5)
 
     else:
-        A = 10 ** (mw - 3.99)
-        l = 10 ** ((mw - 4.17) / 1.667)
-        if l > 45:
-            l = 10 ** (mw - 5.27)
-        w = 10 ** ((mw - 3.88) / 2.5)
+        farea = 10 ** (mw - 3.99)
+        flength = 10 ** ((mw - 4.17) / 1.667)
+        if flength > 45:
+            flength = 10 ** (mw - 5.27)
+        fwidth = 10 ** ((mw - 3.88) / 2.5)
 
-    r = max(l / w, 1)
-    w = np.sqrt(A / r)
-    l = r * w
+    r = max(flength / fwidth, 1)
+    fwidth = np.sqrt(farea / r)
+    flength = r * fwidth
 
-    return l, w
+    return flength, fwidth
 
 
 def wl_to_mw_leonard(l, w, rake):
