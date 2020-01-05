@@ -48,17 +48,13 @@ def generate_source_params(
         source_data.strike,
         source_data.rake,
         source_data.dip,
-        source_data.depth
+        source_data.depth,
     )
     fault.magnitude_scaling_relation = MagnitudeScalingRelations.LEONARD2014
 
     params = fault.to_dict()
 
-    params.update({
-        "dt": 0.005,
-        "seed": get_seed(),
-        "genslip_version": "3.3",
-    })
+    params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "3.3"})
 
     params.update(additional_source_parameters)
     realisation["params"] = params

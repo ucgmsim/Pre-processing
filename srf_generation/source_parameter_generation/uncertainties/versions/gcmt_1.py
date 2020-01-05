@@ -37,7 +37,7 @@ def generate_source_params(
         source_data.strike,
         source_data.rake,
         source_data.dip,
-        source_data.depth
+        source_data.depth,
     )
 
     params = fault.to_dict()

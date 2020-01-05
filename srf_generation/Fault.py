@@ -79,7 +79,6 @@ class Fault(ABC):
 
 
 class SinglePlaneFault(Fault):
-
     def __init__(self, name, magnitude, strike, rake, dip):
         self.name = name
         self._mag = magnitude
@@ -182,9 +181,7 @@ class PointSourceFault(SinglePlaneFault):
 
     def to_dict(self):
         base_dict = super().to_dict()
-        base_dict.update({
-            "type": 1,
-        })
+        base_dict.update({"type": 1})
         if self.vs is not None:
             base_dict["vs"] = self.vs
         if self.rh0 is not None:
@@ -210,16 +207,17 @@ class FiniteFault(SinglePlaneFault):
 
     def to_dict(self):
         base_dict: dict = super().to_dict()
-        base_dict.update({
-
-            "flen": self.length,
-            "dlen": self.dlen,
-            "fwid": self.width,
-            "dwid": self.dwid,
-            "dtop": self.dtop,
-            "shypo": self.shypo,
-            "dhypo": self.dhypo,
-        })
+        base_dict.update(
+            {
+                "flen": self.length,
+                "dlen": self.dlen,
+                "fwid": self.width,
+                "dwid": self.dwid,
+                "dtop": self.dtop,
+                "shypo": self.shypo,
+                "dhypo": self.dhypo,
+            }
+        )
         return base_dict
 
 
@@ -238,12 +236,14 @@ class Type2(FiniteFault):
 
     def to_dict(self):
         base_dict: dict = super().to_dict()
-        base_dict.update({
-            "type": 2,
-            "longitude": self._lon_hyp,
-            "latitude": self._lat_hyp,
-            "mwsr": self._magnitude_scaling_relation.name,
-        })
+        base_dict.update(
+            {
+                "type": 2,
+                "longitude": self._lon_hyp,
+                "latitude": self._lat_hyp,
+                "mwsr": self._magnitude_scaling_relation.name,
+            }
+        )
         return base_dict
 
     def _set_rake(self, value):
@@ -262,9 +262,7 @@ class Type2(FiniteFault):
         return self._magnitude_scaling_relation
 
     @magnitude_scaling_relation.setter
-    def magnitude_scaling_relation(
-        self, value: MagnitudeScalingRelations
-    ):
+    def magnitude_scaling_relation(self, value: MagnitudeScalingRelations):
         self._magnitude_scaling_relation = value
         self._calculate_dimensions()
 
@@ -284,7 +282,7 @@ class Type2(FiniteFault):
 
     @property
     def dhypo(self):
-        return self.width/2
+        return self.width / 2
 
     @property
     def dbottom(self):
@@ -353,7 +351,9 @@ class Type2(FiniteFault):
         hypocentre_points = np.dot(rot_matrix, [[shypo], [y_pos_surf_proj_hyp]])
 
         self._lat_hyp = self.latitude + hypocentre_points[1][0] / ONE_DEG_LAT
-        self._lon_hyp = self.longitude + (hypocentre_points[0][0] / ONE_DEG_LAT) / np.cos(np.radians(self.latitude))
+        self._lon_hyp = self.longitude + (
+            hypocentre_points[0][0] / ONE_DEG_LAT
+        ) / np.cos(np.radians(self.latitude))
 
     def _calculate_corners(self):
         # use cartesian coordinate system to define the along strike and downdip
@@ -363,7 +363,9 @@ class Type2(FiniteFault):
         ONE_DEG_LAT = np.radians(6371.0072)
 
         x_pos = np.arange(self.dlen / 2.0, self.length, self.dlen) - self.length / 2.0
-        y_pos = np.arange(self.dwid / 2.0, self.width, self.dwid)[::-1] - self.width / 2.0
+        y_pos = (
+            np.arange(self.dwid / 2.0, self.width, self.dwid)[::-1] - self.width / 2.0
+        )
 
         # now use a coordinate transformation to go from fault plane to North and
         # East cartesian plane (again with (0,0) ==(0,0)  )
@@ -378,7 +380,9 @@ class Type2(FiniteFault):
         # now use a coordinate transformation to go from the North East cartesian
         # plane to the spherical earth WGS84 coordinate system
         self.lats = self.latitude + north_loc_relative / ONE_DEG_LAT
-        self.lons = self.longitude + (east_loc_relative / ONE_DEG_LAT) * 1 / np.cos(np.radians(self.latitude))
+        self.lons = self.longitude + (east_loc_relative / ONE_DEG_LAT) * 1 / np.cos(
+            np.radians(self.latitude)
+        )
 
     def _calculate_finite_fault_properties(self):
         """
@@ -426,9 +430,15 @@ class Type2(FiniteFault):
 
         # use cartesian coordinate system to define the along strike and downdip
         # locations taking the center of the fault plane as (x,y)=(0,0)
-        y_pos: np.ndarray = np.arange(self.dwid / 2.0, self.width, self.dwid)[::-1] - self.width / 2.0
+        y_pos: np.ndarray = np.arange(self.dwid / 2.0, self.width, self.dwid)[
+            ::-1
+        ] - self.width / 2.0
 
-        depth_loc_relative = (-y_pos * np.sin(np.radians(self._dip))).repeat(self.nx).reshape((self.nx, self.ny))
+        depth_loc_relative = (
+            (-y_pos * np.sin(np.radians(self._dip)))
+            .repeat(self.nx)
+            .reshape((self.nx, self.ny))
+        )
         shift = np.min(self.dtop + depth_loc_relative, 0)
         self.depths = self.dtop + depth_loc_relative - shift
         if np.any(0 > self.depths):
@@ -439,14 +449,16 @@ class Type2(FiniteFault):
 
 
 class Type3(FiniteFault):
-    def __init__(self, name, magnitude, lon1, lat1, lon2, lat2, dip, rake, dtop, dbottom, dip_dir):
+    def __init__(
+        self, name, magnitude, lon1, lat1, lon2, lat2, dip, rake, dtop, dbottom, dip_dir
+    ):
         self._trace = ((lon1, lat1), (lon2, lat2))
         self._dtop = dtop
         self._dbottom = dbottom
         self._dip_dir = dip_dir
 
         self._length = geo.ll_dist(lon1, lat1, lon2, lat2)
-        self._width = (dbottom - dtop)/np.sin(dip)
+        self._width = (dbottom - dtop) / np.sin(dip)
 
         strike = geo.ll_bearing(lon1, lat1, lon2, lat2)
 
@@ -454,9 +466,7 @@ class Type3(FiniteFault):
 
     def to_dict(self):
         base_dict: dict = super().to_dict()
-        base_dict.update({
-            "type": 3,
-        })
+        base_dict.update({"type": 3})
         return base_dict
 
 
@@ -477,13 +487,13 @@ class Type4(MultiPlaneFault):
         self._n_planes = len(nhm_data.trace) - 1
 
         self._planes = []
-        for i in range(self._n_planes-1):
+        for i in range(self._n_planes - 1):
             self._planes.append(
                 Type3(
                     nhm_data.name,
                     nhm_data.mw,
                     *nhm_data.trace[i],
-                    *nhm_data.trace[i+1],
+                    *nhm_data.trace[i + 1],
                     nhm_data.dip,
                     nhm_data.rake,
                     nhm_data.dtop,

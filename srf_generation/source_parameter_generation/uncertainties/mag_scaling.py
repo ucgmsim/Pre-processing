@@ -25,7 +25,11 @@ def get_area(fault: "Fault"):
         farea = mw_to_a_leonard(fault.magnitude, fault.rake)
 
     else:
-        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(fault.magnitude_scaling_relation))
+        raise ValueError(
+            "Invalid mw_scaling_rel: {}. Exiting.".format(
+                fault.magnitude_scaling_relation
+            )
+        )
 
     # Area
     return farea
@@ -45,7 +49,11 @@ def get_width(fault: "Fault"):
         fwidth = mw_to_w_leonard(fault.magnitude, fault.rake)
 
     else:
-        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(fault.magnitude_scaling_relation))
+        raise ValueError(
+            "Invalid mw_scaling_rel: {}. Exiting.".format(
+                fault.magnitude_scaling_relation
+            )
+        )
     return fwidth
 
 
@@ -63,7 +71,11 @@ def get_length(fault: "Fault"):
         flength = mw_to_l_leonard(fault.magnitude, fault.rake)
 
     else:
-        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(fault.magnitude_scaling_relation))
+        raise ValueError(
+            "Invalid mw_scaling_rel: {}. Exiting.".format(
+                fault.magnitude_scaling_relation
+            )
+        )
     return flength
 
 
