@@ -6,7 +6,7 @@ from scipy.stats import randint
 
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    mw_2_a_scaling_relation,
+    mw_2_lw_scaling_relation,
 )
 
 GCMT_PARAM_NAMES = [
@@ -219,7 +219,7 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
     shypo = 0.00
 
     # get the fault geometry (square edge length)
-    fault_length = fault_width = np.sqrt(mw_2_a_scaling_relation(mag, mwsr, rake))
+    fault_length, fault_width = mw_2_lw_scaling_relation(mag, mwsr, rake)
 
     # number of subfaults
     nx = int(round(fault_length / dlen))
@@ -238,7 +238,7 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
 
     lats, lons = calculate_corners(dip, x_pos, y_pos, lat, lon, strike)
 
-    depth_loc_relative = (-y_pos * np.sin(np.radians(dip))).repeat(ny).reshape((nx, ny))
+    depth_loc_relative = (-y_pos * np.sin(np.radians(dip))).repeat(nx).reshape((nx, ny))
     depths = np.maximum(depth + depth_loc_relative, 0)
     dhypo = fault_width / 2.0
 

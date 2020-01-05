@@ -2,12 +2,11 @@
 Update this docstring with information about the version"""
 import pandas as pd
 from typing import Any, Dict
-import numpy as np
 
+from srf_generation.Fault import fault_factory, Type2
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
-    focal_mechanism_2_finite_fault,
     get_seed,
     filter_realisation_input_params,
 )
@@ -41,46 +40,21 @@ def generate_source_params(
 
     realisation = kwargs
 
-    # Start of custom code area
-    mwsr = MagnitudeScalingRelations.LEONARD2014
-    if "mwsr" in additional_source_parameters.keys():
-        mwsr = MagnitudeScalingRelations(additional_source_parameters.pop("mwsr"))
-
-    flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
+    fault: Type2 = fault_factory(TYPE)(
+        source_data.pid,
         source_data.lat,
         source_data.lon,
-        source_data.depth,
         source_data.mag,
         source_data.strike,
         source_data.rake,
         source_data.dip,
-        mwsr,
-    )[
-        3:
-    ]
+        source_data.depth,
+    )
+    fault.magnitude_scaling_relation = MagnitudeScalingRelations.LEONARD2014
 
-    params = {
-        "type": TYPE,
-        "name": source_data.pid,
-        "latitude": lat0,
-        "longitude": lon0,
-        "depth": source_data.depth,
-        "magnitude": source_data.mag,
-        "strike": source_data.strike,
-        "dip": source_data.dip,
-        "rake": source_data.rake,
-        "flen": flen,
-        "dlen": dlen,
-        "fwid": fwid,
-        "dwid": dwid,
-        "dtop": dtop,
-        "shypo": shypo,
-        "dhypo": dhypo,
-        "dt": 0.005,
-        "seed": get_seed(),
-        "genslip_version": "3.3",
-        "mwsr": mwsr.name,
-    }
+    params = fault.to_dict()
+
+    params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "3.3"})
 
     params.update(additional_source_parameters)
     realisation["params"] = params

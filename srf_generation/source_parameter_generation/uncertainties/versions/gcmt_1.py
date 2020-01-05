@@ -2,10 +2,13 @@
 import pandas as pd
 from typing import Any, Dict
 
+from srf_generation.Fault import fault_factory, Type1
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
 )
+
+TYPE = 1
 
 
 def generate_source_params(
@@ -26,19 +29,22 @@ def generate_source_params(
       - source_data.rake
     """
 
+    fault: Type1 = fault_factory(TYPE)(
+        source_data.pid,
+        source_data.lat,
+        source_data.lon,
+        source_data.mag,
+        source_data.strike,
+        source_data.rake,
+        source_data.dip,
+        source_data.depth,
+    )
+
+    params = fault.to_dict()
+
     realisation = kwargs
 
-    realisation["params"] = {
-        "type": 1,
-        "name": source_data.pid,
-        "latitude": source_data.lat,
-        "longitude": source_data.lon,
-        "depth": source_data.depth,
-        "magnitude": source_data.mag,
-        "strike": source_data.strike,
-        "dip": source_data.dip,
-        "rake": source_data.rake,
-    }
+    realisation["params"] = params
     realisation["params"].update(additional_source_parameters)
 
     if vs30_data is not None:

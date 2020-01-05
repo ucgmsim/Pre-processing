@@ -15,8 +15,8 @@ def calculate_corners(dip, x_pos, y_pos, lat, lon, strike):
         [[np.cos(azimuth), np.sin(azimuth)], [-np.sin(azimuth), np.cos(azimuth)]]
     )
     east_loc_relative, north_loc_relative = np.dot(
-        rot_matrix, [np.tile(x_pos, ny), y_pos_surf_proj.repeat(ny)]
-    ).reshape(2, nx, ny)
+        rot_matrix, [np.tile(x_pos, ny), y_pos_surf_proj.repeat(nx)]
+    ).reshape((2, nx, ny))
     # now use a coordinate transformation to go from the North East cartesian
     # plane to the spherical earth WGS84 coordinate system
     lats = lat + north_loc_relative / ONE_DEG_LAT
