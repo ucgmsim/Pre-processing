@@ -11,6 +11,62 @@ class MagnitudeScalingRelations(Enum):
     LEONARD2014 = "LEONARD2014"
 
 
+def get_area(fault: "Fault"):
+    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
+        farea = mw_to_a_hanksbakun(fault.magnitude)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
+        farea = mw_to_a_berrymanetal(fault.magnitude)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
+        farea = mw_to_a_villamoretal(fault.magnitude)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
+        farea = mw_to_a_leonard(fault.magnitude, fault.rake)
+
+    else:
+        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(fault.magnitude_scaling_relation))
+
+    # Area
+    return farea
+
+
+def get_width(fault: "Fault"):
+    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
+        fwidth = np.sqrt(mw_to_a_hanksbakun(fault.magnitude))
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
+        fwidth = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
+        fwidth = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
+        fwidth = mw_to_w_leonard(fault.magnitude, fault.rake)
+
+    else:
+        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(fault.magnitude_scaling_relation))
+    return fwidth
+
+
+def get_length(fault: "Fault"):
+    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
+        flength = np.sqrt(mw_to_a_hanksbakun(fault.magnitude))
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
+        flength = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
+        flength = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
+        flength = mw_to_l_leonard(fault.magnitude, fault.rake)
+
+    else:
+        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(fault.magnitude_scaling_relation))
+    return flength
+
+
 def mw_2_lw_scaling_relation(
     mw: float,
     mw_scaling_rel: MagnitudeScalingRelations,
@@ -56,14 +112,6 @@ def mw_to_a_villamoretal(mw):
     return 10 ** (0.75 * (mw - 3.39))
 
 
-def mw_to_a_leonard(leonard_ds, leonard_ss, mw, rake):
-    if round(rake % 360 / 90.0) % 2:
-        A = 10 ** (mw - leonard_ds)
-    else:
-        A = 10 ** (mw - leonard_ss)
-    return A
-
-
 def mw_to_lw_leonard(mw, rake):
     """
     Calculates fault width and length from Leonards 2014 magnitude scaling relations
@@ -71,25 +119,43 @@ def mw_to_lw_leonard(mw, rake):
     :param rake: The rake of the event, for classifying strike slip or dip slip
     :return: The fault length and width
     """
-    if round(rake % 360 / 90.0) % 2:
-        farea = 10 ** (mw - 4.0)
-        flength = 10 ** ((mw - 4.0) / 2)
-        if flength > 5.4:
-            flength = 10 ** ((mw - 4.24) / 1.667)
-        fwidth = 10 ** ((mw - 3.63) / 2.5)
-
-    else:
-        farea = 10 ** (mw - 3.99)
-        flength = 10 ** ((mw - 4.17) / 1.667)
-        if flength > 45:
-            flength = 10 ** (mw - 5.27)
-        fwidth = 10 ** ((mw - 3.88) / 2.5)
+    farea = mw_to_a_leonard(mw, rake)
+    flength = mw_to_l_leonard(mw, rake)
+    fwidth = mw_to_w_leonard(mw, rake)
 
     r = max(flength / fwidth, 1)
     fwidth = np.sqrt(farea / r)
     flength = r * fwidth
 
     return flength, fwidth
+
+
+def mw_to_a_leonard(mw, rake):
+    if round(rake % 360 / 90.0) % 2:
+        farea = 10 ** (mw - 4.0)
+    else:
+        farea = 10 ** (mw - 3.99)
+    return farea
+
+
+def mw_to_l_leonard(mw, rake):
+    if round(rake % 360 / 90.0) % 2:
+        flength = 10 ** ((mw - 4.0) / 2)
+        if flength > 5.4:
+            flength = 10 ** ((mw - 4.24) / 1.667)
+    else:
+        flength = 10 ** ((mw - 4.17) / 1.667)
+        if flength > 45:
+            flength = 10 ** (mw - 5.27)
+    return flength
+
+
+def mw_to_w_leonard(mw, rake):
+    if round(rake % 360 / 90.0) % 2:
+        fwidth = 10 ** ((mw - 3.63) / 2.5)
+    else:
+        fwidth = 10 ** ((mw - 3.88) / 2.5)
+    return fwidth
 
 
 def wl_to_mw_leonard(l, w, rake):
