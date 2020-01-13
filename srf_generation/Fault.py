@@ -316,7 +316,7 @@ class Type2(FiniteFault):
             r = max(length / width, 1)
 
         self._width = np.sqrt(area / r)
-        self._length = r * width
+        self._length = r * np.sqrt(area / r)
 
         self._dtop = self._depth - np.sin(self._dip) * self.width / 2
         shift = min(self._dtop, 0)
