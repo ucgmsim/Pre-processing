@@ -59,7 +59,7 @@ def setup_module(scope="module"):
     print(os.path.join(PATH_UNDER_TEST, VM_PARAMS_FILE_NAME))
 
 
-def test_gencoords():
+def _test_gencoords():
     """ test qcore/gen_coords.py """
     print("---------test_gencoords------------")
     shared.exe("python " + PATH_FOR_PRG_TOBE_TESTED + " " + PATH_UNDER_TEST)
