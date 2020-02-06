@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 from qcore.nhm import load_nhm, NHMFault
@@ -148,11 +150,14 @@ def compare(gns_fault: GNSFault, nhm_fault: NHMFault):
 
 if __name__ == "__main__":
     standard_erf_ffp = (
-        "/Users/Clus/code/work/Pre-processing/SrfGen/NHM/NZ_FLTmodel_2010_v18p6.txt"
+        os.path.joins(os.path.dirname(__file__), "../NZ_FLTmodel_2010_v18p6.txt")
     )
     gns_erf_ffp = "./F501111U.DAT"
 
-    out_file = "/Users/Clus/code/work/tmp/gns_diff.txt"
+    out_file = ""
+    if len(out_file) == 0 or os.path.isfile(out_file):
+        print("Specify a valid output file, quitting.")
+        exit()
 
     nhm_faults = load_nhm(standard_erf_ffp)
 
