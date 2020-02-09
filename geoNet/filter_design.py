@@ -12,9 +12,9 @@ from numpy import (atleast_1d, poly, polyval, roots, real, asarray, allclose,
 from numpy import mintypecode
 import numpy as np
 from scipy import special, optimize
-#from scipy.special import comb
+from scipy.special import comb
 #Added July 4th 2016. current version of scipy.special does not contain comb
-from scipy.misc import comb
+#from scipy.misc import comb
 
 __all__ = ['findfreqs', 'freqs', 'freqz', 'tf2zpk', 'zpk2tf', 'normalize',
            'lp2lp', 'lp2hp', 'lp2bp', 'lp2bs', 'bilinear', 'iirdesign',
