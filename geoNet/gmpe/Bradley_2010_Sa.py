@@ -250,8 +250,8 @@ def Bradley_2010_Sa(siteprop,faultprop):
 		#########Modification 4: Rock amplification %%%%%%%%%%%%%%%%%%%%%%%
 		if T==0:
 			v1=1800
-                elif T==-1:
-                    v1=np.min((np.max((1130.*(1./0.75)**(-0.11),1130.)),1800.))
+		elif T==-1:
+			v1=np.min((np.max((1130.*(1./0.75)**(-0.11),1130.)),1800.))
 		else:			
 			v1=np.min((np.max((1130.*(T/0.75)**(-0.11),1130.)),1800.))
 
