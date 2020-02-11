@@ -40,8 +40,14 @@ class GNSFault:
     def read_fault(lines, line_ix):
         def read_loc_line(cur_line):
             cur_line = [float(entry) for entry in cur_line.split()]
-            loc_1 = (cur_line[2] + (cur_line[3] / 60), -1 * (cur_line[0] + (cur_line[1] / 60)))
-            loc_2 = (cur_line[6] + (cur_line[7] / 60), -1 * (cur_line[4] + (cur_line[5] / 60)))
+            loc_1 = (
+                cur_line[2] + (cur_line[3] / 60),
+                -1 * (cur_line[0] + (cur_line[1] / 60)),
+            )
+            loc_2 = (
+                cur_line[6] + (cur_line[7] / 60),
+                -1 * (cur_line[4] + (cur_line[5] / 60)),
+            )
 
             return loc_1, loc_2
 
@@ -89,7 +95,7 @@ class GNSFault:
                 mag,
                 rp,
                 line_segments,
-                trace_points
+                trace_points,
             ),
             line_ix + 4 + n_line_sections + 1,
         )
@@ -101,9 +107,7 @@ def compare(gns_fault: GNSFault, nhm_fault: NHMFault):
         result_str += f"\t - Dip: GNS - {gns_fault.dip}, NHM - {nhm_fault.dip}\n"
         diff = True
     if not np.isclose(nhm_fault.dip_dir, gns_fault.dip_dir, rtol=0.01):
-        result_str += (
-            f"\t - Dip direction: GNS - {gns_fault.dip_dir}, NHM - {nhm_fault.dip_dir}\n"
-        )
+        result_str += f"\t - Dip direction: GNS - {gns_fault.dip_dir}, NHM - {nhm_fault.dip_dir}\n"
         diff = True
     # if np.round(nhm_fault.mw, 1) != gns_fault.mag:
     if not np.isclose(nhm_fault.mw, gns_fault.mag, 0.01):
@@ -119,15 +123,21 @@ def compare(gns_fault: GNSFault, nhm_fault: NHMFault):
         result_str += f"\t - Return period: GNS - {gns_fault.rp}, NHM - {nhm_fault.recur_int_median}\n"
         diff = True
     if nhm_fault.dtop != gns_fault.depth_to_top:
-        result_str += f"\t - Dtop: GNS - {gns_fault.depth_to_top}, NHM - {nhm_fault.dtop}\n"
+        result_str += (
+            f"\t - Dtop: GNS - {gns_fault.depth_to_top}, NHM - {nhm_fault.dtop}\n"
+        )
         diff = True
     if nhm_fault.dbottom != gns_fault.depth_to_base:
         result_str += f"\t - Dbottom: GNS - {gns_fault.depth_to_base}, NHM - {nhm_fault.dbottom}\n"
         diff = True
 
     # NHM contains points along the trace, whereas GNS is individual line segments
-    if gns_fault.trace.shape[0] != nhm_fault.trace.shape[0] or not np.all(np.isclose(nhm_fault.trace, gns_fault.trace)):
-        result_str += f"\t - Fault traces:\nGNS \n{gns_fault.trace}\nNHM \n{nhm_fault.trace}\n"
+    if gns_fault.trace.shape[0] != nhm_fault.trace.shape[0] or not np.all(
+        np.isclose(nhm_fault.trace, gns_fault.trace)
+    ):
+        result_str += (
+            f"\t - Fault traces:\nGNS \n{gns_fault.trace}\nNHM \n{nhm_fault.trace}\n"
+        )
         diff = True
 
     # # Compare line segments
@@ -149,8 +159,8 @@ def compare(gns_fault: GNSFault, nhm_fault: NHMFault):
 
 
 if __name__ == "__main__":
-    standard_erf_ffp = (
-        os.path.joins(os.path.dirname(__file__), "../NZ_FLTmodel_2010_v18p6.txt")
+    standard_erf_ffp = os.path.joins(
+        os.path.dirname(__file__), "../NZ_FLTmodel_2010_v18p6.txt"
     )
     gns_erf_ffp = "./F501111U.DAT"
 
@@ -194,7 +204,7 @@ if __name__ == "__main__":
                 print(cur_result)
 
     if len(result_out) > 0:
-        with open(out_file, 'w') as f:
+        with open(out_file, "w") as f:
             f.write(f"Faults not in NHM {nhm_missing}\n\n")
             # f.write(f"Faults not in GNS {gns_missing}\n")
             f.write("Comparison of faults in both:\n")

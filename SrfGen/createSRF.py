@@ -791,7 +791,17 @@ def create_srf_psff(
     all_none = all(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
     any_none = any(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
     if all_none:
-        flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = focal_mechanism_2_finite_fault(
+        (
+            flen,
+            dlen,
+            fwid,
+            dwid,
+            dtop,
+            lat,
+            lon,
+            shypo,
+            dhypo,
+        ) = focal_mechanism_2_finite_fault(
             lat, lon, depth, mw, strike, rake, dip, mwsr
         )[
             3:
