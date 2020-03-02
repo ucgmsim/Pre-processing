@@ -1,9 +1,8 @@
 import numpy as np
-import scipy.linalg
 from scipy.integrate import cumtrapz
 import copy
 from butterworth import ButterWorth, butter_bandpass_filter
-from geoNet.utils import writeGP, get_GP_header, adjust_for_time_delay, acc2vel
+from geoNet.geoNet.utils import writeGP, get_GP_header, adjust_for_time_delay, acc2vel
 cos, sin, pi = (np.cos, np.sin, np.pi)
 
 

@@ -2,7 +2,6 @@
 Plots all the SMS data in a given directory by reading all *.000 files and 
 sorting the SMSs in order of increasing PGV
 """
-import numpy as np
 import matplotlib
 # Force matplotlib to not use any Xwindows backend.
 matplotlib.use('Agg')
@@ -10,8 +9,8 @@ from matplotlib import pylab as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from time import time
 
-from geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
-from geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
+from geoNet.geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
+from geoNet.geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
 
 init_time = time()
 #parent_dir_loc="/nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw4pt9_20110429_190804_11Jan2017/Vol1/data"

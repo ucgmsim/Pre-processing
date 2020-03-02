@@ -1,7 +1,5 @@
 """Filter design.
 """
-from __future__ import division, print_function, absolute_import
-
 import warnings
 
 import numpy
@@ -13,6 +11,7 @@ from numpy import mintypecode
 import numpy as np
 from scipy import special, optimize
 from scipy.special import comb
+
 #Added July 4th 2016. current version of scipy.special does not contain comb
 #from scipy.misc import comb
 
@@ -30,6 +29,8 @@ https://github.com/scipy/scipy/blob/v0.17.0/scipy/signal/signaltools.py#L2525-L2
 """
 from scipy.signal import lfilter
 __all__.append('sosfilt')
+
+
 def sosfilt(sos, x, axis=-1, zi=None):
     """
     Filter data along one dimension using cascaded second-order sections

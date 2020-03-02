@@ -11,7 +11,8 @@ def plot_all(event_info_fname):
     # Force matplotlib to not use any Xwindows backend.
     matplotlib.use('Agg')
     from matplotlib import pylab as plt
-    from geoNet import utils, putils
+    from geoNet.geoNet import putils
+    from geoNet.geoNet import utils
     from geoNet.gmpe import readStationFile as rsf
     from geoNet.gmpe.calculateGMPE import set_faultprop
 
@@ -40,7 +41,7 @@ def plot_all(event_info_fname):
 
     pSA_obs = utils.get_SMS_pSA(sorted_stats_code, periods,
                           "/".join([info["loc_V1A"], info["obs_accDir"]]),
-                          comp='geom')
+                                comp='geom')
 
 
     for i, stat_code in enumerate(sorted_stats_code):
@@ -65,7 +66,7 @@ def plot_all(event_info_fname):
 
     pSA_obs = utils.get_SMS_pSA(sorted_stats_code, periods,
                           "/".join([info["loc_V1A"], info["obs_accDir"]]),
-                          comp='geom')
+                                comp='geom')
 
     # (4) calculate pSA for GMPE
     Rrups_gmpe = np.logspace(np.log10(5.),np.log10(100.),30)
@@ -79,7 +80,7 @@ def plot_all(event_info_fname):
         ax.set_xscale('log')
         ax.set_yscale('log')
         #Now underlay gmpe predictions
-        fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, pSA_gmpe[:,i], pSA_gmpe_std[:,i], fig=fig, ax=ax)
+        fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, pSA_gmpe[:, i], pSA_gmpe_std[:, i], fig=fig, ax=ax)
         ax.legend(loc="best", scatterpoints=1)
         fig.savefig("figs_obs/pSA{:.1f}".format(T)+".png")
         fig.clear()
@@ -94,11 +95,11 @@ def plot_all(event_info_fname):
 
     PGV_obs = utils.get_SMS_PGV(sorted_stats_code, 
                           "/".join([info["loc_V1A"], info["obs_velDir"]]),
-                          absVal=False)
+                                absVal=False)
 
     PGA_obs = utils.get_SMS_PGA(sorted_stats_code,
                           "/".join([info["loc_V1A"], info["obs_accDir"]]),
-                          absVal=False)
+                                absVal=False)
 
     # (4) calculate PGV, PGA with GMPE
     #get_empIM_v2(Rrup, period, faultprop, Rjb=None, Rtvz=0., V30measured=0., V30=250.):
@@ -114,7 +115,7 @@ def plot_all(event_info_fname):
     ax.set_xscale('log')
     ax.set_yscale('log')
     #Now underlay gmpe predictions
-    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGV_gmpe[:,0], PGV_gmpe_std[:,0], fig=fig, ax=ax)
+    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGV_gmpe[:, 0], PGV_gmpe_std[:, 0], fig=fig, ax=ax)
     ax.legend(loc="best", scatterpoints=1)
     fig.savefig("figs_obs/PGV.png")
     plt.close('all')
@@ -127,7 +128,7 @@ def plot_all(event_info_fname):
     ax.set_xscale('log')
     ax.set_yscale('log')
     #Now underlay gmpe predictions
-    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGA_gmpe[:,0], PGA_gmpe_std[:,0], fig=fig, ax=ax)
+    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGA_gmpe[:, 0], PGA_gmpe_std[:, 0], fig=fig, ax=ax)
     ax.legend(loc="best", scatterpoints=1)
     fig.savefig("figs_obs/PGA.png")
     plt.close('all')

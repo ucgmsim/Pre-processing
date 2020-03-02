@@ -1,10 +1,9 @@
-import sys
 import os
 from glob import glob
 from scipy.signal import detrend
 from time import time
-from geoNet.geoNet_file import GeoNet_File
-from geoNet.process import Process, adjust_gf_for_time_delay
+from geoNet.geoNet.geoNet_file import GeoNet_File
+from geoNet import Process, adjust_gf_for_time_delay
 
 init_time = time()
 

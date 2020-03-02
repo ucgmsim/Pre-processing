@@ -2,17 +2,14 @@
 Calculate and plot Bias= log(pSA_obs/pSA_sim).
 Similar to ex1.py but sorts stats according to Rrup
 """
-import sys
-import os
 import numpy as np
 import glob
 import matplotlib
 # Force matplotlib to not use any Xwindows backend.
 matplotlib.use('Agg')
-from matplotlib import pylab as plt
 
-from geoNet.utils import read_statsll, get_processed_stats_list, get_SMS_Rrups, get_SMS_pSA, get_bias
-from geoNet.putils import plot_bias
+from geoNet.geoNet.utils import read_statsll, get_processed_stats_list, get_SMS_Rrups, get_SMS_pSA, get_bias
+from geoNet.geoNet.putils import plot_bias
 from geoNet.gmpe import readStationFile as rsf
 from geoNet.gmpe.calculateGMPE import set_faultprop 
 

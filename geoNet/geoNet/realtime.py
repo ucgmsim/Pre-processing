@@ -15,12 +15,10 @@ import scipy
 import sys
 import subprocess as sp
 #geoNet imports
-from geoNet import scrapeGeoNet as sg
-from geoNet import utils, putils
-from geoNet.gen_stats_kml import write_stats_kml
+from geoNet import utils, scrapeGeoNet as sg
 from geoNet.geoNet_file import GeoNet_File
 from geoNet.process import Process, adjust_gf_for_time_delay
-import create_1d_profile
+from geoNet import create_1d_profile
 
 
 def getData(loc, BASE_URL):
@@ -35,7 +33,7 @@ def getData(loc, BASE_URL):
 
     std_out, std_err = sg.get_geoNet_data(
                        loc="/".join([loc, "Vol1"]),
-                       geoNet_dir="data",
+                       geoNet_dir="../data",
                        geoNet_url=BASE_URL,
                        wget_options="-N"
                        )
@@ -285,8 +283,8 @@ def plot_accvel(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     from matplotlib import pylab as plt
     from matplotlib.backends.backend_pdf import PdfPages
 
-    from geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
-    from geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
+    from geoNet.geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
+    from geoNet.geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
 
     init_time = time()
     loc_accBB="/".join([parent_dir_loc, plot_dir_accBB])
@@ -329,8 +327,8 @@ def plot_psa(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     from matplotlib import pylab as plt
     from matplotlib.backends.backend_pdf import PdfPages
 
-    from geoNet.putils import get_stat_PSA_plot
-    from geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
+    from geoNet.geoNet.putils import get_stat_PSA_plot
+    from geoNet.geoNet.utils import get_sorted_stats_code,  read_statsll, get_processed_stats_list
 
     init_time=time()
     print("Creating pSA plots for all Observed SMSs ...")
@@ -366,8 +364,8 @@ def IMsOnMap(parent_dir_loc, plot_dir_accBB, plot_dir_velBB,
     Writes PGV, PGA, pSA intensity measures to files used in GMT plotting scripts
     """
 
-    from geoNet.utils import (get_sorted_stats_code, read_statsll, 
-    get_event_data, get_event_PSA, get_extremum, get_processed_stats_list)
+    from geoNet.geoNet.utils import (get_sorted_stats_code, read_statsll,
+                                     get_event_data, get_event_PSA, get_extremum, get_processed_stats_list)
 
     init_time=time()
     print("Writting IMs for GMT plotting ...")

@@ -13,7 +13,7 @@ NOTE:
     
     https://github.com/scipy/scipy/blob/v0.17.0/scipy/signal/filter_design.py#L1824-L1895
 """
-import filter_design as fd
+from geoNet import filter_design as fd
 import numpy as np
 
 def butter_bandpass(lowcut, highcut, fs, order=5):

@@ -110,7 +110,7 @@ def mv_oned_file(curdir):
     files = glob.glob1(path,'*.1d')
     for f in files:
         filepath = os.path.join(path,f)
-        shutil.move(filepath, '.')
+        shutil.move(filepath, '..')
 
 
 def event_generate_multiple_profiles(ll_file):

@@ -5,7 +5,7 @@ import numpy as np
 import os
 from copy import deepcopy
 from matplotlib import pylab as plt
-from geoNet import utils, putils
+from geoNet.geoNet import utils
 
 velloc="/".join([os.getcwd(), "Vol1", "data", "velBB"])
 accloc="/".join([os.getcwd(), "Vol1", "data", "accBB"])
@@ -29,10 +29,10 @@ ax[2].plot(accMECS_fft['f'], accMECS_fft['ver'])
 
 accMECS_LF = deepcopy(accMECS)
 accMECS_HF = deepcopy(accMECS)
-tf_LF = utils.filt_stat_data(accMECS_LF,  1., 'lowpass', output='sos', order=4,
-                   worN=accMECS_LF['000'].size)
+tf_LF = utils.filt_stat_data(accMECS_LF, 1., 'lowpass', output='sos', order=4,
+                             worN=accMECS_LF['000'].size)
 tf_HF = utils.filt_stat_data(accMECS_HF, 1., 'highpass', output='sos', order=4,
-                   worN=accMECS_HF['000'].size)
+                             worN=accMECS_HF['000'].size)
 LF_fft = utils.fft_stat_data(accMECS_LF)
 HF_fft = utils.fft_stat_data(accMECS_HF)
 

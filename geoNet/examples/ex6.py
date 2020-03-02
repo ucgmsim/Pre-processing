@@ -1,14 +1,11 @@
-import sys
-import os
 import numpy as np
 import glob
 import matplotlib
 # Force matplotlib to not use any Xwindows backend.
 matplotlib.use('Agg')
 from matplotlib import pylab as plt
-from matplotlib.backends.backend_pdf import PdfPages
 
-from geoNet.utils import read_statsll, get_processed_stats_list
+from geoNet.geoNet.utils import read_statsll, get_processed_stats_list
 from geoNet.gmpe import readStationFile as rsf
 from geoNet.gmpe.calculateGMPE import set_faultprop 
 

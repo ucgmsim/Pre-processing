@@ -6,11 +6,9 @@ import matplotlib
 # Force matplotlib to not use any Xwindows backend.
 matplotlib.use('Agg')
 from matplotlib import pylab as plt
-from matplotlib.backends.backend_pdf import PdfPages
 
-from geoNet.rspectra import Response_Spectra
-from geoNet.utils import get_extremum, get_stat_data, get_PSA
-from geoNet.utils import get_adjusted_stat_data
+from geoNet.geoNet.utils import get_extremum, get_PSA
+from geoNet.geoNet.utils import get_adjusted_stat_data
 
 def get_stat_acc_plot(loc, stat_code):
 

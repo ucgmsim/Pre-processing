@@ -1,13 +1,9 @@
-import numpy as np
-import matplotlib
 # Force matplotlib to not use any Xwindows backend.
 #matplotlib.use('Agg')
 from matplotlib import pylab as plt
-from matplotlib.backends.backend_pdf import PdfPages
 from time import time
 
-from geoNet.putils import get_stat_acc_plot, get_stat_vel_plot
-from geoNet.utils import get_sorted_stats_code,  read_statsll
+from geoNet.geoNet.putils import get_stat_acc_plot
 
 init_time = time()
 parent_dir_loc="/nesi/projects/nesi00213/ObservedGroundMotions/ahsan/Mw7pt5_20161113_110256/Vol1/data"

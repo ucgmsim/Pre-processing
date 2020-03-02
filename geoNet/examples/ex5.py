@@ -2,8 +2,6 @@
 Note: gmpe and emp (emperical) used interchangeably.
 Calculate and plot PGVs, PGAs obsersations, simulations and gmpe.
 """
-import sys
-import os
 import numpy as np
 import glob
 import matplotlib
@@ -11,8 +9,8 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pylab as plt
 
-from geoNet.utils import read_statsll, get_processed_stats_list, get_SMS_Rrups, get_empIM_v2, get_SMS_PGV, get_SMS_PGA
-from geoNet.putils import  plot_SMS_IM, plot_SMS_IM_ratio, plot_IMvsRrup
+from geoNet.geoNet.utils import read_statsll, get_processed_stats_list, get_SMS_Rrups, get_empIM_v2, get_SMS_PGV, get_SMS_PGA
+from geoNet.geoNet.putils import  plot_SMS_IM, plot_SMS_IM_ratio, plot_IMvsRrup
 from geoNet.gmpe import readStationFile as rsf
 from geoNet.gmpe.calculateGMPE import set_faultprop 
 

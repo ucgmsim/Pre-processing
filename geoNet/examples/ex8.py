@@ -11,7 +11,8 @@ def plot_all(event_info_fname):
     # Force matplotlib to not use any Xwindows backend.
     matplotlib.use('Agg')
     from matplotlib import pylab as plt
-    from geoNet import utils, putils
+    from geoNet.geoNet import putils
+    from geoNet.geoNet import utils
     from geoNet.gmpe import readStationFile as rsf
     from geoNet.gmpe.calculateGMPE import set_faultprop
 
@@ -44,15 +45,15 @@ def plot_all(event_info_fname):
 
     pSA_sim = utils.get_SMS_pSA(sorted_stats_code, periods,
                           "/".join([info["bb_dir"], info["sim_accDir"]]),
-                          comp='geom')/g
+                                comp='geom') / g
     pSA_obs = utils.get_SMS_pSA(sorted_stats_code, periods,
                           "/".join([info["loc_V1A"], info["obs_accDir"]]),
-                          comp='geom')
+                                comp='geom')
     bias, std = utils.get_bias(pSA_obs, pSA_sim, rescale=False)
 
     # (4) Finally plot the bias
     figBias, axBias = putils.plot_bias(periods, bias, std,
-                                savefig=True, figName="figs/bias", ext="png")
+                                       savefig=True, figName="figs/bias", ext="png")
 
     for i, stat_code in enumerate(sorted_stats_code):
         fig, ax = plt.subplots()
@@ -80,10 +81,10 @@ def plot_all(event_info_fname):
 
     pSA_sim = utils.get_SMS_pSA(sorted_stats_code, periods,
                           "/".join([info["bb_dir"], info["sim_accDir"]]),
-                          comp='geom')/g
+                                comp='geom') / g
     pSA_obs = utils.get_SMS_pSA(sorted_stats_code, periods,
                           "/".join([info["loc_V1A"], info["obs_accDir"]]),
-                          comp='geom')
+                                comp='geom')
 
     # (4) calculate pSA for GMPE
     Rrups_gmpe = np.logspace(np.log10(5.),np.log10(100.),30)
@@ -92,9 +93,9 @@ def plot_all(event_info_fname):
     # (5) (a) Plot obs, sim pSAs (b) underlay gmpe pSA
     #def plot_SMS_IM(Rrup, IM_sim, IM_obs):
     for i, T in enumerate(periods):
-        fig, ax = putils.plot_SMS_IM(sms_rrup, pSA_sim[:,i], pSA_obs[:,i])
+        fig, ax = putils.plot_SMS_IM(sms_rrup, pSA_sim[:, i], pSA_obs[:, i])
         #Now underlay gmpe predictions
-        fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, pSA_gmpe[:,i], pSA_gmpe_std[:,i], fig=fig, ax=ax)
+        fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, pSA_gmpe[:, i], pSA_gmpe_std[:, i], fig=fig, ax=ax)
         ax.legend(loc="best", scatterpoints=1)
         fig.savefig("figs/pSA{:.1f}".format(T)+".png")
         fig.clear()
@@ -102,7 +103,7 @@ def plot_all(event_info_fname):
 
     # (4)  Plot ratio of obs to sim pSAs
     for i, T in enumerate(periods):
-        fig, ax = putils.plot_SMS_IM_ratio(sms_rrup, pSA_obs[:,i]/pSA_sim[:,i])
+        fig, ax = putils.plot_SMS_IM_ratio(sms_rrup, pSA_obs[:, i] / pSA_sim[:, i])
         ax.set_ylim(-2.,2.)
         fig.savefig("figs/pSA{:.1f}_ratio".format(T)+".png")
         fig.clear()
@@ -116,17 +117,17 @@ def plot_all(event_info_fname):
 
     PGV_sim = utils.get_SMS_PGV(sorted_stats_code,
                           "/".join([info["bb_dir"], info["sim_velDir"]]),
-                          absVal=False)
+                                absVal=False)
     PGV_obs = utils.get_SMS_PGV(sorted_stats_code, 
                           "/".join([info["loc_V1A"], info["obs_velDir"]]),
-                          absVal=False)
+                                absVal=False)
 
     PGA_sim = utils.get_SMS_PGA(sorted_stats_code,
                           "/".join([info["bb_dir"], info["sim_accDir"]]),
-                          absVal=False)/g
+                                absVal=False) / g
     PGA_obs = utils.get_SMS_PGA(sorted_stats_code,
                           "/".join([info["loc_V1A"], info["obs_accDir"]]),
-                          absVal=False)
+                                absVal=False)
 
     # (4) calculate PGV, PGA with GMPE
     #get_empIM_v2(Rrup, period, faultprop, Rjb=None, Rtvz=0., V30measured=0., V30=250.):
@@ -137,14 +138,14 @@ def plot_all(event_info_fname):
     PGA_gmpe, PGA_gmpe_std = utils.get_empIM_v2(Rrups_gmpe, period, faultprop)
     # (5)  PGV plots
     #Note -1 is the geometric mean component
-    fig, ax = putils.plot_SMS_IM(sms_rrup, PGV_sim[:,-1], PGV_obs[:,-1])
+    fig, ax = putils.plot_SMS_IM(sms_rrup, PGV_sim[:, -1], PGV_obs[:, -1])
     #Now underlay gmpe predictions
-    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGV_gmpe[:,0], PGV_gmpe_std[:,0], fig=fig, ax=ax)
+    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGV_gmpe[:, 0], PGV_gmpe_std[:, 0], fig=fig, ax=ax)
     ax.legend(loc="best", scatterpoints=1)
     fig.savefig("figs/PGV.png")
     plt.close('all')
 
-    fig, ax = putils.plot_SMS_IM_ratio(sms_rrup, PGV_obs[:,-1]/PGV_sim[:,-1])
+    fig, ax = putils.plot_SMS_IM_ratio(sms_rrup, PGV_obs[:, -1] / PGV_sim[:, -1])
     ax.set_ylim(-2.,2.)
     fig.savefig("figs/PGV_ratio.png")
     plt.close('all')
@@ -152,14 +153,14 @@ def plot_all(event_info_fname):
 
     # (6)  PGA plots
     #Note -1 is the geometric mean component
-    fig, ax = putils.plot_SMS_IM(sms_rrup, PGA_sim[:,-1], PGA_obs[:,-1])
+    fig, ax = putils.plot_SMS_IM(sms_rrup, PGA_sim[:, -1], PGA_obs[:, -1])
     #Now underlay gmpe predictions
-    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGA_gmpe[:,0], PGA_gmpe_std[:,0], fig=fig, ax=ax)
+    fig, ax = putils.plot_IMvsRrup(Rrups_gmpe, PGA_gmpe[:, 0], PGA_gmpe_std[:, 0], fig=fig, ax=ax)
     ax.legend(loc="best", scatterpoints=1)
     fig.savefig("figs/PGA.png")
     plt.close('all')
 
-    fig, ax = putils.plot_SMS_IM_ratio(sms_rrup, PGA_obs[:,-1]/PGA_sim[:,-1])
+    fig, ax = putils.plot_SMS_IM_ratio(sms_rrup, PGA_obs[:, -1] / PGA_sim[:, -1])
     ax.set_ylim(-2.,2.)
     fig.savefig("figs/PGA_ratio.png")
     plt.close('all')

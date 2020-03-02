@@ -1,7 +1,6 @@
 import os
 from time import time
-from geoNet import scrapeGeoNet as sg
-from geoNet.gen_stats_kml import write_stats_kml
+from geoNet.geoNet import scrapeGeoNet as sg
 
 init_time=time()
 
