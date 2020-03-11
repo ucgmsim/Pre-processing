@@ -322,7 +322,9 @@ class Type2(FiniteFault):
         shift = min(self._dtop, 0)
         if shift != 0:
             self._dtop = 0
-        self._dbottom = self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
+        self._dbottom = (
+            self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
+        )
         if self._dbottom > 12:
             self._dbottom += 3
 
