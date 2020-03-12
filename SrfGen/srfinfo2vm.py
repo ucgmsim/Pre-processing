@@ -102,7 +102,9 @@ def auto_time2(
     :param vm_corners: A numpy array of (lon, lat) tuples
     :param srf_corners: A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
     :param ds_multiplier: An integer
-    :param logger: The logger to pass all messages to"""
+    :param logger: The logger to pass all messages to
+    :param depth: Depth of the fault. This allows the horizontal distance to be extended to include the distance to
+    travel to the surface too"""
     # S wave arrival time is determined by the distance from the srf centroid to the furthest corner
     h_dist = geo.get_distances(
         vm_corners,
@@ -768,7 +770,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     if fault_depth < rrup:
         rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
 
-        rjb = max(40, rjb)
+        rjb = max(args.min_rjb, rjb)
 
     # original, unrotated vm
     bearing = 0
@@ -1175,6 +1177,12 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         "--no_optimise",
         help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data",
         action="store_true",
+    )
+    arg(
+        "--min-rjb",
+        help="Specify a minimum horizontal distance (in km) for the VM to span from the fault"
+        " - invalid VMs will still not be generated",
+        default=0,
     )
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
