@@ -318,11 +318,13 @@ class Type2(FiniteFault):
         self._width = np.sqrt(area / r)
         self._length = r * np.sqrt(area / r)
 
-        self._dtop = self._depth - np.sin(self._dip) * self.width / 2
+        self._dtop = self._depth - np.sin(np.radians(self._dip)) * self.width / 2
         shift = min(self._dtop, 0)
         if shift != 0:
             self._dtop = 0
-        self._dbottom = self._depth + np.sin(self._dip) * self.width / 2 + shift
+        self._dbottom = (
+            self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
+        )
         if self._dbottom > 12:
             self._dbottom += 3
 
@@ -458,7 +460,7 @@ class Type3(FiniteFault):
         self._dip_dir = dip_dir
 
         self._length = geo.ll_dist(lon1, lat1, lon2, lat2)
-        self._width = (dbottom - dtop) / np.sin(dip)
+        self._width = (dbottom - dtop) / np.sin(np.radians(dip))
 
         strike = geo.ll_bearing(lon1, lat1, lon2, lat2)
 
