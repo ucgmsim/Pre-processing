@@ -47,7 +47,7 @@ siteprop = Site()
 siteprop.vs30 = 500
 
 faultprop = Fault()
-# TODO ztor should be read from srfinfo file
+# DON'T CHANGE THIS - this assumes we have a surface point source
 faultprop.ztor = 0.0
 
 S_WAVE_KM_PER_S = 3.2
@@ -56,7 +56,9 @@ S_WAVE_KM_PER_S = 3.2
 # default scaling relationship
 def mag2pgv(mag):
     return np.interp(
-        mag, [3.5, 4.1, 4.7, 5.2, 6.4, 7.5], [0.015, 0.0375, 0.075, 0.15, 0.5, 1.0]
+        mag,
+        [3.5, 4.1, 4.7, 5.2, 5.5, 5.8, 6.2, 6.5, 6.8, 7.0, 7.4, 7.7, 8.0],
+        [0.015, 0.0375, 0.075, 0.15, 0.25, 0.4, 0.7, 1.0, 1.35, 1.65, 2.1, 2.5, 3.0],
     )
 
 
@@ -67,7 +69,7 @@ def find_rrup(pgv_target):
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
-        pgv = compute_gmm(faultprop, siteprop, GMM.Br_13, "PGV")[0]
+        pgv = compute_gmm(faultprop, siteprop, GMM.Br_10, "PGV")[0]
         # factor 0.02 is conservative step to avoid infinite looping
         if pgv_target / pgv - 1 > 0.01:
             rrup -= rrup * 0.02
@@ -93,6 +95,7 @@ def auto_time2(
     vm_corners,
     srf_corners,
     ds_multiplier,
+    depth=0,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """Calculates the sim duration from the bounds of the vm and srf
@@ -101,19 +104,16 @@ def auto_time2(
     :param ds_multiplier: An integer
     :param logger: The logger to pass all messages to"""
     # S wave arrival time is determined by the distance from the srf centroid to the furthest corner
-    s_wave_arrival = (
-        geo.get_distances(
-            vm_corners,
-            (srf_corners[:, 0].max() + srf_corners[:, 0].min()) / 2,
-            (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
-        ).max()
-        / S_WAVE_KM_PER_S
-    )
+    h_dist = geo.get_distances(
+        vm_corners,
+        (srf_corners[:, 0].max() + srf_corners[:, 0].min()) / 2,
+        (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
+    ).max()
+    s_wave_arrival = (h_dist ** 2 + depth ** 2) ** 0.5 / S_WAVE_KM_PER_S
     logger.debug("s_wave_arrival: {}".format(s_wave_arrival))
     # Rrup is determined by the largest vm corner to nearest srf corner distance
-    siteprop.Rrup = max(
-        [geo.get_distances(srf_corners, *corner).min() for corner in vm_corners]
-    )
+    rjb = max([geo.get_distances(srf_corners, *corner).min() for corner in vm_corners])
+    siteprop.Rrup = (rjb ** 2 + depth ** 2) ** 0.5
     logger.debug("rrup: {}".format(siteprop.Rrup))
     # magnitude is in faultprop
     ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
@@ -760,11 +760,26 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
         logger.debug("pgv set to {}".format(pgv))
     rrup, pgv_actual = find_rrup(pgv)
 
+    if "dtop" in srf_meta:
+        fault_depth = np.min(srf_meta["dtop"])
+    else:
+        fault_depth = srf_meta["hdepth"]
+
+    if fault_depth < rrup:
+        rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
+
+        rjb = max(40, rjb)
+
     # original, unrotated vm
     bearing = 0
     origin, xlen0, ylen0 = rrup2xylen(
-        rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+        rjb, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
     )
+
+    if fault_depth < rrup:
+        xlen0 = 0
+        ylen0 = 0
+
     o1, o2, o3, o4 = build_corners(origin, bearing, xlen0, ylen0)
     vm0_region = corners2region(o1, o2, o3, o4)
     plot_region = (
@@ -807,7 +822,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
 
         # wanted distance is at corners, not middle top to bottom
         _, xlen1, ylen1 = rrup2xylen(
-            rrup, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+            rjb, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
         )
 
         logger.debug(
@@ -880,7 +895,11 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     # modified sim time
     vm_corners = np.asarray([c1, c2, c3, c4])
     initial_time = auto_time2(
-        vm_corners, np.concatenate(srf_meta["corners"], axis=0), 1.2, logger=logger
+        vm_corners,
+        np.concatenate(srf_meta["corners"], axis=0),
+        1.2,
+        fault_depth,
+        logger=logger,
     )
     sim_time1 = (initial_time // args.dt) * args.dt
     logger.debug(
