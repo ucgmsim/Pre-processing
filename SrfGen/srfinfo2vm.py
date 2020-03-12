@@ -193,16 +193,16 @@ def centre_lon(lat_target):
     return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
 
 
-def rrup2xylen(rrup, hh, points, rot=0, wd="."):
+def determine_vm_extent(distance, hh, points, rot=0, wd="."):
     """
     rrup: in km
     """
     lon_mid, lat_mid, dx_km, dy_km = gmt.region_fit_oblique(points, 90 - rot, wd=wd)
     # extend by wanted rrup
-    min_x = geo.ll_shift(lat_mid, lon_mid, rrup + dx_km, 270 - rot)[::-1]
-    max_x = geo.ll_shift(lat_mid, lon_mid, rrup + dx_km, 90 - rot)[::-1]
-    min_y = geo.ll_shift(lat_mid, lon_mid, rrup + dy_km, 180 - rot)[::-1]
-    max_y = geo.ll_shift(lat_mid, lon_mid, rrup + dy_km, 0 - rot)[::-1]
+    min_x = geo.ll_shift(lat_mid, lon_mid, distance + dx_km, 270 - rot)[::-1]
+    max_x = geo.ll_shift(lat_mid, lon_mid, distance + dx_km, 90 - rot)[::-1]
+    min_y = geo.ll_shift(lat_mid, lon_mid, distance + dy_km, 180 - rot)[::-1]
+    max_y = geo.ll_shift(lat_mid, lon_mid, distance + dy_km, 0 - rot)[::-1]
     # mid, x, y extents
     return (
         (lon_mid, lat_mid),
@@ -767,14 +767,14 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     else:
         fault_depth = srf_meta["hdepth"]
 
+    rjb = 0
     if fault_depth < rrup:
         rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
-
         rjb = max(args.min_rjb, rjb)
 
     # original, unrotated vm
     bearing = 0
-    origin, xlen0, ylen0 = rrup2xylen(
+    origin, xlen0, ylen0 = determine_vm_extent(
         rjb, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
     )
 
@@ -792,7 +792,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     )
 
     # proportion in ocean
-    if args.no_optimise:
+    if args.no_optimise or (xlen0 > 0 and ylen0 > 0):
         logger.debug("Not optimising for land coverage")
         land0 = 100
     else:
@@ -823,7 +823,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
         bearing = round(geo.ll_bearing(mid[0], mid[1], l2, vm0_region[3]))
 
         # wanted distance is at corners, not middle top to bottom
-        _, xlen1, ylen1 = rrup2xylen(
+        _, xlen1, ylen1 = determine_vm_extent(
             rjb, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
         )
 
