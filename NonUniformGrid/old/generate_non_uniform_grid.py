@@ -16,6 +16,8 @@ if len(sys.argv) < 4:
     print usage
     exit(1)
 
+version_n = 2
+
 # extract information from the parameters file
 config = ConfigParser.ConfigParser()
 parameters_file = sys.argv[1]
@@ -29,7 +31,7 @@ rotate = float(config.get("Parameters","ORIGIN_ROT").replace("'",""))
 x_len = float(config.get("Parameters","EXTENT_X").replace("'",""))
 y_len = float(config.get("Parameters","EXTENT_Y").replace("'",""))
 #minimal_distance = 5.0*float(config.get("Parameters","EXTENT_LATLON_SPACING").replace("'",""))
-minimal_distance = 5.0*float(sys.argv[4])
+minimal_distance = float(sys.argv[4])
 suffix = "-hh%s" %(int(1000.0*float(sys.argv[4])))
 maximal_distance = 8.0 # fixed to 8km
 
@@ -60,7 +62,7 @@ population_information = {}
 vs30_information = {}
 
 population_information = tools.convert_csv_to_grid_points(sys.argv[2], parameters)
-vs30_information = tools.convert_csv_to_grid_points(sys.argv[3], parameters, ordered=False)
+vs30_information = tools.convert_csv_to_grid_points(sys.argv[3], parameters)
 vs_500_points = []
 for coords, value in vs30_information.iteritems():
     vs_500_points.append([coords[0], coords[1], value])
@@ -82,12 +84,14 @@ print "Done Creating Grids"
 
 weight_population = 0.5
 weight_vs30 = 0.5
-score_threshold = 0.7
+score_threshold = 0.6
 
-f = lambda domain: mixed_criteria(domain, population_information, vs30_sorted_grid, weight_pop=weight_population,
-                                  weight_vs=weight_vs30, threshold=score_threshold)
+f = lambda domain, threshold: mixed_criteria(domain, population_information, vs30_sorted_grid, weight_pop=weight_population,
+                                  weight_vs=weight_vs30, threshold=threshold)
 
-while non_uniform_mesh.refine(f):
+threshold = score_threshold
+while non_uniform_mesh.refine(f, threshold):
+    threshold += 0.12
     continue
 
 print "Finished"
@@ -99,7 +103,7 @@ with open("non_uniform_%s%s.ll" %(parameters_file.replace(".py",""), suffix), "w
     for i in range(non_uniform_mesh.finest_level + 1):
         counter_level = 0
         print "writing level", i
-        lvl_str = str(i)
+        lvl_str = str(i) + str(version_n)
         levels = non_uniform_mesh.get_points_at_level(i)
         for p in levels:
             longitude, latitude = tools.gp2ll(p[0], p[1], lat, lon, rotate, nx, ny, maximal_distance)

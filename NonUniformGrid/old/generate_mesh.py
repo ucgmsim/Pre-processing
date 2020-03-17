@@ -95,7 +95,7 @@ class NonUniformGrid:
         self.levels[self.finest_level] = new_mesh
         return True
 
-    def refine(self, criteria):
+    def refine(self, criteria, threshold):
         current_finest_level = self.finest_level
         print "refining level", current_finest_level
         next_distance = self.current_distance / 2.0
@@ -121,7 +121,7 @@ class NonUniformGrid:
                                 (point[0] + next_distance, point[1] + next_distance), \
                                 (point[0] - next_distance, point[1] + next_distance)]
 
-            domain_accepted = criteria(tentative_domain)
+            domain_accepted = criteria(tentative_domain, threshold)
 
             if domain_accepted:
                 for tentative_point in tentative_points:
