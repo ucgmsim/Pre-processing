@@ -454,7 +454,7 @@ def gen_srf(
             "dhypo=%f" % (dhypo),
             "dt=%f" % dt,
             "plane_header=1",
-            "srf_version=2.0",
+            "srf_version=1.0",
         ]
         if rvfrac is not None:
             cmd.append("rvfrac=%s" % (rvfrac))
