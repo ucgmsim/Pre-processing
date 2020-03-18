@@ -181,13 +181,10 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
+def main(args):
 
     out_fname = args.output_filename
     hh = args.hh
-    if out_fname is None:
-        out_fname = f"/home/jam335/code/Pre-processing/NonUniformGrid/non_uniform_whole_nz-hh{hh * 1000:.0f}.ll"
     input_plots_dir = args.input_plot_dir
     if input_plots_dir is not None:
         input_plots_dir += str(datetime.datetime.now()).replace(" ", "_")
@@ -234,4 +231,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
