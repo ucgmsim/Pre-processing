@@ -22,29 +22,20 @@ Version 2 - 20.3
 
 pop_weight = 0.5
 vs30_weight = 0.5
-
-
-def score_vs30(vs30_value, vs30_min_acceptable=100, vs30_max_acceptable=600):
-    """
-    :param vs30_value: vs30 value to be scored
-    :param vs30_min_acceptable: minimum vs30 value in the scoring range (saturates at 1)
-    :param vs30_max_acceptable: maximum vs30 value in the scoring range (saturates at 0)
-    :return: a score value between 0 and 1
-    """
-    if vs30_value > vs30_max_acceptable:
-        score_vs30 = 0.0
-    elif vs30_value < vs30_min_acceptable:
-        score_vs30 = 1.0
-    else:
-        score_vs30 = (vs30_max_acceptable - vs30_value) / (
-            vs30_max_acceptable - vs30_min_acceptable
-        )
-    return score_vs30
+# At each grid size what does the score have to exceed to add new points to the grid
+thresholds = [0.5, 0.67, 0.74, 0.77, 0.882, 0.9]
+#             4km,  2km, 1km,  0.5,  0.25, 0.125
 
 
 def score_vs30_delta(
     vs30_delta_value, vs30_delta_min_acceptable=0, vs30_delta_max_acceptable=600
 ):
+    """
+    :param vs30_delta_value: vs30 value to be scored
+    :param vs30_delta_min_acceptable: minimum vs30 value in the scoring range (saturates at 0)
+    :param vs30_delta_max_acceptable: maximum vs30 value in the scoring range (saturates at 1)
+    :return: a score value between 0 and 1
+    """
     if vs30_delta_value < vs30_delta_min_acceptable:
         score_vs30_delta = 0
     elif vs30_delta_value > vs30_delta_max_acceptable:
@@ -151,52 +142,24 @@ def compute_point_score(lat, lon, prospective_points, pop_df, vs30_df, input_plo
     vs30_range = vs30_df[vs30_df.lon < max_lon][vs30_df.lon > min_lon][
         vs30_df.lat < max_lat
     ][vs30_df.lat > min_lat]
-    min_vs30 = vs30_range.vs30.min()
-    vs30_delta = vs30_range.vs30.max() - min_vs30
+    vs30_delta = vs30_range.vs30.max() - vs30_range.vs30.min()
     vs30_delta_score = score_vs30_delta(vs30_delta)
-    vs30_score = score_vs30(min_vs30)
-    pop_mask = np.all(
-        [
-            pop_df.lon < max_lon,
-            pop_df.lon > min_lon,
-            pop_df.lat < max_lat,
-            pop_df.lat > min_lat,
-        ],
-        axis=0,
-    )
-    pop_original = pop_df[pop_mask]["pop"].max()
-    pop_bmod = pop_df[pop_mask]["pop"].sum()
-    pop_score_bmod = score_pop(
-        pop_bmod, min_population_acceptable=10, max_population_acceptable=100
-    )
-    pop_score = score_pop(pop_original)
-    pop_score_2 = score_pop(
-        pop_original, min_population_acceptable=10, max_population_acceptable=60,
-    )
+
     pop_dist = pop_distance(lat, lon, pop_df)
     pop_dist_score = score_pop(
-        pop_dist, min_population_acceptable=2000, max_population_acceptable=10000
+        pop_dist, min_population_acceptable=2000, max_population_acceptable=9000
     )
-    vs30_combined_score = max(vs30_score, vs30_delta_score)
-    overall_score = pop_dist_score * pop_weight + vs30_combined_score * vs30_weight
+    overall_score = pop_dist_score * pop_weight + vs30_delta_score * vs30_weight
 
     if input_plots_dir is not None:
         write_interim_data(
             input_plots_dir,
             lat,
             lon,
-            # vs30_value=min_vs30,
-            vs30_score=vs30_score,
-            # vs30_delta=vs30_delta,
-            pop_score=pop_score,
-            pop_score_2=pop_score_2,
-            # pop_value=pop_original,
-            # pop_dist=pop_dist,
-            # pop_bmod=pop_bmod,
+            vs30_delta=vs30_delta,
+            pop_dist=pop_dist,
             vs30_delta_score=vs30_delta_score,
             pop_dist_score=pop_dist_score,
-            pop_score_bmod=pop_score_bmod,
-            vs30_combined_score=vs30_combined_score,
             overall_score=overall_score,
         )
     return overall_score
@@ -246,9 +209,6 @@ def main():
 
     points = {}
     points[0] = list(zip(base_grid.lat, base_grid.lon))
-
-    thresholds = [0.51, 0.7, 0.77, 0.81, 0.882, 0.9]
-    #             4km, 2km, 1,  0.5, 0.25, 0.125
 
     while distance / 2 > hh:
         distance /= 2
