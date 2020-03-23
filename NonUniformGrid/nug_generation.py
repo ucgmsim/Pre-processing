@@ -6,6 +6,7 @@ import argparse
 import datetime
 import os
 
+import numba
 import numpy as np
 import pandas as pd
 
@@ -23,8 +24,10 @@ Version 2 - 20.3
 pop_weight = 0.5
 vs30_weight = 0.5
 # At each grid size what does the score have to exceed to add new points to the grid
-thresholds = [0.5, 0.67, 0.74, 0.77, 0.882, 0.9]
+thresholds = [0.45, 0.5, 0.6, 0.65, 0.75, 0.85]
 #             4km,  2km, 1km,  0.5,  0.25, 0.125
+
+h_dist_f = numba.njit(geo.get_distances)
 
 
 def score_vs30_delta(
@@ -75,7 +78,7 @@ def pop_distance(lat, lon, pop_df):
     :return: population / distance value for whole NZ.
     """
     locations = np.array([pop_df.lon.values, pop_df.lat.values]).T
-    distances = geo.get_distances(locations, lon, lat)
+    distances = h_dist_f(locations, lon, lat)
 
     return (pop_df["pop"] / distances).sum()
 
@@ -139,9 +142,8 @@ def compute_point_score(lat, lon, prospective_points, pop_df, vs30_df, input_plo
     max_lon = prospective_points[1][1]
     min_lon = prospective_points[3][1]
 
-    vs30_range = vs30_df[vs30_df.lon < max_lon][vs30_df.lon > min_lon][
-        vs30_df.lat < max_lat
-    ][vs30_df.lat > min_lat]
+    vs30_range = vs30_df[
+        (vs30_df.lon < max_lon) & (vs30_df.lon > min_lon) & (vs30_df.lat < max_lat) & (vs30_df.lat > min_lat)]
     vs30_delta = vs30_range.vs30.max() - vs30_range.vs30.min()
     vs30_delta_score = score_vs30_delta(vs30_delta)
 
@@ -206,6 +208,9 @@ def main(args):
 
     points = {}
     points[0] = list(zip(base_grid.lat, base_grid.lon))
+    points_array = np.array(points[0])
+
+    distances = []
 
     while distance / 2 > hh:
         distance /= 2
@@ -221,7 +226,17 @@ def main(args):
 
             if overall_score > threshold:
                 for pt in prospective_points:
-                    points[level].append(pt)
+                    pt_distance = h_dist_f(points_array[:, [1, 0]], pt[1], pt[0]).min()
+                    distances.append(pt_distance)
+
+                    # makes sure that something super funky isn't going on
+                    # every point should be less than a base_grid spacing from another point
+                    assert pt_distance < BASE_GRID_SPACING
+
+                    # Removes points that are less than the minimum spacing from another point
+                    if pt_distance > hh:
+                        points[level].append(pt)
+                        points_array = np.vstack((points_array, np.array(pt)))
 
         total_points += len(points[level])
         print(f"{len(points[level])} points added to level {level}")
