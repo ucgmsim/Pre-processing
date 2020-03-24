@@ -226,6 +226,12 @@ def lw_2_mw_sigma_scaling_relation(
 
 
 def mw_sigma_leonard(rake):
+    """
+    sigma values are determined from the Leonard 2014 paper, based on Table 3 - S(a) passing it through the equation
+
+    rake: to determine if DS or SS
+    returns sigma value for mean Mw
+    """
     if round(rake % 360 / 90.0) % 2:
         sigma = 0.3
     else:
