@@ -220,9 +220,13 @@ def lw_2_mw_sigma_scaling_relation(
     if mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
         sigma = mw_sigma_leonard(rake)
     elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
-        sigma = None
+        sigma = mw_sigma_skarlatoudis()
 
     return mw, sigma
+
+
+def mw_sigma_skarlatoudis():
+    return 0.175
 
 
 def mw_sigma_leonard(rake):
