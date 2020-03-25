@@ -226,7 +226,7 @@ def lw_2_mw_sigma_scaling_relation(
 
 
 def mw_sigma_skarlatoudis():
-    return 0.175
+    return np.log10(1.498)  # 1.498 is the sigma value from Table 3 in Skarlatoudis 2016
 
 
 def mw_sigma_leonard(rake):
