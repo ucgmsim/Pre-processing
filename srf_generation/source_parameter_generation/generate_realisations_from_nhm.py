@@ -189,7 +189,7 @@ def generate_messages(
     primary_logger,
 ):
     messages = []
-    for fault_name, realisation_count in faults:
+    for fault_name, realisation_count in faults.items():
         fault_data = nhm_faults[fault_name]
 
         additional_source_specific_data = {}

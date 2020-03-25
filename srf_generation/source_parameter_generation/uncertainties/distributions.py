@@ -21,6 +21,7 @@ def truncated_normal(mean, std_dev, std_dev_limit=2):
 
 
 def weibull(k=3.353, scale_factor=0.612):
+    """Weibull distribution. Defaults are for nhm2srf dhypo generation"""
     return scale_factor * np.random.weibull(k)
 
 
@@ -30,3 +31,13 @@ def truncated_log_normal(mean, std_dev, std_dev_limit=2) -> float:
             -std_dev_limit, std_dev_limit, loc=np.log(float(mean)), scale=std_dev
         ).rvs()
     )
+
+
+def rand_shyp():
+    """Generates a value for the hypocentre along the length of the fault. Uses defaults from nhm2srf"""
+    # normal distribution
+    shyp_mu = 0.0
+    shyp_sigma = 0.25
+
+    shyp = truncated_normal(shyp_mu, shyp_sigma)
+    return shyp

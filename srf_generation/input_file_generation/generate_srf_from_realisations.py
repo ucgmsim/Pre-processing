@@ -14,6 +14,7 @@ from srf_generation.input_file_generation.realisation_to_srf import (
     generate_sim_params_yaml,
     create_info_file,
     create_ps_ff_srf,
+    create_multi_plane_srf,
 )
 
 
@@ -47,6 +48,13 @@ def process_realisation_file(
             "Realisation is of type 2, generating srf and related files"
         )
         create_ps_ff_srf(
+            realisation_file, realisation, stoch_file, logger=realisation_logger
+        )
+    elif realisation["type"] == 4:
+        realisation_logger.debug(
+            "Realisation is of type 4, generating srf and related files"
+        )
+        create_multi_plane_srf(
             realisation_file, realisation, stoch_file, logger=realisation_logger
         )
     else:

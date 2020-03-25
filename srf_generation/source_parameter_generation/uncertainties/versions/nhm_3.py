@@ -1,5 +1,4 @@
 """A basic perturbator as an example and starting point"""
-import numpy as np
 import pandas as pd
 from typing import Any, Dict
 
@@ -8,14 +7,9 @@ from qcore.nhm import NHMFault
 from srf_generation.Fault import fault_factory, Type4
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
-    get_seed,
 )
-from srf_generation.source_parameter_generation.uncertainties.distributions import (
-    weibull,
-    rand_shyp,
-    truncated_normal)
 
-TYPE = 4
+TYPE = 3
 
 
 def generate_source_params(
@@ -38,20 +32,7 @@ def generate_source_params(
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
-    fault.shypo = fault.length / 2 * rand_shyp()
-    fault.dhypo = fault.width * weibull()
-
-    fault.rake = truncated_normal(fault.rake, 15, 4)
-    fault.magnitude = truncated_normal(
-        fault.magnitude,
-        lw_2_mw_sigma_scaling_relation(fault.length, fault.width, fault.mwsr, fault.rake),
-        2
-    )
-
     params = fault.to_dict()
-    params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "3.3"})
-
-    params["sdrop"] = 50*np.sqrt(10**(params["magnitude"] - fault.magnitude))
 
     realisation = kwargs
 

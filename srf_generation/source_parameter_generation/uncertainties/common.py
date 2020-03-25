@@ -160,6 +160,8 @@ def verify_realisation_params(params: Dict[str, Any]):
             for name in params.keys()
             if name not in GENERAL_PARAMS + SRFGEN_TYPE_2_PARAMS + RUN_TIME_PARAMS
         ]
+    elif params["type"] == 4:
+        mismatch = []
     else:
         raise ValueError(
             f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."

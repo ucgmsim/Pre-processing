@@ -4,6 +4,9 @@ from typing import Union
 import numpy as np
 
 
+MAGNITUDE_ROUNDING_THRESHOLD = 7.5
+
+
 class MagnitudeScalingRelations(Enum):
     HANKSBAKUN2002 = "HANKSBAKUN2002"
     BERRYMANETAL2002 = "BERRYMANETAL2002"
@@ -238,3 +241,10 @@ def mag2mom(mw):
 def mom2mag(mom):
     """Converts moment to magnitude"""
     return (2.0 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
+
+
+def round_subfault_size(dist, mag):
+    if mag > MAGNITUDE_ROUNDING_THRESHOLD:
+        return round(dist * 2) / 2
+    else:
+        return round(dist * 10) / 10
