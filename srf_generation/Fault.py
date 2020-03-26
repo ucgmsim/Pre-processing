@@ -486,6 +486,11 @@ class Type3(FiniteFault):
 
         strike = geo.ll_bearing(lon1, lat1, lon2, lat2)
 
+        if (self._dip_dir - strike + 360) % 360 > 180:
+            # Reverse the order of the points so the dipdir is to the right of the strike
+            self._trace = self._trace[::-1]
+            strike = geo.ll_bearing(lon2, lat2, lon1, lat1)
+
         super().__init__(name, magnitude, strike, rake, dip)
 
     def to_dict(self):
@@ -543,9 +548,13 @@ class Type4(MultiPlaneFault):
             nhm_data.dbottom,
             nhm_data.dip_dir,
         )
+
         self._mag = lw_2_mw_scaling_relation(
             nhm_data.length, dummy_plane.width, self.mwsr, nhm_data.rake
         )
+
+        if dummy_plane.strike != geo.ll_bearing(*nhm_data.trace[0], *nhm_data.trace[1]):
+            nhm_data.trace = nhm_data.trace[::-1]
 
         self._planes = []
         for i in range(self._n_planes):

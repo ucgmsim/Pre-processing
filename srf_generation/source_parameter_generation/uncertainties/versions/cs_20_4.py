@@ -1,4 +1,5 @@
 """A basic perturbator as an example and starting point"""
+import numpy as np
 import pandas as pd
 from typing import Any, Dict
 
@@ -11,7 +12,11 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 )
 from srf_generation.source_parameter_generation.uncertainties.distributions import (
     rand_shyp,
+    truncated_normal,
     truncated_weibull,
+)
+from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
+    lw_2_mw_sigma_scaling_relation,
 )
 
 TYPE = 4
@@ -37,11 +42,19 @@ def generate_source_params(
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
-    fault.shypo = fault.length / 2 * rand_shyp()
+    fault.shypo = (fault.length / 2) * rand_shyp()
     fault.dhypo = fault.width * truncated_weibull(1)
+
+    fault.rake = truncated_normal(fault.rake, 15, 4)
+    mag, sigma = lw_2_mw_sigma_scaling_relation(
+        fault.length, fault.width, fault.mwsr, fault.rake
+    )
+    fault.magnitude = truncated_normal(mag, sigma, 1)
 
     params = fault.to_dict()
     params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "5.4.2"})
+
+    params["sdrop"] = 50 * np.sqrt(10 ** (params["magnitude"] - fault.magnitude))
 
     realisation = kwargs
 

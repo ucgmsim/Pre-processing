@@ -25,6 +25,16 @@ def weibull(k=3.353, scale_factor=0.612):
     return scale_factor * np.random.weibull(k)
 
 
+def truncated_weibull(truncation_threshold, k=3.353, scale_factor=0.612):
+    """Forces the weibull distribution to have a value less than some threshold.
+    Used for generating hypocentre down dip with default values and a threshold of 1.
+    With these parameters there is a 0.56% chance of the value being greater than 1, so this is a good enough solution."""
+    return_value = 2 * truncation_threshold
+    while return_value > truncation_threshold:
+        return_value = weibull(k=k, scale_factor=scale_factor)
+    return return_value
+
+
 def truncated_log_normal(mean, std_dev, std_dev_limit=2) -> float:
     return np.exp(
         truncnorm(
