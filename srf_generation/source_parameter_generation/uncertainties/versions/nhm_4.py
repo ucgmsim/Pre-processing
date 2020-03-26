@@ -13,7 +13,11 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 from srf_generation.source_parameter_generation.uncertainties.distributions import (
     weibull,
     rand_shyp,
-    truncated_normal)
+    truncated_normal,
+)
+from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
+    lw_2_mw_sigma_scaling_relation,
+)
 
 TYPE = 4
 
@@ -42,16 +46,15 @@ def generate_source_params(
     fault.dhypo = fault.width * weibull()
 
     fault.rake = truncated_normal(fault.rake, 15, 4)
-    fault.magnitude = truncated_normal(
-        fault.magnitude,
-        lw_2_mw_sigma_scaling_relation(fault.length, fault.width, fault.mwsr, fault.rake),
-        2
+    mag, sigma = lw_2_mw_sigma_scaling_relation(
+        fault.length, fault.width, fault.mwsr, fault.rake
     )
+    fault.magnitude = truncated_normal(mag, sigma, 1)
 
     params = fault.to_dict()
     params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "3.3"})
 
-    params["sdrop"] = 50*np.sqrt(10**(params["magnitude"] - fault.magnitude))
+    params["sdrop"] = 50 * np.sqrt(10 ** (params["magnitude"] - fault.magnitude))
 
     realisation = kwargs
 

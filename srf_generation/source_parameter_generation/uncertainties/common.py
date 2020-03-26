@@ -89,6 +89,38 @@ SRFGEN_TYPE_2_PARAMS = [
     "mwsr",
 ]
 
+SRFGEN_TYPE_3_PARAMS = [
+    "magnitude",
+    "moment",
+    "clon",
+    "clat",
+    "rake",
+    "dip",
+    "dtop",
+    "dbottom",
+    "length",
+    "width",
+    "strike",
+    "dip_dir",
+]
+
+SRFGEN_TYPE_4_PARAMS = [
+    "magnitude",
+    "moment",
+    "fault_type",
+    "tect_type",
+    "rake",
+    "dip",
+    "dtop",
+    "dbottom",
+    "length",
+    "plane_count",
+    "slip_rate",
+    "dip_dir",
+    "shypo",
+    "dhypo",
+]
+
 HF_RUN_PARAMS = [
     "sdrop",
     "t-sec",
@@ -140,6 +172,18 @@ def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
             for key, value in params.items()
             if key in GENERAL_PARAMS + SRFGEN_TYPE_2_PARAMS + RUN_TIME_PARAMS
         }
+    elif params["type"] == 4:
+        SUBPLANE_PARAMS = [
+            f"{name}_subfault_{i}"
+            for i in range(params["plane_count"])
+            for name in SRFGEN_TYPE_3_PARAMS + GENERAL_PARAMS
+        ]
+        params = {
+            key: value
+            for key, value in params.items()
+            if key
+            in GENERAL_PARAMS + SRFGEN_TYPE_4_PARAMS + RUN_TIME_PARAMS + SUBPLANE_PARAMS
+        }
     else:
         raise ValueError(
             f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."
@@ -161,7 +205,20 @@ def verify_realisation_params(params: Dict[str, Any]):
             if name not in GENERAL_PARAMS + SRFGEN_TYPE_2_PARAMS + RUN_TIME_PARAMS
         ]
     elif params["type"] == 4:
-        mismatch = []
+        SUBPLANE_PARAMS = [
+            f"{name}_subfault_{i}"
+            for i in range(params["plane_count"])
+            for name in SRFGEN_TYPE_3_PARAMS + GENERAL_PARAMS
+        ]
+        mismatch = [
+            name
+            for name in params.keys()
+            if name
+            not in GENERAL_PARAMS
+            + SRFGEN_TYPE_4_PARAMS
+            + RUN_TIME_PARAMS
+            + SUBPLANE_PARAMS
+        ]
     else:
         raise ValueError(
             f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."

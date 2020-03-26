@@ -12,7 +12,7 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     get_width,
     mag2mom,
     round_subfault_size,
-    lw_2_mw_scaling_relation
+    lw_2_mw_scaling_relation,
 )
 
 
@@ -74,7 +74,9 @@ class Fault(ABC):
     @magnitude.setter
     def magnitude(self, mag):
         if mag > 11:
-            raise ValueError(f"Given mag {mag} is greater than theoretically possible 11")
+            raise ValueError(
+                f"Given mag {mag} is greater than theoretically possible 11"
+            )
         self._mag = mag
 
     @property
@@ -473,7 +475,9 @@ class Type3(FiniteFault):
         self._dbottom = dbottom
         self._dip_dir = dip_dir
 
-        self._length = round_subfault_size(geo.ll_dist(lon1, lat1, lon2, lat2), magnitude)
+        self._length = round_subfault_size(
+            geo.ll_dist(lon1, lat1, lon2, lat2), magnitude
+        )
         if dbottom >= 12:
             raw_fwid = (dbottom - dtop + 3) / np.sin(np.radians(dip))
         else:
@@ -540,10 +544,7 @@ class Type4(MultiPlaneFault):
             nhm_data.dip_dir,
         )
         self._mag = lw_2_mw_scaling_relation(
-            nhm_data.length,
-            dummy_plane.width,
-            self.mwsr,
-            nhm_data.rake
+            nhm_data.length, dummy_plane.width, self.mwsr, nhm_data.rake
         )
 
         self._planes = []
