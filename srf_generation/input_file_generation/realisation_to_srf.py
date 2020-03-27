@@ -600,7 +600,7 @@ def gen_srf(
     slip_cov=None,
     tect_type=None,
     fault_planes=1,
-    xseg: List[float] = "-1",
+    xseg: Union[float, List[float]] = "-1",
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
