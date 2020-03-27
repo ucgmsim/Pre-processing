@@ -170,7 +170,7 @@ def generate_fault_realisations(
 
     if perturbation_function != unperturbation_function:
         unperturbated_realisation = unperturbation_function(
-            sources_line=data,
+            source_data=data,
             additional_source_parameters=additional_source_parameters,
             vel_mod_1d=None,
         )
