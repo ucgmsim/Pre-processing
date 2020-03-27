@@ -119,7 +119,10 @@ def process_common_realisation_file(
             realisation.get("dt", 0.005),
             tect_type=realisation.get("tect_type"),
             dip_dir=realisation.get("dip_dir"),
-            shypo=[realisation.get("shypo") + 0.5 * realisation.get("flen")[i] for i in range(realisation.get("plane_count"))],
+            shypo=[
+                realisation.get("shypo") + 0.5 * realisation.get("flen")[i]
+                for i in range(realisation.get("plane_count"))
+            ],
             dhypo=realisation.get("dhypo"),
             vm=realisation.get("vel_mod_1d"),
             logger=logger,

@@ -21,31 +21,6 @@ GCMT_PARAM_NAMES = [
 ]
 GCMT_Source = namedtuple("GCMT_Source", GCMT_PARAM_NAMES)
 
-NHM_PARAM_NAMES = [
-    "name",  # str
-    "tect_type",  # str
-    "fault_type",  # str
-    "length_mean",  # float
-    "length_sigma",  # float
-    "dip_mean",  # float
-    "dip_sigma",  # float
-    "dip_dir",  # float
-    "rake",  # float
-    "dbot_mean",  # float
-    "dbot_sigma",  # float
-    "dtop_mean",  # float
-    "dtop_min",  # float
-    "dtop_max",  # float
-    "slip_rate_mean",  # float
-    "slip_rate_sigma",  # float
-    "coupling_coefficient",  # float
-    "coupling_coefficient_sigma",  # float
-    "magnitude_mean",  # float
-    "recurance_interval_mean",  # float
-    "coordinates",  # List of (lon, lat) tuples
-]
-NHM_Source = namedtuple("NHM_Source", NHM_PARAM_NAMES)
-
 GENERAL_PARAMS = ["name", "type", "genslip_version", "srfgen_seed"]
 
 SRFGEN_TYPE_1_PARAMS = [
