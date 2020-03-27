@@ -174,7 +174,7 @@ def generate_fault_realisations(
             additional_source_parameters=additional_source_parameters,
             vel_mod_1d=None,
         )
-        rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
+        rel_df = pd.DataFrame(unperturbated_realisation["params"], index=[0])
         realisation_file_name = join(
             get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
         )
