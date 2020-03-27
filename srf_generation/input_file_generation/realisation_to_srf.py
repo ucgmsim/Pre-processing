@@ -13,9 +13,7 @@ from qcore import binary_version, srf, geo, qclogging, utils
 from qcore.utils import compare_versions
 
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
-from srf_generation.source_parameter_generation.gcmt_to_realisation import (
-    DEFAULT_1D_VELOCITY_MODEL_PATH,
-)
+from srf_generation.source_parameter_generation.common import DEFAULT_1D_VELOCITY_MODEL_PATH
 from srf_generation.source_parameter_generation.uncertainties.common import (
     HF_RUN_PARAMS,
     BB_RUN_PARAMS,
