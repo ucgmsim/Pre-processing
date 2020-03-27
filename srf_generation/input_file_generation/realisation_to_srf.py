@@ -13,7 +13,9 @@ from qcore import binary_version, srf, geo, qclogging, utils
 from qcore.utils import compare_versions
 
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
-from srf_generation.source_parameter_generation.common import DEFAULT_1D_VELOCITY_MODEL_PATH
+from srf_generation.source_parameter_generation.common import (
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+)
 from srf_generation.source_parameter_generation.uncertainties.common import (
     HF_RUN_PARAMS,
     BB_RUN_PARAMS,
@@ -426,7 +428,9 @@ def create_multi_plane_srf(
     clat = [parameter_dictionary.pop(f"clat_subfault_{i}") for i in range(plane_count)]
 
     # gets
-    vel_mod_1d = parameter_dictionary.get("v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH)
+    vel_mod_1d = parameter_dictionary.get(
+        "v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH
+    )
     rvfac = parameter_dictionary.get("rvfac", None)
 
     logger.debug(

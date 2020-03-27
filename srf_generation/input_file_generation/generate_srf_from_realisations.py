@@ -16,7 +16,9 @@ from srf_generation.input_file_generation.realisation_to_srf import (
     create_ps_ff_srf,
     create_multi_plane_srf,
 )
-from srf_generation.source_parameter_generation.common import DEFAULT_1D_VELOCITY_MODEL_PATH
+from srf_generation.source_parameter_generation.common import (
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+)
 
 
 def process_realisation_file(
@@ -70,8 +72,9 @@ def process_realisation_file(
 
 
 def process_common_realisation_file(
-    cybershake_root, realisation_file, logger: Logger = qclogging.get_basic_logger()
+    cybershake_root, realisation_file, logger_name: str
 ):
+    logger = qclogging.get_logger(logger_name)
     rel_df: pd.DataFrame = pd.read_csv(realisation_file, dtype={"name": str})
     realisation: Dict = rel_df.to_dict(orient="records")[0]
     srf_file = simulation_structure.get_srf_path(
@@ -182,7 +185,10 @@ def main():
 
     worker_pool.starmap(
         process_common_realisation_file,
-        [(args.cybershake_root, filename) for filename in realisation_files],
+        [
+            (args.cybershake_root, filename, primary_logger.name)
+            for filename in realisation_files
+        ],
     )
 
 
