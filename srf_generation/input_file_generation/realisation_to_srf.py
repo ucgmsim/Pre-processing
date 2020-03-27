@@ -1,7 +1,7 @@
 import argparse
 from logging import Logger
 from subprocess import run, PIPE, Popen
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 from tempfile import NamedTemporaryFile
 
 import yaml
@@ -600,9 +600,14 @@ def gen_srf(
     slip_cov=None,
     tect_type=None,
     fault_planes=1,
-    xseg="-1",
+    xseg: List[float] = "-1",
     logger: Logger = qclogging.get_basic_logger(),
 ):
+    """
+    :param xseg: Genslip parameter:
+        For multi plane arrays the length (along strike) of each plane. -1 for single plane.
+        Deprecated in genslip 5.4.2, ignored if present
+    """
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
     if compare_versions(genslip_version, "5") > 0:
         # Positive so version greater than 5
