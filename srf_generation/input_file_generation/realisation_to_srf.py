@@ -428,7 +428,7 @@ def create_multi_plane_srf(
     clat = [parameter_dictionary.pop(f"clat_subfault_{i}") for i in range(plane_count)]
 
     # gets
-    vel_mod_1d = parameter_dictionary.get("vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH)
+    vel_mod_1d = parameter_dictionary.get("v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH)
     rvfac = parameter_dictionary.get("rvfac", None)
 
     logger.debug(

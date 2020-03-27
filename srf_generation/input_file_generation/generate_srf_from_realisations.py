@@ -16,6 +16,7 @@ from srf_generation.input_file_generation.realisation_to_srf import (
     create_ps_ff_srf,
     create_multi_plane_srf,
 )
+from srf_generation.source_parameter_generation.common import DEFAULT_1D_VELOCITY_MODEL_PATH
 
 
 def process_realisation_file(
@@ -107,7 +108,7 @@ def process_common_realisation_file(
             mwsr=realisation.get("mwsr"),
             shypo=realisation.get("shypo") + 0.5 * realisation.get("flen"),
             dhypo=realisation.get("dhypo"),
-            vm=realisation.get("vel_mod_1d"),
+            vm=realisation.get("v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH),
             logger=logger,
         )
     elif realisation["type"] == 4:
@@ -120,11 +121,11 @@ def process_common_realisation_file(
             tect_type=realisation.get("tect_type"),
             dip_dir=realisation.get("dip_dir"),
             shypo=[
-                realisation.get("shypo") + 0.5 * realisation.get("flen")[i]
+                realisation.get("shypo") + 0.5 * realisation.get(f"length_subfault_{i}")
                 for i in range(realisation.get("plane_count"))
             ],
             dhypo=realisation.get("dhypo"),
-            vm=realisation.get("vel_mod_1d"),
+            vm=realisation.get("v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH),
             logger=logger,
         )
     else:

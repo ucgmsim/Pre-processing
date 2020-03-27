@@ -34,10 +34,6 @@ from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
 
-DEFAULT_1D_VELOCITY_MODEL_PATH = join(
-    dirname(__file__), "velocity_model", "lp_generic1d-gp01_v1.vmod"
-)
-
 GCMT_FILE_COLUMNS = [
     "PublicID",
     "Latitude",
