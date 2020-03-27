@@ -103,6 +103,7 @@ def process_common_realisation_file(
             realisation.get("magnitude"),
             realisation.get("rake"),
             realisation.get("dt", 0.005),
+            file_name=info_filename,
             centroid_depth=realisation.get("depth"),
             lon=None,
             lat=None,
@@ -121,6 +122,7 @@ def process_common_realisation_file(
             realisation.get("magnitude"),
             realisation.get("rake"),
             realisation.get("dt", 0.005),
+            file_name=info_filename,
             tect_type=realisation.get("tect_type"),
             dip_dir=realisation.get("dip_dir"),
             shypo=[
