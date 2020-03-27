@@ -232,7 +232,7 @@ def save_1d_velocity_model(
 
 
 def generate_fault_realisations(
-    data: NHM_Source,
+    data: NHMFault,
     realisation_count: int,
     output_directory: str,
     perturbation_function: Callable,

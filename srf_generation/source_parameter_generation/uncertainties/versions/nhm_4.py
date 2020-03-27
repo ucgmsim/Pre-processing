@@ -18,7 +18,7 @@ TYPE = 4
 
 
 def generate_source_params(
-    source_data: NHMFault,
+    sources_line: NHMFault,
     additional_source_parameters: Dict[str, Any],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame = None,
@@ -35,7 +35,7 @@ def generate_source_params(
       - source_data.rake
     """
 
-    fault: Type4 = fault_factory(TYPE)(source_data)
+    fault: Type4 = fault_factory(TYPE)(sources_line)
 
     fault.shypo = fault.length / 2 * rand_shyp()
     fault.dhypo = fault.width * truncated_weibull(1)
