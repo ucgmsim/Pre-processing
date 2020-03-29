@@ -40,6 +40,10 @@ hypocenter is first then for each \n\
 )
 
 
+def get_n(fault_size, sub_fault_size):
+    return int(round(fault_size / sub_fault_size))
+
+
 def create_stoch(
     stoch_file,
     srf_file,
@@ -328,9 +332,6 @@ def create_ps_ff_srf(
     logger.debug("Saving corners and hypocentre")
     write_corners(corners_file, hypocentre, corners)
 
-    def get_n(fault_size, sub_fault_size):
-        return str(int(round(fault_size / sub_fault_size)))
-
     nx = get_n(flen, dlen)
     ny = get_n(fwid, dwid)
 
@@ -438,9 +439,6 @@ def create_multi_plane_srf(
     )
 
     dlen = dwid = 0.1
-
-    def get_n(fault_size, sub_fault_size):
-        return int(round(fault_size / sub_fault_size))
 
     nx = [get_n(flen[i], dlen) for i in range(plane_count)]
     ny = get_n(fwid[0], dwid)
