@@ -971,7 +971,7 @@ def load_msgs(args, logger: Logger = qclogging.get_basic_logger()):
         logger.debug("Found first info file for {}".format(name))
         faults.add(name)
 
-        with h5open(info) as h:
+        with h5open(info, "r") as h:
             a = h.attrs
             try:
                 rake = a["rake"][0][0]
