@@ -11,7 +11,11 @@ from os import makedirs, path, remove
 from qcore import binary_version, srf, geo, qclogging, utils
 from qcore.utils import compare_versions
 
-from srf_generation.pre_processing_common import calculate_corners, get_hypocentre, load_realisation_file_as_dict
+from srf_generation.pre_processing_common import (
+    calculate_corners,
+    get_hypocentre,
+    load_realisation_file_as_dict,
+)
 from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
 )
