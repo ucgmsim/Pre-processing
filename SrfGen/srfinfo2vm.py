@@ -625,7 +625,7 @@ def gen_vm(
     with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
         logger.debug("Running NZVM binary")
         nzvm_env = os.environ.copy()
-        nzvm_env["OMP_NUM_THREADS"] = args.vm_threads
+        nzvm_env["OMP_NUM_THREADS"] = str(args.vm_threads)
         nzvm_exe = Popen(
             [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile, env=nzvm_env
         )
