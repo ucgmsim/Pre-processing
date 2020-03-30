@@ -778,7 +778,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
         rjb, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
     )
 
-    if fault_depth < rrup:
+    if fault_depth > rrup:
         xlen0 = 0
         ylen0 = 0
 
@@ -792,7 +792,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     )
 
     # proportion in ocean
-    if args.no_optimise or (xlen0 > 0 and ylen0 > 0):
+    if args.no_optimise or (xlen0 == 0 and ylen0 == 0):
         logger.debug("Not optimising for land coverage")
         land0 = 100
     else:
@@ -1136,7 +1136,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         ),
     )
     parser.add_argument(
-        "-o", "--out-dir", help="directory to place outputs", default="autovm"
+        "-o", "--out-dir", help="directory to place outputs", default="VMs"
     )
     arg(
         "--pgv",
