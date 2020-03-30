@@ -576,19 +576,21 @@ def gen_vm(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     # store configs
-    vm_dir = os.path.join(args.out_dir, srf_meta["name"])
-    logger.info("Generating VM. Saving it to {}".format(vm_dir))
-    vm_params_dict["vm_dir"] = vm_dir
+    out_vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+    logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
+    vm_params_dict["vm_dir"] = out_vm_dir
+    vm_working_dir = os.path.join(out_vm_dir, "output")
+    os.makedirs(vm_working_dir)
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
     vm_params_path = os.path.join(ptemp, "vm_params")
     # NZVM won't run if folder exists
-    if os.path.exists(vm_dir):
-        logger.debug("VM directory {} already exists. Removing it.".format(vm_dir))
-        rmtree(vm_dir)
+    if os.path.exists(vm_working_dir):
+        logger.debug("VM working directory {} already exists.".format(vm_working_dir))
+        rmtree(vm_working_dir)
     save_vm_config(
         nzvm_cfg=nzvm_cfg,
         vm_params=vm_params_path,
-        vm_dir=vm_dir,
+        vm_dir=vm_working_dir,
         origin=vm_params_dict["origin"],
         rot=vm_params_dict["bearing"],
         xlen=vm_params_dict["xlen_mod"],
@@ -607,11 +609,11 @@ def gen_vm(
             "--novm set, generating configuration files, but not generating VM."
         )
         # save important files
-        logger.debug("Creating directory {}".format(vm_dir))
-        os.makedirs(vm_dir)
-        move(nzvm_cfg, vm_dir)
-        move("{}.yaml".format(vm_params_path), vm_dir)
-        logger.debug("Moved nvzm config and vm_params yaml to {}".format(vm_dir))
+        logger.debug("Creating directory {}".format(vm_working_dir))
+        os.makedirs(vm_working_dir)
+        move(nzvm_cfg, vm_working_dir)
+        move("{}.yaml".format(vm_params_path), vm_working_dir)
+        logger.debug("Moved nvzm config and vm_params yaml to {}".format(vm_working_dir))
         # generate a corners like NZVM would have
         logger.debug("Saving VeloModCorners.txt")
         with open("{}/VeloModCorners.txt".format(vm_params_dict["vm_dir"]), "wb") as c:
@@ -628,29 +630,28 @@ def gen_vm(
         nzvm_exe.communicate()
     logger.debug("Moving VM files to vm directory")
     # fix up directory contents
-    move(os.path.join(vm_dir, "Velocity_Model", "rho3dfile.d"), vm_dir)
-    move(os.path.join(vm_dir, "Velocity_Model", "vp3dfile.p"), vm_dir)
-    move(os.path.join(vm_dir, "Velocity_Model", "vs3dfile.s"), vm_dir)
-    move(os.path.join(vm_dir, "Log", "VeloModCorners.txt"), vm_dir)
+    move(os.path.join(vm_working_dir, "Velocity_Model", "rho3dfile.d"), out_vm_dir)
+    move(os.path.join(vm_working_dir, "Velocity_Model", "vp3dfile.p"), out_vm_dir)
+    move(os.path.join(vm_working_dir, "Velocity_Model", "vs3dfile.s"), out_vm_dir)
+    move(os.path.join(vm_working_dir, "Log", "VeloModCorners.txt"), out_vm_dir)
     logger.debug("Removing Log and Velocity_Model directories")
-    rmtree(os.path.join(vm_dir, "Velocity_Model"))
-    rmtree(os.path.join(vm_dir, "Log"))
     logger.debug("Moving nzvm config and vm_params yaml to vm directory")
-    move(nzvm_cfg, vm_dir)
-    move("%s.yaml" % (vm_params_path), vm_dir)
+    move(nzvm_cfg, out_vm_dir)
+    move("%s.yaml" % (vm_params_path), out_vm_dir)
+    rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
     logger.debug("Generating coords")
-    gen_coords(vm_dir=vm_dir)
+    gen_coords(vm_dir=out_vm_dir)
     # validate
     logger.debug("Validating vm")
-    success, message = validate_vm(vm_dir)
+    success, message = validate_vm(out_vm_dir)
     if success:
-        logger.debug("VM check passed: {}".format(vm_dir))
-        sys.stderr.write("VM check OK: %s\n" % (vm_dir))
+        logger.debug("VM check passed: {}".format(vm_working_dir))
+        sys.stderr.write("VM check OK: %s\n" % (vm_working_dir))
     else:
         logger.log(
             qclogging.NOPRINTCRITICAL,
-            "VM check for {} failed: {}".format(vm_dir, message),
+            "VM check for {} failed: {}".format(vm_working_dir, message),
         )
         sys.stderr.write("VM check BAD: {}\n".format(message))
 
