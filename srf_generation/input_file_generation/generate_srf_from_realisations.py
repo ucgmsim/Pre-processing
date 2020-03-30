@@ -1,6 +1,5 @@
 import argparse
 import glob
-from logging import Logger
 from multiprocessing.pool import Pool
 from os import path
 from typing import Dict

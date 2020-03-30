@@ -8,11 +8,10 @@ import yaml
 from h5py import File as h5open
 import numpy as np
 from os import makedirs, path, remove
-import pandas as pd
 from qcore import binary_version, srf, geo, qclogging, utils
 from qcore.utils import compare_versions
 
-from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
+from srf_generation.pre_processing_common import calculate_corners, get_hypocentre, load_realisation_file_as_dict
 from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
 )
@@ -762,8 +761,7 @@ def load_args():
 def main():
     primary_logger = qclogging.get_logger("realisation_to_srf")
     args = load_args()
-    rel_df: pd.DataFrame = pd.read_csv(args.realisation_file)
-    realisation = rel_df.to_dict(orient="records")[0]
+    realisation = load_realisation_file_as_dict(args.realisation_file)
     rel_logger = qclogging.get_realisation_logger(primary_logger, realisation["name"])
     if realisation["type"] == 1:
         create_ps_srf(args.realisation_file, realisation, logger=rel_logger)
