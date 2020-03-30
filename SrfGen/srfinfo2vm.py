@@ -795,7 +795,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     )
 
     # proportion in ocean
-    if args.no_optimise or (xlen0 == 0 and ylen0 == 0):
+    if args.no_optimise or (xlen0 <= 0 and ylen0 <= 0):
         logger.debug("Not optimising for land coverage")
         land0 = 100
     else:
