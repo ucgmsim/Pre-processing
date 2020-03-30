@@ -624,8 +624,10 @@ def gen_vm(
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
         logger.debug("Running NZVM binary")
+        nzvm_env = os.environ.copy()
+        nzvm_env["OMP_NUM_THREADS"] = args.vm_threads
         nzvm_exe = Popen(
-            [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile
+            [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile, env=nzvm_env
         )
         nzvm_exe.communicate()
     logger.debug("Moving VM files to vm directory")
@@ -1166,6 +1168,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     )
     arg("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
     arg("-n", "--nproc", help="number of processes", type=int, default=1)
+    arg("-t", "--vm_threads", "--threads", help="number of threads for the VM generation", type=int, default=1)
     arg("--novm", help="only generate parameters", action="store_true")
     arg("--vm-version", help="velocity model version to generate", default="1.65")
     arg(
