@@ -580,7 +580,7 @@ def gen_vm(
     logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
     vm_params_dict["vm_dir"] = out_vm_dir
     vm_working_dir = os.path.join(out_vm_dir, "output")
-    os.makedirs(vm_working_dir)
+    os.makedirs(vm_working_dir, exist_ok=True)
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
     vm_params_path = os.path.join(ptemp, "vm_params")
     # NZVM won't run if folder exists
