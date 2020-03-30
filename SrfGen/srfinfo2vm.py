@@ -613,7 +613,9 @@ def gen_vm(
         os.makedirs(vm_working_dir)
         move(nzvm_cfg, vm_working_dir)
         move("{}.yaml".format(vm_params_path), vm_working_dir)
-        logger.debug("Moved nvzm config and vm_params yaml to {}".format(vm_working_dir))
+        logger.debug(
+            "Moved nvzm config and vm_params yaml to {}".format(vm_working_dir)
+        )
         # generate a corners like NZVM would have
         logger.debug("Saving VeloModCorners.txt")
         with open("{}/VeloModCorners.txt".format(vm_params_dict["vm_dir"]), "wb") as c:
@@ -627,7 +629,10 @@ def gen_vm(
         nzvm_env = os.environ.copy()
         nzvm_env["OMP_NUM_THREADS"] = str(args.vm_threads)
         nzvm_exe = Popen(
-            [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile, env=nzvm_env
+            [NZVM_BIN, nzvm_cfg],
+            cwd=os.path.dirname(NZVM_BIN),
+            stdout=logfile,
+            env=nzvm_env,
         )
         nzvm_exe.communicate()
     logger.debug("Moving VM files to vm directory")
@@ -1168,7 +1173,14 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     )
     arg("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
     arg("-n", "--nproc", help="number of processes", type=int, default=1)
-    arg("-t", "--vm_threads", "--threads", help="number of threads for the VM generation", type=int, default=1)
+    arg(
+        "-t",
+        "--vm_threads",
+        "--threads",
+        help="number of threads for the VM generation",
+        type=int,
+        default=1,
+    )
     arg("--novm", help="only generate parameters", action="store_true")
     arg("--vm-version", help="velocity model version to generate", default="1.65")
     arg(
