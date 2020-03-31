@@ -515,7 +515,7 @@ def reduce_domain(
         origin1 = geo.ll_shift(
             *origin[::-1],
             x_mid_ratio * (dist_east_from_mid - dist_west_from_mid) / 2,
-            bearing + 90
+            bearing + 90,
         )[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
         if dist_east_from_mid > dist_west_from_mid:
@@ -576,19 +576,21 @@ def gen_vm(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     # store configs
-    vm_dir = os.path.join(args.out_dir, srf_meta["name"])
-    logger.info("Generating VM. Saving it to {}".format(vm_dir))
-    vm_params_dict["vm_dir"] = vm_dir
+    out_vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+    logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
+    vm_params_dict["vm_dir"] = out_vm_dir
+    vm_working_dir = os.path.join(out_vm_dir, "output")
+    os.makedirs(vm_working_dir, exist_ok=True)
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
     vm_params_path = os.path.join(ptemp, "vm_params")
     # NZVM won't run if folder exists
-    if os.path.exists(vm_dir):
-        logger.debug("VM directory {} already exists. Removing it.".format(vm_dir))
-        rmtree(vm_dir)
+    if os.path.exists(vm_working_dir):
+        logger.debug("VM working directory {} already exists.".format(vm_working_dir))
+        rmtree(vm_working_dir)
     save_vm_config(
         nzvm_cfg=nzvm_cfg,
         vm_params=vm_params_path,
-        vm_dir=vm_dir,
+        vm_dir=vm_working_dir,
         origin=vm_params_dict["origin"],
         rot=vm_params_dict["bearing"],
         xlen=vm_params_dict["xlen_mod"],
@@ -607,11 +609,13 @@ def gen_vm(
             "--novm set, generating configuration files, but not generating VM."
         )
         # save important files
-        logger.debug("Creating directory {}".format(vm_dir))
-        os.makedirs(vm_dir)
-        move(nzvm_cfg, vm_dir)
-        move("{}.yaml".format(vm_params_path), vm_dir)
-        logger.debug("Moved nvzm config and vm_params yaml to {}".format(vm_dir))
+        logger.debug("Creating directory {}".format(vm_working_dir))
+        os.makedirs(vm_working_dir)
+        move(nzvm_cfg, vm_working_dir)
+        move("{}.yaml".format(vm_params_path), vm_working_dir)
+        logger.debug(
+            "Moved nvzm config and vm_params yaml to {}".format(vm_working_dir)
+        )
         # generate a corners like NZVM would have
         logger.debug("Saving VeloModCorners.txt")
         with open("{}/VeloModCorners.txt".format(vm_params_dict["vm_dir"]), "wb") as c:
@@ -622,35 +626,40 @@ def gen_vm(
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
         logger.debug("Running NZVM binary")
+        nzvm_env = os.environ.copy()
+        nzvm_env["OMP_NUM_THREADS"] = str(args.vm_threads)
         nzvm_exe = Popen(
-            [NZVM_BIN, nzvm_cfg], cwd=os.path.dirname(NZVM_BIN), stdout=logfile
+            [NZVM_BIN, nzvm_cfg],
+            cwd=os.path.dirname(NZVM_BIN),
+            stdout=logfile,
+            env=nzvm_env,
         )
         nzvm_exe.communicate()
     logger.debug("Moving VM files to vm directory")
     # fix up directory contents
-    move(os.path.join(vm_dir, "Velocity_Model", "rho3dfile.d"), vm_dir)
-    move(os.path.join(vm_dir, "Velocity_Model", "vp3dfile.p"), vm_dir)
-    move(os.path.join(vm_dir, "Velocity_Model", "vs3dfile.s"), vm_dir)
-    move(os.path.join(vm_dir, "Log", "VeloModCorners.txt"), vm_dir)
+    move(os.path.join(vm_working_dir, "Velocity_Model", "rho3dfile.d"), out_vm_dir)
+    move(os.path.join(vm_working_dir, "Velocity_Model", "vp3dfile.p"), out_vm_dir)
+    move(os.path.join(vm_working_dir, "Velocity_Model", "vs3dfile.s"), out_vm_dir)
+    move(os.path.join(vm_working_dir, "Log", "VeloModCorners.txt"), out_vm_dir)
     logger.debug("Removing Log and Velocity_Model directories")
-    rmtree(os.path.join(vm_dir, "Velocity_Model"))
-    rmtree(os.path.join(vm_dir, "Log"))
     logger.debug("Moving nzvm config and vm_params yaml to vm directory")
-    move(nzvm_cfg, vm_dir)
-    move("%s.yaml" % (vm_params_path), vm_dir)
+    move(nzvm_cfg, out_vm_dir)
+    move("%s.yaml" % (vm_params_path), out_vm_dir)
+    rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
     logger.debug("Generating coords")
-    gen_coords(vm_dir=vm_dir)
+    gen_coords(vm_dir=out_vm_dir)
     # validate
     logger.debug("Validating vm")
-    success, message = validate_vm(vm_dir)
+    success, message = validate_vm(out_vm_dir)
     if success:
-        logger.debug("VM check passed: {}".format(vm_dir))
-        sys.stderr.write("VM check OK: %s\n" % (vm_dir))
+        vm_check_str = f"VM check passed: {vm_working_dir}"
+        logger.debug(vm_check_str)
+        sys.stderr.write(vm_check_str)
     else:
         logger.log(
             qclogging.NOPRINTCRITICAL,
-            "VM check for {} failed: {}".format(vm_dir, message),
+            "VM check for {} failed: {}".format(vm_working_dir, message),
         )
         sys.stderr.write("VM check BAD: {}\n".format(message))
 
@@ -778,7 +787,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
         rjb, args.hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
     )
 
-    if fault_depth < rrup:
+    if fault_depth > rrup:
         xlen0 = 0
         ylen0 = 0
 
@@ -792,7 +801,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     )
 
     # proportion in ocean
-    if args.no_optimise or (xlen0 > 0 and ylen0 > 0):
+    if args.no_optimise or xlen0 <= 0 or ylen0 <= 0:
         logger.debug("Not optimising for land coverage")
         land0 = 100
     else:
@@ -970,7 +979,7 @@ def load_msgs(args, logger: Logger = qclogging.get_basic_logger()):
         logger.debug("Found first info file for {}".format(name))
         faults.add(name)
 
-        with h5open(info) as h:
+        with h5open(info, "r") as h:
             a = h.attrs
             try:
                 rake = a["rake"][0][0]
@@ -1136,7 +1145,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         ),
     )
     parser.add_argument(
-        "-o", "--out-dir", help="directory to place outputs", default="autovm"
+        "-o", "--out-dir", help="directory to place outputs", default="VMs"
     )
     arg(
         "--pgv",
@@ -1165,6 +1174,14 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     )
     arg("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
     arg("-n", "--nproc", help="number of processes", type=int, default=1)
+    arg(
+        "-t",
+        "--vm_threads",
+        "--threads",
+        help="number of threads for the VM generation",
+        type=int,
+        default=1,
+    )
     arg("--novm", help="only generate parameters", action="store_true")
     arg("--vm-version", help="velocity model version to generate", default="1.65")
     arg(
