@@ -515,7 +515,7 @@ def reduce_domain(
         origin1 = geo.ll_shift(
             *origin[::-1],
             x_mid_ratio * (dist_east_from_mid - dist_west_from_mid) / 2,
-            bearing + 90
+            bearing + 90,
         )[::-1]
         bearing = geo.ll_bearing(*origin1, *origin)
         if dist_east_from_mid > dist_west_from_mid:
@@ -653,8 +653,9 @@ def gen_vm(
     logger.debug("Validating vm")
     success, message = validate_vm(out_vm_dir)
     if success:
-        logger.debug("VM check passed: {}".format(vm_working_dir))
-        sys.stderr.write("VM check OK: %s\n" % (vm_working_dir))
+        vm_check_str = f"VM check passed: {vm_working_dir}"
+        logger.debug(vm_check_str)
+        sys.stderr.write(vm_check_str)
     else:
         logger.log(
             qclogging.NOPRINTCRITICAL,
@@ -800,7 +801,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     )
 
     # proportion in ocean
-    if args.no_optimise or (xlen0 <= 0 and ylen0 <= 0):
+    if args.no_optimise or xlen0 <= 0 or ylen0 <= 0:
         logger.debug("Not optimising for land coverage")
         land0 = 100
     else:
