@@ -29,6 +29,8 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     MagnitudeScalingRelations,
 )
 
+SUBFAULT_SIZE_KM = 0.1
+
 SRF2STOCH = "srf2stoch"
 GENERICSLIP2SRF = "generic_slip2srf"
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
@@ -441,7 +443,7 @@ def create_multi_plane_srf(
         "All srf generation parameters successfully obtained from the realisation file"
     )
 
-    dlen = dwid = 0.1
+    dlen = dwid = SUBFAULT_SIZE_KM
 
     nx = [get_n(flen[i], dlen) for i in range(plane_count)]
     ny = get_n(fwid[0], dwid)
