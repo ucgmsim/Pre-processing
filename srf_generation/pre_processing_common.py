@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def calculate_corners(dip, x_pos, y_pos, lat, lon, strike):
@@ -43,3 +44,14 @@ def get_hypocentre(lat, lon, shypo, dhypo, strike, dip):
 
 
 ONE_DEG_LAT = np.radians(6371.0072)
+
+
+def load_realisation_file_as_dict(file_name):
+    rel_df: pd.DataFrame = pd.read_csv(file_name)
+    realisation = rel_df.to_dict(orient="records")[0]
+    return realisation
+
+
+def load_realisation_file_as_df(file_name):
+    realisation: pd.DataFrame = pd.read_csv(file_name)
+    return realisation
