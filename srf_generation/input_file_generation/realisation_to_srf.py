@@ -29,7 +29,7 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     MagnitudeScalingRelations,
 )
 
-SUBFAULT_SIZE_KM = 0.1
+SRF_SUBFAULT_SIZE_KM = 0.1
 
 SRF2STOCH = "srf2stoch"
 GENERICSLIP2SRF = "generic_slip2srf"
