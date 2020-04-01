@@ -15,6 +15,9 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     lw_2_mw_scaling_relation,
 )
 
+LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
+NHM_SEISMOGENIC_DEPTH = 12
+
 
 def fault_factory(fault_type: int):
     return [Type1, Type2, Type3, Type4][fault_type - 1]
@@ -341,8 +344,8 @@ class Type2(FiniteFault):
         self._dbottom = (
             self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
         )
-        if self._dbottom > 12:
-            self._dbottom += 3
+        if self._dbottom > NHM_SEISMOGENIC_DEPTH:
+            self._dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
 
         self.ny = int(round(self.width / self.dwid))
         self.nx = int(round(self.length / self.dlen))
@@ -478,8 +481,10 @@ class Type3(FiniteFault):
         self._length = round_subfault_size(
             geo.ll_dist(lon1, lat1, lon2, lat2), magnitude
         )
-        if dbottom >= 12:
-            raw_fwid = (dbottom - dtop + 3) / np.sin(np.radians(dip))
+        if dbottom >= NHM_SEISMOGENIC_DEPTH:
+            raw_fwid = (dbottom - dtop + LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE) / np.sin(
+                np.radians(dip)
+            )
         else:
             raw_fwid = (dbottom - dtop) / np.sin(np.radians(dip))
         self._width = round_subfault_size(raw_fwid, magnitude)
