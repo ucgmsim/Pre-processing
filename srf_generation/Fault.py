@@ -559,7 +559,9 @@ class Type4(MultiPlaneFault):
         # Shouldn't be an issue in most cases
         length = sum(
             [
-                round_subfault_size(geo.ll_dist(*nhm_data.trace[i], *nhm_data.trace[i + 1]), nhm_data.mw)
+                round_subfault_size(
+                    geo.ll_dist(*nhm_data.trace[i], *nhm_data.trace[i + 1]), nhm_data.mw
+                )
                 for i in range(self._n_planes)
             ]
         )
