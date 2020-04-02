@@ -777,9 +777,10 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
         fault_depth = srf_meta["hdepth"]
 
     rjb = 0
-    if fault_depth < rrup:
-        rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
-        rjb = max(args.min_rjb, rjb)
+    if fault_depth < rrup * 2:
+        # rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
+        # rjb = max(args.min_rjb, rjb)
+        rjb = rrup
 
     # original, unrotated vm
     bearing = 0
