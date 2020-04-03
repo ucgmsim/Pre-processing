@@ -443,7 +443,7 @@ def create_multi_plane_srf(
         "All srf generation parameters successfully obtained from the realisation file"
     )
 
-    dlen = dwid = SUBFAULT_SIZE_KM
+    dlen = dwid = SRF_SUBFAULT_SIZE_KM
 
     nx = [get_n(flen[i], dlen) for i in range(plane_count)]
     ny = get_n(fwid[0], dwid)
