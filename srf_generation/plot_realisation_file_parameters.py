@@ -56,6 +56,37 @@ def format_and_save_plot(title=None, xlabel=None, ylabel=None, filepath=None):
         plt.close()
 
 
+def plot_parameter_histogram(
+    param: str, realisations: Dict[str, pd.DataFrame], out_dir: str
+):
+
+    all_param = []
+    mags = []
+
+    for fault, table in realisations.items():
+        all_param.extend(table[param])
+        if param is not "magnitude":
+            mags.extend(table["magnitude"])
+
+    fig_init()
+    plt.hist(all_param)
+    format_and_save_plot(
+        title=f"{param} distribution. Mean: {np.mean(all_param)}",
+        xlabel=f"{param}",
+        ylabel=f"n",
+        filepath=path.join(out_dir, f"{param}_hist"),
+    )
+    if param is not "magnitude":
+        fig_init()
+        plt.plot(all_param, mags)
+        format_and_save_plot(
+            title=f"{param} vs magnitude",
+            xlabel=f"{param}",
+            ylabel="Magnitude",
+            filepath=path.join(out_dir, f"{param}_vs_mag"),
+        )
+
+
 ###
 ### SRF PLOTS
 ###
@@ -954,7 +985,7 @@ def load_rel_files(rel_files):
 def load_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("nhm_file", type=path.abspath)
-    parser.add_argument("--args_to_plot", nargs="+", type=str, default="magnitude")
+    parser.add_argument("--params_to_plot", nargs="+", type=str, default=[])
     parser.add_argument(
         "--cybershake_root", type=path.abspath, default=path.abspath(".")
     )
@@ -991,6 +1022,9 @@ def main():
         )
     )
     median_faults = load_rel_files(median_rel_files)
+
+    for param in args.params_to_plot:
+        plot_parameter_histogram(param, faults, args.out_dir)
 
     plot_area_mag(faults, median_faults, args.out_dir)
     plot_area_nhm(median_faults, nhm_data, args.out_dir)

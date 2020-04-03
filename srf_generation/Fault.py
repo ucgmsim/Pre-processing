@@ -527,7 +527,6 @@ class Type4(MultiPlaneFault):
         self._dbottom = nhm_data.dbottom
         self.fault_type = nhm_data.fault_type
         self.tectonic_type = nhm_data.tectonic_type
-        self._length = nhm_data.length
         self._dip = nhm_data.dip
         self._rake = nhm_data.rake
         self._dtop = nhm_data.dtop
@@ -554,8 +553,15 @@ class Type4(MultiPlaneFault):
             nhm_data.dip_dir,
         )
 
+        length = sum(
+            [
+                geo.ll_dist(*nhm_data.trace[i], *nhm_data.trace[i + 1])
+                for i in range(self._n_planes)
+            ]
+        )
+
         self._mag = lw_2_mw_scaling_relation(
-            nhm_data.length, dummy_plane.width, self.mwsr, nhm_data.rake
+            length, dummy_plane.width, self.mwsr, nhm_data.rake
         )
 
         if dummy_plane.strike != geo.ll_bearing(*nhm_data.trace[0], *nhm_data.trace[1]):
