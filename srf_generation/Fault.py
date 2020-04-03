@@ -553,15 +553,9 @@ class Type4(MultiPlaneFault):
             nhm_data.dip_dir,
         )
 
-        # Circular dependency here
-        # need the magnitude to determine the level of rounding of the length
-        # need the length to determine the magnitude
-        # Shouldn't be an issue in most cases
         length = sum(
             [
-                round_subfault_size(
-                    geo.ll_dist(*nhm_data.trace[i], *nhm_data.trace[i + 1]), nhm_data.mw
-                )
+                geo.ll_dist(*nhm_data.trace[i], *nhm_data.trace[i + 1])
                 for i in range(self._n_planes)
             ]
         )
