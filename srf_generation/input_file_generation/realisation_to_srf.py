@@ -405,7 +405,7 @@ def create_multi_plane_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
-    name = parameter_dictionary.pop("name")
+    name = parameter_dictionary.get("name")
     logger.info(f"Generating srf for realisation {name}")
 
     # pops
