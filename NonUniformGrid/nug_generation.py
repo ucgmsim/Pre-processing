@@ -6,6 +6,7 @@ import argparse
 import datetime
 import os
 
+import numba
 import numpy as np
 import pandas as pd
 
@@ -23,8 +24,10 @@ Version 2 - 20.3
 pop_weight = 0.5
 vs30_weight = 0.5
 # At each grid size what does the score have to exceed to add new points to the grid
-thresholds = [0.5, 0.67, 0.74, 0.77, 0.882, 0.9]
+thresholds = [0.25, 0.51, 0.51, 0.51, 0.8, 0.85]
 #             4km,  2km, 1km,  0.5,  0.25, 0.125
+
+h_dist_f = numba.njit(geo.get_distances)
 
 
 def score_vs30_delta(
@@ -75,9 +78,9 @@ def pop_distance(lat, lon, pop_df):
     :return: population / distance value for whole NZ.
     """
     locations = np.array([pop_df.lon.values, pop_df.lat.values]).T
-    distances = geo.get_distances(locations, lon, lat)
+    distances = h_dist_f(locations, lon, lat)
 
-    return (pop_df["pop"] / distances).sum()
+    return (pop_df["pop"] / np.maximum(distances, 1) ** 1.9).sum()
 
 
 def write_interim_data(outpath, lat, lon, **kwargs):
@@ -123,33 +126,62 @@ def get_prospective_points(distance, lat, lon):
     return prospective_points
 
 
-def compute_point_score(lat, lon, prospective_points, pop_df, vs30_df, input_plots_dir=None):
+def compute_point_score(
+    lat, lon, distance, prospective_points, pop_df, vs30_df, input_plots_dir=None
+):
     """
     Computes a score based on the population and vs30 datasets
     :param lat: point considered to be split
     :param lon: point considered to be split
+    :param distance: The distance range that snaps to this point
     :param prospective_points: list of 4 points
     :param pop_df: dataframe containing population
     :param vs30_df: dataframe containing vs30
     :param input_plots_dir: folder to write input calculation data
     :return: score from 0 to 1
     """
-    max_lat = prospective_points[0][0]
-    min_lat = prospective_points[2][0]
-    max_lon = prospective_points[1][1]
-    min_lon = prospective_points[3][1]
+    max_lat, max_lon, min_lat, min_lon = get_min_max_lat_lon(prospective_points)
 
-    vs30_range = vs30_df[vs30_df.lon < max_lon][vs30_df.lon > min_lon][
-        vs30_df.lat < max_lat
-    ][vs30_df.lat > min_lat]
+    vs30_range = vs30_df[
+        (vs30_df.lon < max_lon)
+        & (vs30_df.lon > min_lon)
+        & (vs30_df.lat < max_lat)
+        & (vs30_df.lat > min_lat)
+    ]
     vs30_delta = vs30_range.vs30.max() - vs30_range.vs30.min()
     vs30_delta_score = score_vs30_delta(vs30_delta)
 
-    pop_dist = pop_distance(lat, lon, pop_df)
-    pop_dist_score = score_pop(
-        pop_dist, min_population_acceptable=2000, max_population_acceptable=9000
-    )
-    overall_score = pop_dist_score * pop_weight + vs30_delta_score * vs30_weight
+    #pop_search_d = max(
+    #    min(distance * 2, 8), 2
+    #)  # search distance = 2 < Distance * 2 < 8
+    #pop_max_lat, pop_max_lon, pop_min_lat, pop_min_lon = get_min_max_lat_lon(
+    #    get_prospective_points(pop_search_d, lat, lon)
+    #)
+
+    #pop_range = pop_df[
+    #    (pop_df.lon < pop_max_lon)
+    #    & (pop_df.lon > pop_min_lon)
+    #    & (pop_df.lat < pop_max_lat)
+    #    & (pop_df.lat > pop_min_lat)
+    #]
+
+    pop_range_original = pop_df[(pop_df.lon < max_lon) & (pop_df.lon > min_lon) & (pop_df.lat < max_lat) & (pop_df.lat > min_lat)]
+
+    #pop = pop_range["pop"].max()
+    pop_original = pop_range_original["pop"].max()
+    pop_score = score_pop(pop_original)
+    #pop_score_2 = score_pop(
+    #    pop, min_population_acceptable=10, max_population_acceptable=60
+    #)
+
+    #pop_dist = pop_distance(lat, lon, pop_df)
+    #pop_dist_score = score_pop(
+    #    pop_dist, min_population_acceptable=50, max_population_acceptable=175
+    #)
+
+    #pop_combined_score = max(pop_dist_score, pop_score)
+
+    overall_score = pop_score * pop_weight + vs30_delta_score * vs30_weight
 
     if input_plots_dir is not None:
         write_interim_data(
@@ -158,11 +190,22 @@ def compute_point_score(lat, lon, prospective_points, pop_df, vs30_df, input_plo
             lon,
             vs30_delta=vs30_delta,
             pop_dist=pop_dist,
+            #pop_value=pop_original,
+            #pop_score_2=pop_score,
+            #pop_combined_score=pop_combined_score,
             vs30_delta_score=vs30_delta_score,
-            pop_dist_score=pop_dist_score,
+            #pop_dist_score=pop_dist_score,
             overall_score=overall_score,
         )
     return overall_score
+
+
+def get_min_max_lat_lon(prospective_points):
+    max_lat = prospective_points[0][0]
+    min_lat = prospective_points[2][0]
+    max_lon = prospective_points[1][1]
+    min_lon = prospective_points[3][1]
+    return max_lat, max_lon, min_lat, min_lon
 
 
 def parse_args():
@@ -175,7 +218,9 @@ def parse_args():
     parser.add_argument(
         "output_filename", help="File to write to the lon/lat/station_name points to"
     )
-    parser.add_argument("--hh", help="Minimum spacing between points", type=float, default="0.4")
+    parser.add_argument(
+        "--hh", help="Minimum spacing between points", type=float, default="0.4"
+    )
     parser.add_argument("--input_plot_dir", help="directory to write output plots to")
     args = parser.parse_args()
     return args
@@ -187,7 +232,9 @@ def main(args):
     hh = args.hh
     input_plots_dir = args.input_plot_dir
     if input_plots_dir is not None:
-        input_plots_dir += str(datetime.datetime.now()).replace(" ", "_")
+        input_plots_dir = os.path.join(
+            input_plots_dir, str(datetime.datetime.now()).replace(" ", "_")
+        )
         os.makedirs(input_plots_dir)
 
     level = 0
@@ -202,10 +249,13 @@ def main(args):
     pop_df = pd.read_csv(args.pop_file, names=["lon", "lat", "pop"])
 
     total_points = len(base_grid)
-    print(f"{total_points} points in the basegrid")
+    print(f"{total_points} points total - {total_points} points in the basegrid")
 
     points = {}
     points[0] = list(zip(base_grid.lat, base_grid.lon))
+    points_array = np.array(points[0])
+
+    distances = []
 
     while distance / 2 > hh:
         distance /= 2
@@ -217,14 +267,28 @@ def main(args):
         for lat, lon in points[prior_level]:
             prospective_points = get_prospective_points(distance, lat, lon)
 
-            overall_score = compute_point_score(lat, lon, prospective_points, pop_df, vs30_df, input_plots_dir)
+            overall_score = compute_point_score(
+                lat, lon, distance, prospective_points, pop_df, vs30_df, input_plots_dir
+            )
 
             if overall_score > threshold:
                 for pt in prospective_points:
-                    points[level].append(pt)
+                    pt_distance = h_dist_f(points_array[:, [1, 0]], pt[1], pt[0]).min()
+                    distances.append(pt_distance)
+
+                    # makes sure that something super funky isn't going on
+                    # every point should be less than a base_grid spacing from another point
+                    assert pt_distance < BASE_GRID_SPACING
+
+                    # Removes points that are less than the minimum spacing from another point
+                    if pt_distance > hh:
+                        points[level].append(pt)
+                        points_array = np.vstack((points_array, np.array(pt)))
 
         total_points += len(points[level])
-        print(f"{len(points[level])} points added to level {level}")
+        print(
+            f"{len(points_array)} points total - {len(points[level])} points added to level {level}"
+        )
 
     write_ll_file(out_fname, points)
     print(f"\n{total_points} on non-uniform grid.")
