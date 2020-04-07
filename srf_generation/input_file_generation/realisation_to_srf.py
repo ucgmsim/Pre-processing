@@ -443,7 +443,7 @@ def create_multi_plane_srf(
             parameter_dictionary.pop(key)
 
     # gets
-    vel_mod_1d = parameter_dictionary.get(
+    vel_mod_1d = parameter_dictionary.pop(
         "v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH
     )
     rvfac = parameter_dictionary.get("rvfac", None)
