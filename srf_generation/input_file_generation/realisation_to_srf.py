@@ -405,21 +405,24 @@ def create_multi_plane_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
-    name = parameter_dictionary.get("name")
+    name = parameter_dictionary.pop("name")
     logger.info(f"Generating srf for realisation {name}")
 
     # pops
     magnitude = parameter_dictionary.pop("magnitude")
+    moment = parameter_dictionary.pop("moment")
     rake = parameter_dictionary.pop("rake")
     dip = parameter_dictionary.pop("dip")
     dt = parameter_dictionary.pop("dt", 0.005)
     dtop = parameter_dictionary.pop("dtop")
+    length = parameter_dictionary.pop("length")
     shypo = parameter_dictionary.pop("shypo")
     dhypo = parameter_dictionary.pop("dhypo")
     genslip_version = str(parameter_dictionary.pop("genslip_version"))
     dip_dir = parameter_dictionary.pop("dip_dir")
     seed = parameter_dictionary.pop("srfgen_seed")
     tect_type = parameter_dictionary.pop("tect_type")
+    fault_type = parameter_dictionary.pop("fault_type")
     plane_count = parameter_dictionary.pop("plane_count")
 
     strike = [
@@ -432,6 +435,12 @@ def create_multi_plane_srf(
 
     clon = [parameter_dictionary.pop(f"clon_subfault_{i}") for i in range(plane_count)]
     clat = [parameter_dictionary.pop(f"clat_subfault_{i}") for i in range(plane_count)]
+
+    for key in list(parameter_dictionary.keys()):
+        # Remove all the subfault keys so they don't get passed to the sim_params.yaml file
+        # Must make a copy of the keys to be able to remove them.
+        if "_subfault_" in key:
+            parameter_dictionary.pop(key)
 
     # gets
     vel_mod_1d = parameter_dictionary.get(
