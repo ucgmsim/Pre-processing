@@ -50,7 +50,7 @@ faultprop = Fault()
 # DON'T CHANGE THIS - this assumes we have a surface point source
 faultprop.ztor = 0.0
 
-S_WAVE_KM_PER_S = 3.2
+S_WAVE_KM_PER_S = 3.5
 
 
 # default scaling relationship
@@ -762,6 +762,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     faultprop.Mw = srf_meta["mag"]
     faultprop.rake = srf_meta["rake"]
     faultprop.dip = srf_meta["dip"]
+    faultprop.faultstyle = None
     # rrup to reach wanted PGV
     if args.pgv == -1.0:
         pgv = mag2pgv(faultprop.Mw)
@@ -909,7 +910,7 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     initial_time = auto_time2(
         vm_corners,
         np.concatenate(srf_meta["corners"], axis=0),
-        1.2,
+        args.ds_multiplier,
         fault_depth,
         logger=logger,
     )
@@ -1201,6 +1202,12 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         help="Specify a minimum horizontal distance (in km) for the VM to span from the fault"
         " - invalid VMs will still not be generated",
         default=0,
+    )
+    arg(
+        "--ds-multiplier",
+        help="Sets the DS multiplier for setting the sim-duration. Validation runs default to 1.2. Cybershake runs"
+             "should manually set it to 0.75",
+        default=1.2,
     )
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
