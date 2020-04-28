@@ -1208,6 +1208,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         help="Sets the DS multiplier for setting the sim-duration. Validation runs default to 1.2. Cybershake runs"
              "should manually set it to 0.75",
         default=1.2,
+        type=float,
     )
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
