@@ -11,7 +11,12 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     get_length,
     get_width,
     mag2mom,
+    round_subfault_size,
+    lw_2_mw_scaling_relation,
 )
+
+LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
+NHM_SEISMOGENIC_DEPTH = 12
 
 
 def fault_factory(fault_type: int):
@@ -20,6 +25,7 @@ def fault_factory(fault_type: int):
 
 class Fault(ABC):
     subfault_spacing = 0.1
+    type = 0
     _mag = None
     _moment = None
     name = None
@@ -29,6 +35,10 @@ class Fault(ABC):
     _rake = None
     _dip = None
     _depth = None
+    _width = None
+    _length = None
+    _shypo = None
+    _dhypo = None
 
     @property
     def pid(self):
@@ -64,8 +74,25 @@ class Fault(ABC):
     def magnitude(self):
         return self._mag
 
+    @magnitude.setter
+    def magnitude(self, mag):
+        if mag > 11:
+            raise ValueError(
+                f"Given mag {mag} is greater than theoretically possible 11"
+            )
+        self._mag = mag
+
+    @property
+    def length(self):
+        return self._length
+
+    @property
+    def width(self):
+        return self._width
+
     def to_dict(self):
         return {
+            "type": self.type,
             "magnitude": self._mag,
             "moment": self.mom,
             "name": self.name,
@@ -76,6 +103,18 @@ class Fault(ABC):
             "dip": self._dip,
             "depth": self._depth,
         }
+
+    @property
+    def rake(self):
+        return self._rake
+
+    @rake.setter
+    def rake(self, value):
+        value = ((value + 180) % 360) - 180
+        self._set_rake(value)
+
+    def _set_rake(self, value):
+        self._rake = value
 
 
 class SinglePlaneFault(Fault):
@@ -90,26 +129,6 @@ class SinglePlaneFault(Fault):
     _width: float = None
     _dtop: float = None
     _dbottom: float = None
-
-    @property
-    def length(self):
-        return self._length
-
-    @property
-    def width(self):
-        return self._width
-
-    @property
-    def rake(self):
-        return self._rake
-
-    @rake.setter
-    def rake(self, value):
-        value = ((value + 180) % 360) - 180
-        self._set_rake(value)
-
-    def _set_rake(self, value):
-        self._rake = value
 
     @property
     def strike(self):
@@ -325,8 +344,8 @@ class Type2(FiniteFault):
         self._dbottom = (
             self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
         )
-        if self._dbottom > 12:
-            self._dbottom += 3
+        if self._dbottom > NHM_SEISMOGENIC_DEPTH:
+            self._dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
 
         self.ny = int(round(self.width / self.dwid))
         self.nx = int(round(self.length / self.dlen))
@@ -459,46 +478,168 @@ class Type3(FiniteFault):
         self._dbottom = dbottom
         self._dip_dir = dip_dir
 
-        self._length = geo.ll_dist(lon1, lat1, lon2, lat2)
-        self._width = (dbottom - dtop) / np.sin(np.radians(dip))
+        self._length = round_subfault_size(
+            geo.ll_dist(lon1, lat1, lon2, lat2), magnitude
+        )
+        if dbottom >= NHM_SEISMOGENIC_DEPTH:
+            raw_fwid = (dbottom - dtop + LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE) / np.sin(
+                np.radians(dip)
+            )
+        else:
+            raw_fwid = (dbottom - dtop) / np.sin(np.radians(dip))
+        self._width = round_subfault_size(raw_fwid, magnitude)
 
         strike = geo.ll_bearing(lon1, lat1, lon2, lat2)
+
+        if (self._dip_dir - strike + 360) % 360 > 180:
+            # Reverse the order of the points so the dipdir is to the right of the strike
+            self._trace = self._trace[::-1]
+            strike = geo.ll_bearing(lon2, lat2, lon1, lat1)
 
         super().__init__(name, magnitude, strike, rake, dip)
 
     def to_dict(self):
-        base_dict: dict = super().to_dict()
-        base_dict.update({"type": 3})
+        base_dict = {
+            "clon": geo.ll_mid(*self._trace[0], *self._trace[1])[0],
+            "clat": geo.ll_mid(*self._trace[0], *self._trace[1])[1],
+            "type": self.type,
+            "magnitude": self._mag,
+            "moment": self.mom,
+            "name": self.name,
+            "strike": self._strike,
+            "rake": self._rake,
+            "dip": self._dip,
+            "dtop": self._dtop,
+            "dbottom": self._dbottom,
+            "length": self._length,
+            "width": self._width,
+            "dip_dir": self._dip_dir,
+        }
         return base_dict
 
 
 class Type4(MultiPlaneFault):
+
+    type = 4
+
     def __init__(self, nhm_data: NHMFault):
         self.name = nhm_data.name
         self._dbottom = nhm_data.dbottom
         self.fault_type = nhm_data.fault_type
         self.tectonic_type = nhm_data.tectonic_type
-        self._length = nhm_data.length
         self._dip = nhm_data.dip
         self._rake = nhm_data.rake
         self._dtop = nhm_data.dtop
-        self._mag = nhm_data.mw
         self._slip_rate = nhm_data.slip_rate
         self._dip_dir = nhm_data.dip_dir
 
         self._n_planes = len(nhm_data.trace) - 1
 
+        if nhm_data.tectonic_type == "SUBDUCTION_INTERFACE":
+            self.mwsr = MagnitudeScalingRelations.SKARLATOUDIS2016
+
+        else:
+            self.mwsr = MagnitudeScalingRelations.LEONARD2014
+
+        dummy_plane = Type3(
+            nhm_data.name,
+            nhm_data.mw,
+            *nhm_data.trace[0],
+            *nhm_data.trace[1],
+            nhm_data.dip,
+            nhm_data.rake,
+            nhm_data.dtop,
+            nhm_data.dbottom,
+            nhm_data.dip_dir,
+        )
+
+        length = sum(
+            [
+                geo.ll_dist(*nhm_data.trace[i], *nhm_data.trace[i + 1])
+                for i in range(self._n_planes)
+            ]
+        )
+
+        self._mag = lw_2_mw_scaling_relation(
+            length, dummy_plane.width, self.mwsr, nhm_data.rake
+        )
+
+        if dummy_plane.strike != geo.ll_bearing(*nhm_data.trace[0], *nhm_data.trace[1]):
+            nhm_data.trace = nhm_data.trace[::-1]
+
         self._planes = []
-        for i in range(self._n_planes - 1):
+        for i in range(self._n_planes):
             self._planes.append(
                 Type3(
                     nhm_data.name,
-                    nhm_data.mw,
+                    self._mag,
                     *nhm_data.trace[i],
                     *nhm_data.trace[i + 1],
                     nhm_data.dip,
                     nhm_data.rake,
                     nhm_data.dtop,
-                    nhm_data.dbottom
+                    nhm_data.dbottom,
+                    nhm_data.dip_dir,
                 )
             )
+
+    @property
+    def length(self):
+        return sum([f.length for f in self._planes])
+
+    @property
+    def width(self):
+        return self._planes[0].width
+
+    @property
+    def dhypo(self):
+        return self._dhypo
+
+    @dhypo.setter
+    def dhypo(self, dhypo):
+        if dhypo > self.width:
+            raise ValueError(
+                f"Cannot place hypocentre outside fault plane. dhpyo: {dhypo}, fault width: {self.width}"
+            )
+        self._dhypo = dhypo
+        for sub_plane in self._planes:
+            sub_plane._dhypo = dhypo
+
+    @property
+    def shypo(self):
+        return self._shypo
+
+    @shypo.setter
+    def shypo(self, shypo):
+        if shypo > self.length:
+            raise ValueError(
+                f"Cannot place hypocentre outside fault plane. shpyo: {shypo}, fault length: {self.length}"
+            )
+        self._shypo = shypo
+        for sub_plane in self._planes:
+            sub_plane._shypo = shypo
+
+    def to_dict(self):
+
+        base_dict = {
+            "type": self.type,
+            "magnitude": self._mag,
+            "moment": self.mom,
+            "name": self.name,
+            "fault_type": self.fault_type,
+            "tect_type": self.tectonic_type,
+            "rake": self._rake,
+            "dip": self._dip,
+            "dtop": self._dtop,
+            "dbottom": self._dbottom,
+            "length": self._length,
+            "plane_count": self._n_planes,
+            "slip_rate": self._slip_rate,
+            "dip_dir": self._dip_dir,
+            "shypo": self.shypo,
+            "dhypo": self.dhypo,
+        }
+        for i, sub_fault in enumerate(self._planes):
+            for key, item in sub_fault.to_dict().items():
+                base_dict[f"{key}_subfault_{i}"] = item
+        return base_dict

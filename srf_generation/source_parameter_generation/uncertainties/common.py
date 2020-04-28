@@ -21,31 +21,6 @@ GCMT_PARAM_NAMES = [
 ]
 GCMT_Source = namedtuple("GCMT_Source", GCMT_PARAM_NAMES)
 
-NHM_PARAM_NAMES = [
-    "name",  # str
-    "tect_type",  # str
-    "fault_type",  # str
-    "length_mean",  # float
-    "length_sigma",  # float
-    "dip_mean",  # float
-    "dip_sigma",  # float
-    "dip_dir",  # float
-    "rake",  # float
-    "dbot_mean",  # float
-    "dbot_sigma",  # float
-    "dtop_mean",  # float
-    "dtop_min",  # float
-    "dtop_max",  # float
-    "slip_rate_mean",  # float
-    "slip_rate_sigma",  # float
-    "coupling_coefficient",  # float
-    "coupling_coefficient_sigma",  # float
-    "magnitude_mean",  # float
-    "recurance_interval_mean",  # float
-    "coordinates",  # List of (lon, lat) tuples
-]
-NHM_Source = namedtuple("NHM_Source", NHM_PARAM_NAMES)
-
 GENERAL_PARAMS = ["name", "type", "genslip_version", "srfgen_seed"]
 
 SRFGEN_TYPE_1_PARAMS = [
@@ -87,6 +62,38 @@ SRFGEN_TYPE_2_PARAMS = [
     "dhypo",
     "rvfac",
     "mwsr",
+]
+
+SRFGEN_TYPE_3_PARAMS = [
+    "magnitude",
+    "moment",
+    "clon",
+    "clat",
+    "rake",
+    "dip",
+    "dtop",
+    "dbottom",
+    "length",
+    "width",
+    "strike",
+    "dip_dir",
+]
+
+SRFGEN_TYPE_4_PARAMS = [
+    "magnitude",
+    "moment",
+    "fault_type",
+    "tect_type",
+    "rake",
+    "dip",
+    "dtop",
+    "dbottom",
+    "length",
+    "plane_count",
+    "slip_rate",
+    "dip_dir",
+    "shypo",
+    "dhypo",
 ]
 
 HF_RUN_PARAMS = [
@@ -140,6 +147,18 @@ def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
             for key, value in params.items()
             if key in GENERAL_PARAMS + SRFGEN_TYPE_2_PARAMS + RUN_TIME_PARAMS
         }
+    elif params["type"] == 4:
+        SUBPLANE_PARAMS = [
+            f"{name}_subfault_{i}"
+            for i in range(params["plane_count"])
+            for name in SRFGEN_TYPE_3_PARAMS + GENERAL_PARAMS
+        ]
+        params = {
+            key: value
+            for key, value in params.items()
+            if key
+            in GENERAL_PARAMS + SRFGEN_TYPE_4_PARAMS + RUN_TIME_PARAMS + SUBPLANE_PARAMS
+        }
     else:
         raise ValueError(
             f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."
@@ -159,6 +178,21 @@ def verify_realisation_params(params: Dict[str, Any]):
             name
             for name in params.keys()
             if name not in GENERAL_PARAMS + SRFGEN_TYPE_2_PARAMS + RUN_TIME_PARAMS
+        ]
+    elif params["type"] == 4:
+        SUBPLANE_PARAMS = [
+            f"{name}_subfault_{i}"
+            for i in range(params["plane_count"])
+            for name in SRFGEN_TYPE_3_PARAMS + GENERAL_PARAMS
+        ]
+        mismatch = [
+            name
+            for name in params.keys()
+            if name
+            not in GENERAL_PARAMS
+            + SRFGEN_TYPE_4_PARAMS
+            + RUN_TIME_PARAMS
+            + SUBPLANE_PARAMS
         ]
     else:
         raise ValueError(

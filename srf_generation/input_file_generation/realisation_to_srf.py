@@ -1,19 +1,22 @@
 import argparse
 from logging import Logger
 from subprocess import run, PIPE, Popen
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 from tempfile import NamedTemporaryFile
 
 import yaml
 from h5py import File as h5open
 import numpy as np
-from os import makedirs, path
-import pandas as pd
-from qcore import binary_version, srf, geo, qclogging
+from os import makedirs, path, remove
+from qcore import binary_version, srf, geo, qclogging, utils
 from qcore.utils import compare_versions
 
-from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
-from srf_generation.source_parameter_generation.gcmt_to_realisation import (
+from srf_generation.pre_processing_common import (
+    calculate_corners,
+    get_hypocentre,
+    load_realisation_file_as_dict,
+)
+from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
 )
 from srf_generation.source_parameter_generation.uncertainties.common import (
@@ -25,6 +28,8 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     mag2mom,
     MagnitudeScalingRelations,
 )
+
+SRF_SUBFAULT_SIZE_KM = 0.1
 
 SRF2STOCH = "srf2stoch"
 GENERICSLIP2SRF = "generic_slip2srf"
@@ -38,6 +43,10 @@ hypocenter is first then for each \n\
     "> Below are the corners \
 (first point repeated as fifth to close box \n",
 )
+
+
+def get_n(fault_size, sub_fault_size):
+    return int(round(fault_size / sub_fault_size))
 
 
 def create_stoch(
@@ -60,7 +69,7 @@ def create_stoch(
     if single_segment:
         command = [srf2stoch, f"target_dx={dx}", f"target_dy={dy}"]
     else:
-        command = ([srf2stoch, f"dx={dx}", f"dy={dy}"],)
+        command = [srf2stoch, f"dx={dx}", f"dy={dy}"]
     logger.debug(f"Creating stoch with command: {command}")
     with open(stoch_file, "w") as stochp, open(srf_file, "r") as srfp:
         proc = run(command, stdin=srfp, stdout=stochp, stderr=PIPE)
@@ -328,9 +337,6 @@ def create_ps_ff_srf(
     logger.debug("Saving corners and hypocentre")
     write_corners(corners_file, hypocentre, corners)
 
-    def get_n(fault_size, sub_fault_size):
-        return str(int(round(fault_size / sub_fault_size)))
-
     nx = get_n(flen, dlen)
     ny = get_n(fwid, dwid)
 
@@ -353,6 +359,7 @@ def create_ps_ff_srf(
     gen_srf(
         srf_file,
         gsfp.name,
+        2,
         magnitude,
         dt,
         nx,
@@ -392,6 +399,172 @@ def create_ps_ff_srf(
     )
 
 
+def create_multi_plane_srf(
+    realisation_file: str,
+    parameter_dictionary: Dict[str, Any],
+    stoch_file: Union[None, str] = None,
+    logger: Logger = qclogging.get_basic_logger,
+):
+    name = parameter_dictionary.get("name")
+    logger.info(f"Generating srf for realisation {name}")
+
+    # pops
+    magnitude = parameter_dictionary.pop("magnitude")
+    moment = parameter_dictionary.pop("moment")
+    rake = parameter_dictionary.pop("rake")
+    dip = parameter_dictionary.pop("dip")
+    dt = parameter_dictionary.pop("dt", 0.005)
+    dtop = parameter_dictionary.pop("dtop")
+    length = parameter_dictionary.pop("length")
+    shypo = parameter_dictionary.pop("shypo")
+    dhypo = parameter_dictionary.pop("dhypo")
+    genslip_version = str(parameter_dictionary.pop("genslip_version"))
+    dip_dir = parameter_dictionary.pop("dip_dir")
+    seed = parameter_dictionary.pop("srfgen_seed")
+    tect_type = parameter_dictionary.pop("tect_type")
+    fault_type = parameter_dictionary.pop("fault_type")
+    plane_count = parameter_dictionary.pop("plane_count")
+
+    rough = parameter_dictionary.pop("rough", None)
+
+    strike = [
+        parameter_dictionary.pop(f"strike_subfault_{i}") for i in range(plane_count)
+    ]
+    flen = [
+        parameter_dictionary.pop(f"length_subfault_{i}") for i in range(plane_count)
+    ]
+    fwid = [parameter_dictionary.pop(f"width_subfault_{i}") for i in range(plane_count)]
+
+    clon = [parameter_dictionary.pop(f"clon_subfault_{i}") for i in range(plane_count)]
+    clat = [parameter_dictionary.pop(f"clat_subfault_{i}") for i in range(plane_count)]
+
+    for key in list(parameter_dictionary.keys()):
+        # Remove all the subfault keys so they don't get passed to the sim_params.yaml file
+        # Must make a copy of the keys to be able to remove them.
+        if "_subfault_" in key:
+            parameter_dictionary.pop(key)
+
+    # gets
+    vel_mod_1d = parameter_dictionary.pop(
+        "v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH
+    )
+    rvfac = parameter_dictionary.get("rvfac", None)
+
+    logger.debug(
+        "All srf generation parameters successfully obtained from the realisation file"
+    )
+
+    dlen = dwid = SRF_SUBFAULT_SIZE_KM
+
+    nx = [get_n(flen[i], dlen) for i in range(plane_count)]
+    ny = get_n(fwid[0], dwid)
+
+    if (
+        utils.compare_versions(genslip_version, "5.4.2") < 0
+        and tect_type == "SUBDUCTION_INTERFACE"
+    ):
+        raise RuntimeError(
+            "Subduction interface faults are only available for version 5.4.2 and above"
+        )
+
+    gsf_file = NamedTemporaryFile(mode="w", delete=False)
+    logger.debug(f"Gsf will be saved to the temporary file {gsf_file.name}")
+    srf_file = realisation_file.replace(".csv", ".srf")
+    logger.debug(f"Srf will be saved to {srf_file}")
+    corners_file = realisation_file.replace(".csv", ".corners")
+    logger.debug(f"The corners file will be saved to {corners_file}")
+
+    with NamedTemporaryFile(mode="w", delete=False) as gsfp:
+        logger.debug("Saving segments file to {}".format(gsfp.name))
+        gsfp.write("{}\n".format(plane_count))
+        for f in range(plane_count):
+            gsfp.write(
+                "{:f} {:f} {:f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:d} {:d}\n".format(
+                    clon[f],
+                    clat[f],
+                    dtop,
+                    strike[f],
+                    dip,
+                    rake,
+                    flen[f],
+                    fwid[f],
+                    nx[f],
+                    ny,
+                )
+            )
+
+    fault_seg_bin = binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR)
+    cmd = [
+        fault_seg_bin,
+        "read_slip_vals=0",
+        "infile={}".format(gsfp.name),
+        "outfile={}".format(gsf_file.name),
+    ]
+    if dip_dir is not None:
+        cmd.append("dipdir={}".format(dip_dir))
+
+    logger.info("Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd)))
+    gexec = run(cmd)
+    logger.debug(f"{fault_seg_bin} finished running with stderr: {gexec.stderr}")
+
+    remove(gsfp.name)
+    logger.debug("Removed segments file")
+
+    if int(plane_count > 1):
+        logger.debug("Multiple segments detected. Generating xseg argument")
+        flen_array = np.asarray(flen)
+        xseg = ",".join(map(str, flen_array.cumsum() - flen_array / 2))
+    else:
+        xseg = "-1"
+
+    gen_srf(
+        srf_file,
+        gsf_file.name,
+        4,
+        magnitude,
+        dt,
+        sum(nx),
+        ny,
+        seed,
+        shypo,
+        dhypo,
+        vel_mod_1d,
+        genslip_version=genslip_version,
+        rvfac=rvfac,
+        rough=rough,
+        xseg=xseg,
+        logger=logger,
+    )
+
+    logger.info("srf generated, creating stoch")
+
+    if stoch_file is None:
+        stoch_file = realisation_file.replace(".csv", ".stoch")
+    create_stoch(stoch_file, srf_file, single_segment=(plane_count == 1), logger=logger)
+
+    logger.info("stoch created, making info")
+
+    # save INFO
+    create_info_file(
+        srf_file,
+        4,
+        magnitude,
+        rake,
+        dt,
+        tect_type=tect_type,
+        dip_dir=dip_dir,
+        shypo=[shypo + 0.5 * flen[0]],
+        dhypo=dhypo,
+        vm=vel_mod_1d,
+        logger=logger,
+    )
+
+    logger.info("info made, returning")
+
+    # path to resulting SRF
+    return srf_file
+
+
 def get_corners(lat, lon, flen, fwid, dip, strike):
     """
     Return Corners of a fault. Indexes are as below.
@@ -429,6 +602,7 @@ def write_corners(filename, hypocentre, corners):
 def gen_srf(
     srf_file,
     gsf_file,
+    type,
     magnitude,
     dt,
     nx,
@@ -441,24 +615,37 @@ def gen_srf(
     rvfac=None,
     rough=None,
     slip_cov=None,
+    tect_type=None,
+    fault_planes=1,
+    xseg: Union[float, List[float]] = "-1",
     logger: Logger = qclogging.get_basic_logger(),
 ):
+    """
+    :param xseg: Genslip parameter:
+        For multi plane arrays the length (along strike) of each plane. -1 for single plane.
+        Deprecated in genslip 5.4.2, ignored if present
+    """
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
     if compare_versions(genslip_version, "5") > 0:
         # Positive so version greater than 5
         logger.debug(
-            "Using genslip version {}. Using nstk and ndip".format(genslip_version)
+            "Using genslip version {}. Using nstk and ndip and rup_delay (for type 4)".format(
+                genslip_version
+            )
         )
         xstk = "nstk"
         ydip = "ndip"
+        rup_name = "rup_delay"
     else:
         # Not positive so version at most 5
         logger.debug(
-            "Using genslip version {}. Using nx and ny".format(genslip_version)
+            "Using genslip version {}. Using nx and ny and rupture_delay (for type 4)".format(
+                genslip_version
+            )
         )
         xstk = "nx"
         ydip = "ny"
-
+        rup_name = "rupture_delay"
     cmd = [
         genslip_bin,
         "read_erf=0",
@@ -479,6 +666,35 @@ def gen_srf(
         "plane_header=1",
         "srf_version=1.0",
     ]
+    if type == 4:
+        cmd.extend(
+            [
+                f"seg_delay={0}",
+                f"nseg={fault_planes}",
+                f"nseg_bounds={fault_planes - 1}",
+                f"xseg={xseg}",
+                f"rvfac_seg=-1",
+                f"gwid=-1",
+                f"side_taper=0.02",
+                f"bot_taper=0.02",
+                f"top_taper=0.0",
+                f"{rup_name}=0",
+            ]
+        )
+
+    if tect_type == "SUBDUCTION_INTERFACE":
+        cmd.extend(
+            [
+                "kmodel=-1",
+                "xmag_exp=0.5",
+                "ymag_exp=0.5",
+                "kx_corner=2.5482",
+                "ky_corner=2.3882",
+                "tsfac_slope=-0.5",
+                "tsfac_bzero=-0.1",
+                "risetime_coef=1.95",
+            ]
+        )
     if rvfac is not None:
         cmd.append(f"rvfrac={rvfac}")
     if rough is not None:
@@ -563,13 +779,14 @@ def load_args():
 def main():
     primary_logger = qclogging.get_logger("realisation_to_srf")
     args = load_args()
-    rel_df: pd.DataFrame = pd.read_csv(args.realisation_file)
-    realisation = rel_df.to_dict(orient="records")[0]
+    realisation = load_realisation_file_as_dict(args.realisation_file)
     rel_logger = qclogging.get_realisation_logger(primary_logger, realisation["name"])
     if realisation["type"] == 1:
         create_ps_srf(args.realisation_file, realisation, logger=rel_logger)
     elif realisation["type"] == 2:
         create_ps_ff_srf(args.realisation_file, realisation, logger=rel_logger)
+    elif realisation["type"] == 4:
+        create_multi_plane_srf(args.realisation_file, realisation, logger=rel_logger)
     else:
         raise ValueError(
             f"Type {realisation['type']} faults are not currently supported. "
