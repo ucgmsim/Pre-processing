@@ -780,8 +780,9 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     rjb = 0
     if fault_depth < rrup * 2:
         # rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
-        # rjb = max(args.min_rjb, rjb)
-        rjb = rrup
+        rjb = max(
+            args.min_rjb, rrup
+        )  # sets rrup equal to rjb to ensure deep ruptures have sufficient VM size
 
     # original, unrotated vm
     bearing = 0
@@ -1206,7 +1207,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     arg(
         "--ds-multiplier",
         help="Sets the DS multiplier for setting the sim-duration. Validation runs default to 1.2. Cybershake runs"
-             "should manually set it to 0.75",
+        "should manually set it to 0.75",
         default=1.2,
         type=float,
     )
