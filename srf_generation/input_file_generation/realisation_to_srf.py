@@ -420,7 +420,7 @@ def create_multi_plane_srf(
     dhypo = parameter_dictionary.pop("dhypo")
     genslip_version = str(parameter_dictionary.pop("genslip_version"))
     dip_dir = parameter_dictionary.pop("dip_dir")
-    seed = parameter_dictionary.pop("srfgen_seed")
+    seed = parameter_dictionary.pop("seed")
     tect_type = parameter_dictionary.pop("tect_type")
     fault_type = parameter_dictionary.pop("fault_type")
     plane_count = parameter_dictionary.pop("plane_count")
