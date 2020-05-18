@@ -28,6 +28,9 @@ def get_area(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         farea = mw_to_a_leonard(fault.magnitude, fault.rake)
 
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        farea = mw_to_a_skarlatoudis(fault.magnitude)
+
     else:
         raise ValueError(
             "Invalid mw_scaling_rel: {}. Exiting.".format(
@@ -52,6 +55,9 @@ def get_width(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         fwidth = mw_to_w_leonard(fault.magnitude, fault.rake)
 
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        fwidth = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
+
     else:
         raise ValueError(
             "Invalid mw_scaling_rel: {}. Exiting.".format(
@@ -73,6 +79,9 @@ def get_length(fault: "Fault"):
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         flength = mw_to_l_leonard(fault.magnitude, fault.rake)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        flength = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
 
     else:
         raise ValueError(
@@ -102,6 +111,9 @@ def mw_2_lw_scaling_relation(
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
         l, w = mw_to_lw_leonard(mw, rake)
+
+    elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        l = w = np.sqrt(mw_to_a_skarlatoudis(mw))
 
     else:
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
@@ -198,6 +210,7 @@ def lw_2_mw_scaling_relation(
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
         mw = wl_to_mw_leonard(l, w, rake)
+
     elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
         mw = a_to_mw_skarlatoudis(l * w)
 
@@ -276,6 +289,10 @@ def a_to_mw_hanksbakun(a):
 
 def a_to_mw_skarlatoudis(a):
     return np.log10(a) - (np.log10(1.77 * np.power(10.0, -10)) + 6.03)
+
+
+def mw_to_a_skarlatoudis(mw):
+    return 1.77*10**-10*(10 ** ((3*(mw + 6.03)) / 2)) ** (2 / 3)
 
 
 def mag2mom(mw):

@@ -37,6 +37,9 @@ def process_realisation_file(
     stoch_file = simulation_structure.get_stoch_path(
         cybershake_root, realisation["name"]
     )
+    # info_filename = realisation_file.replace(".csv", ".info")
+    # if path.isfile(info_filename):
+        # return
 
     if realisation["type"] == 1:
         realisation_logger.debug(
@@ -166,7 +169,7 @@ def main():
     primary_logger.debug(
         f"Checking for realisation files that match the following path format: {realisations_path}"
     )
-    realisation_files = glob.glob(realisations_path)
+    realisation_files = sorted(glob.glob(realisations_path))
     primary_logger.debug(f"Got the following realisation files: {realisation_files}")
 
     worker_pool = Pool(args.n_processes)

@@ -344,7 +344,7 @@ class Type2(FiniteFault):
         self._dbottom = (
             self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
         )
-        if self._dbottom > NHM_SEISMOGENIC_DEPTH:
+        if self.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014 and self._dbottom > NHM_SEISMOGENIC_DEPTH:
             self._dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
 
         self.ny = int(round(self.width / self.dwid))
@@ -471,7 +471,7 @@ class Type2(FiniteFault):
 
 class Type3(FiniteFault):
     def __init__(
-        self, name, magnitude, lon1, lat1, lon2, lat2, dip, rake, dtop, dbottom, dip_dir
+        self, name, magnitude, lon1, lat1, lon2, lat2, dip, rake, dtop, dbottom, dip_dir, tectonic_type
     ):
         self._trace = ((lon1, lat1), (lon2, lat2))
         self._dtop = dtop
@@ -481,12 +481,15 @@ class Type3(FiniteFault):
         self._length = round_subfault_size(
             geo.ll_dist(lon1, lat1, lon2, lat2), magnitude
         )
-        if dbottom >= NHM_SEISMOGENIC_DEPTH:
-            raw_fwid = (dbottom - dtop + LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE) / np.sin(
-                np.radians(dip)
-            )
+
+        if tectonic_type == "SUBDUCTION_INTERFACE":
+            self.mwsr = MagnitudeScalingRelations.SKARLATOUDIS2016
+
         else:
-            raw_fwid = (dbottom - dtop) / np.sin(np.radians(dip))
+            self.mwsr = MagnitudeScalingRelations.LEONARD2014
+            self._dbottom += 3
+
+        raw_fwid = (self._dbottom - dtop) / np.sin(np.radians(dip))
         self._width = round_subfault_size(raw_fwid, magnitude)
 
         strike = geo.ll_bearing(lon1, lat1, lon2, lat2)
@@ -540,6 +543,7 @@ class Type4(MultiPlaneFault):
 
         else:
             self.mwsr = MagnitudeScalingRelations.LEONARD2014
+            self._dbottom += 3
 
         dummy_plane = Type3(
             nhm_data.name,
@@ -551,6 +555,7 @@ class Type4(MultiPlaneFault):
             nhm_data.dtop,
             nhm_data.dbottom,
             nhm_data.dip_dir,
+            nhm_data.tectonic_type,
         )
 
         length = sum(
@@ -580,6 +585,7 @@ class Type4(MultiPlaneFault):
                     nhm_data.dtop,
                     nhm_data.dbottom,
                     nhm_data.dip_dir,
+                    nhm_data.tectonic_type,
                 )
             )
 
@@ -632,7 +638,7 @@ class Type4(MultiPlaneFault):
             "dip": self._dip,
             "dtop": self._dtop,
             "dbottom": self._dbottom,
-            "length": self._length,
+            "length": self.length,
             "plane_count": self._n_planes,
             "slip_rate": self._slip_rate,
             "dip_dir": self._dip_dir,

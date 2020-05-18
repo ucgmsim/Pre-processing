@@ -313,6 +313,7 @@ def create_ps_ff_srf(
     seed = parameter_dictionary.pop("srfgen_seed")
     slip_cov = parameter_dictionary.pop("slip_cov", None)
     rough = parameter_dictionary.pop("rough", None)
+    tect_type = parameter_dictionary.pop("tect_type", None)
 
     mwsr = MagnitudeScalingRelations(parameter_dictionary.pop("mwsr"))
 
@@ -373,6 +374,7 @@ def create_ps_ff_srf(
         slip_cov=slip_cov,
         rough=rough,
         logger=logger,
+        tect_type=tect_type,
     )
 
     if stoch_file is None:
@@ -403,10 +405,11 @@ def create_multi_plane_srf(
     realisation_file: str,
     parameter_dictionary: Dict[str, Any],
     stoch_file: Union[None, str] = None,
-    logger: Logger = qclogging.get_basic_logger,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     name = parameter_dictionary.get("name")
-    logger.info(f"Generating srf for realisation {name}")
+    rel_logger = qclogging.get_realisation_logger(logger, name)
+    rel_logger.info(f"Generating srf for realisation {name}")
 
     # pops
     magnitude = parameter_dictionary.pop("magnitude")
@@ -468,14 +471,14 @@ def create_multi_plane_srf(
         )
 
     gsf_file = NamedTemporaryFile(mode="w", delete=False)
-    logger.debug(f"Gsf will be saved to the temporary file {gsf_file.name}")
+    rel_logger.debug(f"Gsf will be saved to the temporary file {gsf_file.name}")
     srf_file = realisation_file.replace(".csv", ".srf")
-    logger.debug(f"Srf will be saved to {srf_file}")
+    rel_logger.debug(f"Srf will be saved to {srf_file}")
     corners_file = realisation_file.replace(".csv", ".corners")
-    logger.debug(f"The corners file will be saved to {corners_file}")
+    rel_logger.debug(f"The corners file will be saved to {corners_file}")
 
     with NamedTemporaryFile(mode="w", delete=False) as gsfp:
-        logger.debug("Saving segments file to {}".format(gsfp.name))
+        rel_logger.debug("Saving segments file to {}".format(gsfp.name))
         gsfp.write("{}\n".format(plane_count))
         for f in range(plane_count):
             gsfp.write(
@@ -503,15 +506,15 @@ def create_multi_plane_srf(
     if dip_dir is not None:
         cmd.append("dipdir={}".format(dip_dir))
 
-    logger.info("Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd)))
+    rel_logger.info("Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd)))
     gexec = run(cmd)
-    logger.debug(f"{fault_seg_bin} finished running with stderr: {gexec.stderr}")
+    rel_logger.debug(f"{fault_seg_bin} finished running with stderr: {gexec.stderr}")
 
-    remove(gsfp.name)
-    logger.debug("Removed segments file")
+    # remove(gsfp.name)
+    # rel_logger.debug("Removed segments file")
 
     if int(plane_count > 1):
-        logger.debug("Multiple segments detected. Generating xseg argument")
+        rel_logger.debug("Multiple segments detected. Generating xseg argument")
         flen_array = np.asarray(flen)
         xseg = ",".join(map(str, flen_array.cumsum() - flen_array / 2))
     else:
@@ -533,16 +536,17 @@ def create_multi_plane_srf(
         rvfac=rvfac,
         rough=rough,
         xseg=xseg,
-        logger=logger,
+        logger=rel_logger,
+        tect_type=tect_type,
     )
 
-    logger.info("srf generated, creating stoch")
+    rel_logger.info("srf generated, creating stoch")
 
     if stoch_file is None:
         stoch_file = realisation_file.replace(".csv", ".stoch")
     create_stoch(stoch_file, srf_file, single_segment=(plane_count == 1), logger=logger)
 
-    logger.info("stoch created, making info")
+    rel_logger.info("stoch created, making info")
 
     # save INFO
     create_info_file(
@@ -556,10 +560,10 @@ def create_multi_plane_srf(
         shypo=[shypo + 0.5 * flen[0]],
         dhypo=dhypo,
         vm=vel_mod_1d,
-        logger=logger,
+        logger=rel_logger,
     )
 
-    logger.info("info made, returning")
+    rel_logger.info("info made, returning")
 
     # path to resulting SRF
     return srf_file

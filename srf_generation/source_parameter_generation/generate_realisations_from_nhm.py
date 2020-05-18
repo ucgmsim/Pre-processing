@@ -144,6 +144,10 @@ def generate_fault_realisations(
         realisation_file_name = get_srf_path(cybershake_root, realisation_name).replace(
             ".srf", ".csv"
         )
+
+        # if isfile(realisation_file_name):
+        #     continue
+
         vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
         vs30_out_file = join(vel_mod_1d_dir, f"{realisation_name}.vs30")
 
