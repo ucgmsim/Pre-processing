@@ -57,7 +57,7 @@ def generate_source_params(
 
     params = fault.to_dict()
 
-    params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "3.3"})
+    params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "5.4.2"})
 
     params.update(additional_source_parameters)
     realisation["params"] = params

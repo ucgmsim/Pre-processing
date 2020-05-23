@@ -109,7 +109,7 @@ def process_common_realisation_file(
             centroid_depth=realisation.get("depth"),
             lon=None,
             lat=None,
-            tect_type=None,
+            tect_type=realisation.get("tect_type", None),
             dip_dir=None,
             mwsr=realisation.get("mwsr"),
             shypo=realisation.get("shypo") + 0.5 * realisation.get("flen"),

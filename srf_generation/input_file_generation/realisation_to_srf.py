@@ -356,7 +356,6 @@ def create_ps_ff_srf(
             ny,
             logger=logger,
         )
-
     gen_srf(
         srf_file,
         gsfp.name,
@@ -630,6 +629,8 @@ def gen_srf(
         Deprecated in genslip 5.4.2, ignored if present
     """
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
+    if compare_versions(genslip_version, "5.4.2") < 0 and tect_type == "SUBDUCTION_INTERFACE":
+        raise AssertionError("Cannot generate subduction srfs with genslip version less than 5.4.2")
     if compare_versions(genslip_version, "5") > 0:
         # Positive so version greater than 5
         logger.debug(
@@ -732,7 +733,7 @@ def gen_gsf(
         stdout=gsfp,
     )
     gexec.communicate(
-        f"1\n{lon:f} {lat:f} {dtop:f} {strike} {dip} {rake} {flen:f} {fwid:f} {nx:s} {ny:s}".encode(
+        f"1\n{lon:f} {lat:f} {dtop:f} {strike} {dip} {rake} {flen:f} {fwid:f} {nx:d} {ny:d}".encode(
             "utf-8"
         )
     )

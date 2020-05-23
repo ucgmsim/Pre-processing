@@ -21,7 +21,7 @@ GCMT_PARAM_NAMES = [
 ]
 GCMT_Source = namedtuple("GCMT_Source", GCMT_PARAM_NAMES)
 
-GENERAL_PARAMS = ["name", "type", "genslip_version", "srfgen_seed", "alpha_rough"]
+GENERAL_PARAMS = ["name", "type", "genslip_version", "srfgen_seed", "alpha_rough", "vs30"]
 
 SRFGEN_TYPE_1_PARAMS = [
     "latitude",
