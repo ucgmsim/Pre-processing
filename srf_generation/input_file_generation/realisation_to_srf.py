@@ -771,7 +771,8 @@ def generate_sim_params_yaml(
             if "emod3d" not in sim_params.keys():
                 sim_params["emod3d"] = {}
             sim_params["emod3d"][key] = value
-
+        elif key == "vs30_file_path":
+            sim_params["stat_vs_est"] = value
         else:
             sim_params[key] = value
 
