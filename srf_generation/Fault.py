@@ -344,7 +344,10 @@ class Type2(FiniteFault):
         self._dbottom = (
             self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
         )
-        if self.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014 and self._dbottom > NHM_SEISMOGENIC_DEPTH:
+        if (
+            self.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014
+            and self._dbottom > NHM_SEISMOGENIC_DEPTH
+        ):
             self._dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
 
         self.ny = int(round(self.width / self.dwid))
@@ -471,7 +474,19 @@ class Type2(FiniteFault):
 
 class Type3(FiniteFault):
     def __init__(
-        self, name, magnitude, lon1, lat1, lon2, lat2, dip, rake, dtop, dbottom, dip_dir, tectonic_type
+        self,
+        name,
+        magnitude,
+        lon1,
+        lat1,
+        lon2,
+        lat2,
+        dip,
+        rake,
+        dtop,
+        dbottom,
+        dip_dir,
+        tectonic_type,
     ):
         self._trace = ((lon1, lat1), (lon2, lat2))
         self._dtop = dtop

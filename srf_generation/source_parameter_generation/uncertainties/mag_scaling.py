@@ -292,7 +292,7 @@ def a_to_mw_skarlatoudis(a):
 
 
 def mw_to_a_skarlatoudis(mw):
-    return 1.77*10**-10*(10 ** ((3*(mw + 6.03)) / 2)) ** (2 / 3)
+    return 1.77 * 10 ** -10 * (10 ** ((3 * (mw + 6.03)) / 2)) ** (2 / 3)
 
 
 def mag2mom(mw):

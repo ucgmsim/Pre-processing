@@ -50,7 +50,10 @@ def generate_source_params(
         source_data.dip,
         source_data.depth,
     )
-    if "tect_type" in additional_source_parameters.keys() and additional_source_parameters["tect_type"] == "SUBDUCTION_INTERFACE":
+    if (
+        "tect_type" in additional_source_parameters.keys()
+        and additional_source_parameters["tect_type"] == "SUBDUCTION_INTERFACE"
+    ):
         fault.magnitude_scaling_relation = MagnitudeScalingRelations.SKARLATOUDIS2016
     else:
         fault.magnitude_scaling_relation = MagnitudeScalingRelations.LEONARD2014

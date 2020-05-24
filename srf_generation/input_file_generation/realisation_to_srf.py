@@ -505,7 +505,9 @@ def create_multi_plane_srf(
     if dip_dir is not None:
         cmd.append("dipdir={}".format(dip_dir))
 
-    rel_logger.info("Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd)))
+    rel_logger.info(
+        "Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd))
+    )
     gexec = run(cmd)
     rel_logger.debug(f"{fault_seg_bin} finished running with stderr: {gexec.stderr}")
 
@@ -629,8 +631,13 @@ def gen_srf(
         Deprecated in genslip 5.4.2, ignored if present
     """
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
-    if compare_versions(genslip_version, "5.4.2") < 0 and tect_type == "SUBDUCTION_INTERFACE":
-        raise AssertionError("Cannot generate subduction srfs with genslip version less than 5.4.2")
+    if (
+        compare_versions(genslip_version, "5.4.2") < 0
+        and tect_type == "SUBDUCTION_INTERFACE"
+    ):
+        raise AssertionError(
+            "Cannot generate subduction srfs with genslip version less than 5.4.2"
+        )
     if compare_versions(genslip_version, "5") > 0:
         # Positive so version greater than 5
         logger.debug(

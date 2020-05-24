@@ -39,7 +39,7 @@ def process_realisation_file(
     )
     # info_filename = realisation_file.replace(".csv", ".info")
     # if path.isfile(info_filename):
-        # return
+    #     return
 
     if realisation["type"] == 1:
         realisation_logger.debug(
