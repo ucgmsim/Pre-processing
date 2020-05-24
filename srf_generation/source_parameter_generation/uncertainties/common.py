@@ -21,7 +21,14 @@ GCMT_PARAM_NAMES = [
 ]
 GCMT_Source = namedtuple("GCMT_Source", GCMT_PARAM_NAMES)
 
-GENERAL_PARAMS = ["name", "type", "genslip_version", "srfgen_seed"]
+GENERAL_PARAMS = [
+    "name",
+    "type",
+    "genslip_version",
+    "srfgen_seed",
+    "alpha_rough",
+    "vs30",
+]
 
 SRFGEN_TYPE_1_PARAMS = [
     "latitude",
@@ -62,6 +69,7 @@ SRFGEN_TYPE_2_PARAMS = [
     "dhypo",
     "rvfac",
     "mwsr",
+    "tect_type",
 ]
 
 SRFGEN_TYPE_3_PARAMS = [
@@ -77,6 +85,7 @@ SRFGEN_TYPE_3_PARAMS = [
     "width",
     "strike",
     "dip_dir",
+    "tect_type",
 ]
 
 SRFGEN_TYPE_4_PARAMS = [

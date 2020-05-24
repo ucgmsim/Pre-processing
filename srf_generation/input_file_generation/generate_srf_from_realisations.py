@@ -21,7 +21,7 @@ from srf_generation.source_parameter_generation.common import (
 
 
 def process_realisation_file(
-    cybershake_root: str, realisation_file: str, logger_name: str
+    cybershake_root: str, realisation_file: str, checkpointing: bool, logger_name: str
 ):
 
     primary_logger = qclogging.get_logger(logger_name)
@@ -33,6 +33,13 @@ def process_realisation_file(
     realisation_logger = qclogging.get_realisation_logger(
         primary_logger, realisation["name"]
     )
+
+    if checkpointing and path.isfile(realisation_file.replace(".csv", ".info")):
+        realisation_logger.debug(
+            f"Info file for realisation {realisation['name']} already exists, continuing"
+        )
+        return
+
     realisation_logger.debug(f"Got realisation file info: {realisation}")
     stoch_file = simulation_structure.get_stoch_path(
         cybershake_root, realisation["name"]
@@ -71,7 +78,7 @@ def process_realisation_file(
 
 
 def process_common_realisation_file(
-    cybershake_root, realisation_file, logger_name: str
+    cybershake_root, realisation_file, checkpointing: bool, logger_name: str
 ):
     logger = qclogging.get_logger(logger_name)
     rel_df: pd.DataFrame = pd.read_csv(realisation_file, dtype={"name": str})
@@ -81,6 +88,11 @@ def process_common_realisation_file(
         simulation_structure.get_realisation_name(realisation["name"], 1),
     )
     info_filename = realisation_file.replace(".csv", ".info")
+    if checkpointing and path.isfile(info_filename):
+        logger.debug(
+            f"Common info file for realisation {realisation['name']} already exists, continuing"
+        )
+        return
     if realisation["type"] == 1:
         create_info_file(
             srf_file=srf_file,
@@ -106,7 +118,7 @@ def process_common_realisation_file(
             centroid_depth=realisation.get("depth"),
             lon=None,
             lat=None,
-            tect_type=None,
+            tect_type=realisation.get("tect_type", None),
             dip_dir=None,
             mwsr=realisation.get("mwsr"),
             shypo=realisation.get("shypo") + 0.5 * realisation.get("flen"),
@@ -150,6 +162,12 @@ def load_args():
         "--cybershake_root", type=path.abspath, default=path.abspath(".")
     )
     parser.add_argument("-n", "--n_processes", default=1, type=int)
+    parser.add_argument(
+        "-c",
+        "--checkpointing",
+        action="store_true",
+        help="Activate checkpointing for srf/stoch/info generation. Any realisations with an info file already exists will not be regenerated. Default is to regenerate.",
+    )
     return parser.parse_args()
 
 
@@ -166,7 +184,7 @@ def main():
     primary_logger.debug(
         f"Checking for realisation files that match the following path format: {realisations_path}"
     )
-    realisation_files = glob.glob(realisations_path)
+    realisation_files = sorted(glob.glob(realisations_path))
     primary_logger.debug(f"Got the following realisation files: {realisation_files}")
 
     worker_pool = Pool(args.n_processes)
@@ -174,7 +192,7 @@ def main():
     worker_pool.starmap(
         process_realisation_file,
         [
-            (args.cybershake_root, filename, primary_logger.name)
+            (args.cybershake_root, filename, args.checkpointing, primary_logger.name)
             for filename in realisation_files
         ],
     )
@@ -187,7 +205,7 @@ def main():
     worker_pool.starmap(
         process_common_realisation_file,
         [
-            (args.cybershake_root, filename, primary_logger.name)
+            (args.cybershake_root, filename, args.checkpointing, primary_logger.name)
             for filename in realisation_files
         ],
     )

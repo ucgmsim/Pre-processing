@@ -38,7 +38,10 @@ def truncated_weibull(truncation_threshold, k=3.353, scale_factor=0.612):
 def truncated_log_normal(mean, std_dev, std_dev_limit=2) -> float:
     return np.exp(
         truncnorm(
-            -std_dev_limit, std_dev_limit, loc=np.log(float(mean)), scale=std_dev
+            -std_dev_limit,
+            std_dev_limit,
+            loc=np.log(np.asarray(mean).astype(np.float)),
+            scale=std_dev,
         ).rvs()
     )
 
