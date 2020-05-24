@@ -109,6 +109,7 @@ def generate_fault_realisations(
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
+    checkpointing: bool,
     primary_logger_name: str,
     additional_source_parameters: Dict[str, Any],
 ):
@@ -145,8 +146,11 @@ def generate_fault_realisations(
             ".srf", ".csv"
         )
 
-        # if isfile(realisation_file_name):
-        #     continue
+        if checkpointing and isfile(realisation_file_name):
+            fault_logger.debug(
+                f"Realisation file for {realisation_name} already exists, continuing"
+            )
+            continue
 
         vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
         vs30_out_file = join(vel_mod_1d_dir, f"{realisation_name}.vs30")
@@ -191,6 +195,7 @@ def generate_messages(
     perturbation_function,
     unperturbation_function,
     vel_mod_1d,
+    checkpointing,
     vs30_data: pd.DataFrame,
     primary_logger,
 ):
@@ -215,6 +220,7 @@ def generate_messages(
                 aggregate_file,
                 vel_mod_1d,
                 vs30_data,
+                checkpointing,
                 primary_logger.name,
                 additional_source_specific_data,
             )
@@ -273,6 +279,7 @@ def main():
         perturbation_function,
         unperturbation_function,
         velocity_model_1d,
+        args.checkpointing,
         vs30,
         primary_logger,
     )

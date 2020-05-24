@@ -76,6 +76,12 @@ def add_common_arguments(parser, single_event=True):
             default=abspath("."),
             help="The path to the root of the simulation root directory. Defaults to the current directory.",
         )
+        parser.add_argument(
+            "-c",
+            "--checkpointing",
+            action="store_true",
+            help="Activate checkpointing for realisation file generation. Any realisation files that already exist will not be regenerated. Default is to regenerate.",
+        )
 
 
 def load_vs30_median_sigma(vs30_median, vs30_sigma):
