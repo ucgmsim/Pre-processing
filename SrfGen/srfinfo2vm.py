@@ -620,6 +620,7 @@ def gen_vm(
         logger.debug("Saving VeloModCorners.txt")
         with open("{}/VeloModCorners.txt".format(vm_params_dict["vm_dir"]), "wb") as c:
             c.write("> VM corners (python generated)\n".encode())
+            c.write(">Lon    Lat\n".encode())
             c.write(vm_params_dict["path_mod"].encode())
         return
 
