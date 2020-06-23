@@ -40,44 +40,44 @@ def uniform_dist(u_mean, u_half_range):
     return u_sample
 
 
-def generate_from_gcmt(sources_line: GCMT_Source):
+def generate_from_gcmt(source_data: GCMT_Source):
 
     # area = mw_2_a_scaling_relation(
-    #    sources_line.mag,
+    #    source_data.mag,
     #    MagnitudeScalingRelations.LEONARD2014.value,
-    #    sources_line.strike,
+    #    source_data.strike,
     # )
 
     ### the following parameters feed into srfgen
 
-    mag = distributions.truncated_normal(sources_line.mag, 0.075, 2)  # magnitude
+    mag = distributions.truncated_normal(source_data.mag, 0.075, 2)  # magnitude
     # rvfrac = uniform_dist(0.8, 0.075)                   #rupture velocity factor
     lat_temp, lon_temp = geo.ll_shift(
-        sources_line.lat,
-        sources_line.lon,
+        source_data.lat,
+        source_data.lon,
         distributions.truncated_normal(0.0, 1.0, 2),
         0,
     )
     lat, lon = geo.ll_shift(
         lat_temp, lon_temp, distributions.truncated_normal(0.0, 1.0, 2), 90
     )
-    depth = distributions.truncated_normal(sources_line.depth, 2.0, 2)
-    strike = distributions.truncated_normal(sources_line.strike, 10, 2)
-    dip = distributions.truncated_normal(sources_line.dip, 10, 2)
-    rake = distributions.truncated_normal(sources_line.rake, 15, 4)
+    depth = distributions.truncated_normal(source_data.depth, 2.0, 2)
+    strike = distributions.truncated_normal(source_data.strike, 10, 2)
+    dip = distributions.truncated_normal(source_data.dip, 10, 2)
+    rake = distributions.truncated_normal(source_data.rake, 15, 4)
 
     # calculate normalised perturbations:
-    z_mw_pert = (mag - sources_line.mag) / 0.075
+    z_mw_pert = (mag - source_data.mag) / 0.075
     z_lat_pert = (
-        geo.ll_dist(sources_line.lon, sources_line.lat, sources_line.lon, lat) / 1.0
+        geo.ll_dist(source_data.lon, source_data.lat, source_data.lon, lat) / 1.0
     )
     z_long_pert = (
-        geo.ll_dist(sources_line.lon, sources_line.lat, lon, sources_line.lat) / 1.0
+        geo.ll_dist(source_data.lon, source_data.lat, lon, source_data.lat) / 1.0
     )
-    z_depth_pert = (depth - sources_line.depth) / 2.0
-    z_strike_pert = (strike - sources_line.strike) / 10.0
-    z_dip_pert = (dip - sources_line.dip) / 10.0
-    z_rake_pert = (rake - sources_line.rake) / 15.0
+    z_depth_pert = (depth - source_data.depth) / 2.0
+    z_strike_pert = (strike - source_data.strike) / 10.0
+    z_dip_pert = (dip - source_data.dip) / 10.0
+    z_rake_pert = (rake - source_data.rake) / 15.0
 
     # correct strike dip and rake:
     if dip > 90:
@@ -115,7 +115,7 @@ def generate_from_gcmt(sources_line: GCMT_Source):
 
     params = {
         "type": 1,
-        "name": sources_line.pid,
+        "name": source_data.pid,
         "latitude": lat,
         "longitude": lon,
         "depth": depth,

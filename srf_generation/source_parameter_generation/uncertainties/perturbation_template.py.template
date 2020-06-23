@@ -1,13 +1,13 @@
 """The template for future perturbation versions.
 Update this docstring with information about the version"""
-import numpy as np
 import pandas as pd
 from typing import Any, Dict, Union
+
+from qcore.nhm import NHMFault
 
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
-    NHM_Source,
 )
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mw_2_lw_scaling_relation,
@@ -22,7 +22,7 @@ def verify_1d_vel_mod(vel_mod_1d: pd.DataFrame):
 
 
 def generate_source_params(
-    source_data: Union[GCMT_Source, NHM_Source],
+    source_data: Union[GCMT_Source, NHMFault],
     additional_source_parameters: Dict[str, Any],
     vel_mod_1d: pd.DataFrame = None,
     **kwargs,
@@ -43,7 +43,7 @@ def generate_source_params(
 
     if isinstance(source_data, GCMT_Source):
         realisation["params"] = generate_from_gcmt(source_data, additional_source_parameters)
-    elif isinstance(source_data, NHM_Source):
+    elif isinstance(source_data, NHMFault):
         realisation["params"] = generate_from_nhm(source_data, additional_source_parameters)
     else:
         raise ValueError("Not a valid type")
@@ -80,5 +80,5 @@ def generate_from_gcmt(
     return params
 
 
-def generate_from_nhm(source: NHM_Source, additional_source_parameters: Dict[str, Any]):
+def generate_from_nhm(source: NHMFault, additional_source_parameters: Dict[str, Any]):
     return None

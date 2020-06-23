@@ -4,11 +4,15 @@ from typing import Union
 import numpy as np
 
 
+MAGNITUDE_ROUNDING_THRESHOLD = 7.5
+
+
 class MagnitudeScalingRelations(Enum):
     HANKSBAKUN2002 = "HANKSBAKUN2002"
     BERRYMANETAL2002 = "BERRYMANETAL2002"
     VILLAMORETAL2001 = "VILLAMORETAL2001"
     LEONARD2014 = "LEONARD2014"
+    SKARLATOUDIS2016 = "SKARLATOUDIS2016"
 
 
 def get_area(fault: "Fault"):
@@ -23,6 +27,9 @@ def get_area(fault: "Fault"):
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         farea = mw_to_a_leonard(fault.magnitude, fault.rake)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        farea = mw_to_a_skarlatoudis(fault.magnitude)
 
     else:
         raise ValueError(
@@ -48,6 +55,9 @@ def get_width(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         fwidth = mw_to_w_leonard(fault.magnitude, fault.rake)
 
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        fwidth = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
+
     else:
         raise ValueError(
             "Invalid mw_scaling_rel: {}. Exiting.".format(
@@ -69,6 +79,9 @@ def get_length(fault: "Fault"):
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         flength = mw_to_l_leonard(fault.magnitude, fault.rake)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        flength = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
 
     else:
         raise ValueError(
@@ -98,6 +111,9 @@ def mw_2_lw_scaling_relation(
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
         l, w = mw_to_lw_leonard(mw, rake)
+
+    elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        l = w = np.sqrt(mw_to_a_skarlatoudis(mw))
 
     else:
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
@@ -181,7 +197,7 @@ def lw_2_mw_scaling_relation(
     rake: Union[float, None] = None,
 ):
     """
-    Return the fault Area from the mw and a mw Scaling relation.
+    Return the mw from the fault Area and a mw Scaling relation.
     """
     if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
         mw = a_to_mw_hanksbakun(l * w)
@@ -195,11 +211,52 @@ def lw_2_mw_scaling_relation(
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
         mw = wl_to_mw_leonard(l, w, rake)
 
+    elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        mw = a_to_mw_skarlatoudis(l * w)
+
     else:
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
 
     # magnitude
     return float(mw)
+
+
+def lw_2_mw_sigma_scaling_relation(
+    l: float,
+    w: float,
+    mw_scaling_rel: MagnitudeScalingRelations,
+    rake: Union[float, None] = None,
+):
+    """
+    Return the mw and corresponding sigma from fault Area for a mw Scaling relation.
+    """
+    sigma = None
+    # magnitude
+    mw = lw_2_mw_scaling_relation(l, w, mw_scaling_rel, rake,)
+    if mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
+        sigma = mw_sigma_leonard(rake)
+    elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        sigma = mw_sigma_skarlatoudis()
+
+    return mw, sigma
+
+
+def mw_sigma_skarlatoudis():
+    return np.log10(1.498)  # 1.498 is the sigma value from Table 3 in Skarlatoudis 2016
+
+
+def mw_sigma_leonard(rake):
+    """
+    sigma values are determined from the Leonard 2014 paper, based on Table 3 - S(a) passing it through the equation
+
+    rake: to determine if DS or SS
+    returns sigma value for mean Mw
+    """
+    if round(rake % 360 / 90.0) % 2:
+        sigma = 0.3
+    else:
+        sigma = 0.26
+    return sigma
 
 
 def a_to_mw_leonard(a, leonard_ds, leonard_ss, rake):
@@ -230,6 +287,14 @@ def a_to_mw_hanksbakun(a):
     return np.log10(a) + 3.98
 
 
+def a_to_mw_skarlatoudis(a):
+    return np.log10(a) - (np.log10(1.77 * np.power(10.0, -10)) + 6.03)
+
+
+def mw_to_a_skarlatoudis(mw):
+    return 1.77 * 10 ** -10 * (10 ** ((3 * (mw + 6.03)) / 2)) ** (2 / 3)
+
+
 def mag2mom(mw):
     """Converts magnitude to moment"""
     return np.exp(3.0 / 2.0 * (mw + 10.7) * np.log(10.0))
@@ -238,3 +303,10 @@ def mag2mom(mw):
 def mom2mag(mom):
     """Converts moment to magnitude"""
     return (2.0 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
+
+
+def round_subfault_size(dist, mag):
+    if mag > MAGNITUDE_ROUNDING_THRESHOLD:
+        return round(dist * 2) / 2
+    else:
+        return round(dist * 10) / 10

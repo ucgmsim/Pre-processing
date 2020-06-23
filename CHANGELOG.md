@@ -1,7 +1,15 @@
 Pre processing
 # Changelog
 (Based on https://wiki.canterbury.ac.nz/download/attachments/58458136/CodeVersioning_v18p2.pdf?version=1&modificationDate=1519269238437&api=v2 )
-
+## [20.3.1]
+### Changed
+- VMs are generated with respect to rrup rather than assuming rrup==rjb
+- VM generation can specify a minimum size VM to generate.
+- VMs which have a SRF Ztor larger than the rrup will not be generated
+- VM generation defaultly writes to VMs rather than autovm
+- If the VM folder already contains files - do not overwrite them
+### Added
+- VM generation - Added a flag for multithreading - this passes the number of threads to the NZVM binary 
 
 ## [19.5.6] - 2019-11-26 -- Added type 2 and single realisation to new source generation workflow
 ### Added

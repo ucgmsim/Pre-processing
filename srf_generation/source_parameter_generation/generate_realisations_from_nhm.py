@@ -10,6 +10,7 @@ from typing import Callable, Union, Dict, Any
 import pandas as pd
 
 from qcore.formats import load_fault_selection_file
+from qcore.nhm import NHMFault, load_nhm
 from qcore.simulation_structure import (
     get_realisation_name,
     get_srf_path,
@@ -22,21 +23,17 @@ from qcore.qclogging import (
     NOPRINTCRITICAL,
     get_realisation_logger,
 )
-from srf_generation.source_parameter_generation.gcmt_to_realisation import (
-    GCMT_DTYPE,
-    load_1d_velocity_mod,
-    GCMT_FILE_COLUMNS,
+from srf_generation.source_parameter_generation.nhm_to_realisation import (
     generate_realisation,
     get_additional_source_parameters,
-    load_vs30_median_sigma,
-    add_common_arguments,
     verify_args,
 )
-
-from srf_generation.source_parameter_generation.uncertainties.common import (
-    GCMT_PARAM_NAMES,
-    GCMT_Source,
+from srf_generation.source_parameter_generation.common import (
+    add_common_arguments,
+    load_vs30_median_sigma,
+    load_1d_velocity_mod,
 )
+
 from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
@@ -44,7 +41,7 @@ from srf_generation.source_parameter_generation.uncertainties.versions import (
 
 def load_args(primary_logger: Logger):
     parser = argparse.ArgumentParser(
-        "Generates realisation files from gcmt and other input data. "
+        "Generates realisation files from nhm and other input data. "
         "Intended to be used with the standard qcore simultaion structure."
     )
 
@@ -53,13 +50,13 @@ def load_args(primary_logger: Logger):
         type=abspath,
         help="The path to a white space delimited two column file containing a list of events, "
         "followed by the number of realisations for that event. "
-        "If any events are missing from the gcmt file the program will stop. "
+        "If any events are missing from the nhm file the program will stop. "
         "If any events have only one realisation they will not have the _RELXX suffix attached.",
     )
     parser.add_argument(
-        "gcmt_file",
+        "nhm_file",
         type=abspath,
-        help="The path to a geonet cmt solutions file. "
+        help="The path to a national seismic hazard model file. "
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
@@ -104,7 +101,7 @@ def load_args(primary_logger: Logger):
 
 
 def generate_fault_realisations(
-    data: GCMT_Source,
+    data: NHMFault,
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
@@ -117,9 +114,9 @@ def generate_fault_realisations(
     additional_source_parameters: Dict[str, Any],
 ):
     primary_logger = get_logger(name=primary_logger_name)
-    fault_logger = get_realisation_logger(primary_logger, data.pid)
-    fault_logger.debug(f"Fault {data.pid} had data {data}")
-    fault_name = data.pid
+    fault_logger = get_realisation_logger(primary_logger, data.name)
+    fault_logger.debug(f"Fault {data.name} had data {data}")
+    fault_name = data.name
     fault_logger.info(f"Generating realisations for event {fault_name}")
 
     if realisation_count == 1:
@@ -194,7 +191,7 @@ def generate_messages(
     aggregate_file,
     cybershake_root,
     faults,
-    gcmt_lines,
+    nhm_faults,
     perturbation_function,
     unperturbation_function,
     vel_mod_1d,
@@ -203,10 +200,9 @@ def generate_messages(
     primary_logger,
 ):
     messages = []
-    for i in range(len(faults)):
-        gcmt_data = gcmt_lines[i]
+    for fault_name, realisation_count in faults.items():
+        fault_data = nhm_faults[fault_name]
 
-        fault_name = gcmt_data[0]
         additional_source_specific_data = {}
 
         if fault_name in additional_source_parameters.index:
@@ -216,7 +212,7 @@ def generate_messages(
 
         messages.append(
             (
-                GCMT_Source(*gcmt_data),
+                fault_data,
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
@@ -234,42 +230,34 @@ def generate_messages(
 
 def main():
 
-    primary_logger = get_logger("realisations_from_gcmt")
+    primary_logger = get_logger("realisations_from_nhm")
 
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"gcmt_{args.type}")
+    unperturbation_function = load_perturbation_function(f"nhm_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
 
-    gcmt_data = pd.read_csv(
-        args.gcmt_file, usecols=GCMT_FILE_COLUMNS, dtype=GCMT_DTYPE
-    )[["PublicID", "Latitude", "Longitude", "CD", "Mw", "strike1", "dip1", "rake1"]]
-    gcmt_data.columns = GCMT_PARAM_NAMES
+    nhm_data = load_nhm(args.nhm_file)
 
     primary_logger.debug(
-        f"{len(faults.keys())} faults were selected and gcmt data for {len(gcmt_data)} faults were loaded. "
+        f"{len(faults)} faults were selected and nhm data for {len(nhm_data)} faults were loaded. "
         f"Running cross comparison now."
     )
 
-    gcmt_lines = list(
-        gcmt_data[gcmt_data["pid"].isin(faults.keys())].itertuples(
-            name=None, index=False
-        )
-    )
+    nhm_faults = {key: nhm_data.get(key) for key in faults.keys()}
 
-    pids = [gcmt[0] for gcmt in gcmt_lines]
-    missing_faults = [fault for fault in faults.keys() if fault not in pids]
+    missing_faults = [key for key in nhm_faults.keys() if nhm_faults[key] is None]
 
     if missing_faults:
-        message = f"Some fault(s) in the fault selection were not found in the gcmt file: {missing_faults}"
+        message = f"Some fault(s) in the fault selection were not found in the nhm file: {missing_faults}"
         primary_logger.log(NOPRINTCRITICAL, message)
         raise ValueError(message)
 
     primary_logger.debug(
-        f"All {len(gcmt_lines)} faults specified in the fault selection file were found"
+        f"All {len(nhm_faults.keys())} faults specified in the fault selection file were found"
     )
 
     velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
@@ -278,7 +266,7 @@ def main():
     additional_source_parameters = get_additional_source_parameters(
         args.source_parameter,
         args.common_source_parameter,
-        gcmt_data,
+        nhm_faults,
         velocity_model_1d,
     )
 
@@ -287,7 +275,7 @@ def main():
         args.aggregate_file,
         args.cybershake_root,
         faults,
-        gcmt_lines,
+        nhm_faults,
         perturbation_function,
         unperturbation_function,
         velocity_model_1d,
