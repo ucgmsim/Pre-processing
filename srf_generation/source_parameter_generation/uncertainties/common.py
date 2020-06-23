@@ -28,6 +28,7 @@ GENERAL_PARAMS = [
     "srfgen_seed",
     "alpha_rough",
     "vs30",
+    "v_mod_1d_name",
 ]
 
 SRFGEN_TYPE_1_PARAMS = [
