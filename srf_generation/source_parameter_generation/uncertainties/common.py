@@ -28,6 +28,7 @@ GENERAL_PARAMS = [
     "srfgen_seed",
     "alpha_rough",
     "vs30",
+    "v_mod_1d_name",
 ]
 
 SRFGEN_TYPE_1_PARAMS = [
@@ -131,7 +132,7 @@ HF_RUN_PARAMS = [
     "hf_path_dur",
 ]
 
-LF_RUN_PARAMS = []
+LF_RUN_PARAMS = ["qsfrac", "qpfrac", "qpqs_factor"]
 
 BB_RUN_PARAMS = ["flo", "fmin", "fmidbot", "lfvsref"]
 

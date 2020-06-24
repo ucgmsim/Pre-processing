@@ -8,7 +8,6 @@ from typing import Callable, Union, Dict, Any, Tuple, List
 
 import pandas as pd
 from numpy import digitize
-from qcore.formats import load_vs30_file
 
 from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
