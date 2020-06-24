@@ -238,7 +238,7 @@ def generate_realisation(
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
-        perturbated_vs30: pd.DataFrame = perturbed_realisation["vs30"]
+        perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
         perturbated_vs30.to_csv(
             vs30_out_file, columns="vs30", sep=" ", index=True, header=False
         )
