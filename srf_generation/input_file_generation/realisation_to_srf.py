@@ -793,6 +793,7 @@ def load_args():
 
 def main():
     primary_logger = qclogging.get_logger("realisation_to_srf")
+    qclogging.add_general_file_handler(primary_logger, "rel2srf.txt")
     args = load_args()
     realisation = load_realisation_file_as_dict(args.realisation_file)
     rel_logger = qclogging.get_realisation_logger(primary_logger, realisation["name"])

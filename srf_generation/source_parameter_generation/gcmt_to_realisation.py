@@ -7,7 +7,6 @@ from os.path import abspath, isfile, dirname, join
 from typing import Callable, Union, Dict, Any, Tuple, List
 
 import pandas as pd
-from numpy import digitize
 
 from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
@@ -23,6 +22,7 @@ from srf_generation.source_parameter_generation.common import (
     load_vs30_median_sigma,
     load_1d_velocity_mod,
     add_common_arguments,
+    get_depth_property,
 )
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
@@ -299,13 +299,10 @@ def get_additional_source_parameters(
     """
     # For each event get the layer it corresponds to by taking the cumulative sum of the layer depths and finding
     # the layer with bottom depth lower than the event
-    depth_bins = digitize(
-        gcmt_data["depth"].round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
-    )
     additional_source_parameters = pd.DataFrame(
         {
-            "vs": vel_mod_1d_layers["vs"].iloc[depth_bins].values,
-            "rho": vel_mod_1d_layers["rho"].iloc[depth_bins].values,
+            "vs": get_depth_property(gcmt_data["depth"], vel_mod_1d_layers, "vs"),
+            "rho": get_depth_property(gcmt_data["depth"], vel_mod_1d_layers, "rho"),
         },
         gcmt_data["pid"].values,
     )
