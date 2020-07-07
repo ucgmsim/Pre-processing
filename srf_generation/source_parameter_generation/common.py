@@ -129,5 +129,7 @@ DEFAULT_1D_VELOCITY_MODEL_PATH = join(
 
 
 def get_depth_property(target_depths, vel_mod_1d_layers, property_name):
-    binned_depths = digitize(target_depths.round(5), vel_mod_1d_layers["depth"].cumsum().round(5))
+    binned_depths = digitize(
+        target_depths.round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
+    )
     return vel_mod_1d_layers[property_name].iloc[binned_depths].values
