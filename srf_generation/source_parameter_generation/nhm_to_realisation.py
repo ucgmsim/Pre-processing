@@ -333,7 +333,10 @@ def main():
         additional_source_specific_data = {}
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
-    hf_vel_mod_1d_layers = load_1d_velocity_mod(args.HF_vel_mod_1d)
+    if args.HF_vel_mod_1d is not None:
+        hf_vel_mod_1d_layers = load_1d_velocity_mod(args.HF_vel_mod_1d)
+    else:
+        hf_vel_mod_1d_layers = None
 
     if args.realisation_count > 1:
         generate_fault_realisations(

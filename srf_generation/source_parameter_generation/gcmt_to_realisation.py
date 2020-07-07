@@ -383,7 +383,10 @@ def main():
         additional_source_specific_data = {}
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
-    hf_vel_mod_1d_layers = load_1d_velocity_mod(args.hf_vel_mod_1d)
+    if args.HF_vel_mod_1d is not None:
+        hf_vel_mod_1d_layers = load_1d_velocity_mod(args.HF_vel_mod_1d)
+    else:
+        hf_vel_mod_1d_layers = None
 
     if args.realisation_count > 1:
         generate_fault_realisations(
@@ -395,6 +398,7 @@ def main():
             args.aggregate_file,
             vel_mod_1d_layers,
             args.vel_mod_1d_out,
+            hf_vel_mod_1d_layers,
             vs30,
             args.vs30_out,
             primary_logger.name,
@@ -408,8 +412,9 @@ def main():
             GCMT_Source(args.fault_name, *gcmt_line),
             additional_source_parameters,
             args.aggregate_file,
-            args.vel_mod_1d,
+            vel_mod_1d_layers,
             args.vel_mod_1d_out,
+            hf_vel_mod_1d_layers,
             vs30,
             args.vs30_out,
             primary_logger,
