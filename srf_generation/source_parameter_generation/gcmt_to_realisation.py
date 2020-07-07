@@ -182,6 +182,7 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            None,
             vs30_data,
             vs30_out_file,
             fault_logger,
@@ -207,6 +208,7 @@ def generate_realisation(
     aggregate_file,
     vel_mod_1d,
     vel_mod_1d_dir,
+    hf_vel_mod_1d,
     vs30_data: pd.DataFrame,
     vs30_out_file: str,
     fault_logger: Logger = get_basic_logger(),
@@ -230,7 +232,22 @@ def generate_realisation(
         and "vel_mod_1d" in perturbed_realisation.keys()
         and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
     ):
-        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
+        perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
+        makedirs(vel_mod_1d_dir, exist_ok=True)
+        file_name_srf_1d_vel_mod = save_1d_velocity_model(
+            perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
+        )
+        perturbed_realisation["params"]["srf_vel_mod_1d"] = file_name_srf_1d_vel_mod
+
+    if (
+        vel_mod_1d_dir is not None
+        and "hf_vel_mod_1d" in perturbed_realisation.keys()
+        and (
+            hf_vel_mod_1d is None
+            or not hf_vel_mod_1d.equals(perturbed_realisation["hf_vel_mod_1d"])
+        )
+    ):
+        perturbed_vel_mod_1d = perturbed_realisation.pop("hf_vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
         file_name_1d_vel_mod = save_1d_velocity_model(
             perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
@@ -391,6 +408,7 @@ def main():
             args.aggregate_file,
             args.vel_mod_1d,
             args.vel_mod_1d_out,
+            None,
             vs30,
             args.vs30_out,
             primary_logger,
