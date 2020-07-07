@@ -253,7 +253,7 @@ def generate_realisation(
         file_name_hf_1d_vel_mod = save_1d_velocity_model(
             perturbed_vel_mod_1d, vel_mod_1d_dir, f"hf_{realisation_name}"
         )
-        perturbed_realisation["params"]["hf_mod_1d_name"] = file_name_hf_1d_vel_mod
+        perturbed_realisation["params"]["hf_vel_mod_1d"] = file_name_hf_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
         perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")

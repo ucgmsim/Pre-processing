@@ -205,12 +205,24 @@ def generate_realisation(
         and "vel_mod_1d" in perturbed_realisation.keys()
         and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
     ):
-        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
+        perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
         file_name_1d_vel_mod = save_1d_velocity_model(
             perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
         )
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
+
+    if (
+        vel_mod_1d_dir is not None
+        and "hf_vel_mod_1d" in perturbed_realisation.keys()
+        and not vel_mod_1d.equals(perturbed_realisation["hf_vel_mod_1d"])
+    ):
+        perturbed_hf_vel_mod_1d = perturbed_realisation.pop("hf_vel_mod_1d")
+        makedirs(vel_mod_1d_dir, exist_ok=True)
+        file_name_1d_vel_mod = save_1d_velocity_model(
+            perturbed_hf_vel_mod_1d, vel_mod_1d_dir, realisation_name
+        )
+        perturbed_realisation["params"]["hf_vel_mod_1d"] = file_name_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
         perturbated_vs30: pd.DataFrame = perturbed_realisation["vs30"]

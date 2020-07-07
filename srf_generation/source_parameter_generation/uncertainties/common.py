@@ -123,7 +123,7 @@ HF_RUN_PARAMS = [
     "calpha",
     "mom",
     "rupv",
-    "velocity-model",
+    "hf_vel_mod_1d",
     "site-vm-dir",
     "vs-moho",
     "fa_sig1",
