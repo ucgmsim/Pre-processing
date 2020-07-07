@@ -126,6 +126,7 @@ def generate_fault_realisations(
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vel_mod_1d_dir: str,
+    hf_vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
     vs30_out_file: str,
     primary_logger_name: str,
@@ -151,6 +152,7 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            hf_vel_mod_1d,
             vs30_data,
             vs30_out_file,
             fault_logger,
@@ -176,6 +178,7 @@ def generate_realisation(
     aggregate_file,
     vel_mod_1d,
     vel_mod_1d_dir,
+    hf_vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
     vs30_out_file: str,
     fault_logger: Logger = get_basic_logger(),
@@ -184,8 +187,11 @@ def generate_realisation(
     perturbed_realisation = perturbation_function(
         source_data=data,
         additional_source_parameters=additional_source_parameters,
-        vel_mod_1d=vel_mod_1d,
-        vs30_data=vs30_data,
+        vel_mod_1d=vel_mod_1d.copy(deep=True) if vel_mod_1d is not None else None,
+        hf_vel_mod_1d=hf_vel_mod_1d.copy(deep=True)
+        if hf_vel_mod_1d is not None
+        else None,
+        vs30_data=vs30_data.copy(deep=True) if vs30_data is not None else None,
     )
     fault_logger.debug(
         f"Got results from perturbation_function: {perturbed_realisation}"
@@ -239,7 +245,6 @@ def get_additional_source_parameters(
     source_parameters: List[Tuple[str, str]],
     common_source_parameters: List[Tuple[str, str]],
     nhm_data: Dict[str, NHMFault],
-    vel_mod_1d_layers: pd.DataFrame,
 ):
     """Takes in the source parameter name-filepath pairs passed as arguments,
     extracting the values for each event
@@ -303,10 +308,7 @@ def main():
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
     additional_source_parameters = get_additional_source_parameters(
-        args.source_parameter,
-        args.common_source_parameter,
-        fault_nhm,
-        vel_mod_1d_layers,
+        args.source_parameter, args.common_source_parameter, fault_nhm,
     )
 
     vs30 = load_vs30_median_sigma(args.vs30_median, args.vs30_sigma)
@@ -319,6 +321,7 @@ def main():
         additional_source_specific_data = {}
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
+    hf_vel_mod_1d_layers = load_1d_velocity_mod(args.HF_vel_mod_1d)
 
     if args.realisation_count > 1:
         generate_fault_realisations(
@@ -330,6 +333,7 @@ def main():
             args.aggregate_file,
             vel_mod_1d_layers,
             args.vel_mod_1d_out,
+            hf_vel_mod_1d_layers,
             vs30,
             args.vs30_out,
             primary_logger.name,
@@ -343,8 +347,9 @@ def main():
             fault_nhm,
             additional_source_parameters,
             args.aggregate_file,
-            args.vel_mod_1d,
+            vel_mod_1d_layers,
             args.vel_mod_1d_out,
+            hf_vel_mod_1d_layers,
             vs30,
             args.vs30_out,
             primary_logger,

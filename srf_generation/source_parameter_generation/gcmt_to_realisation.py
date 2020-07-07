@@ -157,6 +157,7 @@ def generate_fault_realisations(
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vel_mod_1d_dir: str,
+    hf_vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
     vs30_out_file: str,
     primary_logger_name: str,
@@ -182,6 +183,7 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            hf_vel_mod_1d,
             vs30_data,
             vs30_out_file,
             fault_logger,
@@ -207,6 +209,7 @@ def generate_realisation(
     aggregate_file,
     vel_mod_1d,
     vel_mod_1d_dir,
+    hf_vel_mod_1d,
     vs30_data: pd.DataFrame,
     vs30_out_file: str,
     fault_logger: Logger = get_basic_logger(),
@@ -214,9 +217,12 @@ def generate_realisation(
     fault_logger.debug("Calling perturbation function.")
     perturbed_realisation = perturbation_function(
         source_data=data,
-        additional_source_parameters=additional_source_parameters,
-        vel_mod_1d=vel_mod_1d,
-        vs30_data=vs30_data,
+        additional_source_parameters=additional_source_parameters.copy(),
+        vel_mod_1d=vel_mod_1d.copy(deep=True) if vel_mod_1d is not None else None,
+        hf_vel_mod_1d=hf_vel_mod_1d.copy(deep=True)
+        if hf_vel_mod_1d is not None
+        else None,
+        vs30_data=vs30_data.copy(deep=True) if vs30_data is not None else None,
     )
     fault_logger.debug(
         f"Got results from perturbation_function: {perturbed_realisation}"
@@ -230,12 +236,24 @@ def generate_realisation(
         and "vel_mod_1d" in perturbed_realisation.keys()
         and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
     ):
-        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
+        perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
         file_name_1d_vel_mod = save_1d_velocity_model(
             perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
         )
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
+
+    if (
+        vel_mod_1d_dir is not None
+        and "hf_vel_mod_1d" in perturbed_realisation.keys()
+        and not hf_vel_mod_1d.equals(perturbed_realisation["hf_vel_mod_1d"])
+    ):
+        perturbed_vel_mod_1d = perturbed_realisation.pop("hf_vel_mod_1d")
+        makedirs(vel_mod_1d_dir, exist_ok=True)
+        file_name_hf_1d_vel_mod = save_1d_velocity_model(
+            perturbed_vel_mod_1d, vel_mod_1d_dir, f"hf_{realisation_name}"
+        )
+        perturbed_realisation["params"]["hf_mod_1d_name"] = file_name_hf_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
         perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
@@ -365,6 +383,7 @@ def main():
         additional_source_specific_data = {}
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
+    hf_vel_mod_1d_layers = load_1d_velocity_mod(args.hf_vel_mod_1d)
 
     if args.realisation_count > 1:
         generate_fault_realisations(

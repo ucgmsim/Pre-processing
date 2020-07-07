@@ -1,7 +1,7 @@
 """The template for future perturbation versions.
 Update this docstring with information about the version"""
 import pandas as pd
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Optional
 
 from qcore.nhm import NHMFault
 
@@ -24,18 +24,23 @@ def verify_1d_vel_mod(vel_mod_1d: pd.DataFrame):
 def generate_source_params(
     source_data: Union[GCMT_Source, NHMFault],
     additional_source_parameters: Dict[str, Any],
-    vel_mod_1d: pd.DataFrame = None,
+    vel_mod_1d: Optional[pd.DataFrame] = None,
+    hf_vel_mod_1d: Optional[pd.DataFrame] = None,
+    vs30_data: Optional[pd.DataFrame] = None,
     **kwargs,
 ) -> Dict[str, Any]:
-    """source_data should have the following parameters available via . notation:
-      - source_data.pid: name of the event
-      - source_data.lat: latitude
-      - source_data.lon: longitude
-      - source_data.depth: depth
-      - source_data.mag: magnitude
-      - source_data.strike
-      - source_data.dip
-      - source_data.rake
+    """
+    Generates the parameters for a single realisation.
+    The dataframes vel_mod_1d, hf_vel_mod_1d and vs30_data are guaranteed to be editable without changing the original
+    dataframe
+    :param source_data: The source data from the input cmt or nhm data
+    :param additional_source_parameters: Any extra parameters passed in by the user
+    :param vel_mod_1d: The 1d velocity model to use for srf generation
+    :param hf_vel_mod_1d: The 1d velocity model to use for the HF computation step
+    :param vs30_data: The station vs30 data to use. Contains median and sigma columns. This dataframe should have a
+    vs30 column added, containing the realised data
+    :param kwargs: Catches any named arguments added in the future
+    :return:
     """
 
     realisation = kwargs

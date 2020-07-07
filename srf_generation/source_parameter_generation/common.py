@@ -1,4 +1,5 @@
 from os.path import abspath, join, dirname
+from typing import Optional
 
 import pandas as pd
 from qcore.formats import load_vs30_file
@@ -13,7 +14,16 @@ def add_common_arguments(parser, single_event=True):
         "Should be the name of the file without the .py suffix.",
     )
     parser.add_argument(
-        "--vel_mod_1d", type=abspath, default=DEFAULT_1D_VELOCITY_MODEL_PATH
+        "--vel_mod_1d",
+        type=abspath,
+        default=DEFAULT_1D_VELOCITY_MODEL_PATH,
+        help="The velocity model to be used for srf generation",
+    )
+    parser.add_argument(
+        "--hf_vel_mod_1d",
+        type=abspath,
+        default=None,
+        help="The velocity model to be used for HF calculations",
     )
     parser.add_argument(
         "--aggregate_file",
@@ -99,7 +109,12 @@ def load_vs30_median_sigma(vs30_median, vs30_sigma):
     return vs30
 
 
-def load_1d_velocity_mod(vel_mod_1d):
+def load_1d_velocity_mod(vel_mod_1d: Optional[str]):
+    """
+    Loads a 1d velocity model
+    :param vel_mod_1d: The path to the 1d velocity model
+    :return: A dataframe representing the 1d velocity model
+    """
     return pd.read_csv(
         vel_mod_1d,
         delim_whitespace=True,
@@ -110,7 +125,7 @@ def load_1d_velocity_mod(vel_mod_1d):
 
 
 def save_1d_velocity_model(
-    perturbed_realisation: pd.DataFrame, vel_mod_1d_dir, realisation_name
+    perturbed_realisation: pd.DataFrame, vel_mod_1d_dir: str, realisation_name: str
 ):
     file_name = join(vel_mod_1d_dir, f"{realisation_name}.v1d")
     with open(file_name, "w") as v1d:

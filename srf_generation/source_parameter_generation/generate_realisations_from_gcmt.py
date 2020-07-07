@@ -111,6 +111,7 @@ def generate_fault_realisations(
     unperturbation_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
+    hf_vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
     checkpointing: bool,
     primary_logger_name: str,
@@ -136,6 +137,7 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             get_realisation_VM_dir(cybershake_root, fault_name),
+            hf_vel_mod_1d,
             vs30_data,
             vs30_out_file,
             fault_logger,
@@ -171,6 +173,7 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            hf_vel_mod_1d,
             vs30_data,
             vs30_out_file,
             fault_logger,
@@ -198,6 +201,7 @@ def generate_messages(
     perturbation_function,
     unperturbation_function,
     vel_mod_1d,
+    hf_vel_mod_1d,
     checkpointing,
     vs30_data: pd.DataFrame,
     primary_logger,
@@ -223,6 +227,7 @@ def generate_messages(
                 unperturbation_function,
                 aggregate_file,
                 vel_mod_1d,
+                hf_vel_mod_1d,
                 vs30_data,
                 checkpointing,
                 primary_logger.name,
@@ -273,6 +278,7 @@ def main():
     )
 
     velocity_model_1d = load_1d_velocity_mod(args.vel_mod_1d)
+    hf_velocity_model_1d = load_1d_velocity_mod(args.hf_vel_mod_1d)
     vs30 = load_vs30_median_sigma(args.vs30_median, args.vs30_sigma)
 
     additional_source_parameters = get_additional_source_parameters(
@@ -291,6 +297,7 @@ def main():
         perturbation_function,
         unperturbation_function,
         velocity_model_1d,
+        hf_velocity_model_1d,
         args.checkpointing,
         vs30,
         primary_logger,
