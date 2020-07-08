@@ -235,7 +235,7 @@ def generate_realisation(
         perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
         file_name_srf_1d_vel_mod = save_1d_velocity_model(
-            perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
+            perturbed_vel_mod_1d, vel_mod_1d_dir, f"srf_{realisation_name}"
         )
         perturbed_realisation["params"]["srf_vel_mod_1d"] = file_name_srf_1d_vel_mod
 
@@ -257,7 +257,7 @@ def generate_realisation(
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
         perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
         perturbated_vs30.to_csv(
-            vs30_out_file, columns="vs30", sep=" ", index=True, header=False
+            vs30_out_file, columns=["vs30"], sep=" ", index=True, header=False
         )
         perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
 
