@@ -314,11 +314,13 @@ def create_ps_ff_srf(
     slip_cov = parameter_dictionary.pop("slip_cov", None)
     rough = parameter_dictionary.pop("rough", None)
     tect_type = parameter_dictionary.pop("tect_type", None)
+    vel_mod_1d = parameter_dictionary.pop(
+        "srf_vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH
+    )
 
     mwsr = MagnitudeScalingRelations(parameter_dictionary.pop("mwsr"))
 
     # gets
-    vel_mod_1d = parameter_dictionary.get("vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH)
     rvfac = parameter_dictionary.get("rvfac", None)
 
     logger.debug(
@@ -448,7 +450,7 @@ def create_multi_plane_srf(
 
     # gets
     vel_mod_1d = parameter_dictionary.pop(
-        "v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH
+        "srf_vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH
     )
     rvfac = parameter_dictionary.get("rvfac", None)
 
@@ -791,6 +793,7 @@ def load_args():
 
 def main():
     primary_logger = qclogging.get_logger("realisation_to_srf")
+    qclogging.add_general_file_handler(primary_logger, "rel2srf.txt")
     args = load_args()
     realisation = load_realisation_file_as_dict(args.realisation_file)
     rel_logger = qclogging.get_realisation_logger(primary_logger, realisation["name"])

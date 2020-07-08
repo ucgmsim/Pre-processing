@@ -123,7 +123,7 @@ def process_common_realisation_file(
             mwsr=realisation.get("mwsr"),
             shypo=realisation.get("shypo") + 0.5 * realisation.get("flen"),
             dhypo=realisation.get("dhypo"),
-            vm=realisation.get("v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH),
+            vm=realisation.get("srf_vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH),
             logger=logger,
         )
     elif realisation["type"] == 4:
@@ -141,7 +141,7 @@ def process_common_realisation_file(
                 for i in range(realisation.get("plane_count"))
             ],
             dhypo=realisation.get("dhypo"),
-            vm=realisation.get("v_mod_1d_name", DEFAULT_1D_VELOCITY_MODEL_PATH),
+            vm=realisation.get("srf_vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH),
             logger=logger,
         )
     else:

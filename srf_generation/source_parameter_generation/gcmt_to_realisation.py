@@ -7,7 +7,6 @@ from os.path import abspath, isfile, dirname, join
 from typing import Callable, Union, Dict, Any, Tuple, List
 
 import pandas as pd
-from numpy import digitize
 
 from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
@@ -23,6 +22,7 @@ from srf_generation.source_parameter_generation.common import (
     load_vs30_median_sigma,
     load_1d_velocity_mod,
     add_common_arguments,
+    get_depth_property,
 )
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
@@ -182,6 +182,7 @@ def generate_fault_realisations(
             aggregate_file,
             vel_mod_1d,
             vel_mod_1d_dir,
+            None,
             vs30_data,
             vs30_out_file,
             fault_logger,
@@ -207,6 +208,7 @@ def generate_realisation(
     aggregate_file,
     vel_mod_1d,
     vel_mod_1d_dir,
+    hf_vel_mod_1d,
     vs30_data: pd.DataFrame,
     vs30_out_file: str,
     fault_logger: Logger = get_basic_logger(),
@@ -230,7 +232,22 @@ def generate_realisation(
         and "vel_mod_1d" in perturbed_realisation.keys()
         and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
     ):
-        perturbed_vel_mod_1d = perturbed_realisation["vel_mod_1d"]
+        perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
+        makedirs(vel_mod_1d_dir, exist_ok=True)
+        file_name_srf_1d_vel_mod = save_1d_velocity_model(
+            perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
+        )
+        perturbed_realisation["params"]["srf_vel_mod_1d"] = file_name_srf_1d_vel_mod
+
+    if (
+        vel_mod_1d_dir is not None
+        and "hf_vel_mod_1d" in perturbed_realisation.keys()
+        and (
+            hf_vel_mod_1d is None
+            or not hf_vel_mod_1d.equals(perturbed_realisation["hf_vel_mod_1d"])
+        )
+    ):
+        perturbed_vel_mod_1d = perturbed_realisation.pop("hf_vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
         file_name_1d_vel_mod = save_1d_velocity_model(
             perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
@@ -238,7 +255,7 @@ def generate_realisation(
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
-        perturbated_vs30: pd.DataFrame = perturbed_realisation["vs30"]
+        perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
         perturbated_vs30.to_csv(
             vs30_out_file, columns="vs30", sep=" ", index=True, header=False
         )
@@ -282,13 +299,10 @@ def get_additional_source_parameters(
     """
     # For each event get the layer it corresponds to by taking the cumulative sum of the layer depths and finding
     # the layer with bottom depth lower than the event
-    depth_bins = digitize(
-        gcmt_data["depth"].round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
-    )
     additional_source_parameters = pd.DataFrame(
         {
-            "vs": vel_mod_1d_layers["vs"].iloc[depth_bins].values,
-            "rho": vel_mod_1d_layers["rho"].iloc[depth_bins].values,
+            "vs": get_depth_property(gcmt_data["depth"], vel_mod_1d_layers, "vs"),
+            "rho": get_depth_property(gcmt_data["depth"], vel_mod_1d_layers, "rho"),
         },
         gcmt_data["pid"].values,
     )
@@ -391,6 +405,7 @@ def main():
             args.aggregate_file,
             args.vel_mod_1d,
             args.vel_mod_1d_out,
+            None,
             vs30,
             args.vs30_out,
             primary_logger,
