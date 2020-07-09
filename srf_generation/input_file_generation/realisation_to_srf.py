@@ -222,6 +222,7 @@ def create_ps_srf(
         if tect_type is not None and tect_type == "SUBDUCTION_INTERFACE":
             aa = mw_to_a_skarlatoudis(magnitude)
         else:
+            # Shallow crustal and subduction slab (currently) use Leonard moment-area scaling relation
             aa = np.exp(2.0 / 3.0 * np.log(moment) - 14.7 * np.log(10.0))
         dd = np.sqrt(aa)
         slip = (moment * 1.0e-20) / (aa * vs * vs * rho)
