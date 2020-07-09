@@ -27,6 +27,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
     mag2mom,
     MagnitudeScalingRelations,
+    mw_to_a_skarlatoudis,
 )
 
 SRF_SUBFAULT_SIZE_KM = 0.1
@@ -184,13 +185,14 @@ def create_ps_srf(
     rho = parameter_dictionary.pop("rho", 2.44)
     target_area_km = parameter_dictionary.pop("target_area_km", None)
     target_slip_cm = parameter_dictionary.pop("target_slip_cm", None)
+    tect_type = parameter_dictionary.pop("tect_type", None)
     stype = parameter_dictionary.pop("stype", "cos")
     risetime = parameter_dictionary.pop("risetime", 0.5)
     inittime = parameter_dictionary.pop("inittime", 0.0)
 
     # srfgen seed is not used by slip2srf (unless we pass rt_rand in),
     # but we also don't need it to be in the sim_params.yaml file
-    parameter_dictionary.pop("srfgen_seed")
+    parameter_dictionary.pop("srfgen_seed", None)
 
     name = parameter_dictionary.get("name")
     logger.info(f"Generating srf for realisation {name}")
@@ -217,7 +219,10 @@ def create_ps_srf(
         dd = np.sqrt(moment * 1.0e-20) / (target_slip_cm * vs * vs * rho)
         slip = target_slip_cm
     else:
-        aa = np.exp(2.0 / 3.0 * np.log(moment) - 14.7 * np.log(10.0))
+        if tect_type is not None and tect_type == "SUBDUCTION_INTERFACE":
+            aa = mw_to_a_skarlatoudis(magnitude)
+        else:
+            aa = np.exp(2.0 / 3.0 * np.log(moment) - 14.7 * np.log(10.0))
         dd = np.sqrt(aa)
         slip = (moment * 1.0e-20) / (aa * vs * vs * rho)
     logger.debug(f"Slip: {slip}, fault plane edge length {dd}")
@@ -281,6 +286,7 @@ def create_ps_srf(
         centroid_depth=depth,
         lon=longitude,
         lat=latitude,
+        tect_type=tect_type,
     )
 
 
