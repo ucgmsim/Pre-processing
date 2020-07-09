@@ -792,6 +792,10 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     )
 
     if fault_depth > rrup:
+        logger.warning(
+            "fault_depth > rrup. Fault too deep, will not generate VM. "
+            f"Setting xlen, ylen to 0. Previous values: x:{xlen0}, y:{ylen0}"
+        )
         xlen0 = 0
         ylen0 = 0
 
