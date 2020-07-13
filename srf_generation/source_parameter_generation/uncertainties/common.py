@@ -30,6 +30,7 @@ GENERAL_PARAMS = [
     "vs30",
     "vel_mod_1d",
     "hf_vel_mod_1d",
+    "tect_type",
 ]
 
 SRFGEN_TYPE_1_PARAMS = [
@@ -71,7 +72,6 @@ SRFGEN_TYPE_2_PARAMS = [
     "dhypo",
     "rvfac",
     "mwsr",
-    "tect_type",
 ]
 
 SRFGEN_TYPE_3_PARAMS = [
@@ -87,14 +87,12 @@ SRFGEN_TYPE_3_PARAMS = [
     "width",
     "strike",
     "dip_dir",
-    "tect_type",
 ]
 
 SRFGEN_TYPE_4_PARAMS = [
     "magnitude",
     "moment",
     "fault_type",
-    "tect_type",
     "rake",
     "dip",
     "dtop",
