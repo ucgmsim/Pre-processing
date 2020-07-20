@@ -319,7 +319,7 @@ def create_ps_ff_srf(
     genslip_version = str(parameter_dictionary.pop("genslip_version"))
     seed = parameter_dictionary.pop("srfgen_seed")
     slip_cov = parameter_dictionary.pop("slip_cov", None)
-    rough = parameter_dictionary.pop("rough", None)
+    rough = parameter_dictionary.pop("rough", 0.0)
     tect_type = parameter_dictionary.pop("tect_type", None)
     vel_mod_1d = parameter_dictionary.pop(
         "srf_vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH
@@ -436,7 +436,7 @@ def create_multi_plane_srf(
     fault_type = parameter_dictionary.pop("fault_type")
     plane_count = parameter_dictionary.pop("plane_count")
 
-    rough = parameter_dictionary.pop("rough", None)
+    rough = parameter_dictionary.pop("rough", 0.0)
 
     strike = [
         parameter_dictionary.pop(f"strike_subfault_{i}") for i in range(plane_count)
@@ -627,7 +627,7 @@ def gen_srf(
     velocity_model,
     genslip_version="3.3",
     rvfac=None,
-    rough=None,
+    rough=0.0,
     slip_cov=None,
     tect_type=None,
     fault_planes=1,
