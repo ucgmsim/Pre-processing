@@ -127,7 +127,7 @@ HF_RUN_PARAMS = [
     "fa_sig1",
     "fa_sig2",
     "rv_sig1",
-    "hf_path_dur",
+    "dpath_pert",
 ]
 
 LF_RUN_PARAMS = ["qsfrac", "qpfrac", "qpqs_factor"]
