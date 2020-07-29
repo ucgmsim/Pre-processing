@@ -26,10 +26,11 @@ GENERAL_PARAMS = [
     "type",
     "genslip_version",
     "srfgen_seed",
-    "alpha_rough",
+    "rough",
     "vs30",
     "vel_mod_1d",
     "hf_vel_mod_1d",
+    "tect_type",
 ]
 
 SRFGEN_TYPE_1_PARAMS = [
@@ -60,7 +61,6 @@ SRFGEN_TYPE_2_PARAMS = [
     "strike",
     "rake",
     "dip",
-    "rough",
     "slip_cov",
     "flen",
     "dlen",
@@ -71,7 +71,6 @@ SRFGEN_TYPE_2_PARAMS = [
     "dhypo",
     "rvfac",
     "mwsr",
-    "tect_type",
 ]
 
 SRFGEN_TYPE_3_PARAMS = [
@@ -87,14 +86,12 @@ SRFGEN_TYPE_3_PARAMS = [
     "width",
     "strike",
     "dip_dir",
-    "tect_type",
 ]
 
 SRFGEN_TYPE_4_PARAMS = [
     "magnitude",
     "moment",
     "fault_type",
-    "tect_type",
     "rake",
     "dip",
     "dtop",
@@ -130,7 +127,7 @@ HF_RUN_PARAMS = [
     "fa_sig1",
     "fa_sig2",
     "rv_sig1",
-    "hf_path_dur",
+    "dpath_pert",
 ]
 
 LF_RUN_PARAMS = ["qsfrac", "qpfrac", "qpqs_factor"]

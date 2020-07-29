@@ -1,6 +1,11 @@
 Pre processing
 # Changelog
 (Based on https://wiki.canterbury.ac.nz/download/attachments/58458136/CodeVersioning_v18p2.pdf?version=1&modificationDate=1519269238437&api=v2 )
+
+## [20.3.2]
+### Changed
+ - Default alpha_rough (rough) for subduction and all 5.4.2 generated srfs to be 0. Previous behaviour can be achieved using a value of -1
+
 ## [20.3.1]
 ### Changed
 - VMs are generated with respect to rrup rather than assuming rrup==rjb
