@@ -50,6 +50,10 @@ SRFGEN_TYPE_1_PARAMS = [
     "inittime",
     "target_slip_cm",
     "target_area_km",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "risetime_dipfac",
 ]
 
 SRFGEN_TYPE_2_PARAMS = [
@@ -71,6 +75,17 @@ SRFGEN_TYPE_2_PARAMS = [
     "dhypo",
     "rvfac",
     "mwsr",
+    "risetime",
+    "risetime_coef",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "deep_risetimefac",
+    "deep_risetimedep",
+    "deep_risetimedep_range",
+    "rt_scalefac",
+    "rt_rand",
+    "stype",
 ]
 
 SRFGEN_TYPE_3_PARAMS = [
@@ -86,6 +101,17 @@ SRFGEN_TYPE_3_PARAMS = [
     "width",
     "strike",
     "dip_dir",
+    "risetime",
+    "risetime_coef",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "deep_risetimefac",
+    "deep_risetimedep",
+    "deep_risetimedep_range",
+    "rt_scalefac",
+    "rt_rand",
+    "stype",
 ]
 
 SRFGEN_TYPE_4_PARAMS = [
@@ -102,6 +128,17 @@ SRFGEN_TYPE_4_PARAMS = [
     "dip_dir",
     "shypo",
     "dhypo",
+    "risetime",
+    "risetime_coef",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "deep_risetimefac",
+    "deep_risetimedep",
+    "deep_risetimedep_range",
+    "rt_scalefac",
+    "rt_rand",
+    "stype",
 ]
 
 HF_RUN_PARAMS = [
@@ -274,9 +311,9 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
     x_pos: np.ndarray = np.arange(dlen / 2.0, fault_length, dlen) - fault_length / 2.0
-    y_pos: np.ndarray = np.arange(dwid / 2.0, fault_width, dwid)[
-        ::-1
-    ] - fault_width / 2.0
+    y_pos: np.ndarray = (
+        np.arange(dwid / 2.0, fault_width, dwid)[::-1] - fault_width / 2.0
+    )
 
     lats, lons = calculate_corners(dip, x_pos, y_pos, lat, lon, strike)
 

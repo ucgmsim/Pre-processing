@@ -220,7 +220,9 @@ def plot_area_mag(
 
 
 def plot_area_nhm(
-    median_faults: Dict[str, pd.DataFrame], nhm_file: Dict[str, NHMFault], out_dir: str,
+    median_faults: Dict[str, pd.DataFrame],
+    nhm_file: Dict[str, NHMFault],
+    out_dir: str,
 ):
     srf_area = []
     fault_name = []
@@ -353,7 +355,9 @@ def plot_mag_nrup(
 
 
 def plot_dbottom(
-    info_files: List[str], nhm_data: Dict[str, NHMFault], out_dir: str,
+    info_files: List[str],
+    nhm_data: Dict[str, NHMFault],
+    out_dir: str,
 ):
 
     srf_depths = []
@@ -767,7 +771,8 @@ def plot_hypo_dist(
 
 
 def plot_srf_error(
-    info_files: List[str], out_dir: str,
+    info_files: List[str],
+    out_dir: str,
 ):
     # strike and dip error assuming 0.1km subfault spacing
     error_s = []

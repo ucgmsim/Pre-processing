@@ -116,6 +116,25 @@ class Fault(ABC):
     def _set_rake(self, value):
         self._rake = value
 
+    @property
+    def dip(self):
+        return self._dip
+
+    @dip.setter
+    def dip(self, value):
+        if 90 < value < 180:
+            self.strike = self.strike + 180
+            self.rake = -self.rake
+            value = 180 - value
+        elif value < 0 or value > 180:
+            # The fault is now above ground
+            raise ValueError(f"Invalid dip value: {value}")
+
+        self._set_dip(value)
+
+    def _set_dip(self, value):
+        self._dip = value
+
 
 class SinglePlaneFault(Fault):
     def __init__(self, name, magnitude, strike, rake, dip):
@@ -137,20 +156,6 @@ class SinglePlaneFault(Fault):
     @strike.setter
     def strike(self, value):
         self._strike = value % 360
-
-    @property
-    def dip(self):
-        return self._dip
-
-    @dip.setter
-    def dip(self, value):
-        if 90 < value < 180:
-            self.strike = self.strike + 180
-            value = 180 - value
-        elif value < 0 or value > 180:
-            raise ValueError("Invalid dip value")
-
-        self._dip = value
 
     @property
     def dhypo(self):
@@ -454,9 +459,9 @@ class Type2(FiniteFault):
 
         # use cartesian coordinate system to define the along strike and downdip
         # locations taking the center of the fault plane as (x,y)=(0,0)
-        y_pos: np.ndarray = np.arange(self.dwid / 2.0, self.width, self.dwid)[
-            ::-1
-        ] - self.width / 2.0
+        y_pos: np.ndarray = (
+            np.arange(self.dwid / 2.0, self.width, self.dwid)[::-1] - self.width / 2.0
+        )
 
         depth_loc_relative = (
             (-y_pos * np.sin(np.radians(self._dip)))
@@ -664,3 +669,57 @@ class Type4(MultiPlaneFault):
             for key, item in sub_fault.to_dict().items():
                 base_dict[f"{key}_subfault_{i}"] = item
         return base_dict
+
+    @property
+    def trace(self):
+        points = [x._trace[0] for x in self._planes]
+        points.append(self._planes[-1]._trace[1])
+        return np.asarray(points)
+
+    @trace.setter
+    def trace(self, values):
+        for i in range(self._n_planes):
+            sub_plane = self._planes[i]
+            sub_plane._trace = (tuple(values[i]), tuple(values[i + 1]))
+
+    @property
+    def dtop(self):
+        return self._dtop
+
+    @dtop.setter
+    def dtop(self, value):
+        if value < 0:
+            raise ValueError("dtop must be below ground level")
+        self._dtop = value
+
+    @property
+    def dbottom(self):
+        return self._dbottom
+
+    @dbottom.setter
+    def dbottom(self, value):
+        if value < 0:
+            raise ValueError("dtop must be below ground level")
+        self._dbottom = value
+
+    @property
+    def dip_dir(self):
+        return self._dip_dir
+
+    @dip_dir.setter
+    def dip_dir(self, value):
+        self._dip_dir = value
+
+    def _set_dip(self, value):
+        for sub_fault in self._planes:
+            sub_fault.dip = value
+        self._dip = value
+
+    @property
+    def strike(self):
+        return np.asarray([x.strike for x in self._planes])
+
+    @strike.setter
+    def strike(self, values):
+        for i in range(self._n_planes):
+            self._planes[i].strike = values[i]

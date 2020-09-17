@@ -250,9 +250,9 @@ def focal_mechanism_2_finite_fault(
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
     xPos: np.ndarray = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
-    yPos: np.ndarray = np.arange(DWID / 2.0, fault_width, DWID)[
-        ::-1
-    ] - fault_width / 2.0
+    yPos: np.ndarray = (
+        np.arange(DWID / 2.0, fault_width, DWID)[::-1] - fault_width / 2.0
+    )
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )

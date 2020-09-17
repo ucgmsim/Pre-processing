@@ -25,14 +25,14 @@ def generate_source_params(
     **kwargs,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
-      - source_data.pid: name of the event
-      - source_data.lat: latitude
-      - source_data.lon: longitude
-      - source_data.depth: depth
-      - source_data.mag: magnitude
-      - source_data.strike
-      - source_data.dip
-      - source_data.rake
+    - source_data.pid: name of the event
+    - source_data.lat: latitude
+    - source_data.lon: longitude
+    - source_data.depth: depth
+    - source_data.mag: magnitude
+    - source_data.strike
+    - source_data.dip
+    - source_data.rake
     """
     additional_source_parameters = filter_realisation_input_params(
         TYPE, additional_source_parameters
