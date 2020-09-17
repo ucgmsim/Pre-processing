@@ -50,6 +50,10 @@ SRFGEN_TYPE_1_PARAMS = [
     "inittime",
     "target_slip_cm",
     "target_area_km",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "risetime_dipfac",
 ]
 
 SRFGEN_TYPE_2_PARAMS = [
