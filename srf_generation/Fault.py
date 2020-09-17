@@ -459,9 +459,9 @@ class Type2(FiniteFault):
 
         # use cartesian coordinate system to define the along strike and downdip
         # locations taking the center of the fault plane as (x,y)=(0,0)
-        y_pos: np.ndarray = np.arange(self.dwid / 2.0, self.width, self.dwid)[
-            ::-1
-        ] - self.width / 2.0
+        y_pos: np.ndarray = (
+            np.arange(self.dwid / 2.0, self.width, self.dwid)[::-1] - self.width / 2.0
+        )
 
         depth_loc_relative = (
             (-y_pos * np.sin(np.radians(self._dip)))

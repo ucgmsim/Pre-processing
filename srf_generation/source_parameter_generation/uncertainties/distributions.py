@@ -51,11 +51,20 @@ def proper_weibull(k=3.353, scale_factor=0.612):
     return weibull_min(c=k, scale=scale_factor).rvs()
 
 
-def proper_truncated_weibull(upper_truncation_threshold, lower_truncation_threshold, k=3.353, scale_factor=0.612):
+def proper_truncated_weibull(
+    upper_truncation_threshold, lower_truncation_threshold, k=3.353, scale_factor=0.612
+):
     dist = weibull_min(c=k, scale=scale_factor)
-    upper_value, lower_value = dist.cdf((upper_truncation_threshold, lower_truncation_threshold))
+    upper_value, lower_value = dist.cdf(
+        (upper_truncation_threshold, lower_truncation_threshold)
+    )
     dist_range = upper_value - lower_value
-    val = (dist.cdf(np.random.uniform(lower_truncation_threshold, upper_truncation_threshold))-lower_value)/dist_range
+    val = (
+        dist.cdf(
+            np.random.uniform(lower_truncation_threshold, upper_truncation_threshold)
+        )
+        - lower_value
+    ) / dist_range
     # if val < lower_truncation_threshold or val > upper_truncation_threshold:
     #     print("Broken")
     # print(val, dist_range, upper_value, lower_value, upper_truncation_threshold, lower_truncation_threshold)

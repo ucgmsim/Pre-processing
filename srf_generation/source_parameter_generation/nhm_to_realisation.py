@@ -265,7 +265,9 @@ def get_additional_source_parameters(
     :param nhm_data: A Dictionary of faults and their NHMFault objects
     :param vel_mod_1d_layers: A dataframe containing a row for every layer of the velocity model
     """
-    additional_source_parameters = pd.DataFrame(index=sorted(list(nhm_data.keys())),)
+    additional_source_parameters = pd.DataFrame(
+        index=sorted(list(nhm_data.keys())),
+    )
     for param_name, filepath in source_parameters:
         parameter_df = pd.read_csv(
             filepath,

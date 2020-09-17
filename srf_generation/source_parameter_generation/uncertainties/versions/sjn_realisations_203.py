@@ -13,14 +13,14 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
 
 def generate_source_params(source_data: GCMT_Source) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
-      - source_data.pid: name of the event
-      - source_data.lat: latitude
-      - source_data.lon: longitude
-      - source_data.depth: depth
-      - source_data.mag: magnitude
-      - source_data.strike
-      - source_data.dip
-      - source_data.rake
+    - source_data.pid: name of the event
+    - source_data.lat: latitude
+    - source_data.lon: longitude
+    - source_data.depth: depth
+    - source_data.mag: magnitude
+    - source_data.strike
+    - source_data.dip
+    - source_data.rake
     """
 
     params = generate_from_gcmt(source_data)

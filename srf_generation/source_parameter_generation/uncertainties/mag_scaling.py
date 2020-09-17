@@ -232,7 +232,12 @@ def lw_2_mw_sigma_scaling_relation(
     """
     sigma = None
     # magnitude
-    mw = lw_2_mw_scaling_relation(l, w, mw_scaling_rel, rake,)
+    mw = lw_2_mw_scaling_relation(
+        l,
+        w,
+        mw_scaling_rel,
+        rake,
+    )
     if mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
         sigma = mw_sigma_leonard(rake)
     elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
