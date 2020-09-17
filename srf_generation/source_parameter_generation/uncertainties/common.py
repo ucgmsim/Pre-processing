@@ -71,6 +71,17 @@ SRFGEN_TYPE_2_PARAMS = [
     "dhypo",
     "rvfac",
     "mwsr",
+    "risetime",
+    "risetime_coef",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "deep_risetimefac",
+    "deep_risetimedep",
+    "deep_risetimedep_range",
+    "rt_scalefac",
+    "rt_rand",
+    "stype",
 ]
 
 SRFGEN_TYPE_3_PARAMS = [
@@ -86,6 +97,17 @@ SRFGEN_TYPE_3_PARAMS = [
     "width",
     "strike",
     "dip_dir",
+    "risetime",
+    "risetime_coef",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "deep_risetimefac",
+    "deep_risetimedep",
+    "deep_risetimedep_range",
+    "rt_scalefac",
+    "rt_rand",
+    "stype",
 ]
 
 SRFGEN_TYPE_4_PARAMS = [
@@ -102,6 +124,17 @@ SRFGEN_TYPE_4_PARAMS = [
     "dip_dir",
     "shypo",
     "dhypo",
+    "risetime",
+    "risetime_coef",
+    "risetimefac",
+    "risetimedep",
+    "risetimedep_range",
+    "deep_risetimefac",
+    "deep_risetimedep",
+    "deep_risetimedep_range",
+    "rt_scalefac",
+    "rt_rand",
+    "stype",
 ]
 
 HF_RUN_PARAMS = [
