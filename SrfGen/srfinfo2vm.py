@@ -372,7 +372,7 @@ def reduce_domain(
 ):
     """Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
     srf boundary. Returns the new values to be used.
-    Uses great circle geometry """
+    Uses great circle geometry"""
     # number of scan lines accross domain (inclusive of edges)
     scanlines = max(round(ylen / 5), 81)
 
