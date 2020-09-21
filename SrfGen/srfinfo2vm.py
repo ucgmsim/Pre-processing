@@ -1140,9 +1140,8 @@ def store_summary(table, info_store, logger: Logger = qclogging.get_basic_logger
     logger.info("Saved summary to {}".format(table))
 
 
-def load_args(logger: Logger = qclogging.get_basic_logger()):
+def load_args(parser=ArgumentParser(), logger: Logger = qclogging.get_basic_logger()):
 
-    parser = ArgumentParser()
     arg = parser.add_argument
     arg("info_glob", help="info file selection expression. eg: Srf/*.info")
     arg(
@@ -1228,7 +1227,7 @@ sudo cp /location/to/Velocity-Model/NZVM /usr/bin/
 or:
 export PATH=$PATH:/location/to/Velocity-Model"""
             logger.log(qclogging.NOPRINTERROR, message)
-            sys.exit(message)
+            parser.error(message)
 
     return args
 

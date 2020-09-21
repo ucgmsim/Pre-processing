@@ -13,6 +13,7 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     mag2mom,
     round_subfault_size,
     lw_2_mw_scaling_relation,
+    lw_2_mw_sigma_scaling_relation,
 )
 
 LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
@@ -39,6 +40,7 @@ class Fault(ABC):
     _length = None
     _shypo = None
     _dhypo = None
+    _dip_dir = None
 
     @property
     def pid(self):
@@ -125,6 +127,11 @@ class Fault(ABC):
         if 90 < value < 180:
             self.strike = self.strike + 180
             self.rake = -self.rake
+            if self.dip_dir:
+                self.dip_dir = self.dip_dir + 180
+            if isinstance(self, MultiPlaneFault):
+                # If a multiplane fault then swap the order of planes, so that each plane is down strike of the previous
+                self._planes = self._planes[::-1]
             value = 180 - value
         elif value < 0 or value > 180:
             # The fault is now above ground
@@ -134,6 +141,14 @@ class Fault(ABC):
 
     def _set_dip(self, value):
         self._dip = value
+
+    @property
+    def dip_dir(self):
+        return self._dip_dir
+
+    @dip_dir.setter
+    def dip_dir(self, value):
+        self._dip_dir = value % 360
 
 
 class SinglePlaneFault(Fault):
@@ -165,17 +180,25 @@ class SinglePlaneFault(Fault):
     def dbottom(self):
         return self._dbottom
 
+    @dbottom.setter
+    def dbottom(self, value):
+        if value < 0:
+            raise ValueError("dbottom must be below ground level")
+        self._dbottom = value
+
     @property
     def dtop(self):
         return self._dtop
 
+    @dtop.setter
+    def dtop(self, value):
+        if value < 0:
+            raise ValueError("dtop must be below ground level")
+        self._dtop = value
+
     @property
     def hypocentre_lonlat(self):
         return self._longitude, self._latitude
-
-
-class MultiPlaneFault(Fault):
-    pass
 
 
 class PointSourceFault(SinglePlaneFault):
@@ -459,9 +482,9 @@ class Type2(FiniteFault):
 
         # use cartesian coordinate system to define the along strike and downdip
         # locations taking the center of the fault plane as (x,y)=(0,0)
-        y_pos: np.ndarray = np.arange(self.dwid / 2.0, self.width, self.dwid)[
-            ::-1
-        ] - self.width / 2.0
+        y_pos: np.ndarray = (
+            np.arange(self.dwid / 2.0, self.width, self.dwid)[::-1] - self.width / 2.0
+        )
 
         depth_loc_relative = (
             (-y_pos * np.sin(np.radians(self._dip)))
@@ -541,7 +564,7 @@ class Type3(FiniteFault):
         return base_dict
 
 
-class Type4(MultiPlaneFault):
+class MultiPlaneFault(Fault):
 
     type = 4
 
@@ -554,7 +577,7 @@ class Type4(MultiPlaneFault):
         self._rake = nhm_data.rake
         self._dtop = nhm_data.dtop
         self._slip_rate = nhm_data.slip_rate
-        self._dip_dir = nhm_data.dip_dir
+        self.dip_dir = nhm_data.dip_dir
 
         self._n_planes = len(nhm_data.trace) - 1
 
@@ -637,7 +660,7 @@ class Type4(MultiPlaneFault):
 
     @shypo.setter
     def shypo(self, shypo):
-        if shypo > self.length:
+        if abs(shypo) > self.length / 2:
             raise ValueError(
                 f"Cannot place hypocentre outside fault plane. shpyo: {shypo}, fault length: {self.length}"
             )
@@ -661,7 +684,7 @@ class Type4(MultiPlaneFault):
             "length": self.length,
             "plane_count": self._n_planes,
             "slip_rate": self._slip_rate,
-            "dip_dir": self._dip_dir,
+            "dip_dir": self.dip_dir,
             "shypo": self.shypo,
             "dhypo": self.dhypo,
         }
@@ -691,24 +714,25 @@ class Type4(MultiPlaneFault):
         if value < 0:
             raise ValueError("dtop must be below ground level")
         self._dtop = value
+        for p in self._planes:
+            p.dtop = value
 
     @property
     def dbottom(self):
         return self._dbottom
 
     @dbottom.setter
-    def dbottom(self, value):
+    def dbottom(self, value, conserve_width=False):
         if value < 0:
-            raise ValueError("dtop must be below ground level")
+            raise ValueError("dbottom must be below ground level")
+        diff = self._dbottom - value
+        if conserve_width:
+            self.dtop = self.dtop + diff
         self._dbottom = value
-
-    @property
-    def dip_dir(self):
-        return self._dip_dir
-
-    @dip_dir.setter
-    def dip_dir(self, value):
-        self._dip_dir = value
+        for p in self._planes:
+            p.dbottom = value
+            if conserve_width:
+                p.dtop = p.dtop + diff
 
     def _set_dip(self, value):
         for sub_fault in self._planes:
@@ -723,3 +747,12 @@ class Type4(MultiPlaneFault):
     def strike(self, values):
         for i in range(self._n_planes):
             self._planes[i].strike = values[i]
+
+    @property
+    def magnitude_sigma(self):
+        return lw_2_mw_sigma_scaling_relation(
+            self.length, self.width, self.mwsr, self.rake
+        )[1]
+
+
+Type4 = MultiPlaneFault

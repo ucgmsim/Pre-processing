@@ -23,6 +23,7 @@ from srf_generation.source_parameter_generation.common import (
     load_1d_velocity_mod,
     add_common_arguments,
     get_depth_property,
+    process_perturbation,
 )
 from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_PARAM_NAMES,
@@ -203,7 +204,7 @@ def generate_realisation(
     realisation_file_name,
     realisation_name,
     perturbation_function,
-    data,
+    data: GCMT_Source,
     additional_source_parameters,
     aggregate_file,
     vel_mod_1d,
@@ -216,70 +217,23 @@ def generate_realisation(
     fault_logger.debug("Calling perturbation function.")
     perturbed_realisation = perturbation_function(
         source_data=data,
-        additional_source_parameters=additional_source_parameters,
-        vel_mod_1d=vel_mod_1d,
-        vs30_data=vs30_data,
+        additional_source_parameters=additional_source_parameters.copy(),
+        vel_mod_1d=vel_mod_1d.copy(deep=True) if vel_mod_1d is not None else None,
+        vs30_data=vs30_data.copy(deep=True) if vs30_data is not None else None,
     )
     fault_logger.debug(
         f"Got results from perturbation_function: {perturbed_realisation}"
     )
-    perturbed_realisation["params"]["name"] = realisation_name
-    if "srfgen_seed" not in perturbed_realisation["params"]:
-        perturbed_realisation["params"]["srfgen_seed"] = get_seed()
-
-    if (
-        vel_mod_1d_dir is not None
-        and "vel_mod_1d" in perturbed_realisation.keys()
-        and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
-    ):
-        perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
-        makedirs(vel_mod_1d_dir, exist_ok=True)
-        file_name_srf_1d_vel_mod = save_1d_velocity_model(
-            perturbed_vel_mod_1d, vel_mod_1d_dir, f"srf_{realisation_name}"
-        )
-        perturbed_realisation["params"]["srf_vel_mod_1d"] = file_name_srf_1d_vel_mod
-
-    if (
-        vel_mod_1d_dir is not None
-        and "hf_vel_mod_1d" in perturbed_realisation.keys()
-        and (
-            hf_vel_mod_1d is None
-            or not hf_vel_mod_1d.equals(perturbed_realisation["hf_vel_mod_1d"])
-        )
-    ):
-        perturbed_vel_mod_1d = perturbed_realisation.pop("hf_vel_mod_1d")
-        makedirs(vel_mod_1d_dir, exist_ok=True)
-        file_name_1d_vel_mod = save_1d_velocity_model(
-            perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
-        )
-        perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
-
-    if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
-        perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
-        perturbated_vs30.to_csv(
-            vs30_out_file, columns=["vs30"], sep=" ", index=True, header=False
-        )
-        perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
-
-    if "z_values" in perturbed_realisation.keys():
-        z_df = pd.DataFrame(perturbed_realisation["z_values"], index=[0])
-        z_df.to_csv(realisation_file_name.replace(".csv", "_z_values.csv"), index=False)
-
-    makedirs(dirname(realisation_file_name), exist_ok=True)
-    fault_logger.debug(
-        f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
-    )
-    rel_df = pd.DataFrame(perturbed_realisation["params"], index=[0])
-    rel_df.to_csv(realisation_file_name, index=False)
-
-    if aggregate_file is not None:
-        if not isfile(aggregate_file):
-            rel_df.to_csv(aggregate_file)
-        else:
-            rel_df.to_csv(aggregate_file, mode="a", header=False)
-
-    fault_logger.debug(
-        f"Parameters saved succesfully. Continuing to next realisation if one exists."
+    process_perturbation(
+        aggregate_file,
+        fault_logger,
+        hf_vel_mod_1d,
+        perturbed_realisation,
+        realisation_file_name,
+        realisation_name,
+        vel_mod_1d,
+        vel_mod_1d_dir,
+        vs30_out_file,
     )
 
 

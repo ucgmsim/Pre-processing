@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from qcore.nhm import NHMFault
 
-from srf_generation.Fault import fault_factory, Type4
+from srf_generation.Fault import fault_factory, Type3
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
 )
@@ -20,17 +20,17 @@ def generate_source_params(
     **kwargs
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
-      - source_data.pid: name of the event
-      - source_data.lat: latitude
-      - source_data.lon: longitude
-      - source_data.depth
-      - source_data.mag: magnitude
-      - source_data.strike
-      - source_data.dip
-      - source_data.rake
+    - source_data.pid: name of the event
+    - source_data.lat: latitude
+    - source_data.lon: longitude
+    - source_data.depth
+    - source_data.mag: magnitude
+    - source_data.strike
+    - source_data.dip
+    - source_data.rake
     """
 
-    fault: Type4 = fault_factory(TYPE)(source_data)
+    fault: Type3 = fault_factory(TYPE)(source_data)
 
     params = fault.to_dict()
 

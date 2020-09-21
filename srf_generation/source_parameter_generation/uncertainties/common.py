@@ -274,9 +274,9 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
     x_pos: np.ndarray = np.arange(dlen / 2.0, fault_length, dlen) - fault_length / 2.0
-    y_pos: np.ndarray = np.arange(dwid / 2.0, fault_width, dwid)[
-        ::-1
-    ] - fault_width / 2.0
+    y_pos: np.ndarray = (
+        np.arange(dwid / 2.0, fault_width, dwid)[::-1] - fault_width / 2.0
+    )
 
     lats, lons = calculate_corners(dip, x_pos, y_pos, lat, lon, strike)
 

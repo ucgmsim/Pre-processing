@@ -431,7 +431,7 @@ def create_multi_plane_srf(
     dhypo = parameter_dictionary.pop("dhypo")
     genslip_version = str(parameter_dictionary.pop("genslip_version"))
     dip_dir = parameter_dictionary.pop("dip_dir")
-    seed = parameter_dictionary.pop("seed")
+    seed = parameter_dictionary.pop("srfgen_seed")
     tect_type = parameter_dictionary.pop("tect_type")
     fault_type = parameter_dictionary.pop("fault_type")
     plane_count = parameter_dictionary.pop("plane_count")
@@ -719,6 +719,7 @@ def gen_srf(
     if rvfac is not None:
         cmd.append(f"rvfrac={rvfac}")
     if rough is not None:
+        print(f"Using rough {rough}")
         cmd.append(f"alpha_rough={rough}")
     if slip_cov is not None:
         cmd.append(f"slip_sigma={slip_cov}")

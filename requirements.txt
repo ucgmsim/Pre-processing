@@ -1,8 +1,8 @@
-pytest>=3.5.0
+pytest>=6.0.1
 pytest-black
-numpy>=1.14.3
+numpy>=1.19.1
 pandas
 PyYAML
-scipy>=1.1.0
+scipy>=1.5.2
 setuptools>=40.1.0
 h5py
