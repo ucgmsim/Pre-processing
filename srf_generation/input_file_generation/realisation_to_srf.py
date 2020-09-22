@@ -289,7 +289,9 @@ def create_ps_srf(
         lat=latitude,
         tect_type=tect_type,
     )
-    logger.info(f"Generated srf for realisation {name}. Moving to next available realisation.")
+    logger.info(
+        f"Generated srf for realisation {name}. Moving to next available realisation."
+    )
 
 
 def create_ps_ff_srf(
@@ -408,7 +410,9 @@ def create_ps_ff_srf(
         vm=vel_mod_1d,
         logger=logger,
     )
-    logger.info(f"Generated srf for realisation {name}. Moving to next available realisation.")
+    logger.info(
+        f"Generated srf for realisation {name}. Moving to next available realisation."
+    )
 
 
 def create_multi_plane_srf(
@@ -575,7 +579,9 @@ def create_multi_plane_srf(
         logger=rel_logger,
     )
 
-    logger.info(f"Generated srf for realisation {name}. Moving to next available realisation.")
+    logger.info(
+        f"Generated srf for realisation {name}. Moving to next available realisation."
+    )
 
     # path to resulting SRF
     return srf_file
