@@ -656,13 +656,13 @@ def gen_vm(
     if success:
         vm_check_str = f"VM check passed: {vm_working_dir}"
         logger.debug(vm_check_str)
-        sys.stderr.write(vm_check_str)
+        print(vm_check_str, file=sys.stderr)
     else:
         logger.log(
             qclogging.NOPRINTCRITICAL,
             "VM check for {} failed: {}".format(vm_working_dir, message),
         )
-        sys.stderr.write("VM check BAD: {}\n".format(message))
+        print(f"VM check BAD: {message}", file=sys.stderr)
 
 
 def plot_vm(
