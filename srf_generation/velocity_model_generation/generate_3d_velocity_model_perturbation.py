@@ -59,7 +59,9 @@ def combine_layers(layers, nx, ny, out_file):
     if ret_code == 0:
         remove(filelist.name)
     else:
-        print(f"Non zero return code returned by layer combiner. Error code: {ret_code}")
+        print(
+            f"Non zero return code returned by layer combiner. Error code: {ret_code}"
+        )
 
 
 def load_parameter_file(parameter_file):
@@ -83,16 +85,24 @@ def kwarg_map(func, kwargs):
 
 def main():
     args = load_args()
+
     common_params, layer_params = load_parameter_file(args.parameter_file)
-    worker_pool = Pool(args.n_processes)
+    out_file = args.output_file
+
+    generate_velocity_model_perturbation_file(
+        common_params, layer_params, out_file, args.n_processes
+    )
+
+
+def generate_velocity_model_perturbation_file(
+    common_params, layer_params, out_file, n_processes=1
+):
     complete_layer_parameters = [
         (create_perturbated_layer, dict({"index": index}, **l_p, **common_params))
         for index, l_p in layer_params.items()
     ]
-    layer_info = sorted(worker_pool.starmap(kwarg_map, complete_layer_parameters))
-    combine_layers(
-        layer_info, common_params["nx"], common_params["ny"], args.output_file
-    )
+    layer_info = sorted(Pool(n_processes).starmap(kwarg_map, complete_layer_parameters))
+    combine_layers(layer_info, common_params["nx"], common_params["ny"], out_file)
     for _, _, file in layer_info:
         remove(file)
 
