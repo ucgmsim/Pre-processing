@@ -40,11 +40,11 @@ def load_args():
 
     errors = []
 
-    if args.perturbation is not None:
+    if args.perturbation:
         if args.parameter_file is None:
             errors.append("If perturbation is given, parameter_file must also be given")
 
-    if args.fault_damage_zone is not None:
+    if args.fault_damage_zone:
         if args.srf_location is None:
             errors.append(
                 "If --fault_damage_zone is given, srf_location must also be given"
@@ -63,7 +63,7 @@ def main():
     args = load_args()
 
     perturbation_file = args.perturbation_file
-    vm_params = args.vm_params_location
+    vm_params = load_yaml(args.vm_params_location)
     processes = args.n_processes
 
     if args.perturbation:
@@ -79,7 +79,7 @@ def main():
     if args.fault_damage_zone:
         apply_fault_damage_zone(
             args.srf_location,
-            load_yaml(vm_params),
+            vm_params,
             perturbation_file,
             args.depth_km,
             args.max_depth_km,

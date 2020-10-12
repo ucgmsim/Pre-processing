@@ -220,17 +220,17 @@ def get_bounding_box(srf_corners, vm_params, max_width_km, max_depth_km):
     return (min_nx, max_nx), (min_ny, max_ny), (min_nz, max_nz)
 
 
-def modify_file(results, pert_f_location, vm_params, float_size=4):
+def modify_file(results, pert_f_location, vm_params):
     """
     Writes the damage to the file, one result at a time
 
     :param results: a list of (x, y, z, damage) tuples to be applied to the file
     :param pert_f_location: The location of the perturbation file (must exist)
     :param vm_params: The dictionary loaded from the vm_params.yaml file
-    :param float_size: The size of floats used in the perturbation file in bytes. Defaults to 4
     """
     global_nx = vm_params["nx"]
     global_nz = vm_params["nz"]
+    float_size = np.dtype(FLOAT_DTYPE).itemsize
 
     def locate_grid_point(x, y, z):
         """Converts x, y, z cordinates into the address"""
