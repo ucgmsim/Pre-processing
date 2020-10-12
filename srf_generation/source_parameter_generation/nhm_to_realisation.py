@@ -7,6 +7,7 @@ from os.path import abspath, isfile, dirname, join
 from typing import Callable, Union, Dict, Any, Tuple, List
 
 import pandas as pd
+from qcore.nhm import load_nhm, NHMFault
 
 from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
@@ -18,60 +19,28 @@ from qcore.qclogging import (
 )
 
 from srf_generation.source_parameter_generation.common import (
-    save_1d_velocity_model,
+    add_common_arguments,
     load_vs30_median_sigma,
     load_1d_velocity_mod,
-    add_common_arguments,
-    get_depth_property,
+    save_1d_velocity_model,
 )
-from srf_generation.source_parameter_generation.uncertainties.common import (
-    GCMT_PARAM_NAMES,
-    GCMT_Source,
-    get_seed,
-)
+from srf_generation.source_parameter_generation.uncertainties.common import get_seed
 from srf_generation.source_parameter_generation.uncertainties.versions import (
     load_perturbation_function,
 )
 
-GCMT_FILE_COLUMNS = [
-    "PublicID",
-    "Latitude",
-    "Longitude",
-    "strike1",
-    "dip1",
-    "rake1",
-    "Mw",
-    "CD",
-]
-
-GCMT_DTYPE = {
-    GCMT_FILE_COLUMNS[i]: col_type
-    for i, col_type in enumerate(
-        [
-            "object",
-            "float64",
-            "float64",
-            "float64",
-            "float64",
-            "float64",
-            "float64",
-            "float64",
-        ]
-    )
-}
-
 
 def load_args(primary_logger: Logger):
     parser = argparse.ArgumentParser(
-        "Generates realisation files from gcmt and other input data."
+        "Generates realisation files from nhm and other input data."
     )
 
     parser.add_argument("fault_name")
     parser.add_argument("realisation_count", type=int)
     parser.add_argument(
-        "gcmt_file",
+        "nhm_file",
         type=abspath,
-        help="The path to a geonet cmt solutions file. "
+        help="The path to a national seismic hazard model file. "
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
@@ -107,15 +76,15 @@ def verify_args(args, errors, parser_logger=get_basic_logger()):
 
     if args.version is None:
         if args.type is not None:
-            args.version = f"gcmt_{args.type}"
+            args.version = f"nhm_{args.type}"
         else:
             parser_logger.debug(
-                "No version or type given, generating type 1 realisations"
+                "No version or type given, generating type 4 realisations"
             )
-            args.version = f"gcmt_1"
+            args.version = f"nhm_4"
 
-    if not isfile(args.gcmt_file):
-        errors.append(f"Specified gcmt file not found: {args.gcmt_file}")
+    if not isfile(args.nhm_file):
+        errors.append(f"Specified nhm file not found: {args.nhm_file}")
     if args.aggregate_file is not None and isfile(args.aggregate_file):
         errors.append(
             f"Specified aggregation file {args.aggregate_file} already exists, please choose another file"
@@ -149,7 +118,7 @@ def verify_args(args, errors, parser_logger=get_basic_logger()):
 
 
 def generate_fault_realisations(
-    data: GCMT_Source,
+    data: NHMFault,
     realisation_count: int,
     output_directory: str,
     perturbation_function: Callable,
@@ -163,9 +132,9 @@ def generate_fault_realisations(
     additional_source_parameters: Dict[str, Any],
 ):
     primary_logger = get_logger(name=primary_logger_name)
-    fault_logger = get_realisation_logger(primary_logger, data.pid)
-    fault_logger.debug(f"Fault {data.pid} had data {data}")
-    fault_name = data.pid
+    fault_logger = get_realisation_logger(primary_logger, data.name)
+    fault_logger.debug(f"Fault {data.name} had data {data}")
+    fault_name = data.name
 
     for i in range(1, realisation_count + 1):
         realisation_name = get_realisation_name(fault_name, i)
@@ -203,7 +172,7 @@ def generate_realisation(
     realisation_file_name,
     realisation_name,
     perturbation_function,
-    data,
+    data: NHMFault,
     additional_source_parameters,
     aggregate_file,
     vel_mod_1d,
@@ -235,7 +204,7 @@ def generate_realisation(
         perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
         file_name_srf_1d_vel_mod = save_1d_velocity_model(
-            perturbed_vel_mod_1d, vel_mod_1d_dir, f"srf_{realisation_name}"
+            perturbed_vel_mod_1d, vel_mod_1d_dir, realisation_name
         )
         perturbed_realisation["params"]["srf_vel_mod_1d"] = file_name_srf_1d_vel_mod
 
@@ -255,9 +224,9 @@ def generate_realisation(
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
-        perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
+        perturbated_vs30: pd.DataFrame = perturbed_realisation["vs30"]
         perturbated_vs30.to_csv(
-            vs30_out_file, columns=["vs30"], sep=" ", index=True, header=False
+            vs30_out_file, columns="vs30", sep=" ", index=True, header=False
         )
         perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
 
@@ -279,32 +248,25 @@ def generate_realisation(
             rel_df.to_csv(aggregate_file, mode="a", header=False)
 
     fault_logger.debug(
-        f"Parameters saved succesfully. Continuing to next realisation if one exists."
+        f"Parameters saved succesfully to {realisation_file_name}. Continuing to next realisation if one exists."
     )
 
 
 def get_additional_source_parameters(
     source_parameters: List[Tuple[str, str]],
     common_source_parameters: List[Tuple[str, str]],
-    gcmt_data: pd.DataFrame,
+    nhm_data: Dict[str, NHMFault],
     vel_mod_1d_layers: pd.DataFrame,
 ):
-    """Gets the shear wave velocities at the point source depth and
-    also takes in the source parameter name-filepath pairs passed as arguments,
+    """Takes in the source parameter name-filepath pairs passed as arguments,
     extracting the values for each event
     :param source_parameters: A list of tuples containing name, filepath pairs
     :param common_source_parameters: A list of tuples containing name, value pairs
-    :param gcmt_data:
+    :param nhm_data: A Dictionary of faults and their NHMFault objects
     :param vel_mod_1d_layers: A dataframe containing a row for every layer of the velocity model
     """
-    # For each event get the layer it corresponds to by taking the cumulative sum of the layer depths and finding
-    # the layer with bottom depth lower than the event
     additional_source_parameters = pd.DataFrame(
-        {
-            "vs": get_depth_property(gcmt_data["depth"], vel_mod_1d_layers, "vs"),
-            "rho": get_depth_property(gcmt_data["depth"], vel_mod_1d_layers, "rho"),
-        },
-        gcmt_data["pid"].values,
+        index=sorted(list(nhm_data.keys())),
     )
     for param_name, filepath in source_parameters:
         parameter_df = pd.read_csv(
@@ -332,32 +294,29 @@ def get_additional_source_parameters(
 
 def main():
 
-    primary_logger = get_logger("GCMT_2_realisation")
+    primary_logger = get_logger("NHM_2_realisation")
 
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"gcmt_{args.version}")
+    unperturbation_function = load_perturbation_function(f"nhm_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
-    gcmt_data = pd.read_csv(args.gcmt_file, usecols=GCMT_FILE_COLUMNS, index_col=0)[
-        ["Latitude", "Longitude", "CD", "Mw", "strike1", "dip1", "rake1"]
-    ]
-    gcmt_data.columns = GCMT_PARAM_NAMES[1:]
+    nhm_data = load_nhm(args.nhm_file)
 
     primary_logger.debug(
-        f"GCMT data for {len(gcmt_data)} faults were loaded. Checking for fault {args.fault_name}"
+        f"NHM data for {len(nhm_data.keys())} faults were loaded. Checking for fault {args.fault_name}"
     )
 
-    if args.fault_name in gcmt_data.index:
-        gcmt_line = gcmt_data.loc[args.fault_name]
+    if args.fault_name in nhm_data.keys():
+        fault_nhm = nhm_data[args.fault_name]
     else:
         message = (
-            f"Fault {args.fault_name} is not available in the given GCMT file, exiting"
+            f"Fault {args.fault_name} is not available in the given NHM file, exiting"
         )
         primary_logger.log(NOPRINTCRITICAL, message)
         primary_logger.debug("Available faults are as follows:")
-        primary_logger.debug(gcmt_data.index)
+        primary_logger.debug(nhm_data.keys())
         raise ValueError(message)
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
@@ -365,15 +324,15 @@ def main():
     additional_source_parameters = get_additional_source_parameters(
         args.source_parameter,
         args.common_source_parameter,
-        gcmt_data,
+        fault_nhm,
         vel_mod_1d_layers,
     )
 
     vs30 = load_vs30_median_sigma(args.vs30_median, args.vs30_sigma)
 
-    if gcmt_line[0] in additional_source_parameters.index:
+    if fault_nhm.name in additional_source_parameters.index:
         additional_source_specific_data = additional_source_parameters.loc[
-            gcmt_line[0]
+            fault_nhm.name
         ].to_dict()
     else:
         additional_source_specific_data = {}
@@ -382,7 +341,7 @@ def main():
 
     if args.realisation_count > 1:
         generate_fault_realisations(
-            GCMT_Source(args.fault_name, *gcmt_line),
+            fault_nhm,
             args.realisation_count,
             args.output_dir,
             perturbation_function,
@@ -400,7 +359,7 @@ def main():
             join(args.output_dir, f"{args.fault_name}.csv"),
             args.fault_name,
             perturbation_function,
-            GCMT_Source(args.fault_name, *gcmt_line),
+            fault_nhm,
             additional_source_parameters,
             args.aggregate_file,
             args.vel_mod_1d,

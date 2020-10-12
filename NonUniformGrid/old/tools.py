@@ -25,7 +25,6 @@ def dump_csv_from_point_list(csv_file_name, points, header=None):
             except:
                 print "error dumping", point
 
-
 # Uses population csv and vs_500 csv
 def mixed_criteria(domain, population_hash, vs30_sorted_grid, min_population_acceptable=10.0, weight_pop=0.5,
                    weight_vs=0.5, threshold=0.5):
@@ -51,12 +50,11 @@ def mixed_criteria(domain, population_hash, vs30_sorted_grid, min_population_acc
         if population_value < value:
             population_value = value
 
-    vs30_value = 100.0
+    vs30_value = 2000.0
     # vs_500: min value in the domain
     for point, value in interest_points_vs30.iteritems():
         if value < vs30_value:
             vs30_value = value
-
     # vs_500: finest grid if 0.5 and coarsest if 2.0
     # population: finest grid if population > 2*min_population, coarsest if < min_population
     vs30_max_acceptable = 600

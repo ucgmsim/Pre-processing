@@ -319,7 +319,17 @@ def create_ps2ff_realisation(
             mwsr
         )
     )
-    flen, dlen, fwid, dwid, dtop, lat0, lon0, shypo, dhypo = focal_mechanism_2_finite_fault(
+    (
+        flen,
+        dlen,
+        fwid,
+        dwid,
+        dtop,
+        lat0,
+        lon0,
+        shypo,
+        dhypo,
+    ) = focal_mechanism_2_finite_fault(
         lat, lon, depth, mw_mean, strike, rake, dip, mwsr
     )[
         3:
@@ -343,9 +353,10 @@ def create_ps2ff_realisation(
         "dhypo": {"mean": dhypo, "distribution": "none"},
     }
 
-    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
-        additional_options, unperturbed_standard_options
-    )
+    (
+        unperturbed_additional_options,
+        unperturbed_standard_options,
+    ) = set_up_parameter_dicts(additional_options, unperturbed_standard_options)
 
     for ns in range(1, n_realisations + 1):
         logger.debug("Creating realisation {}".format(ns))
@@ -361,7 +372,10 @@ def create_ps2ff_realisation(
         )
 
         logger.debug("Perturbating parameters")
-        perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
+        (
+            perturbed_standard_options,
+            perturbed_additional_options,
+        ) = perturbate_parameters(
             unperturbed_standard_options, unperturbed_additional_options
         )
 
@@ -473,9 +487,10 @@ def create_ps_realisation(
         "rise_time": {"mean": rise_time, "distribution": "none"},
     }
 
-    unperturbed_additional_options, unperturbed_standard_options = set_up_parameter_dicts(
-        additional_options, unperturbed_standard_options
-    )
+    (
+        unperturbed_additional_options,
+        unperturbed_standard_options,
+    ) = set_up_parameter_dicts(additional_options, unperturbed_standard_options)
 
     for ns in range(1, n_realisations + 1):
         logger.debug("Creating realisation {}".format(ns))
@@ -491,7 +506,10 @@ def create_ps_realisation(
         )
 
         logger.debug("Perturbating parameters")
-        perturbed_standard_options, perturbed_additional_options = perturbate_parameters(
+        (
+            perturbed_standard_options,
+            perturbed_additional_options,
+        ) = perturbate_parameters(
             unperturbed_standard_options, unperturbed_additional_options
         )
 

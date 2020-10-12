@@ -185,19 +185,39 @@ def read_geoNet_list(lines, line_width = 80, width=8):
     """
     data = []
     slices = np.arange(0, line_width, width)
-    for line in lines[:-1]:
-        for i in slices:
-            if(line[i:i+width] == "999999.9"):
-                return np.asarray(data, dtype=float) 
+    if(lines[0][0:width] == "999999.9" or lines[0][0:width] == "9999.999" or lines[0][0:width] == "99.99999"):
+        flagNULL = 0
+        for line in lines[:-1]:
+            for i in slices:
+                if(line[i:i+width] == "999999.9" or line[i:i+width] == "9999.999" or line[i:i+width] == "99.99999"):
+                    if flagNULL != 0:
+                        return np.asarray(data, dtype=float) 
+                else:
+                    flagNULL = 1
+                    data.append(float(line[i:i+width]))
+    
+        last_line = lines[-1].rstrip()
+        for i in range(0, len(last_line), width):
+            if(last_line[i:i+width] == "999999.9" or last_line[i:i+width] == "9999.999" or last_line[i:i+width] == "99.99999"):
+                if flagNULL != 0:
+                    return np.asarray(data, dtype=float)
             else:
-                data.append(float(line[i:i+width]))
-
-    last_line = lines[-1].rstrip()
-    for i in xrange(0, len(last_line), width):
-        if(last_line[i:i+width] == "999999.9"):
-            return np.asarray(data, dtype=float)
-        else:
-            data.append(float(last_line[i:i+width]))
+                flagNULL = 1
+                data.append(float(last_line[i:i+width]))
+    else:
+        for line in lines[:-1]:
+            for i in slices:
+                if(line[i:i+width] == "999999.9" or line[i:i+width] == "9999.999" or line[i:i+width] == "99.99999"):
+                    return np.asarray(data, dtype=float) 
+                else:
+                    data.append(float(line[i:i+width]))
+    
+        last_line = lines[-1].rstrip()
+        for i in range(0, len(last_line), width):
+            if(last_line[i:i+width] == "999999.9" or last_line[i:i+width] == "9999.999" or last_line[i:i+width] == "99.99999"):
+                return np.asarray(data, dtype=float)
+            else:
+                data.append(float(last_line[i:i+width]))
     
 
     return np.asarray(data, dtype=float)
@@ -247,8 +267,11 @@ class FileComponent(object):
         zip(_line_21, np.asarray(lines[21-1].split(), dtype='f'))
         )
         self.C_header["line_22"].update(
-        zip(_line_22, np.asarray(lines[22-1].split(), dtype='f'))
+        zip(_line_22, np.asarray([lines[22-1][i:i+8].strip() for i in range(0, len(lines[22-1]), 8)][0:-1],dtype='f'))
         )
+#        self.C_header["line_22"].update(
+#        zip(_line_22, np.asarray(lines[22-1].split(), dtype='f'))
+#        )
         self.C_header["line_23"].update(
         zip(_line_23, np.asarray(lines[23-1].split(), dtype='f'))
         )
@@ -310,15 +333,22 @@ class FileComponent(object):
         lines    = lines[num_disp_lines:]
 
         self.lines.append(self.acc)
+        #width is hard coded here as 8
+        lenpre = (len(self.acc) - 1) * 10 + (len(self.acc[-1]) - 1)/8
+        firstacc = self.acc[0][0:8]
         if (len(self.vel) is not 0):
             self.lines.append(self.vel)
             self.lines.append(self.disp) 
         
         self.acc = read_geoNet_list(self.acc)
+        lenpost = (len(self.acc))
         if (len(self.vel) is not 0):
             self.vel = read_geoNet_list(self.vel)
             self.disp= read_geoNet_list(self.disp)
 
+#        width is hard coded here as 8
+        if(firstacc == "999999.9" or firstacc == "9999.999" or firstacc == "99.99999"):
+            self.time_delay = round(self.time_delay + (lenpre - lenpost) * self.delta_t,3)
 
         return lines
     

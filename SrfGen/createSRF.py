@@ -250,9 +250,9 @@ def focal_mechanism_2_finite_fault(
     # use cartesian coordinate system to define the along strike and downdip
     # locations taking the center of the fault plane as (x,y)=(0,0)
     xPos: np.ndarray = np.arange(DLEN / 2.0, fault_length, DLEN) - fault_length / 2.0
-    yPos: np.ndarray = np.arange(DWID / 2.0, fault_width, DWID)[
-        ::-1
-    ] - fault_width / 2.0
+    yPos: np.ndarray = (
+        np.arange(DWID / 2.0, fault_width, DWID)[::-1] - fault_width / 2.0
+    )
 
     # now use a coordinate transformation to go from fault plane to North and
     # East cartesian plane (again with (0,0) ==(0,0)  )
@@ -454,7 +454,7 @@ def gen_srf(
             "dhypo=%f" % (dhypo),
             "dt=%f" % dt,
             "plane_header=1",
-            "srf_version=2.0",
+            "srf_version=1.0",
         ]
         if rvfrac is not None:
             cmd.append("rvfrac=%s" % (rvfrac))
@@ -791,7 +791,17 @@ def create_srf_psff(
     all_none = all(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
     any_none = any(v is None for v in (flen, dlen, fwid, dwid, dtop, shypo, dhypo))
     if all_none:
-        flen, dlen, fwid, dwid, dtop, lat, lon, shypo, dhypo = focal_mechanism_2_finite_fault(
+        (
+            flen,
+            dlen,
+            fwid,
+            dwid,
+            dtop,
+            lat,
+            lon,
+            shypo,
+            dhypo,
+        ) = focal_mechanism_2_finite_fault(
             lat, lon, depth, mw, strike, rake, dip, mwsr
         )[
             3:
