@@ -78,15 +78,15 @@ def main():
 
     if args.fault_damage_zone:
         apply_fault_damage_zone(
-            args.srf_location,
-            vm_params,
-            perturbation_file,
-            args.depth_km,
-            args.max_depth_km,
-            args.width_km,
-            args.max_width_km,
-            args.max_velocity_drop,
-            processes,
+            srf_location=args.srf_location,
+            vm_params=vm_params,
+            pert_f_location=perturbation_file,
+            depth_km=args.depth_km,
+            max_depth_km=args.max_depth_km,
+            width_km=args.width_km,
+            max_width_km=args.max_width_km,
+            min_damage_velocity=args.max_velocity_drop,
+            n_processes=processes,
         )
 
 
