@@ -308,21 +308,26 @@ def load_args():
 
 
 def add_fault_damage_zone_properties(parser):
-    parser.add_argument("--width_km", default=0.45 / 2, help="The core damage area")
+    parser.add_argument(
+        "--width_km", default=0.225, help="The core damage area", type=float
+    )
     parser.add_argument(
         "--max_width_km",
         default=0.75,
         help="The distance to the outer edge of the taper region where no damage occurs",
+        type=float,
     )
     parser.add_argument(
         "--max_velocity_drop",
         default=0.7,
         help="The maximum velocity multiplier. ie default = 0.7 results in 70% of Vs within the max damage zone",
+        type=float,
     )
     parser.add_argument(
         "--depth_km",
         default=4.0,
         help="The maximum depth at which to apply full damage",
+        type=float,
     )
     parser.add_argument(
         "--max_depth_km", default=6.0, help="The depth at which no damage occurs"
