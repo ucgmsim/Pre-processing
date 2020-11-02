@@ -308,7 +308,9 @@ def load_args():
 
 
 def add_fault_damage_zone_properties(parser):
-    parser.add_argument("--width_km", default=0.225, help="The core damage area", type=float)
+    parser.add_argument(
+        "--width_km", default=0.225, help="The core damage area", type=float
+    )
     parser.add_argument(
         "--max_width_km",
         default=0.75,
