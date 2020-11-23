@@ -8,7 +8,6 @@ pipeline {
 		sh """
 		pwd
 		env
-		pip install -r requirements.txt
 		"""
             }
         }
@@ -20,6 +19,7 @@ pipeline {
 //		docker run  -v /var/lib/jenkins/workspace/Pre-processing:/home/root/qcore sungeunbae/qcore-ubuntu-minimal bash -c "cd /home/root/qcore/;python setup.py install; cd qcore/test; pytest -s;"
 		sh """
 		source /var/lib/jenkins/py3env/bin/activate
+		pip install -r requirements.txt
 		pytest --black --ignore=geoNet --ignore=NonUniformGrid --ignore=RegionalSeismicityTectonics --ignore=SrfGen/NHM/deprecated --ignore=test
 		"""
             }
