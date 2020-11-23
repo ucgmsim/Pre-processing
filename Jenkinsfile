@@ -27,7 +27,7 @@ pipeline {
 		rm -rf qcore
 		git clone https://github.com/ucgmsim/qcore.git
 		pip install --no-deps ./qcore/
-		cd ${env.WORKSPACE}/test
+		cd ${env.WORKSPACE}
 		
 		pytest --black --ignore=geoNet --ignore=NonUniformGrid --ignore=RegionalSeismicityTectonics --ignore=SrfGen/NHM/deprecated --ignore=test
 		"""
