@@ -8,6 +8,15 @@ pipeline {
 		sh """
 		pwd
 		env
+		source /var/lib/jenkins/py3env/bin/activate
+		cd ${env.WORKSPACE}
+		pip install -r requirements.txt
+
+		mkdir -p /tmp/${env.HUDSON_SERVER_COOKIE}
+		cd /tmp/${env.HUDSON_SERVER_COOKIE}
+		rm -rf qcore
+		git clone https://github.com/ucgmsim/qcore.git
+		pip install --no-deps ./qcore/
 		"""
             }
         }
@@ -18,24 +27,19 @@ pipeline {
 //		(if docker run is used, remove -it option)
 //		docker run  -v /var/lib/jenkins/workspace/Pre-processing:/home/root/qcore sungeunbae/qcore-ubuntu-minimal bash -c "cd /home/root/qcore/;python setup.py install; cd qcore/test; pytest -s;"
 		sh """
+
 		source /var/lib/jenkins/py3env/bin/activate
-		pip install -r requirements.txt
 		cd ${env.WORKSPACE}
-		echo ${env.WORKSPACE}
-		mkdir -p /tmp/${env.HUDSON_SERVER_COOKIE}
-		cd /tmp/${env.HUDSON_SERVER_COOKIE}
-		rm -rf qcore
-		git clone https://github.com/ucgmsim/qcore.git
-		pip install --no-deps ./qcore/
-		cd ${env.WORKSPACE}
-		
 		pytest --black --ignore=geoNet --ignore=NonUniformGrid --ignore=RegionalSeismicityTectonics --ignore=SrfGen/NHM/deprecated --ignore=test
 		"""
             }
         }
-        stage('Publish Artifacts') {
+        stage('Teardown') {
             steps {
-                echo 'Save the assemblies generated from the compilation' 
+                echo 'Clean up'
+		sh """
+		rm -rf /tmp/${env.HUDSON_SERVER_COOKIE}
+		""" 
             }
         }
     }
