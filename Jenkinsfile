@@ -38,7 +38,7 @@ pipeline {
             steps {
                 echo 'Clean up'
 		sh """
-		if [ ! -z ${env.ghprbActualCommit} ]; then rm -rf /tmp/${env.ghprbActualCommit};echo '/tmp/${env.ghprbActualComit} deleted';else echo "${env.ghprbActualCommit} is not set";fi;
+		if [ ! -z ${env.ghprbActualCommit} ]; then rm -rf /tmp/${env.ghprbActualCommit};echo '/tmp/${env.ghprbActualCommit} deleted';else echo "${env.ghprbActualCommit} is not set";fi;
 		""" 
             }
         }
