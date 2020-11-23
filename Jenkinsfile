@@ -22,9 +22,9 @@ pipeline {
 		pip install -r requirements.txt
 		cd ${env.WORKSPACE}
 		echo ${env.WORKSPACE}
-		mkdir -p /tmp/${env.HUDSON_COOKIE}
-
-		cd /tmp/${env.HUDSON_COOKIE}
+		mkdir -p /tmp/${env.HUDSON_SERVER_COOKIE}
+		cd /tmp/${env.HUDSON_SERVER_COOKIE}
+		rm -rf qcore
 		git clone https://github.com/ucgmsim/qcore.git
 		pip install --no-deps ./qcore/
 		cd ${env.WORKSPACE}/test
