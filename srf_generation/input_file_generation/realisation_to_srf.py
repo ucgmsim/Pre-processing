@@ -226,6 +226,7 @@ def create_ps_srf(
             aa = np.exp(2.0 / 3.0 * np.log(moment) - 14.7 * np.log(10.0))
         dd = np.sqrt(aa)
         slip = (moment * 1.0e-20) / (aa * vs * vs * rho)
+    dd = np.round(dd)
     logger.debug(f"Slip: {slip}, fault plane edge length {dd}")
 
     ###
