@@ -9,8 +9,6 @@ pipeline {
 		source /var/lib/jenkins/py3env/bin/activate
 		git clone https://github.com/ucgmsim/qcore.git
 		pip install -r requirements.txt
-		git checkout ${branchTo}
-		git merge --ff-only -
 		pip install --no-deps ./qcore/
 	//	pip install python-coveralls
 		"""
