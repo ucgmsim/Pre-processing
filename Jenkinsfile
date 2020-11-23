@@ -20,12 +20,15 @@ pipeline {
 		sh """
 		source /var/lib/jenkins/py3env/bin/activate
 		pip install -r requirements.txt
-		mkdir -p /tmp/${env.HUDSON_COOKIE}
-		cd /tmp/${env.HUDSON_COOKIE}
-		rm -rf qcore
+		cd ${env.WORKSPACE}
+		echo ${env.WORKSPACE}
+		export TMP=/tmp/${env.HUDSON_COOKIE}
+		mkdir -p $TMP
+		cd $TMP
 		git clone https://github.com/ucgmsim/qcore.git
-		pip install --no-deps ./qcore/	
+		pip install --no-deps ./qcore/
 		cd ${env.WORKSPACE}/test
+		
 		pytest --black --ignore=geoNet --ignore=NonUniformGrid --ignore=RegionalSeismicityTectonics --ignore=SrfGen/NHM/deprecated --ignore=test
 		"""
             }
