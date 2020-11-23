@@ -20,6 +20,7 @@ pipeline {
 		sh """
 		source /var/lib/jenkins/py3env/bin/activate
 		pip install -r requirements.txt
+		cd $WORKSPACE/test
 		pytest --black --ignore=geoNet --ignore=NonUniformGrid --ignore=RegionalSeismicityTectonics --ignore=SrfGen/NHM/deprecated --ignore=test
 		"""
             }
