@@ -7,9 +7,11 @@ pipeline {
 		
 		sh """
 		source /var/lib/jenkins/py3env/bin/activate
-		git clone https://github.com/ucgmsim/qcore.git
+//		git clone https://github.com/ucgmsim/qcore.git
+		pwd
+		env
 		pip install -r requirements.txt
-		pip install --no-deps ./qcore/
+//		pip install --no-deps ./qcore/
 	//	pip install python-coveralls
 		"""
             }
