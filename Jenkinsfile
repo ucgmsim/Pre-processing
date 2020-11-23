@@ -11,9 +11,10 @@ pipeline {
 		source /var/lib/jenkins/py3env/bin/activate
 		cd ${env.WORKSPACE}
 		pip install -r requirements.txt
-
-		mkdir -p /tmp/${env.HUDSON_SERVER_COOKIE}
-		cd /tmp/${env.HUDSON_SERVER_COOKIE}
+		export TMP=/tmp/`date|md5sum|cut -c-32`
+		echo $TMP
+		mkdir -p $TMP
+		cd $TMP
 		rm -rf qcore
 		git clone https://github.com/ucgmsim/qcore.git
 		pip install --no-deps ./qcore/
