@@ -11,10 +11,9 @@ pipeline {
 		source /var/lib/jenkins/py3env/bin/activate
 		cd ${env.WORKSPACE}
 		pip install -r requirements.txt
-		export TMP=/tmp/`date|md5sum|cut -c-32`
-		echo $TMP
-		mkdir -p $TMP
-		cd $TMP
+		echo ${currentBuild}
+		mkdir -p /tmp/${env.ghprbActualCommit}
+		cd /tmp/${env.ghprbActualCommit}
 		rm -rf qcore
 		git clone https://github.com/ucgmsim/qcore.git
 		pip install --no-deps ./qcore/
@@ -39,7 +38,7 @@ pipeline {
             steps {
                 echo 'Clean up'
 		sh """
-		rm -rf /tmp/${env.HUDSON_SERVER_COOKIE}
+		if [ -d /tmp/${env.ghprbActualCommit} ]; then rm -rf /tmp/${env.ghprbActualCommit};else echo "/tmp/${env.ghprbActualCommit} doesn't exist";fi;
 		""" 
             }
         }
