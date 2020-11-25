@@ -3,7 +3,9 @@
 # Pre-processing
 
 # Jenkins
-Testing if a Pull-request triggers the Jenkins job, and if the same Jenkins job can be triggered manually
-To do: When manually triggered, ghprbActualCommit is empty, and regarded as null
-Replaced Jenkinsfile with myJenkins.sh
+- Jenkinsfile replaced with myJenkins.sh
+- Appears to be triggered by a pull request ok
+- Can be manually triggered
+- Integrated with workspace cleanup plugin (Had to be a freestyle project - ie. Jenkinsfile-based pipeline not working)
+- TO DO: If testing fails, does it report as a fail?
 
