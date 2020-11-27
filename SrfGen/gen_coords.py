@@ -10,6 +10,15 @@ from qcore.binary_version import get_unversioned_bin
 from qcore.constants import VM_PARAMS_FILE_NAME
 from qcore.utils import load_yaml
 
+def _load_nzvm_cfg(filepath):
+    config={}
+    with open(filepath) as f:
+        lines = f.readlines()
+
+    for l in lines:
+        key,value = l.strip('\n').split('=')
+        config[key]=value
+    return config
 
 def gen_coords(
     vm_dir=".",
@@ -30,7 +39,22 @@ def gen_coords(
     logger.debug("Generating coords. VM directory: {}".format(vm_dir))
 
     # load params for velocity model
-    vm = load_yaml(os.path.join(vm_dir, VM_PARAMS_FILE_NAME))
+    try:
+        vm = load_yaml(os.path.join(vm_dir, VM_PARAMS_FILE_NAME))
+    except FileNotFoundError:
+        nzvm = _load_nzvm_cfg(os.path.join(vm_dir, "nzvm.cfg"))
+        vm = {}
+        hh =  float(nzvm['EXTENT_Z_SPACING'])
+        vm["hh"] = hh
+        vm["nx"]=int(round(float(nzvm['EXTENT_X']) / hh))
+        vm["ny"]=int(round(float(nzvm['EXTENT_Y']) / hh))
+        zmax = float(nzvm['EXTENT_ZMAX'])
+        zmin = float(nzvm['EXTENT_ZMIN'])
+        vm["nz"]=int(round(float(zmax - zmin) / hh))
+        vm["sufx"]="_%s01-h%.3f" %("rt",hh)
+        vm["MODEL_LAT"]=float(nzvm["ORIGIN_LAT"])
+        vm["MODEL_LON"]=float(nzvm["ORIGIN_LON"])
+        vm["MODEL_ROT"]=float(nzvm["ORIGIN_ROT"])
 
     XLEN = vm["nx"] * vm["hh"]
     YLEN = vm["ny"] * vm["hh"]
