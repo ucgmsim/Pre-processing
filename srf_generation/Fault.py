@@ -22,6 +22,7 @@ NHM_SEISMOGENIC_DEPTH = 12
 def fault_factory(fault_type: int):
     return [Type1, Type2, Type3, Type4][fault_type - 1]
 
+print("test")
 
 class Fault(ABC):
     subfault_spacing = 0.1
