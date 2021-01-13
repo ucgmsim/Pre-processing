@@ -4,7 +4,7 @@ from random import randint
 
 import pandas as pd
 
-from qcore import utils
+from qcore.utils import load_yaml
 
 
 def generate_pertb_config(vm_params, perturbation_model: pd.DataFrame):
@@ -37,7 +37,7 @@ def generate_pertb_config(vm_params, perturbation_model: pd.DataFrame):
 
     layer_config = pd.DataFrame(layers)
 
-    return (generate_config_header(vm_params)), layer_config
+    return generate_config_header(vm_params), layer_config
 
 
 def generate_config_header(vm_params):
@@ -68,7 +68,7 @@ def load_args():
 
 def main():
     args = load_args()
-    vm_params = utils.load_yaml(args.vm_params)
+    vm_params = load_yaml(args.vm_params)
     perturbation_model = pd.read_csv(args.perturbation_model)
     config_header, config_layers = generate_pertb_config(vm_params, perturbation_model)
     write_pertb_config(config_header, config_layers, args.out_file)

@@ -1,5 +1,6 @@
 import argparse
 from os.path import abspath
+import pandas as pd
 
 from qcore.utils import load_yaml
 
@@ -9,8 +10,9 @@ from srf_generation.velocity_model_generation.fault_damage_zone import (
     add_fault_damage_zone_properties,
 )
 from srf_generation.velocity_model_generation.generate_3d_velocity_model_perturbation import (
-    generate_velocity_model_perturbation_file,
+    generate_velocity_model_perturbation_file_from_config,
     load_parameter_file,
+    generate_velocity_model_perturbation_file_from_model,
 )
 
 
@@ -27,6 +29,7 @@ def load_args():
 
     perturbation_group = parser.add_argument_group()
     perturbation_group.add_argument("--parameter_file", type=abspath)
+    perturbation_group.add_argument("--model", type=abspath)
 
     fault_damage_zone_group = parser.add_argument_group()
     fault_damage_zone_group.add_argument(
@@ -41,13 +44,15 @@ def load_args():
     errors = []
 
     if args.perturbation:
-        if args.parameter_file is None:
-            errors.append("If perturbation is given, parameter_file must also be given")
+        if (args.parameter_file is None) == (args.model is None):
+            errors.append(
+                "If --perturbation is given, one of --parameter_file and --model must also be given"
+            )
 
     if args.fault_damage_zone:
         if args.srf_location is None:
             errors.append(
-                "If --fault_damage_zone is given, srf_location must also be given"
+                "If --fault_damage_zone is given, --srf_location must also be given"
             )
 
     if len(errors) > 0:
@@ -67,10 +72,16 @@ def main():
     processes = args.n_processes
 
     if args.perturbation:
-        common_params, layer_params = load_parameter_file(args.parameter_file)
-        generate_velocity_model_perturbation_file(
-            common_params, layer_params, perturbation_file, processes
-        )
+        if args.model:
+            perturbation_model = pd.read_csv(args.model)
+            generate_velocity_model_perturbation_file_from_model(
+                vm_params, perturbation_model, perturbation_file, processes
+            )
+        elif args.parameter_file:
+            common_params, layer_params = load_parameter_file(args.parameter_file)
+            generate_velocity_model_perturbation_file_from_config(
+                common_params, layer_params, perturbation_file, processes
+            )
     else:
         create_empty_perturbation_file(
             pert_f_location=perturbation_file, vm_params=vm_params
