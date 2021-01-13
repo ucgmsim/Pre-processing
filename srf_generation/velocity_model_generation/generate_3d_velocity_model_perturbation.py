@@ -2,6 +2,8 @@ import argparse
 from multiprocessing.pool import Pool
 from os import remove
 from os.path import abspath
+from random import randint
+
 import pandas as pd
 from subprocess import call, DEVNULL
 from tempfile import NamedTemporaryFile
@@ -89,12 +91,12 @@ def main():
     common_params, layer_params = load_parameter_file(args.parameter_file)
     out_file = args.output_file
 
-    generate_velocity_model_perturbation_file(
+    generate_velocity_model_perturbation_file_from_config(
         common_params, layer_params, out_file, args.n_processes
     )
 
 
-def generate_velocity_model_perturbation_file(
+def generate_velocity_model_perturbation_file_from_config(
     common_params, layer_params, out_file, n_processes=1
 ):
     complete_layer_parameters = [
@@ -103,6 +105,63 @@ def generate_velocity_model_perturbation_file(
     ]
     layer_info = sorted(Pool(n_processes).starmap(kwarg_map, complete_layer_parameters))
     combine_layers(layer_info, common_params["nx"], common_params["ny"], out_file)
+    for _, _, file in layer_info:
+        remove(file)
+
+
+def generate_velocity_model_perturbation_file_from_model(
+    vm_params, perturbation_model, out_file, n_processes=1
+):
+    max_depth = vm_params["nz"] * vm_params["hh"]
+    current_depth = 0
+
+    i = 0
+
+    complete_layer_parameters = []
+    while current_depth < max_depth:
+        layer = perturbation_model.iloc[i]
+        layer_depth = layer["depth"]
+        if layer["depth"] + current_depth > max_depth:
+            layer_depth = max_depth - current_depth
+        nz = int(layer_depth / vm_params["hh"])
+        seed = randint(0, 2 ** 31 - 1)
+
+        complete_layer_parameters.append(
+            (
+                i,
+                vm_params["nx"],
+                vm_params["ny"],
+                nz,
+                vm_params["hh"],
+                layer["h_corr"],
+                layer["v_corr"],
+                layer["sigma"],
+                seed,
+            )
+        )
+
+        current_depth += layer_depth
+        i += 1
+
+    # Save config files for future use
+    pd.DataFrame.from_dict(
+        {
+            "nx": [vm_params["nx"]],
+            "ny": [vm_params["ny"]],
+            "grid_spacing": [vm_params["hh"]],
+        }
+    ).to_csv(f"{out_file}.csv", index=False, mode="w")
+    pd.DataFrame(
+        complete_layer_parameters,
+        columns=["index", "nx", "ny", "hh", "nz", "h_corr", "v_corr", "sigma", "seed"],
+    )[["nz", "h_corr", "z_corr", "sigma", "seed"]].to_csv(
+        f"{out_file}.csv", index=False, mode="a"
+    )
+
+    layer_info = sorted(
+        Pool(n_processes).starmap(create_perturbated_layer, complete_layer_parameters)
+    )
+    combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file)
     for _, _, file in layer_info:
         remove(file)
 
