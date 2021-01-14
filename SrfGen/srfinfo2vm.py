@@ -757,6 +757,11 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     logger = qclogging.get_realisation_logger(
         qclogging.get_logger(logger_name), srf_meta["name"]
     )
+    
+    if os.path.exists(os.path.join(args.out_dir, srf_meta['name'], "vm_params.yaml")):
+        logger.info(f"VM for {srf_meta['name']} exists, continuing")
+        return
+    
     ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
 
     # properties stored in classes (fault of external code)
@@ -1271,6 +1276,7 @@ if __name__ == "__main__":
     )
     p = Pool(processes=args.nproc)
     reports = p.starmap(create_vm, msg_list)
+    reports = [x for x in reports if x is not None]
 
     # nhm selection formatted file and list of excluded VMs
     if args.selection:
