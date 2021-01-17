@@ -1,6 +1,6 @@
 import argparse
 from multiprocessing.pool import Pool
-from os.path import abspath, join
+from os.path import abspath, join, exists
 import pandas as pd
 
 from qcore.formats import load_fault_selection_file
@@ -32,6 +32,8 @@ def generate_vm_perturbation(
     perturbation_file,
     vm_params,
 ):
+    if exists(perturbation_file):
+        continue
     if perturbation:
         if args.model:
             perturbation_model = pd.read_csv(args.model)
