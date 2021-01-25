@@ -30,8 +30,17 @@ export PATH=$PATH:/location/to/Velocity-Model"""
 def load_args(logger=qclogging.get_basic_logger()):
     """Loads all the arguments required and verifys them before returning to execution"""
     parser = argparse.ArgumentParser()
-    parser.add_argument("cs_root", type=abspath)
-    parser.add_argument("fsf_path", type=abspath)
+    parser.add_argument(
+        "cs_root", type=abspath, help="Path to the root of the simulation directory"
+    )
+    parser.add_argument(
+        "fsf_path", type=abspath, help="Path to the fault selection file"
+    )
+    parser.add_argument(
+        "checkpointing",
+        type="store_true",
+        help="Prevents regeneration of existing VMs. Checks for the presence of the vm_params.yaml file.",
+    )
     parser.add_argument(
         "--pgv",
         help="Max PGV at velocity model perimiter (estimated, cm/s)",
@@ -39,7 +48,10 @@ def load_args(logger=qclogging.get_basic_logger()):
         default=5.0,
     )
     parser.add_argument(
-        "--hh", help="Velocity model grid spacing (km). Default value: 0.4", type=float, default=0.4
+        "--hh",
+        help="Velocity model grid spacing (km). Default value: 0.4",
+        type=float,
+        default=0.4,
     )
     parser.add_argument(
         "--dt",
@@ -60,10 +72,17 @@ def load_args(logger=qclogging.get_basic_logger()):
         default=15.0,
     )
     parser.add_argument(
-        "--min-vs", help="for nzvm gen and flo (km/s). Default value: 0.5", type=float, default=0.5
+        "--min-vs",
+        help="for nzvm gen and flo (km/s). Default value: 0.5",
+        type=float,
+        default=0.5,
     )
     parser.add_argument(
-        "-n", "--nproc", help="Number of processes. Default value: 1", type=int, default=1
+        "-n",
+        "--nproc",
+        help="Number of processes. Default value: 1",
+        type=int,
+        default=1,
     )
     parser.add_argument(
         "-t",
@@ -75,7 +94,9 @@ def load_args(logger=qclogging.get_basic_logger()):
     )
     parser.add_argument("--novm", help="Only generate parameters", action="store_true")
     parser.add_argument(
-        "--vm-version", help="Velocity model version to generate. Default value: 1.65", default="1.65"
+        "--vm-version",
+        help="Velocity model version to generate. Default value: 1.65",
+        default="1.65",
     )
     parser.add_argument(
         "--vm-topo",
@@ -106,21 +127,25 @@ def load_args(logger=qclogging.get_basic_logger()):
 
 
 def generate_tasks(args, logger=qclogging.get_basic_logger()):
-	"""
-	Generates the tasks to run
-	Returns a list of tasks that can be sent to create_vm with starmap
-	:param args: The args object returned by ArgumentParser"
-	"""
+    """
+    Generates the tasks to run
+    Returns a list of tasks that can be sent to create_vm with starmap
+    :param args: The args object returned by ArgumentParser
+    """
     tasks = []
     faults = load_fsf(args.fsf_path)
-    checkpointing = True
+    checkpointing = args.checkpointing
     for f, c in faults.items():
-        if checkpointing and exists(join(simulation_structure.get_fault_VM_dir(args.cs_root, f), "vm_params.yaml")):
+        if checkpointing and exists(
+            join(
+                simulation_structure.get_fault_VM_dir(args.cs_root, f), "vm_params.yaml"
+            )
+        ):
             logger.info(f"VM params file found for event/fault {f}, not generating")
             continue
-			
+
         # Grab either the only realisation, or the first
-		# Change this to the unperturbated info when properly implemented
+        # Change this to the unperturbated info when properly implemented
         if c == 1:
             rel = f
         else:
@@ -136,7 +161,7 @@ def generate_tasks(args, logger=qclogging.get_basic_logger()):
             except (TypeError, IndexError):
                 rake = a["rake"]
             try:
-			                rake = a["rake"][0][0]
+                rake = a["rake"][0][0]
             except (TypeError, IndexError):
                 rake = a["rake"]
             try:
@@ -155,7 +180,7 @@ def generate_tasks(args, logger=qclogging.get_basic_logger()):
                         "mag": mag,
                         "hdepth": a["hdepth"],
                     },
-					qclogging.get_realisation_logger(logger, f).name,
+                    qclogging.get_realisation_logger(logger, f).name,
                 )
             )
     return tasks
@@ -163,12 +188,10 @@ def generate_tasks(args, logger=qclogging.get_basic_logger()):
 
 def main():
     """Main function when running this as a script. Prevents globals"""
-	logger = qclogging.get_logger("srfinfo2vm")
+    logger = qclogging.get_logger("srfinfo2vm")
     args = load_args(logger=logger)
-	
-	qclogging.add_general_file_handler(
-        logger, join(args.cs_root, "srfinfo2vm_log.txt")
-    )
+
+    qclogging.add_general_file_handler(logger, join(args.cs_root, "srfinfo2vm_log.txt"))
 
     out_dir = simulation_structure.get_VM_dir(args.cs_root)
     args.out_dir = out_dir
@@ -184,8 +207,8 @@ def main():
     reports = p.starmap(create_vm, task_list)
 
     store_summary(join(out_dir, "vminfo.csv"), reports, logger=logger)
-	
-	# Hack to fix VM generation permission issue
+
+    # Hack to fix VM generation permission issue
     hostname = platform.node()
     if hostname.startswith(("maui", "mahuika", "wb", "ni")):  # Checks if is on the HPCF
         logger.debug("HPC detected, changing folder ownership and permissions")
