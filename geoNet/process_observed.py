@@ -167,8 +167,8 @@ def process_v1a_file(ffp: Path, output_format: str, output_type, ix: int, n_file
 
         # When appended zeroes at the beginning of the record are removed, the
         # record might then be empty, skip processing in such a case
-        gf = adjust_gf_for_time_delay(gf)
-        if gf.comp_1st.acc.size <= 10:
+        agf = adjust_gf_for_time_delay(gf)
+        if agf.comp_1st.acc.size <= 10:
             print(f"No elements in {ffp.name}, skipping!")
             return None
 
@@ -304,6 +304,15 @@ def main(
     else:
         success_mask = process_miniseed_files(
             ffps, output_format, output_type=output_type, n_procs=n_procs
+        )
+
+    unprocessed_files = [
+        f"{ffps[ix]}\n" for ix, result in enumerate(success_mask) if result is None
+    ]
+    if len(unprocessed_files) > 0:
+        print(
+            f"The following were not processed as they did not meet the data requirements."
+            f"Check the log for the reason.\n{''.join(unprocessed_files)}"
         )
 
     failed_files = [
