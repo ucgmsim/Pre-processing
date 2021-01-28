@@ -156,7 +156,7 @@ class Process(object):
         self.acc_090 = None
         self.acc_ver = gf.comp_up.acc.copy()
 
-        assert gf.vol is 1, "Only vol1 data is processed."
+        assert gf.vol == 1, "Only vol1 data is processed."
         if automatic:
             self.rotate()
 
