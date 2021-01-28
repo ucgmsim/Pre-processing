@@ -1,4 +1,4 @@
-"""Processes V1A or miniseed files from observed events and saves these as text files"""
+"""Processes V1A or miniseed files from observed events and saves these as text files (in units g)"""
 import argparse
 from pathlib import Path
 from typing import List
