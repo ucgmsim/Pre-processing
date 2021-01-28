@@ -156,7 +156,7 @@ def get_comp_trace(traces: List[obspy.Trace], component: str):
 
 
 def process_v1a_file(ffp: Path, output_format: str, output_type, ix: int, n_files: int):
-    """Processes a single V1A file, to be used with pool.starmap"""
+    """Processes a single V1A file and saves as text file, to be used with pool.starmap"""
     print(f"Processing V1A file {ffp.name}, {ix + 1}/{n_files}")
     try:
         gf = GeoNet_File(ffp.name, base_dir=str(ffp.parent))
@@ -224,7 +224,7 @@ def process_miniseed_file(
     ix: int,
     n_files: int,
 ):
-    """Processes a single V1A file, to be used with pool.starmap"""
+    """Processes a single miniseed file and saves as text file, to be used with pool.starmap"""
     print(f"Processing miniseed file {ffp.name}, {ix + 1}/{n_files}")
     try:
         st = obspy.read(str(ffp))
@@ -267,7 +267,7 @@ def process_miniseed_file(
 def process_miniseed_files(
     ffps: List[Path], output_format: str, output_type: str = None, n_procs: int = 1
 ):
-    """Processes the specified V1A files"""
+    """Processes the specified miniseed files"""
     print("Loading the station inventory (this may take a few seconds)")
     client = FDSN_Client("GEONET")
     inventory = client.get_stations(station="*", level="response")
