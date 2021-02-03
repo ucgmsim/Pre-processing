@@ -118,7 +118,9 @@ def main():
             perturbation_file = join(
                 get_fault_VM_dir(cs_root, realisation), f"{realisation}.pertb"
             )
-            vm_params = load_yaml(join(get_fault_VM_dir(cs_root, realisation), "vm_params.yaml"))
+            vm_params = load_yaml(
+                join(get_fault_VM_dir(cs_root, realisation), "vm_params.yaml")
+            )
             pert_file_params.append(
                 (
                     args,
