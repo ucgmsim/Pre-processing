@@ -106,7 +106,6 @@ def main():
     cs_root = args.cs_root
     faults = load_fault_selection_file(args.fault_selection_file)
 
-    vm_params = load_yaml(args.vm_params_location)
     processes = args.n_processes
     perturbation = args.perturbation
     fault_damage_zone = args.fault_damage_zone
@@ -118,6 +117,9 @@ def main():
             realisation = get_realisation_name(fault, i)
             perturbation_file = join(
                 get_fault_VM_dir(cs_root, realisation), f"{realisation}.pertb"
+            )
+            vm_params = load_yaml(
+                join(get_fault_VM_dir(cs_root, realisation), "vm_params.yaml")
             )
             pert_file_params.append(
                 (
