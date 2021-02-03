@@ -160,10 +160,14 @@ def generate_velocity_model_perturbation_file_from_model(
 
     try:
         layer_info = sorted(
-            Pool(n_processes).starmap(create_perturbated_layer, complete_layer_parameters)
+            Pool(n_processes).starmap(
+                create_perturbated_layer, complete_layer_parameters
+            )
         )
     except AssertionError as e:
-        layer_info = sorted([create_perturbated_layer(*layer) for layer in complete_layer_parameters])
+        layer_info = sorted(
+            [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
+        )
     combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file)
     for _, _, file in layer_info:
         remove(file)
