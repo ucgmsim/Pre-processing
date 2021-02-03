@@ -154,13 +154,16 @@ def generate_velocity_model_perturbation_file_from_model(
     pd.DataFrame(
         complete_layer_parameters,
         columns=["index", "nx", "ny", "hh", "nz", "h_corr", "v_corr", "sigma", "seed"],
-    )[["nz", "h_corr", "z_corr", "sigma", "seed"]].to_csv(
+    )[["nz", "h_corr", "v_corr", "sigma", "seed"]].to_csv(
         f"{out_file}.csv", index=False, mode="a"
     )
 
-    layer_info = sorted(
-        Pool(n_processes).starmap(create_perturbated_layer, complete_layer_parameters)
-    )
+    try:
+        layer_info = sorted(
+            Pool(n_processes).starmap(create_perturbated_layer, complete_layer_parameters)
+        )
+    except AssertionError as e:
+        layer_info = sorted([create_perturbated_layer(*layer) for layer in complete_layer_parameters])
     combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file)
     for _, _, file in layer_info:
         remove(file)
