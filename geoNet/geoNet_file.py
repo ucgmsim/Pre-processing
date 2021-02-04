@@ -336,13 +336,13 @@ class FileComponent(object):
         #width is hard coded here as 8
         lenpre = (len(self.acc) - 1) * 10 + (len(self.acc[-1]) - 1)/8
         firstacc = self.acc[0][0:8]
-        if (len(self.vel) is not 0):
+        if (len(self.vel) != 0):
             self.lines.append(self.vel)
             self.lines.append(self.disp) 
         
         self.acc = read_geoNet_list(self.acc)
         lenpost = (len(self.acc))
-        if (len(self.vel) is not 0):
+        if (len(self.vel) != 0):
             self.vel = read_geoNet_list(self.vel)
             self.disp= read_geoNet_list(self.disp)
 
@@ -385,7 +385,7 @@ class GeoNet_File(object):
         lines = self.comp_2nd.extract(lines)
         lines = self.comp_up.extract(lines)
         
-        assert (len(lines) is 0), "D'oh! Final list must be empty"
+        assert (len(lines) == 0), "D'oh! Final list must be empty"
         
         if self.vol == 1:
             #normalize with g=9810. and get acc in cm/s^2
