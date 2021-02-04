@@ -103,7 +103,11 @@ def generate_velocity_model_perturbation_file_from_config(
         (create_perturbated_layer, dict({"index": index}, **l_p, **common_params))
         for index, l_p in layer_params.items()
     ]
-    layer_info = sorted(Pool(n_processes).starmap(kwarg_map, complete_layer_parameters))
+    try:
+        with Pool(n_processes) as pool:
+            layer_info = sorted(pool.starmap(kwarg_map, complete_layer_parameters))
+    except AssertionError as e:
+        layer_info = sorted([kwarg_map(*layer) for layer in complete_layer_parameters])
     combine_layers(layer_info, common_params["nx"], common_params["ny"], out_file)
     for _, _, file in layer_info:
         remove(file)
@@ -159,11 +163,14 @@ def generate_velocity_model_perturbation_file_from_model(
     )
 
     try:
-        layer_info = sorted(
-            Pool(n_processes).starmap(create_perturbated_layer, complete_layer_parameters)
-        )
+        with Pool(n_processes) as pool:
+            layer_info = sorted(
+                pool.starmap(create_perturbated_layer, complete_layer_parameters)
+            )
     except AssertionError as e:
-        layer_info = sorted([create_perturbated_layer(*layer) for layer in complete_layer_parameters])
+        layer_info = sorted(
+            [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
+        )
     combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file)
     for _, _, file in layer_info:
         remove(file)
