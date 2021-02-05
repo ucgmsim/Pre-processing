@@ -132,8 +132,8 @@ def main():
                     vm_params,
                 )
             )
-    pool = Pool(processes)
-    pool.starmap(generate_vm_perturbation, pert_file_params)
+    with Pool(processes) as pool:
+        pool.starmap(generate_vm_perturbation, pert_file_params)
 
 
 if __name__ == "__main__":
