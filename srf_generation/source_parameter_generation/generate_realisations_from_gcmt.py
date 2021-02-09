@@ -315,10 +315,14 @@ def main():
     worker_pool.starmap(generate_fault_realisations, messages)
 
     if args.aggregate_file is not None:
-        ordered_rels = [get_realisation_name(pid, i+1) for pid in pids for i in faults[pid]]
+        ordered_rels = [
+            get_realisation_name(pid, i + 1) for pid in pids for i in faults[pid]
+        ]
 
         agg = pd.read_csv(args.aggregate_file)
-        agg = agg.sort_values(by="name", key=lambda x: [ordered_rels.index(y) for y in x], inplace=True)
+        agg = agg.sort_values(
+            by="name", key=lambda x: [ordered_rels.index(y) for y in x], inplace=True
+        )
         agg.to_csv(args.aggregate_file)
 
 
