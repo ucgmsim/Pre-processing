@@ -5,9 +5,9 @@ import pandas as pd
 from qcore.utils import load_yaml
 
 from srf_generation.velocity_model_generation.fault_damage_zone import (
-    create_empty_perturbation_file,
     apply_fault_damage_zone,
     add_fault_damage_zone_properties,
+    create_ones_vm_file,
 )
 from srf_generation.velocity_model_generation.generate_3d_velocity_model_perturbation import (
     generate_velocity_model_perturbation_file_from_config,
@@ -117,8 +117,8 @@ def main():
                 common_params, layer_params, perturbation_file, processes
             )
     else:
-        create_empty_perturbation_file(
-            pert_f_location=perturbation_file, vm_params=vm_params
+        create_ones_vm_file(
+            perturbation_file, vm_params["nx"] * vm_params["ny"] * vm_params["nz"]
         )
 
     if args.fault_damage_zone:
