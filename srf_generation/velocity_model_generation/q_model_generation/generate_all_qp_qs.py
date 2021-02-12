@@ -16,8 +16,9 @@ from srf_generation.velocity_model_generation.q_model_generation.generate_qp_qs 
     MAX_QP,
     MAX_QS,
     MIN_QS,
+    MEMORY,
     generate_q_file,
-    generate_xys,
+    generate_xy_locations,
 )
 
 
@@ -27,7 +28,7 @@ def generate_qp_qs(args: argparse.Namespace, fault: str):
     )
     vm_params = load_yaml(vm_params_path)
 
-    xys = generate_xys(vm_params)
+    xys = generate_xy_locations(vm_params)
 
     generate_q_file(
         args.qp_model,
@@ -39,6 +40,7 @@ def generate_qp_qs(args: argparse.Namespace, fault: str):
         simulation_structure.get_fault_qp_file(args.cybershake_root, fault),
         args.min_qp,
         args.max_qp,
+        args.useable_ram,
     )
     generate_q_file(
         args.qs_model,
@@ -50,6 +52,7 @@ def generate_qp_qs(args: argparse.Namespace, fault: str):
         simulation_structure.get_fault_qs_file(args.cybershake_root, fault),
         args.min_qs,
         args.max_qs,
+        args.useable_ram,
     )
 
 
@@ -93,6 +96,10 @@ def load_args():
     )
     parser.add_argument(
         "--max_qs", type=float, default=MAX_QS, help="Maximum qs value to use."
+    )
+
+    parser.add_argument(
+        "--useable_ram", type=float, default=MEMORY, help="Maximum available ram to use."
     )
 
     args = parser.parse_args()

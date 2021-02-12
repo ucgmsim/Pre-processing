@@ -8,10 +8,11 @@ from os.path import abspath
 from qcore.utils import load_yaml
 
 from srf_generation.velocity_model_generation.q_model_generation.generate_qp_qs import (
-    generate_xys,
+    generate_xy_locations,
     generate_q_file,
     MAX_QP,
     MIN_QP,
+    MEMORY,
 )
 
 
@@ -41,6 +42,10 @@ def load_args():
         "--max_q", type=float, default=MAX_QP, help="Maximum qp value to use."
     )
 
+    parser.add_argument(
+        "--useable_ram", type=float, default=MEMORY, help="Maximum available ram to use."
+    )
+
     args = parser.parse_args()
     return args
 
@@ -50,7 +55,7 @@ def main():
 
     vm_params = load_yaml(args.vm_params_path)
 
-    xys = generate_xys(vm_params)
+    xys = generate_xy_locations(vm_params)
 
     generate_q_file(
         args.model_path,
@@ -62,6 +67,7 @@ def main():
         args.outfile_path,
         args.min_q,
         args.max_q,
+        args.useable_ram,
     )
 
 

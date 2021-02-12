@@ -10,7 +10,7 @@ from numpy.lib.recfunctions import unstructured_to_structured
 
 from qcore import srf, utils
 from qcore.geo import ll2gp_multi, gp2ll
-from qcore.vm_file import VelocityModelFile
+from qcore.vm_file import VelocityModelFile, create_constant_vm_file
 
 
 def ll_srf_dist_3d(srf_points, point):
@@ -34,15 +34,6 @@ def ll_srf_dist_3d(srf_points, point):
     h_dist = 6378.139 * 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
 
     return np.sqrt(h_dist ** 2 + v_dist ** 2)
-
-
-def create_ones_vm_file(pert_f_location, npoints):
-    # Doesn't matter what the dimensions are, we only need the total point count
-    vmf = VelocityModelFile(npoints, 1, 1, pert_f_location)
-    vmf.new()
-    with vmf as array:
-        vmf.set_values(np.ones_like(array))
-        vmf.save()
 
 
 def calculate_damage(
@@ -237,13 +228,14 @@ def modify_file(results, pert_f_location, vm_params):
     """
 
     pert_file = VelocityModelFile(
-        vm_params["nx"], vm_params["ny"], vm_params["nz"], pert_f_location
+        vm_params["nx"], vm_params["ny"], vm_params["nz"], pert_f_location, read_only=False
     )
 
     with pert_file:
         for i, j, k, val in results:
             new_value = val * pert_file.get_value(i, j, k)
             pert_file.set_value(new_value, i, j, k)
+        pert_file.save()
 
 
 def apply_fault_damage_zone(
@@ -343,7 +335,7 @@ def main():
 
     if not isfile(pert_f_location):
         # If the perturbation file doesn't exist yet, then we should make a new one of all ones (no perturbation)
-        create_ones_vm_file(
+        create_constant_vm_file(
             pert_f_location, vm_params["nx"] * vm_params["ny"] * vm_params["nz"]
         )
 

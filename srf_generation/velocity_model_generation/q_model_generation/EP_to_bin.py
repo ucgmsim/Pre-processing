@@ -1,6 +1,6 @@
-"""Script to generate a Qp/Qs binary model file from an Eberhart-Phillips style ascii model"""
+"""Script to generate a Qp/Qs binary model file from an Eberhart-Phillips style ascii model
+This only needs to be run once when the source model is updated"""
 import argparse
-import numpy as np
 from os.path import abspath
 import pandas as pd
 
@@ -32,11 +32,9 @@ def main():
     vals = data["vals"].values.reshape((xs_count, ys_count, zs_count))
 
     # Save model data
-    q_model = VelocityModelFile(xs_count, ys_count, zs_count, args.outfile)
-    q_model.new()
-    with q_model:
+    with VelocityModelFile(xs_count, ys_count, zs_count) as q_model:
         q_model.set_values(vals)
-        q_model.save()
+        q_model.save(args.outfile)
 
     with open(f"{args.outfile}.meta", "w") as metaf:
         metaf.write(f"Xs: {xs}\n")

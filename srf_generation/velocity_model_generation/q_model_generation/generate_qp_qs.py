@@ -44,7 +44,7 @@ ZS = [
 # fmt: on
 
 
-def generate_xys(vm_params: "Dict"):
+def generate_xy_locations(vm_params: "Dict"):
     # Generate all pairs of xy grid points in the VM domain
     points = [[x, y] for x in range(vm_params["nx"]) for y in range(vm_params["ny"])]
     # Convert these points to lat-lon pairs
@@ -62,11 +62,10 @@ def generate_xys(vm_params: "Dict"):
     return xys
 
 
-def get_interp(infile: str):
-    data = VelocityModelFile(len(XS), len(YS), len(ZS), infile)
-    with data as vals:
+def get_interp_grid(infile: str):
+    with VelocityModelFile(len(XS), len(YS), len(ZS), infile) as data:
         q_interp = RegularGridInterpolator(
-            (XS, YS, ZS), vals, bounds_error=False, fill_value=None
+            (XS, YS, ZS), data.get_values(), bounds_error=False, fill_value=None
         )
     return q_interp
 
@@ -77,16 +76,17 @@ def generate_q_file(
     ny: int,
     nz: int,
     hh: float,
-    xys: "List",
+    xy_locations: "List",
     output: str,
     min_val: float = -np.inf,
     max_val: float = np.inf,
+    useable_ram: int = MEMORY,
 ):
     # Get the interpolator from the model
-    interpolator = get_interp(model)
+    interpolator = get_interp_grid(model)
 
     # Set the step size from a rudimentary ram use calculation
-    step_size = int(np.floor(MEMORY / (240 * nx * ny)))
+    step_size = int(np.floor(useable_ram / (240 * nx * ny)))
     if step_size < 1:
         # If we don't have enough ram to do this,
         # then raise an exception and allow the user to increase ram allocation or reduce domain size
@@ -95,10 +95,7 @@ def generate_q_file(
         )
 
     # Create a new Velocity Model object with the correct dimensions
-    qp_data = VelocityModelFile(nx, ny, nz, output)
-    qp_data.new()
-    # Context manager returns direct access to the underlying array
-    with qp_data as data_box:
+    with VelocityModelFile(nx, ny, nz) as q_data:
         # Slice the domain into horizontal layers to reduce memory usage
         for offset in range(0, nz, step_size):
             # For the last layer don't generate more values than required
@@ -108,21 +105,20 @@ def generate_q_file(
             # Generate each point in this slice
             locations = [
                 [x, y, z * hh]
-                for x, y in xys
+                for x, y in xy_locations
                 for z in range(offset, offset + step_size)
             ]
 
-            # Run the interpolator and
-            q_vals = interpolator(locations).reshape((nx, ny, step_size))
+            # Run the interpolator and reshape to fit in the VM
+            # Access the underlying numpy array to set the layer
+            # Accesses protected member as this is currently the only time direct access is needed
+            q_data._data[:, :, offset : offset + step_size] = interpolator(
+                locations
+            ).reshape((nx, ny, step_size))
 
-            # Ensure we are within reasonable limits
-            q_vals = np.minimum(max_val, np.maximum(min_val, q_vals))
-
-            # qp_data.set_values(q_vals)
-            data_box[:, :, offset : offset + step_size] = q_vals
-
-        # Save the model before the context manager closes it
-        qp_data.save()
+        # Apply upper and lower bounds then save the model before the context manager closes it
+        q_data.apply_limits(lower=min_val, upper=max_val)
+        q_data.save(output)
 
 
 def load_args():
@@ -165,6 +161,10 @@ def load_args():
         "--max_qs", type=float, default=MAX_QS, help="Maximum qs value to use."
     )
 
+    parser.add_argument(
+        "--useable_ram", type=float, help="Maximum available ram to use."
+    )
+
     args = parser.parse_args()
     return args
 
@@ -174,31 +174,33 @@ def main():
 
     vm_params = load_yaml(args.vm_params_path)
 
-    xys = generate_xys(vm_params)
+    xy_locations = generate_xy_locations(vm_params)
 
-    print("Generating first q file")
+    print("Generating qp file")
     generate_q_file(
         args.qp_model,
         vm_params["nx"],
         vm_params["ny"],
         vm_params["nz"],
         vm_params["hh"],
-        xys,
+        xy_locations,
         f"{args.outfile_prefix}.qp",
         args.min_qp,
         args.max_qp,
+        args.useable_ram,
     )
-    print("Generating second q file")
+    print("Generating qs file")
     generate_q_file(
         args.qs_model,
         vm_params["nx"],
         vm_params["ny"],
         vm_params["nz"],
         vm_params["hh"],
-        xys,
+        xy_locations,
         f"{args.outfile_prefix}.qs",
         args.min_qs,
         args.max_qs,
+        args.useable_ram,
     )
     print("Done")
 

@@ -4,17 +4,17 @@ from os.path import abspath, join
 import pandas as pd
 
 from qcore.formats import load_fault_selection_file
-from qcore.utils import load_yaml
 from qcore.simulation_structure import (
     get_realisation_name,
     get_srf_path,
     get_fault_VM_dir,
 )
+from qcore.utils import load_yaml
+from qcore.vm_file import create_constant_vm_file
 
 from srf_generation.velocity_model_generation.fault_damage_zone import (
     add_fault_damage_zone_properties,
     apply_fault_damage_zone,
-    create_ones_vm_file,
 )
 
 from srf_generation.velocity_model_generation.generate_3d_velocity_model_perturbation import (
@@ -45,7 +45,7 @@ def generate_vm_perturbation(
                 common_params, layer_params, perturbation_file, 1
             )
     else:
-        create_ones_vm_file(
+        create_constant_vm_file(
             perturbation_file, vm_params["nx"] * vm_params["ny"] * vm_params["nz"]
         )
     if fault_damage_zone:
