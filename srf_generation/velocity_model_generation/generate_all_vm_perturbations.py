@@ -31,11 +31,7 @@ def generate_vm_perturbation(
     perturbation,
     perturbation_file,
     vm_params,
-    checkpointing,
 ):
-    if checkpointing and exists(perturbation_file):
-        print("Perturbation file {perturbation_file} exists, continuing.")
-        continue
     if perturbation:
         if args.model:
             perturbation_model = pd.read_csv(args.model)
@@ -123,6 +119,11 @@ def main():
             perturbation_file = join(
                 get_fault_VM_dir(cs_root, realisation), f"{realisation}.pertb"
             )
+            
+            if args.checkpointing and exists(perturbation_file):
+                print("Perturbation file {perturbation_file} exists, continuing.")
+                continue
+            
             vm_params = load_yaml(
                 join(get_fault_VM_dir(cs_root, realisation), "vm_params.yaml")
             )
@@ -135,7 +136,6 @@ def main():
                     perturbation,
                     perturbation_file,
                     vm_params,
-                    args.checkpointing,
                 )
             )
     with Pool(processes) as pool:
