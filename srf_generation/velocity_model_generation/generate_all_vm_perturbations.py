@@ -31,8 +31,10 @@ def generate_vm_perturbation(
     perturbation,
     perturbation_file,
     vm_params,
+    checkpointing,
 ):
-    if exists(perturbation_file):
+    if checkpointing and exists(perturbation_file):
+        print("Perturbation file {perturbation_file} exists, continuing.")
         continue
     if perturbation:
         if args.model:
@@ -69,6 +71,7 @@ def load_args():
     parser.add_argument("cs_root", type=abspath)
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("-n", "--n_processes", default=1, type=int)
+    parser.add_argument("-c", "--checkpointing", action="store_true")
 
     parser.add_argument("--perturbation", action="store_true")
     parser.add_argument("--fault_damage_zone", action="store_true")
@@ -130,6 +133,7 @@ def main():
                     perturbation,
                     perturbation_file,
                     vm_params,
+                    args.checkpointing,
                 )
             )
     pool = Pool(processes)
