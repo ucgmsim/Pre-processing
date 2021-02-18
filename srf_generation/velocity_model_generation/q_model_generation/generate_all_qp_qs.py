@@ -74,7 +74,7 @@ def load_args():
         "-n",
         "--n_processes",
         type=int,
-        help="Number of Qp and Qs files to generate at once. At most one per fault/event.",
+        help="Number of Qp and Qs files to generate at once. At most one process per rupture/fault/event.",
         default=1,
     )
 
