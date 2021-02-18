@@ -1,6 +1,6 @@
 import argparse
 from multiprocessing.pool import Pool
-from os.path import abspath, join
+from os.path import abspath, join, exists
 import pandas as pd
 
 from qcore.formats import load_fault_selection_file
@@ -70,6 +70,7 @@ def load_args():
     parser.add_argument("cs_root", type=abspath)
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("-n", "--n_processes", default=1, type=int)
+    parser.add_argument("-c", "--checkpointing", action="store_true")
 
     parser.add_argument("--perturbation", action="store_true")
     parser.add_argument("--fault_damage_zone", action="store_true")
@@ -121,6 +122,11 @@ def main():
             perturbation_file = join(
                 get_fault_VM_dir(cs_root, realisation), f"{realisation}.pertb"
             )
+
+            if args.checkpointing and exists(perturbation_file):
+                print("Perturbation file {perturbation_file} exists, continuing.")
+                continue
+
             vm_params = load_yaml(
                 join(get_fault_VM_dir(cs_root, realisation), "vm_params.yaml")
             )
