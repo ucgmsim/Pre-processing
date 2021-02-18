@@ -119,11 +119,11 @@ def main():
             perturbation_file = join(
                 get_fault_VM_dir(cs_root, realisation), f"{realisation}.pertb"
             )
-            
+
             if args.checkpointing and exists(perturbation_file):
                 print("Perturbation file {perturbation_file} exists, continuing.")
                 continue
-            
+
             vm_params = load_yaml(
                 join(get_fault_VM_dir(cs_root, realisation), "vm_params.yaml")
             )
