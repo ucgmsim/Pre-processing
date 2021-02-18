@@ -4,7 +4,7 @@ To generate the Q files for a single realisation
 
 import argparse
 import numpy as np
-from os.path import abspath
+from os.path import abspath, join, dirname
 from scipy.interpolate import RegularGridInterpolator
 
 from qcore.geo import gp2ll_multi, ll2xy, gen_mat
@@ -17,12 +17,13 @@ QP_MODEL_PATH = "qpmodel.bin"
 QS_MODEL_PATH = "qsmodel.bin"
 
 MAX_QP = np.inf
-MIN_QP = 50
+MIN_QP = 0
 MAX_QS = np.inf
-MIN_QS = 25
+MIN_QS = 0
 
 # 2Gb, as is standard on Maui. Memory use is only an estimation, and may not be linear in the number of grid points
-MEMORY = 2 * (10 ** 3) ** 3
+MEMORY = 2  # * (10 ** 3) ** 3
+MEMORY_SIZE = (10 ** 3) ** 3  # Gb
 
 # fmt: off
 XS = [
@@ -63,10 +64,17 @@ def generate_xy_locations(vm_params: "Dict"):
 
 
 def get_interp_grid(infile: str):
-    with VelocityModelFile(len(XS), len(YS), len(ZS), infile) as data:
+    if isinstance(infile, str):
+        with VelocityModelFile(len(XS), len(YS), len(ZS), infile) as data:
+            q_interp = RegularGridInterpolator(
+                (XS, YS, ZS), data.get_values(), bounds_error=False, fill_value=None
+            )
+    elif isinstance(infile, VelocityModelFile):
         q_interp = RegularGridInterpolator(
-            (XS, YS, ZS), data.get_values(), bounds_error=False, fill_value=None
+            (XS, YS, ZS), infile.get_values(), bounds_error=False, fill_value=None
         )
+    else:
+        raise ValueError
     return q_interp
 
 
@@ -86,7 +94,7 @@ def generate_q_file(
     interpolator = get_interp_grid(model)
 
     # Set the step size from a rudimentary ram use calculation
-    step_size = int(np.floor(useable_ram / (240 * nx * ny)))
+    step_size = int(np.floor(useable_ram * MEMORY_SIZE / (240 * nx * ny)))
     if step_size < 1:
         # If we don't have enough ram to do this,
         # then raise an exception and allow the user to increase ram allocation or reduce domain size
@@ -125,7 +133,7 @@ def load_args():
     parser = argparse.ArgumentParser(allow_abbrev=False)
 
     parser.add_argument(
-        "vm_params_path",
+        "vm_dir",
         type=abspath,
         help="Path to the vm_params file to load parameters from.",
     )
@@ -139,13 +147,13 @@ def load_args():
         "--qp_model",
         type=abspath,
         help="Path to the Qp model to use. Must be in standard VM file binary format. Must have the same dimensions as the current Eberhart-Phillips model.",
-        default=QP_MODEL_PATH,
+        default=join(dirname(abspath(__file__)), QP_MODEL_PATH),
     )
     parser.add_argument(
         "--qs_model",
         type=abspath,
         help="Path to the Qs model to use. Must be in standard VM file binary format. Must have the same dimensions as the current Eberhart-Phillips model.",
-        default=QS_MODEL_PATH,
+        default=join(dirname(abspath(__file__)), QS_MODEL_PATH),
     )
 
     parser.add_argument(
@@ -162,7 +170,10 @@ def load_args():
     )
 
     parser.add_argument(
-        "--useable_ram", type=float, help="Maximum available ram to use."
+        "--useable_ram",
+        type=float,
+        help="Maximum available ram to use. In Gb",
+        default=MEMORY,
     )
 
     args = parser.parse_args()
@@ -172,7 +183,7 @@ def load_args():
 def main():
     args = load_args()
 
-    vm_params = load_yaml(args.vm_params_path)
+    vm_params = load_yaml(join(args.vm_dir, "vm_params.yaml"))
 
     xy_locations = generate_xy_locations(vm_params)
 

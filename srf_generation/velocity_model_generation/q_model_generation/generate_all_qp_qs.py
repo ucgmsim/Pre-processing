@@ -71,6 +71,14 @@ def load_args():
     )
 
     parser.add_argument(
+        "-n",
+        "--n_processes",
+        type=int,
+        help="Number of Qp and Qs files to generate at once. At most one per fault/event.",
+        default=1,
+    )
+
+    parser.add_argument(
         "--qp_model",
         type=abspath,
         help="Path to the Qp model to use. Must be in standard VM file binary format. "
@@ -99,7 +107,10 @@ def load_args():
     )
 
     parser.add_argument(
-        "--useable_ram", type=float, default=MEMORY, help="Maximum available ram to use."
+        "--useable_ram",
+        type=float,
+        default=MEMORY,
+        help="Maximum available ram to use. In Gb per process.",
     )
 
     args = parser.parse_args()

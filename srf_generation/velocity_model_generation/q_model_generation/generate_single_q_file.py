@@ -43,7 +43,10 @@ def load_args():
     )
 
     parser.add_argument(
-        "--useable_ram", type=float, default=MEMORY, help="Maximum available ram to use."
+        "--useable_ram",
+        type=float,
+        default=MEMORY,
+        help="Maximum available ram to use. In Gb.",
     )
 
     args = parser.parse_args()
