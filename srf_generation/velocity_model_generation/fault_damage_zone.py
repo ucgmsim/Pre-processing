@@ -228,7 +228,11 @@ def modify_file(results, pert_f_location, vm_params):
     """
 
     pert_file = VelocityModelFile(
-        vm_params["nx"], vm_params["ny"], vm_params["nz"], pert_f_location, writable=True
+        vm_params["nx"], 
+        vm_params["ny"], 
+        vm_params["nz"], 
+        pert_f_location, 
+        writable=True,
     )
 
     with pert_file:
