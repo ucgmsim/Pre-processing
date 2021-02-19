@@ -7,8 +7,9 @@ import sys
 
 from qcore import qclogging
 from qcore.binary_version import get_unversioned_bin
-from qcore.constants import VM_PARAMS_FILE_NAME
-from qcore.utils import load_yaml
+from qcore.constants import VM_PARAMS_FILE_NAME, VMParams
+from qcore.utils import load_yaml, dump_yaml
+from qcore.simulation_structure import get_vm_params_yaml
 
 
 def gen_coords(
@@ -18,6 +19,7 @@ def gen_coords(
     do_coords="1",
     centre_origin="1",
     logger: Logger = qclogging.get_basic_logger(),
+    update_yaml=True,
 ):
     """
     Generate coordinate files for an emod3d domain (set of grid points).
@@ -25,12 +27,13 @@ def gen_coords(
     debug: print additional info
     geoproj:
     do_coords:
+    update_yaml: update/dump the vm_params.yaml, default to true
     """
 
     logger.debug("Generating coords. VM directory: {}".format(vm_dir))
 
     # load params for velocity model
-    vm = load_yaml(os.path.join(vm_dir, VM_PARAMS_FILE_NAME))
+    vm = load_yaml(get_vm_params_yaml(vm_dir))
 
     XLEN = vm["nx"] * vm["hh"]
     YLEN = vm["ny"] * vm["hh"]
@@ -42,6 +45,12 @@ def gen_coords(
     MODEL_COORDS = os.path.join(vm_dir, "model_coords%s" % (vm["sufx"]))
     MODEL_PARAMS = os.path.join(vm_dir, "model_params%s" % (vm["sufx"]))
     MODEL_BOUNDS = os.path.join(vm_dir, "model_bounds%s" % (vm["sufx"]))
+
+    vm[VMParams.gridfile.value] = GRIDFILE
+    vm[VMParams.gridout.value] = GRIDOUT
+    vm[VMParams.model_coords.value] = MODEL_COORDS
+    vm[VMParams.model_params.value] = MODEL_PARAMS
+    vm[VMParams.model_bounds.value] = MODEL_BOUNDS
 
     # generate gridfile
     try:
@@ -90,6 +99,10 @@ def gen_coords(
         message = "Cannot write MODEL_BOUNDS: {}".format(MODEL_BOUNDS)
         logger.log(qclogging.NOPRINTERROR, message)
         raise IOError(message)
+
+    # update vm_params.yaml at the end
+    if update_yaml == True:
+        dump_yaml(vm, get_vm_params_yaml(vm_dir))
 
 
 # allow running from shell
