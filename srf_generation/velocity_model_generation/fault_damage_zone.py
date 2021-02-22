@@ -10,8 +10,7 @@ from numpy.lib.recfunctions import unstructured_to_structured
 
 from qcore import srf, utils
 from qcore.geo import ll2gp_multi, gp2ll
-
-FLOAT_DTYPE = np.single
+from qcore.vm_file import VelocityModelFile, create_constant_vm_file
 
 
 def ll_srf_dist_3d(srf_points, point):
@@ -223,27 +222,24 @@ def get_bounding_box(srf_corners, vm_params, max_width_km, max_depth_km):
 def modify_file(results, pert_f_location, vm_params):
     """
     Writes the damage to the file, one result at a time
-
     :param results: a list of (x, y, z, damage) tuples to be applied to the file
     :param pert_f_location: The location of the perturbation file (must exist)
     :param vm_params: The dictionary loaded from the vm_params.yaml file
     """
-    global_nx = vm_params["nx"]
-    global_nz = vm_params["nz"]
-    float_size = np.dtype(FLOAT_DTYPE).itemsize
 
-    def locate_grid_point(x, y, z):
-        """Converts x, y, z cordinates into the address"""
-        return (global_nx * global_nz * y + global_nx * z + x) * float_size
+    pert_file = VelocityModelFile(
+        vm_params["nx"],
+        vm_params["ny"],
+        vm_params["nz"],
+        pert_f_location,
+        writable=True,
+    )
 
-    with open(pert_f_location, mode="br+") as pert_file:
+    with pert_file:
         for i, j, k, val in results:
-            location = locate_grid_point(i, j, k)
-            pert_file.seek(location)
-            existing_value = np.fromfile(pert_file, dtype=FLOAT_DTYPE, count=1)
-            new_value: np.ndarray = val * existing_value
-            pert_file.seek(-float_size, 1)
-            new_value.tofile(pert_file)
+            new_value = val * pert_file.get_value(i, j, k)
+            pert_file.set_value(new_value, i, j, k)
+        pert_file.save()
 
 
 def apply_fault_damage_zone(
@@ -343,7 +339,9 @@ def main():
 
     if not isfile(pert_f_location):
         # If the perturbation file doesn't exist yet, then we should make a new one of all ones (no perturbation)
-        create_empty_perturbation_file(pert_f_location, vm_params)
+        create_constant_vm_file(
+            pert_f_location, vm_params["nx"] * vm_params["ny"] * vm_params["nz"]
+        )
 
     apply_fault_damage_zone(
         args.srf_location,
@@ -356,12 +354,6 @@ def main():
         args.max_velocity_drop,
         args.processes,
     )
-
-
-def create_empty_perturbation_file(pert_f_location, vm_params):
-    np.ones(
-        shape=vm_params["nx"] * vm_params["ny"] * vm_params["nz"], dtype=FLOAT_DTYPE
-    ).tofile(pert_f_location)
 
 
 if __name__ == "__main__":
