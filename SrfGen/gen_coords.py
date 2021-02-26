@@ -7,7 +7,7 @@ import sys
 
 from qcore import qclogging
 from qcore.binary_version import get_unversioned_bin
-from qcore.constants import VM_PARAMS_FILE_NAME, VMParams
+from qcore.constants import VMParams
 from qcore.utils import load_yaml, dump_yaml
 from qcore.simulation_structure import get_vm_params_yaml
 
