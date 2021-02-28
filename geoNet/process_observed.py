@@ -1,8 +1,8 @@
 """Processes V1A or miniseed files from observed events and saves these as text files (in units g)"""
 import argparse
+import multiprocessing as mp
 from pathlib import Path
 from typing import List
-import multiprocessing as mp
 
 import numpy as np
 import obspy
@@ -30,10 +30,27 @@ TEXT_OUTPUT_TYPES = ["accBB", "velLF", "velBB"]
 
 
 class Record:
-    """Represents a observed event record"""
+    """Represents a observed event record
+
+    Attributes
+    ----------
+    acc_h1, acc_h2: array of floats
+        The unrotated horizontal acceleration components (in g)
+    acc_000, acc_090: array of floats
+        The roated horizontal acceleration components (in g)
+    acc_v: array of floats
+        The vertical aacceleration component (in g)
+    dt: float
+        Time step size
+    station_name: string
+    ffp: path
+        File path of the original record file
+    """
 
     def __init__(
         self,
+        acc_h1: np.ndarray,
+        acc_h2: np.ndarray,
         acc_000: np.ndarray,
         acc_090: np.ndarray,
         acc_v: np.ndarray,
@@ -41,45 +58,47 @@ class Record:
         station_name: str,
         ffp: Path,
     ):
+        self.acc_h1 = acc_h1
+        self.acc_h2 = acc_h2
         self.acc_000 = acc_000
         self.acc_090 = acc_090
         self.acc_v = acc_v
 
-        self.rot_angle = None
         self.dt = dt
 
         self.station_name = station_name
         self.ffp = ffp
 
-    def rotate(self, angle_000: float):
-        """
-                N
-            W<-- -->E
-                S
 
-        GeoNet comp_1st and comp_2nd angles axis angles are measured
-        from N. We rotate clock wise with angle theta where
+def rotate(acc_h1, acc_h2, angle_000: float):
+    """
+            N
+        W<-- -->E
+            S
 
-            theta = 360 - comp_1st.angle
+    GeoNet comp_1st and comp_2nd angles axis angles are measured
+    from N. We rotate clock wise with angle theta where
 
-        [comp_090, comp_180] = Rot(theta) * [comp_1st, comp_2nd]
-        Then perform a reflection in the y-axis
-        comp_000 = -comp_180
-        self.rot_angle:
-               theta = 360 - comp_1st.angle
-        acc_000:
-                positive axis 1 parallel to E
-        acc_090:
-                positive axis 2 parallel to N
+        theta = 360 - comp_1st.angle
 
-        """
-        # For compatibility with orientation as defined by Brendon et al.
-        self.rot_angle = -(90.0 - angle_000)
-        R = rot_matrix(self.rot_angle)
-        acc_090 = R[0, 0] * self.acc_000 + R[0, 1] * self.acc_090
-        acc_000 = R[1, 0] * self.acc_000 + R[1, 1] * self.acc_090
+    [comp_090, comp_180] = Rot(theta) * [comp_1st, comp_2nd]
+    Then perform a reflection in the y-axis
+    comp_000 = -comp_180
+    self.rot_angle:
+           theta = 360 - comp_1st.angle
+    acc_000:
+            positive axis 1 parallel to E
+    acc_090:
+            positive axis 2 parallel to N
 
-        self.acc_090, self.acc_000 = acc_090, acc_000
+    """
+    # For compatibility with orientation as defined by Brendon et al.
+    rot_angle = -(90.0 - angle_000)
+    R = rot_matrix(rot_angle)
+    acc_090 = R[0, 0] * acc_h1 + R[0, 1] * acc_h2
+    acc_000 = R[1, 0] * acc_h1 + R[1, 1] * acc_h2
+
+    return acc_000, acc_090
 
 
 def pre_process(acc: np.ndarray):
@@ -105,7 +124,13 @@ def rot_matrix(theta: float):
     return np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
 
 
-def process(record: Record, output_format: str, output_type: str = None, **kwargs):
+def process(
+    record: Record,
+    output_format: str,
+    output_type: str = None,
+    write_unrotated: bool = False,
+    **kwargs,
+):
     # Fill any parameter gaps with the default params
     cur_default_kwargs = SMD_DEFAULT_KWARGS.copy()
     cur_default_kwargs["fs"] = 1.0 / record.dt
@@ -113,6 +138,10 @@ def process(record: Record, output_format: str, output_type: str = None, **kwarg
     kwargs = {**cur_default_kwargs, **kwargs}
 
     # Perform integration
+    smd_comp_h1, smd_comp_h2 = None, None
+    if write_unrotated:
+        smd_comp_h1 = SMD(record.acc_h1, record.dt, **kwargs)
+        smd_comp_h2 = SMD(record.acc_h2, record.dt, **kwargs)
     smd_comp_000 = SMD(record.acc_000, record.dt, **kwargs)
     smd_comp_090 = SMD(record.acc_090, record.dt, **kwargs)
     smd_comp_v = SMD(record.acc_v, record.dt, **kwargs)
@@ -142,6 +171,22 @@ def process(record: Record, output_format: str, output_type: str = None, **kwarg
             record.station_name,
             "ver",
         )
+
+        if write_unrotated:
+            ts.seis2txt(
+                smd_comp_h1.__getattribute__(output_type),
+                smd_comp_h1.dt,
+                str(output_dir) + "/",
+                record.station_name,
+                "H1",
+            )
+            ts.seis2txt(
+                smd_comp_h2.__getattribute__(output_type),
+                smd_comp_h2.dt,
+                str(output_dir) + "/",
+                record.station_name,
+                "H2",
+            )
     else:
         raise NotImplementedError()
 
@@ -155,7 +200,14 @@ def get_comp_trace(traces: List[obspy.Trace], component: str):
     ][0]
 
 
-def process_v1a_file(ffp: Path, output_format: str, output_type, ix: int, n_files: int):
+def process_v1a_file(
+    ffp: Path,
+    output_format: str,
+    output_type,
+    write_unrotated: bool,
+    ix: int,
+    n_files: int,
+):
     """Processes a single V1A file and saves as text file, to be used with pool.starmap"""
     print(f"Processing V1A file {ffp.name}, {ix + 1}/{n_files}")
     try:
@@ -173,14 +225,19 @@ def process_v1a_file(ffp: Path, output_format: str, output_type, ix: int, n_file
             return None
 
         # Pre-processing (de-mean & detrend)
-        acc_000, acc_090 = (
+        acc_h1, acc_h2 = (
             pre_process(gf.comp_1st.acc),
             pre_process(gf.comp_2nd.acc),
         )
         acc_v = pre_process(gf.comp_up.acc)
 
-        # Create a record and rotate
+        # Rotate to get horizontal components in north-south & east-west direction
+        acc_000, acc_090 = rotate(acc_h1, acc_h2, gf.comp_1st.angle)
+
+        # Create a record
         cur_record = Record(
+            acc_h1,
+            acc_h2,
             acc_000,
             acc_090,
             acc_v,
@@ -188,10 +245,14 @@ def process_v1a_file(ffp: Path, output_format: str, output_type, ix: int, n_file
             ffp.name.split(".")[0].split("_")[2],
             ffp,
         )
-        cur_record.rotate(gf.comp_1st.angle)
 
         # Process
-        process(cur_record, output_format, output_type)
+        process(
+            cur_record,
+            output_format,
+            output_type=output_type,
+            write_unrotated=write_unrotated,
+        )
         return True
 
     except Exception as ex:
@@ -200,7 +261,11 @@ def process_v1a_file(ffp: Path, output_format: str, output_type, ix: int, n_file
 
 
 def process_v1a_files(
-    ffps: List[Path], output_format: str, output_type: str = None, n_procs: int = 1
+    ffps: List[Path],
+    output_format: str,
+    output_type: str = None,
+    write_unrotated: bool = False,
+    n_procs: int = 1,
 ):
     """Processes the specified V1A files"""
     n_files = len(ffps)
@@ -208,7 +273,7 @@ def process_v1a_files(
         success_mask = p.starmap(
             process_v1a_file,
             [
-                (cur_ffp, output_format, output_type, ix, n_files)
+                (cur_ffp, output_format, output_type, write_unrotated, ix, n_files)
                 for ix, cur_ffp in enumerate(ffps)
             ],
         )
@@ -221,6 +286,7 @@ def process_miniseed_file(
     inventory: obspy.Inventory,
     output_format: str,
     output_type: str,
+    write_unrotated: bool,
     ix: int,
     n_files: int,
 ):
@@ -232,7 +298,11 @@ def process_miniseed_file(
             # Remove sensitivity
             st = st.remove_sensitivity(inventory=inventory)
 
-            # Rotate if required
+            # Get the unrotated horizontal components
+            acc_h1 = pre_process(get_comp_trace(st.traces, "1"))
+            acc_h2 = pre_process(get_comp_trace(st.traces, "2"))
+
+            # Rotate
             st.rotate("->ZNE", inventory=inventory)
 
             # Convert to ACC if it isn't already
@@ -247,6 +317,8 @@ def process_miniseed_file(
 
             # Process
             cur_record = Record(
+                acc_h1,
+                acc_h2,
                 acc_000,
                 acc_090,
                 acc_v,
@@ -254,7 +326,12 @@ def process_miniseed_file(
                 st.traces[0].stats.station,
                 ffp,
             )
-            process(cur_record, output_format, output_type)
+            process(
+                cur_record,
+                output_format,
+                output_type=output_type,
+                write_unrotated=write_unrotated,
+            )
             return True
         else:
             print(f"File {ffp.name} does not have 3 components, skipping!")
@@ -265,7 +342,11 @@ def process_miniseed_file(
 
 
 def process_miniseed_files(
-    ffps: List[Path], output_format: str, output_type: str = None, n_procs: int = 1
+    ffps: List[Path],
+    output_format: str,
+    output_type: str = None,
+    write_unrotated: bool = False,
+    n_procs: int = 1,
 ):
     """Processes the specified miniseed files"""
     print("Loading the station inventory (this may take a few seconds)")
@@ -277,7 +358,15 @@ def process_miniseed_files(
         success_mask = p.starmap(
             process_miniseed_file,
             [
-                (cur_ffp, inventory, output_format, output_type, ix, n_files)
+                (
+                    cur_ffp,
+                    inventory,
+                    output_format,
+                    output_type,
+                    write_unrotated,
+                    ix,
+                    n_files,
+                )
                 for ix, cur_ffp in enumerate(ffps)
             ],
         )
@@ -290,6 +379,7 @@ def main(
     input_format: str,
     output_format: str,
     output_type: str,
+    write_unrotated: bool,
     n_procs: int,
 ):
     # Find all files to process
@@ -299,11 +389,19 @@ def main(
 
     if input_format.lower() == "v1a":
         success_mask = process_v1a_files(
-            ffps, output_format, output_type=output_type, n_procs=n_procs
+            ffps,
+            output_format,
+            output_type=output_type,
+            write_unrotated=write_unrotated,
+            n_procs=n_procs,
         )
     else:
         success_mask = process_miniseed_files(
-            ffps, output_format, output_type=output_type, n_procs=n_procs
+            ffps,
+            output_format,
+            output_type=output_type,
+            write_unrotated=write_unrotated,
+            n_procs=n_procs,
         )
 
     unprocessed_files = [
@@ -359,6 +457,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_procs", type=int, help="Number of processes to use", default=1
     )
+    parser.add_argument(
+        "--write_unrotated",
+        help="If specified then the two unrotated components are also saved (.H1 & .H2)",
+        default=False,
+        action="store_true",
+    )
 
     args = parser.parse_args()
     main(
@@ -366,5 +470,6 @@ if __name__ == "__main__":
         args.input_format,
         args.output_format,
         args.output_type,
+        args.write_unrotated,
         args.n_procs,
     )
