@@ -163,8 +163,8 @@ def add_basins(vm_dir, vm_params, outfile_prefix):
             # go back and re-write modified versions
             qp.seek(-bytes_x, 1)
             qs.seek(-bytes_x, 1)
-            (vs_x * 100).tofile(qp)
-            (vs_x * 50).tofile(qs)
+            qp_x.tofile(qp)
+            qss_x.tofile(qs)
 
 
 def load_args():
@@ -215,7 +215,9 @@ def load_args():
     )
 
     # enable basin values based on vs
-    parser.add_argument("--basins", action="store_true", help="Vs based model in basins")
+    parser.add_argument(
+        "--basins", action="store_true", help="Vs based model in basins"
+    )
 
     args = parser.parse_args()
     return args
