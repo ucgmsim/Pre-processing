@@ -1,10 +1,11 @@
+#!/usr/bin/env python
 """
 To generate the Q files for a single realisation
 """
 
 import argparse
 import numpy as np
-from os.path import abspath, join, dirname
+from os.path import abspath, dirname, isfile, join
 from scipy.interpolate import RegularGridInterpolator
 
 from qcore.geo import gp2ll_multi, ll2xy, gen_mat
@@ -129,6 +130,43 @@ def generate_q_file(
         q_data.save(output)
 
 
+def add_basins(vm_dir, vm_params, outfile_prefix):
+    """
+    Go back and modify basin regions in qp/qs model.
+    """
+    vs = open(join(vm_dir, "vs3dfile.s"), "rb")
+    qp = open(f"{outfile_prefix}.qp", "rb+")
+    qs = open(f"{outfile_prefix}.qs", "rb+")
+    basin_mask = open(join(vm_dir, "in_basin_mask.b"), "rb")
+
+    nx = vm_conf["nx"]
+    bytes_x = nx * 4
+    # used to skip binary files where there are no basins
+    seek = 0
+    for _ in range(vm_conf["ny"]):
+        for _ in range(vm_conf["nz"]):
+            # float array of ints in file, probably the basin index + 1
+            basin_x = np.fromfile(basin_mask, dtype="f4", count=nx) > 0
+            if not basin_x.any():
+                seek += bytes_x
+                continue
+            vs.seek(seek, 1)
+            qp.seek(seek, 1)
+            qs.seek(seek, 1)
+            seek = 0
+
+            vs_x = np.fromfile(vs, dtype="f4", count=nx)
+            qp_x = np.fromfile(qp, dtype="f4", count=nx)
+            qs_x = np.fromfile(qs, dtype="f4", count=nx)
+            qp_x[basin_x] = vs_x[basin_x] * 100
+            qs_x[basin_x] = vs_x[basin_x] * 50
+            # go back and re-write modified versions
+            qp.seek(-bytes_x, 1)
+            qs.seek(-bytes_x, 1)
+            (vs_x * 100).tofile(qp)
+            (vs_x * 50).tofile(qs)
+
+
 def load_args():
     parser = argparse.ArgumentParser(allow_abbrev=False)
 
@@ -176,6 +214,9 @@ def load_args():
         default=MEMORY,
     )
 
+    # enable basin values based on vs
+    parser.add_argument("--basins", action="store_true", help="Vs based model in basins")
+
     args = parser.parse_args()
     return args
 
@@ -213,6 +254,8 @@ def main():
         args.max_qs,
         args.useable_ram,
     )
+    if args.basins:
+        add_basins(args.vm_dir, vm_params, outfile_prefix)
     print("Done")
 
 
