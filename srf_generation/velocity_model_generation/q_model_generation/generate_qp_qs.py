@@ -166,7 +166,7 @@ def add_basins(vm_dir, vm_params, outfile_prefix):
             qp.seek(-bytes_x, 1)
             qs.seek(-bytes_x, 1)
             qp_x.tofile(qp)
-            qss_x.tofile(qs)
+            qs_x.tofile(qs)
 
 
 def load_args():
