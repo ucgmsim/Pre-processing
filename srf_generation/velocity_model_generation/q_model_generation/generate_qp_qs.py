@@ -139,13 +139,13 @@ def add_basins(vm_dir, vm_params, outfile_prefix):
     qs = open(f"{outfile_prefix}.qs", "rb+")
     basin_mask = open(join(vm_dir, "in_basin_mask.b"), "rb")
 
-    nx = vm_conf["nx"]
+    nx = vm_params["nx"]
     bytes_x = nx * 4
     # used to skip binary files where there are no basins
     seek = 0
     # dimensionality isn't important, could do zx slices too
-    for _ in range(vm_conf["ny"]):
-        for _ in range(vm_conf["nz"]):
+    for _ in range(vm_params["ny"]):
+        for _ in range(vm_params["nz"]):
             # float array of ints in file, probably the basin index + 1
             basin_x = np.fromfile(basin_mask, dtype="f4", count=nx) > 0
             if not basin_x.any():
@@ -257,7 +257,7 @@ def main():
     )
     if args.basins:
         print("Updating basins")
-        add_basins(args.vm_dir, vm_params, outfile_prefix)
+        add_basins(args.vm_dir, vm_params, args.outfile_prefix)
     print("Done")
 
 
