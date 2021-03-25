@@ -134,17 +134,16 @@ def add_basins(vm_dir, vm_params, outfile_prefix):
     """
     Go back and modify basin regions in qp/qs model.
     """
-    vs = open(join(vm_dir, "vs3dfile.s"), "rb")
-    qp = open(f"{outfile_prefix}.qp", "rb+")
-    qs = open(f"{outfile_prefix}.qs", "rb+")
-    basin_mask = open(join(vm_dir, "in_basin_mask.b"), "rb")
-
     nx = vm_params["nx"]
     bytes_x = nx * 4
     # work over x (fastest moving) dimension
     # dimensionality isn't important, could do nz*nx lengths too
-    for _ in range(vm_params["ny"]):
-        for _ in range(vm_params["nz"]):
+    with open(join(vm_dir, "vs3dfile.s"), "rb") as vs, open(
+        f"{outfile_prefix}.qp", "rb+"
+    ) as qp, open(f"{outfile_prefix}.qs", "rb+") as qs, open(
+        join(vm_dir, "in_basin_mask.b"), "rb"
+    ) as basin_mask:
+        for _ in range(vm_params["ny"] * vm_params["nz"]):
             # float array of ints in file, probably the basin index + 1
             basin_x = np.fromfile(basin_mask, dtype="f4", count=nx) > 0
             if not basin_x.any():
