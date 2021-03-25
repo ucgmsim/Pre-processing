@@ -141,21 +141,17 @@ def add_basins(vm_dir, vm_params, outfile_prefix):
 
     nx = vm_params["nx"]
     bytes_x = nx * 4
-    # used to skip binary files where there are no basins
-    seek = 0
-    # dimensionality isn't important, could do zx slices too
+    # work over x (fastest moving) dimension
+    # dimensionality isn't important, could do nz*nx lengths too
     for _ in range(vm_params["ny"]):
         for _ in range(vm_params["nz"]):
             # float array of ints in file, probably the basin index + 1
             basin_x = np.fromfile(basin_mask, dtype="f4", count=nx) > 0
             if not basin_x.any():
-                seek += bytes_x
+                vs.seek(bytes_x, 1)
+                qp.seek(bytes_x, 1)
+                qs.seek(bytes_x, 1)
                 continue
-            if seek > 0:
-                vs.seek(seek, 1)
-                qp.seek(seek, 1)
-                qs.seek(seek, 1)
-                seek = 0
 
             vs_x = np.fromfile(vs, dtype="f4", count=nx)
             qp_x = np.fromfile(qp, dtype="f4", count=nx)
@@ -215,7 +211,10 @@ def load_args():
         default=MEMORY,
     )
     parser.add_argument(
-        "--basins", action="store_true", help="Vs based model in basins"
+        "--no-basins",
+        action="store_false",
+        dest="basins",
+        help="Vs based model in basins",
     )
 
     args = parser.parse_args()
