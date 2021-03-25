@@ -214,7 +214,7 @@ def load_args():
         "--no-basins",
         action="store_false",
         dest="basins",
-        help="Vs based model in basins",
+        help="don't use Vs based model in basins",
     )
 
     args = parser.parse_args()
