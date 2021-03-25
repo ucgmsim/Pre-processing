@@ -151,10 +151,11 @@ def add_basins(vm_dir, vm_params, outfile_prefix):
             if not basin_x.any():
                 seek += bytes_x
                 continue
-            vs.seek(seek, 1)
-            qp.seek(seek, 1)
-            qs.seek(seek, 1)
-            seek = 0
+            if seek > 0:
+                vs.seek(seek, 1)
+                qp.seek(seek, 1)
+                qs.seek(seek, 1)
+                seek = 0
 
             vs_x = np.fromfile(vs, dtype="f4", count=nx)
             qp_x = np.fromfile(qp, dtype="f4", count=nx)
