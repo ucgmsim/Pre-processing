@@ -143,6 +143,7 @@ def add_basins(vm_dir, vm_params, outfile_prefix):
     bytes_x = nx * 4
     # used to skip binary files where there are no basins
     seek = 0
+    # dimensionality isn't important, could do zx slices too
     for _ in range(vm_conf["ny"]):
         for _ in range(vm_conf["nz"]):
             # float array of ints in file, probably the basin index + 1
@@ -206,15 +207,12 @@ def load_args():
     parser.add_argument(
         "--max_qs", type=float, default=MAX_QS, help="Maximum qs value to use."
     )
-
     parser.add_argument(
         "--useable_ram",
         type=float,
         help="Maximum available ram to use. In Gb",
         default=MEMORY,
     )
-
-    # enable basin values based on vs
     parser.add_argument(
         "--basins", action="store_true", help="Vs based model in basins"
     )
@@ -257,6 +255,7 @@ def main():
         args.useable_ram,
     )
     if args.basins:
+        print("Updating basins")
         add_basins(args.vm_dir, vm_params, outfile_prefix)
     print("Done")
 
