@@ -567,7 +567,7 @@ def reduce_domain(
     return origin, bearing, xlen, ylen
 
 
-def gen_vm(
+def gen_vm_config(
     args,
     srf_meta,
     vm_params_dict,
@@ -604,6 +604,17 @@ def gen_vm(
         topo_type=args.vm_topo,
         model_version=args.vm_version,
     )
+    return vm_params_path
+
+
+def gen_vm(
+    args,
+    srf_meta,
+    vm_params_dict,
+    mag,
+    ptemp,
+    logger: Logger = qclogging.get_basic_logger(),
+):
     if args.novm:
         logger.debug(
             "--novm set, generating configuration files, but not generating VM."
@@ -751,7 +762,7 @@ def plot_vm(
             out_name=os.path.abspath(os.path.join(ptemp, os.pardir, vm_params["name"])),
         )
 
-
+# does both vm_params and vm
 def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     # temp directory for current process
     logger = qclogging.get_realisation_logger(
@@ -952,8 +963,12 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
         % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
     }
 
+
+
+
     # will not create VM if it is entirely in the ocean
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
+        gen_vm_config(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
         # run the actual generation
         gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
     else:
@@ -1144,7 +1159,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg("info_glob", help="info file selection expression. eg: Srf/*.info")
+    arg("info_glob", help="info file selection expression. eg: Srf/*.info, ")
     arg(
         "--nhm-file",
         help="path to NHM if using info_glob == 'NHM'",
@@ -1152,7 +1167,12 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
             os.path.dirname(os.path.abspath(__file__)), "NHM", "NZ_FLTmodel_2010.txt"
         ),
     )
-    parser.add_argument(
+    arg(
+        "--vm-params",
+        help="path to vm_params.yaml if using info_glob == 'vm_params'. By default it assumes it is where -o specifies",
+
+        )
+    arg(
         "-o", "--out-dir", help="directory to place outputs", default="VMs"
     )
     arg(
@@ -1219,6 +1239,9 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     args = parser.parse_args()
     args.out_dir = os.path.abspath(args.out_dir)
 
+    if not args.vm_params:
+        args.vm_params=os.path.join(args.out_dir,""
+
     if not args.novm:
         if NZVM_BIN is None:
             message = """NZVM binary not in PATH
@@ -1246,6 +1269,10 @@ if __name__ == "__main__":
             "info_glob is NHM. Loading messages from NHM file: {}".format(args.nhm_file)
         )
         msg_list = load_msgs_nhm(args, logger=logger)
+    elif args.info_glob == "vm_params":
+        logger.debug(
+            "info_glob is vm_params. Loading from vm_params.yaml"
+        )
     else:
         logger.debug(
             "info_glob is not NHM, assuming it is a valid path (possibly with stars)"
