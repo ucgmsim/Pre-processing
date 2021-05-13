@@ -24,6 +24,7 @@ from subprocess import Popen
 import sys
 from tempfile import mkdtemp
 
+import yaml
 from h5py import File as h5open
 import numpy as np
 
@@ -41,7 +42,7 @@ from gen_coords import gen_coords
 script_dir = os.path.dirname(os.path.abspath(__file__))
 NZ_CENTRE_LINE = os.path.join(script_dir, "NHM/res/centre.txt")
 NZ_LAND_OUTLINE = os.path.join(script_dir, "NHM/res/rough_land.txt")
-NZVM_BIN = find_executable("NZVM")
+NZVM_BIN = "/Users/sungbae/Velocity-Model/NZVM" #find_executable("NZVM")
 
 siteprop = Site()
 siteprop.vs30 = 500
@@ -567,44 +568,6 @@ def reduce_domain(
     return origin, bearing, xlen, ylen
 
 
-def gen_vm_config(
-    args,
-    srf_meta,
-    vm_params_dict,
-    mag,
-    ptemp,
-    logger: Logger = qclogging.get_basic_logger(),
-):
-    # store configs
-    out_vm_dir = os.path.join(args.out_dir, srf_meta["name"])
-    logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
-    vm_params_dict["vm_dir"] = out_vm_dir
-    vm_working_dir = os.path.join(out_vm_dir, "output")
-    os.makedirs(vm_working_dir, exist_ok=True)
-    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    vm_params_path = os.path.join(ptemp, "vm_params")
-    # NZVM won't run if folder exists
-    if os.path.exists(vm_working_dir):
-        logger.debug("VM working directory {} already exists.".format(vm_working_dir))
-        rmtree(vm_working_dir)
-    save_vm_config(
-        nzvm_cfg=nzvm_cfg,
-        vm_params=vm_params_path,
-        vm_dir=vm_working_dir,
-        origin=vm_params_dict["origin"],
-        rot=vm_params_dict["bearing"],
-        xlen=vm_params_dict["xlen_mod"],
-        ylen=vm_params_dict["ylen_mod"],
-        zmax=vm_params_dict["zlen_mod"],
-        hh=args.hh,
-        min_vs=args.min_vs,
-        mag=mag,
-        centroid_depth=srf_meta["hdepth"],
-        sim_duration=vm_params_dict["sim_time_mod"],
-        topo_type=args.vm_topo,
-        model_version=args.vm_version,
-    )
-    return vm_params_path
 
 
 def gen_vm(
@@ -762,14 +725,7 @@ def plot_vm(
             out_name=os.path.abspath(os.path.join(ptemp, os.pardir, vm_params["name"])),
         )
 
-# does both vm_params and vm
-def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
-    # temp directory for current process
-    logger = qclogging.get_realisation_logger(
-        qclogging.get_logger(logger_name), srf_meta["name"]
-    )
-    ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
-
+def make_vm_params(srf_meta, ptemp):
     # properties stored in classes (fault of external code)
     faultprop.Mw = srf_meta["mag"]
     faultprop.rake = srf_meta["rake"]
@@ -958,17 +914,80 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
         "adjusted": adjusted,
         "plot_region": plot_region,
         "path": "%s %s\n%s %s\n%s %s\n%s %s\n"
-        % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
+                % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
         "path_mod": "%s %s\n%s %s\n%s %s\n%s %s\n"
-        % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
+                    % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
     }
 
-
-
-
-    # will not create VM if it is entirely in the ocean
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
         gen_vm_config(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
+        return vm_params
+
+    return None # failed to create VM if it is entirely in the ocean
+
+
+def gen_vm_config(
+    args,
+    srf_meta,
+    vm_params_dict,
+    mag,
+    ptemp,
+    logger: Logger = qclogging.get_basic_logger(),
+):
+    # store configs
+    out_vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+    logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
+    vm_params_dict["vm_dir"] = out_vm_dir
+    vm_working_dir = os.path.join(out_vm_dir, "output")
+    os.makedirs(vm_working_dir, exist_ok=True)
+    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
+    vm_params_path = os.path.join(ptemp, "vm_params")
+    # NZVM won't run if folder exists
+    if os.path.exists(vm_working_dir):
+        logger.debug("VM working directory {} already exists.".format(vm_working_dir))
+        rmtree(vm_working_dir)
+    save_vm_config(
+        nzvm_cfg=nzvm_cfg,
+        vm_params=vm_params_path,
+        vm_dir=vm_working_dir,
+        origin=vm_params_dict["origin"],
+        rot=vm_params_dict["bearing"],
+        xlen=vm_params_dict["xlen_mod"],
+        ylen=vm_params_dict["ylen_mod"],
+        zmax=vm_params_dict["zlen_mod"],
+        hh=args.hh,
+        min_vs=args.min_vs,
+        mag=mag,
+        centroid_depth=srf_meta["hdepth"],
+        sim_duration=vm_params_dict["sim_time_mod"],
+        topo_type=args.vm_topo,
+        model_version=args.vm_version,
+    )
+    return vm_params_path
+
+
+def load_vm_params(vm_params_file):
+    with open(vm_params_file,'r') as f:
+        vm_params =yaml.load(f,Loader=yaml.SafeLoader)
+
+    return vm_params
+
+# does both vm_params and vm
+def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
+    # temp directory for current process
+    logger = qclogging.get_realisation_logger(
+        qclogging.get_logger(logger_name), srf_meta["name"]
+    )
+    ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
+
+    if args.info_glob == 'vm_params':
+        vm_params = load_vm_params(args.vm_params)
+    else:
+        vm_params = make_vm_params(srf_meta, ptemp)
+        #gen_vm_config(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
+
+
+    if vm_params is not None:
         # run the actual generation
         gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
     else:
@@ -1240,7 +1259,11 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     args.out_dir = os.path.abspath(args.out_dir)
 
     if not args.vm_params:
-        args.vm_params=os.path.join(args.out_dir,""
+        args.vm_params=os.path.join(args.out_dir,"vm_params.yaml")
+
+    if not os.path.exists(args.vm_params):
+        raise FileNotFoundError(args.vm_params)
+
 
     if not args.novm:
         if NZVM_BIN is None:
