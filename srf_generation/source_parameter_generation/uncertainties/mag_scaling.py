@@ -15,6 +15,7 @@ class MagnitudeScalingRelations(Enum):
     SKARLATOUDIS2016 = "SKARLATOUDIS2016"
 
 
+
 def get_area(fault: "Fault"):
     if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
         farea = mw_to_a_hanksbakun(fault.magnitude)
@@ -242,6 +243,10 @@ def lw_2_mw_sigma_scaling_relation(
         sigma = mw_sigma_leonard(rake)
     elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
         sigma = mw_sigma_skarlatoudis()
+    elif mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
+        sigma = mw_sigma_hanksbakun()
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
+        sigma = mw_sigma_villamor()
 
     return mw, sigma
 
@@ -263,6 +268,13 @@ def mw_sigma_leonard(rake):
         sigma = 0.26
     return sigma
 
+
+def mw_sigma_hanksbakun():
+    return 0.22
+
+
+def mw_sigma_villamor():
+    return 0.195
 
 def a_to_mw_leonard(a, leonard_ds, leonard_ss, rake):
     if round(rake % 360 / 90.0) % 2:
@@ -301,13 +313,23 @@ def mw_to_a_skarlatoudis(mw):
 
 
 def mag2mom(mw):
-    """Converts magnitude to moment"""
+    """Converts magnitude to moment - dyne-cm"""
     return np.exp(3.0 / 2.0 * (mw + 10.7) * np.log(10.0))
 
 
 def mom2mag(mom):
-    """Converts moment to magnitude"""
-    return (2.0 / 3.0 * np.log(mom) / np.log(10.0)) - 10.7
+    """Converts moment to magnitude - dyne-cm"""
+    return (2.0 / 3.0 * np.log10(mom)) - 10.7
+
+
+def mag2mom_nm(mw):
+    """Converts magnitude to moment - newtonmetre"""
+    return 10 ** (9.05 + 1.5 * mw)
+
+
+def mom2mag_nm(mom):
+    """Converts moment to magnitude - newtonmetre"""
+    return (np.log10(mom) - 9.05) / 1.5
 
 
 def round_subfault_size(dist, mag):
