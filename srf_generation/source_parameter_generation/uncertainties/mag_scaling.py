@@ -10,9 +10,10 @@ MAGNITUDE_ROUNDING_THRESHOLD = 7.5
 class MagnitudeScalingRelations(Enum):
     HANKSBAKUN2002 = "HANKSBAKUN2002"
     BERRYMANETAL2002 = "BERRYMANETAL2002"
-    VILLAMORETAL2001 = "VILLAMORETAL2001"
+    VILLAMORETAL2007 = "VILLAMORETAL2007"
     LEONARD2014 = "LEONARD2014"
     SKARLATOUDIS2016 = "SKARLATOUDIS2016"
+    STIRLING2008 = "STIRLING2008"
 
 
 
@@ -23,7 +24,7 @@ def get_area(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
         farea = mw_to_a_berrymanetal(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2007:
         farea = mw_to_a_villamoretal(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
@@ -50,7 +51,7 @@ def get_width(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
         fwidth = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2007:
         fwidth = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
@@ -75,7 +76,7 @@ def get_length(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
         flength = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2007:
         flength = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
@@ -107,7 +108,7 @@ def mw_2_lw_scaling_relation(
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
         l = w = np.sqrt(mw_to_a_berrymanetal(mw))
 
-    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2007:
         l = w = np.sqrt(mw_to_a_villamoretal(mw))
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
@@ -206,7 +207,7 @@ def lw_2_mw_scaling_relation(
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
         mw = a_to_mw_berrymanetal(l * w)
 
-    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2007:
         mw = a_to_mw_villamoretal(l * w)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
@@ -214,6 +215,8 @@ def lw_2_mw_scaling_relation(
 
     elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
         mw = a_to_mw_skarlatoudis(l * w)
+    elif mw_scaling_rel == MagnitudeScalingRelations.STIRLING2008:
+        mw = lw_2_mw_stirling(l, w)
 
     else:
         raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
@@ -245,10 +248,15 @@ def lw_2_mw_sigma_scaling_relation(
         sigma = mw_sigma_skarlatoudis()
     elif mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
         sigma = mw_sigma_hanksbakun()
-    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2007:
         sigma = mw_sigma_villamor()
-
+    elif mw_scaling_rel == MagnitudeScalingRelations.STIRLING2008:
+        sigma = mw_sigma_stirling()
     return mw, sigma
+
+
+def mw_sigma_stirling():
+    return 0.18
 
 
 def mw_sigma_skarlatoudis():
@@ -298,9 +306,7 @@ def a_to_mw_berrymanetal(a):
 
 def a_to_mw_hanksbakun(a):
     if a > 10 ** (6.71 - 3.98):
-        raise ValueError(
-            "Cannot use HanksAndBakun2002 equation for a > 537 km^2 (Which represents a rupture with 6.71 Mw)"
-        )
+        return 3.07 + (4.0/3.0) * np.log(a) * 0.434294
     return np.log10(a) + 3.98
 
 
@@ -310,6 +316,10 @@ def a_to_mw_skarlatoudis(a):
 
 def mw_to_a_skarlatoudis(mw):
     return 1.77 * 10 ** -10 * (10 ** ((3 * (mw + 6.03)) / 2)) ** (2 / 3)
+
+
+def lw_2_mw_stirling(l, w):
+    return 4.18 + (2. / 3.) * np.log10(w) + (4. / 3.) * np.log10(l)
 
 
 def mag2mom(mw):
