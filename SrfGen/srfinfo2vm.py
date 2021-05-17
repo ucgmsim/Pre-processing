@@ -11,11 +11,14 @@ HELP:
 """
 
 from argparse import ArgumentParser
+import csv
 from distutils.spawn import find_executable
 from glob import glob
-import math
+from h5py import File as h5open
 from logging import Logger
+import math
 from multiprocessing import Pool
+import numpy as np
 import os
 import platform
 import subprocess
@@ -23,10 +26,7 @@ from shutil import rmtree, move, copyfile
 from subprocess import Popen
 import sys
 from tempfile import mkdtemp
-
 import yaml
-from h5py import File as h5open
-import numpy as np
 
 from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
@@ -1204,33 +1204,12 @@ def store_nhm_selection(
 def store_summary(table, info_store, logger: Logger = qclogging.get_basic_logger()):
     # initialise table file
     logger.debug("Saving summary")
-    with open(table, "w") as t:
-        t.write(
-            '"name","mw","plane depth (km, to bottom)",'
-            '"vm depth (zlen, km)","xlen (km)",'
-            '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
-            '"adjusted sim time (s)","adjusted xlen (km)",'
-            '"adjusted ylen (km)","adjusted land (% cover)"\n'
-        )
-
+    keys = info_store[0].keys()
+    with open(table, "w") as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        writer.writerow(keys)
         for i in info_store:
-            t.write(
-                "%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n"
-                % (
-                    i["name"],
-                    i["mag"],
-                    i["dbottom"],
-                    i["zlen"],
-                    i["xlen"],
-                    i["ylen"],
-                    i["land"],
-                    i["zlen_mod"],
-                    i["sim_time_mod"],
-                    i["xlen_mod"],
-                    i["ylen_mod"],
-                    i["land_mod"],
-                )
-            )
+            writer.writerow([i[key] for key in keys])
     logger.info("Saved summary to {}".format(table))
 
 
