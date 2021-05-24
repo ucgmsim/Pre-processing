@@ -486,13 +486,13 @@ def reduce_domain(
 
 def gen_vm(
     args,
-    srf_meta,
+    name,
     vm_params_dict,
     mag,
     ptemp,
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    out_vm_dir, vm_working_dir, nzvm_cfg, vm_params_path = get_env_dirs(args,srf_meta,ptemp,mkdir=True)
+    out_vm_dir, vm_working_dir, nzvm_cfg, vm_params_path = get_env_dirs(args,name,ptemp,mkdir=True)
 
     if args.novm:
         logger.debug(
@@ -538,11 +538,7 @@ def gen_vm(
     logger.debug("Removing Log and Velocity_Model directories")
     logger.debug("Moving nzvm config and vm_params yaml to vm directory")
     move(nzvm_cfg, out_vm_dir)
-
-    if args.vm_params:
-        copyfile(vm_params_path,os.path.join(out_vm_dir,"vm_params.yaml"))
-    else:
-        move("%s" % (vm_params_path), out_vm_dir)
+    move("%s" % (vm_params_path), out_vm_dir)
     rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
     logger.debug("Generating coords")
@@ -848,17 +844,14 @@ def optimise_vm_parameters(srf_meta, ptemp):
 
     return None # failed to create VM if it is entirely in the ocean
 
-def get_env_dirs(args,srf_meta,ptemp, mkdir=True):
-    out_vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+def get_env_dirs(args,name,ptemp, mkdir=True):
+    out_vm_dir = os.path.join(args.out_dir, name)
     if mkdir:
         os.makedirs(out_vm_dir, exist_ok=True)
     vm_working_dir = os.path.join(out_vm_dir, "output")
 
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    if args.vm_params:
-        vm_params_path = args.vm_params
-    else:
-        vm_params_path = os.path.join(ptemp, "vm_params.yaml")
+    vm_params_path = os.path.join(ptemp, "vm_params.yaml")
     return (out_vm_dir, vm_working_dir,nzvm_cfg,vm_params_path)
 
 
@@ -871,7 +864,7 @@ def srf_meta_to_vm_config(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     # store configs
-    out_vm_dir, vm_working_dir, nzvm_cfg, vm_params_path = get_env_dirs(args,srf_meta,ptemp,mkdir=False)
+    out_vm_dir, vm_working_dir, nzvm_cfg, vm_params_path = get_env_dirs(args,srf_meta['name'],ptemp,mkdir=False)
 
     logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
     # NZVM won't run if folder exists
@@ -880,7 +873,6 @@ def srf_meta_to_vm_config(
         rmtree(vm_working_dir)
 
     vm_params_dict = save_vm_params(
-        nzvm_cfg=nzvm_cfg,
         vm_params=vm_params_path,
         vm_dir=vm_working_dir,
         origin=vm_params_dict["origin"],
@@ -897,40 +889,43 @@ def srf_meta_to_vm_config(
         model_version=args.vm_version,
     )
     if vm_params_dict:
-        save_nzvm_cfg(nzvm_cfg, vm_params_dict, os.path.basename(vm_working_dir))
+        save_nzvm_cfg(nzvm_cfg, vm_params_dict, vm_working_dir,logger=logger)
 
 def save_nzvm_cfg(
         nzvm_cfg,
         vm_params_dict,
-        vm_dir
+        vm_dir,
+        logger: Logger = qclogging.get_basic_logger(),
 
 ):
-    with open(nzvm_cfg, "w") as vmd:
-        vmd.write(
-            "\n".join(
-                [
-                    "CALL_TYPE=GENERATE_VELOCITY_MOD",
-                    "MODEL_VERSION=%s" % (vm_params_dict["model_version"]),
-                    "OUTPUT_DIR=%s" % (vm_dir),
-                    "ORIGIN_LAT=%s" % (vm_params_dict["MODEL_LAT"]),
-                    "ORIGIN_LON=%s" % (vm_params_dict["MODEL_LON"]),
-                    "ORIGIN_ROT=%s" % (vm_params_dict["MODEL_ROT"]),
-                    "EXTENT_X=%s" % (vm_params_dict["extent_x"]),
-                    "EXTENT_Y=%s" % (vm_params_dict["extent_y"]),
-                    "EXTENT_ZMAX=%s" % (vm_params_dict["extent_zmax"]),
-                    "EXTENT_ZMIN=%s" % (vm_params_dict["extent_zmin"]),
-                    "EXTENT_Z_SPACING=%s" % (vm_params_dict["hh"]),
-                    "EXTENT_LATLON_SPACING=%s" % (vm_params_dict["hh"]),
-                    "MIN_VS=%s" % (vm_params_dict["min_vs"]),
-                    "TOPO_TYPE=%s\n" % (vm_params_dict["topo_type"]),
-                ]
+    if nzvm_cfg is not None:
+        with open(nzvm_cfg, "w") as vmd:
+            vmd.write(
+                "\n".join(
+                    [
+                        "CALL_TYPE=GENERATE_VELOCITY_MOD",
+                        "MODEL_VERSION=%s" % (vm_params_dict["model_version"]),
+                        "OUTPUT_DIR=%s" % (vm_dir),
+                        "ORIGIN_LAT=%s" % (vm_params_dict["MODEL_LAT"]),
+                        "ORIGIN_LON=%s" % (vm_params_dict["MODEL_LON"]),
+                        "ORIGIN_ROT=%s" % (vm_params_dict["MODEL_ROT"]),
+                        "EXTENT_X=%s" % (vm_params_dict["extent_x"]),
+                        "EXTENT_Y=%s" % (vm_params_dict["extent_y"]),
+                        "EXTENT_ZMAX=%s" % (vm_params_dict["extent_zmax"]),
+                        "EXTENT_ZMIN=%s" % (vm_params_dict["extent_zmin"]),
+                        "EXTENT_Z_SPACING=%s" % (vm_params_dict["hh"]),
+                        "EXTENT_LATLON_SPACING=%s" % (vm_params_dict["hh"]),
+                        "MIN_VS=%s" % (vm_params_dict["min_vs"]),
+                        "TOPO_TYPE=%s\n" % (vm_params_dict["topo_type"]),
+                    ]
+                )
             )
-        )
-    logger.debug("Saved nzvm config file to {}".format(nzvm_cfg))
+        logger.debug("Saved nzvm config file to {}".format(nzvm_cfg))
+    else:
+        logger.debug("Path to nzvm.conf should be specified")
 
 
 def save_vm_params(
-    nzvm_cfg=None,
     vm_params=None,
     vm_dir=None,
     origin=(170, -40),
@@ -958,9 +953,6 @@ def save_vm_params(
     origin: model origin (longitude, latitude)
     rot: model rotation
     """
-    if nzvm_cfg is not None:
-        if os.path.exists(vm_dir):
-            raise AssertionError("{} already exists".format(vm_dir))
 
     if vm_params is not None:
         # must also convert mag from np.float to float
@@ -987,24 +979,19 @@ def save_vm_params(
                 "ny": int(round(float(ylen) / hh)),
                 "nz": int(round(float(zmax - zmin) / hh)),
                 "sufx": "_%s01-h%.3f" % (code, hh),
-            },
+            }
 
         dump_yaml(vm_params_dict,
-            "{}.yaml".format(vm_params),
+            "{}".format(vm_params),
         )
         logger.debug("Saved vm_params.yaml to {}".format("{}.yaml".format(vm_params)))
         return vm_params_dict
     return None
 
 
-def load_vm_params(vm_params_file):
-    with open(vm_params_file,'r') as f:
-        vm_params_dict =yaml.load(f,Loader=yaml.SafeLoader)
-
-    return vm_params_dict
 
 # does both vm_params and vm
-def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
+def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm", plot_enabled=True):
     
     # temp directory for current process
     logger = qclogging.get_realisation_logger(
@@ -1012,24 +999,17 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
     )
     ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
 
-    if args.info_glob == 'vm_params':
-        vm_params_dict = args.vm_params_dict
-        (out_vm_dir, vm_working_dir, nzvm_cfg, vm_params_path) = get_env_dirs(args,srf_meta,ptemp,mkdir=False)
-        save_nzvm_cfg(nzvm_cfg,vm_params_dict,vm_working_dir)
-
-    else:
-        vm_params_dict = optimise_vm_parameters(srf_meta, ptemp)
+    vm_params_dict = optimise_vm_parameters(srf_meta, ptemp)
 
     if vm_params_dict is not None:
         # run the actual generation
-        gen_vm(args, srf_meta, vm_params_dict, faultprop.Mw, ptemp, logger=logger)
+        gen_vm(args, srf_meta['name'], vm_params_dict, faultprop.Mw, ptemp, logger=logger)
     else:
         logger.debug("At least one dimension was 0. Not generating VM")
     # plot results
     vm_params_dict["vm_dir"] = os.path.join(args.out_dir, srf_meta["name"])
 
-    if args.info_glob != 'vm_params':
-        # This is only possible if VM has been generated out of srfinfo.
+    if plot_enabled:
         plot_vm(vm_params_dict, srf_meta["corners"], faultprop.Mw, ptemp, logger=logger)
 
     # working dir cleanup, return info about VM
@@ -1148,29 +1128,7 @@ def load_msgs_nhm(args, logger: Logger = qclogging.get_basic_logger()):
 
     return msgs
 
-def load_msgs_vm_params(args, logger: Logger= qclogging.get_basic_logger()):
-    msgs = []
-    logger.debug("Checking VM params file: {}".format(args.vm_params))
 
-    if not args.vm_params:
-        args.vm_params=os.path.join(args.out_dir,"vm_params.yaml")
-
-    if not os.path.exists(args.vm_params):
-        raise FileNotFoundError(args.vm_params)
-
-    args.vm_params_dict = load_vm_params(args.vm_params)
-
-    vm_params_name = os.path.basename(os.path.dirname(args.vm_params)) #this is just a guessed name
-    msgs.append(
-            (
-                args,
-                {
-                    "name": vm_params_name,
-                }, #vm_params_dict,
-                qclogging.get_realisation_logger(logger,vm_params_name).name,
-             )
-    )
-    return msgs
 
 def store_nhm_selection(
     out_dir, reports, logger: Logger = qclogging.get_basic_logger()
@@ -1217,7 +1175,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg("info_glob", help="info file selection expression. eg: Srf/*.info, ")
+    arg("info_glob", help="info file selection expression. eg: Srf/*.info")
     arg(
         "--nhm-file",
         help="path to NHM if using info_glob == 'NHM'",
@@ -1225,11 +1183,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
             os.path.dirname(os.path.abspath(__file__)), "NHM", "NZ_FLTmodel_2010.txt"
         ),
     )
-    arg(
-        "--vm-params",
-        help="path to vm_params.yaml if using info_glob == 'vm_params'. By default it assumes it is where -o specifies",
 
-        )
     arg(
         "-o", "--out-dir", help="directory to place outputs", default="VMs"
     )
@@ -1324,11 +1278,6 @@ if __name__ == "__main__":
             "info_glob is NHM. Loading messages from NHM file: {}".format(args.nhm_file)
         )
         msg_list = load_msgs_nhm(args, logger=logger)
-    elif args.info_glob == "vm_params":
-        logger.debug(
-            "info_glob is vm_params. Loading from vm_params.yaml"
-        )
-        msg_list = load_msgs_vm_params(args, logger=logger)
 
     else:
         logger.debug(
