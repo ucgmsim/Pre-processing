@@ -503,7 +503,7 @@ def gen_vm(
         os.makedirs(vm_working_dir)
 
         move(nzvm_cfg, vm_working_dir)
-        move("{}.yaml".format(vm_params_path), vm_working_dir)
+        move("{}".format(vm_params_path), vm_working_dir)
         logger.debug(
             "Moved nvzm config and vm_params yaml to {}".format(vm_working_dir)
         )
@@ -538,7 +538,7 @@ def gen_vm(
     logger.debug("Removing Log and Velocity_Model directories")
     logger.debug("Moving nzvm config and vm_params yaml to vm directory")
     move(nzvm_cfg, out_vm_dir)
-    move("%s" % (vm_params_path), out_vm_dir)
+    move("{}".format(vm_params_path), out_vm_dir)
     rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
     logger.debug("Generating coords")
