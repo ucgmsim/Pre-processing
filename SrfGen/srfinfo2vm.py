@@ -644,7 +644,7 @@ def plot_vm(
             out_name=os.path.abspath(os.path.join(ptemp, os.pardir, vm_params["name"])),
         )
 
-def optimise_vm_parameters(srf_meta, ptemp):
+def optimise_vm_parameters(args, srf_meta, ptemp, logger: Logger = qclogging.get_basic_logger()):
     # properties stored in classes (fault of external code)
     faultprop.Mw = srf_meta["mag"]
     faultprop.rake = srf_meta["rake"]
@@ -992,14 +992,14 @@ def save_vm_params(
 
 # does both vm_params and vm
 def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm", plot_enabled=True):
-    
+
     # temp directory for current process
     logger = qclogging.get_realisation_logger(
         qclogging.get_logger(logger_name), srf_meta["name"]
     )
     ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
 
-    vm_params_dict = optimise_vm_parameters(srf_meta, ptemp)
+    vm_params_dict = optimise_vm_parameters(args, srf_meta, ptemp, logger=logger)
 
     if vm_params_dict is not None:
         # run the actual generation
