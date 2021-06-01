@@ -215,6 +215,7 @@ def lw_2_mw_scaling_relation(
 
     elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
         mw = a_to_mw_skarlatoudis(l * w)
+
     elif mw_scaling_rel == MagnitudeScalingRelations.STIRLING2008:
         mw = lw_2_mw_stirling(l, w)
 
