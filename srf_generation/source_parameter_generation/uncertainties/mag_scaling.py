@@ -10,7 +10,7 @@ MAGNITUDE_ROUNDING_THRESHOLD = 7.5
 class MagnitudeScalingRelations(Enum):
     HANKSBAKUN2002 = "HANKSBAKUN2002"
     BERRYMANETAL2002 = "BERRYMANETAL2002"
-    VILLAMORETAL2007 = "VILLAMORETAL2007"
+    VILLAMORETAL2001 = "VILLAMORETAL2001"
     LEONARD2014 = "LEONARD2014"
     SKARLATOUDIS2016 = "SKARLATOUDIS2016"
     STIRLING2008 = "STIRLING2008"
@@ -24,7 +24,7 @@ def get_area(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
         farea = mw_to_a_berrymanetal(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2007:
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
         farea = mw_to_a_villamoretal(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
@@ -51,7 +51,7 @@ def get_width(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
         fwidth = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2007:
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
         fwidth = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
@@ -76,7 +76,7 @@ def get_length(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
         flength = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2007:
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
         flength = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
@@ -108,7 +108,7 @@ def mw_2_lw_scaling_relation(
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
         l = w = np.sqrt(mw_to_a_berrymanetal(mw))
 
-    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2007:
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
         l = w = np.sqrt(mw_to_a_villamoretal(mw))
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
@@ -207,7 +207,7 @@ def lw_2_mw_scaling_relation(
     elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
         mw = a_to_mw_berrymanetal(l * w)
 
-    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2007:
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
         mw = a_to_mw_villamoretal(l * w)
 
     elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
@@ -249,7 +249,7 @@ def lw_2_mw_sigma_scaling_relation(
         sigma = mw_sigma_skarlatoudis()
     elif mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
         sigma = mw_sigma_hanksbakun()
-    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2007:
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
         sigma = mw_sigma_villamor()
     elif mw_scaling_rel == MagnitudeScalingRelations.STIRLING2008:
         sigma = mw_sigma_stirling()
@@ -325,7 +325,7 @@ def lw_2_mw_stirling(l, w):
 
 def mag2mom(mw):
     """Converts magnitude to moment - dyne-cm"""
-    return np.exp(3.0 / 2.0 * (mw + 10.7) * np.log(10.0))
+    return 10 ** (3.0 / 2.0 * (mw + 10.7))
 
 
 def mom2mag(mom):
