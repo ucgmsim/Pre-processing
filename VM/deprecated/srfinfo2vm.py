@@ -11,22 +11,21 @@ HELP:
 """
 
 from argparse import ArgumentParser
-import csv
 from distutils.spawn import find_executable
 from glob import glob
-from h5py import File as h5open
-from logging import Logger
 import math
+from logging import Logger
 from multiprocessing import Pool
-import numpy as np
 import os
 import platform
 import subprocess
-from shutil import rmtree, move, copyfile
+from shutil import rmtree, move
 from subprocess import Popen
 import sys
 from tempfile import mkdtemp
-import yaml
+
+from h5py import File as h5open
+import numpy as np
 
 from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
@@ -218,6 +217,91 @@ def corners2region(c1, c2, c3, c4):
     x_min, y_min = np.min(perimiter, axis=0)
     x_max, y_max = np.max(perimiter, axis=0)
     return (x_min, x_max, y_min, y_max)
+
+
+def save_vm_config(
+    nzvm_cfg=None,
+    vm_params=None,
+    vm_dir=None,
+    origin=(170, -40),
+    rot=0,
+    xlen=100,
+    ylen=100,
+    zmax=40,
+    zmin=0,
+    hh=0.4,
+    min_vs=0.5,
+    mag=5.5,
+    centroid_depth=7,
+    sim_duration=100,
+    code="rt",
+    model_version="1.65",
+    topo_type="BULLDOZED",
+    logger: Logger = qclogging.get_basic_logger(),
+):
+    """
+    Store VM config for NZVM generator and vm_params metadata store.
+    nzvm_cfg: path to NZVM cfg file
+    vm_params: path to vm_params.py that stores metadata
+    vm_dir: folder for NZVM output (cannot exist)
+    origin: model origin (longitude, latitude)
+    rot: model rotation
+    """
+    assert vm_dir is not None
+    if nzvm_cfg is not None:
+        assert not os.path.exists(vm_dir)
+        with open(nzvm_cfg, "w") as vmd:
+            vmd.write(
+                "\n".join(
+                    [
+                        "CALL_TYPE=GENERATE_VELOCITY_MOD",
+                        "MODEL_VERSION=%s" % (model_version),
+                        "OUTPUT_DIR=%s" % (vm_dir),
+                        "ORIGIN_LAT=%s" % (origin[1]),
+                        "ORIGIN_LON=%s" % (origin[0]),
+                        "ORIGIN_ROT=%s" % (rot),
+                        "EXTENT_X=%s" % (xlen),
+                        "EXTENT_Y=%s" % (ylen),
+                        "EXTENT_ZMAX=%s" % (zmax),
+                        "EXTENT_ZMIN=%s" % (zmin),
+                        "EXTENT_Z_SPACING=%s" % (hh),
+                        "EXTENT_LATLON_SPACING=%s" % (hh),
+                        "MIN_VS=%s" % (min_vs),
+                        "TOPO_TYPE=%s\n" % (topo_type),
+                    ]
+                )
+            )
+        logger.debug("Saved nzvm config file to {}".format(nzvm_cfg))
+    if vm_params is not None:
+        # must also convert mag from np.float to float
+        dump_yaml(
+            {
+                "mag": float(mag),
+                "centroidDepth": float(centroid_depth),
+                "MODEL_LAT": float(origin[1]),
+                "MODEL_LON": float(origin[0]),
+                "MODEL_ROT": float(rot),
+                "hh": hh,
+                "min_vs": float(min_vs),
+                "model_version": model_version,
+                "topo_type": topo_type,
+                "output_directory": os.path.basename(vm_dir),
+                "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
+                "code": code,
+                "extent_x": float(xlen),
+                "extent_y": float(ylen),
+                "extent_zmax": float(zmax),
+                "extent_zmin": float(zmin),
+                "sim_duration": float(sim_duration),
+                "flo": min_vs / (5.0 * hh),
+                "nx": int(round(float(xlen) / hh)),
+                "ny": int(round(float(ylen) / hh)),
+                "nz": int(round(float(zmax - zmin) / hh)),
+                "sufx": "_%s01-h%.3f" % (code, hh),
+            },
+            "{}.yaml".format(vm_params),
+        )
+        logger.debug("Saved vm_params.yaml to {}".format("{}.yaml".format(vm_params)))
 
 
 def build_corners(origin, rot, xlen, ylen):
@@ -483,17 +567,43 @@ def reduce_domain(
     return origin, bearing, xlen, ylen
 
 
-
 def gen_vm(
     args,
-    name,
+    srf_meta,
     vm_params_dict,
     mag,
     ptemp,
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    out_vm_dir, vm_working_dir, nzvm_cfg, vm_params_path = get_env_dirs(args,name,ptemp,mkdir=True)
-
+    # store configs
+    out_vm_dir = os.path.join(args.out_dir, srf_meta["name"])
+    logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
+    vm_params_dict["vm_dir"] = out_vm_dir
+    vm_working_dir = os.path.join(out_vm_dir, "output")
+    os.makedirs(vm_working_dir, exist_ok=True)
+    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
+    vm_params_path = os.path.join(ptemp, "vm_params")
+    # NZVM won't run if folder exists
+    if os.path.exists(vm_working_dir):
+        logger.debug("VM working directory {} already exists.".format(vm_working_dir))
+        rmtree(vm_working_dir)
+    save_vm_config(
+        nzvm_cfg=nzvm_cfg,
+        vm_params=vm_params_path,
+        vm_dir=vm_working_dir,
+        origin=vm_params_dict["origin"],
+        rot=vm_params_dict["bearing"],
+        xlen=vm_params_dict["xlen_mod"],
+        ylen=vm_params_dict["ylen_mod"],
+        zmax=vm_params_dict["zlen_mod"],
+        hh=args.hh,
+        min_vs=args.min_vs,
+        mag=mag,
+        centroid_depth=srf_meta["hdepth"],
+        sim_duration=vm_params_dict["sim_time_mod"],
+        topo_type=args.vm_topo,
+        model_version=args.vm_version,
+    )
     if args.novm:
         logger.debug(
             "--novm set, generating configuration files, but not generating VM."
@@ -501,20 +611,18 @@ def gen_vm(
         # save important files
         logger.debug("Creating directory {}".format(vm_working_dir))
         os.makedirs(vm_working_dir)
-
         move(nzvm_cfg, vm_working_dir)
-        move("{}".format(vm_params_path), vm_working_dir)
+        move("{}.yaml".format(vm_params_path), vm_working_dir)
         logger.debug(
             "Moved nvzm config and vm_params yaml to {}".format(vm_working_dir)
         )
         # generate a corners like NZVM would have
         logger.debug("Saving VeloModCorners.txt")
-        with open("{}/VeloModCorners.txt".format(out_vm_dir), "wb") as c:
+        with open("{}/VeloModCorners.txt".format(vm_params_dict["vm_dir"]), "wb") as c:
             c.write("> VM corners (python generated)\n".encode())
             c.write(">Lon    Lat\n".encode())
             c.write(vm_params_dict["path_mod"].encode())
         return
-
 
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
@@ -530,7 +638,6 @@ def gen_vm(
         nzvm_exe.communicate()
     logger.debug("Moving VM files to vm directory")
     # fix up directory contents
-
     move(os.path.join(vm_working_dir, "Velocity_Model", "rho3dfile.d"), out_vm_dir)
     move(os.path.join(vm_working_dir, "Velocity_Model", "vp3dfile.p"), out_vm_dir)
     move(os.path.join(vm_working_dir, "Velocity_Model", "vs3dfile.s"), out_vm_dir)
@@ -538,7 +645,7 @@ def gen_vm(
     logger.debug("Removing Log and Velocity_Model directories")
     logger.debug("Moving nzvm config and vm_params yaml to vm directory")
     move(nzvm_cfg, out_vm_dir)
-    move("{}".format(vm_params_path), out_vm_dir)
+    move("%s.yaml" % (vm_params_path), out_vm_dir)
     rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
     logger.debug("Generating coords")
@@ -644,7 +751,14 @@ def plot_vm(
             out_name=os.path.abspath(os.path.join(ptemp, os.pardir, vm_params["name"])),
         )
 
-def optimise_vm_parameters(args, srf_meta, ptemp, logger: Logger = qclogging.get_basic_logger()):
+
+def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
+    # temp directory for current process
+    logger = qclogging.get_realisation_logger(
+        qclogging.get_logger(logger_name), srf_meta["name"]
+    )
+    ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
+
     # properties stored in classes (fault of external code)
     faultprop.Mw = srf_meta["mag"]
     faultprop.rake = srf_meta["rake"]
@@ -833,189 +947,24 @@ def optimise_vm_parameters(args, srf_meta, ptemp, logger: Logger = qclogging.get
         "adjusted": adjusted,
         "plot_region": plot_region,
         "path": "%s %s\n%s %s\n%s %s\n%s %s\n"
-                % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
+        % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
         "path_mod": "%s %s\n%s %s\n%s %s\n%s %s\n"
-                    % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
+        % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
     }
 
+    # will not create VM if it is entirely in the ocean
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
-        srf_meta_to_vm_config(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
-        return vm_params
-
-    return None # failed to create VM if it is entirely in the ocean
-
-def get_env_dirs(args,name,ptemp, mkdir=True):
-    out_vm_dir = os.path.join(args.out_dir, name)
-    if mkdir:
-        os.makedirs(out_vm_dir, exist_ok=True)
-    vm_working_dir = os.path.join(out_vm_dir, "output")
-
-    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
-    vm_params_path = os.path.join(ptemp, "vm_params.yaml")
-    return (out_vm_dir, vm_working_dir,nzvm_cfg,vm_params_path)
-
-
-def srf_meta_to_vm_config(
-    args,
-    srf_meta,
-    vm_params_dict,
-    mag,
-    ptemp,
-    logger: Logger = qclogging.get_basic_logger(),
-):
-    # store configs
-    out_vm_dir, vm_working_dir, nzvm_cfg, vm_params_path = get_env_dirs(args,srf_meta['name'],ptemp,mkdir=False)
-
-    logger.info("Generating VM. Saving it to {}".format(out_vm_dir))
-    # NZVM won't run if folder exists
-    if os.path.exists(vm_working_dir):
-        logger.debug("VM working directory {} already exists.".format(vm_working_dir))
-        rmtree(vm_working_dir)
-
-    vm_params_dict = save_vm_params(
-        vm_params=vm_params_path,
-        vm_dir=vm_working_dir,
-        origin=vm_params_dict["origin"],
-        rot=vm_params_dict["bearing"],
-        xlen=vm_params_dict["xlen_mod"],
-        ylen=vm_params_dict["ylen_mod"],
-        zmax=vm_params_dict["zlen_mod"],
-        hh=args.hh,
-        min_vs=args.min_vs,
-        mag=mag,
-        centroid_depth=srf_meta["hdepth"],
-        sim_duration=vm_params_dict["sim_time_mod"],
-        topo_type=args.vm_topo,
-        model_version=args.vm_version,
-    )
-    if vm_params_dict:
-        save_nzvm_cfg(nzvm_cfg, vm_params_dict, vm_working_dir,logger=logger)
-
-def save_nzvm_cfg(
-        nzvm_cfg,
-        vm_params_dict,
-        vm_dir,
-        logger: Logger = qclogging.get_basic_logger(),
-
-):
-    if nzvm_cfg is not None:
-        with open(nzvm_cfg, "w") as vmd:
-            vmd.write(
-                "\n".join(
-                    [
-                        "CALL_TYPE=GENERATE_VELOCITY_MOD",
-                        "MODEL_VERSION=%s" % (vm_params_dict["model_version"]),
-                        "OUTPUT_DIR=%s" % (vm_dir),
-                        "ORIGIN_LAT=%s" % (vm_params_dict["MODEL_LAT"]),
-                        "ORIGIN_LON=%s" % (vm_params_dict["MODEL_LON"]),
-                        "ORIGIN_ROT=%s" % (vm_params_dict["MODEL_ROT"]),
-                        "EXTENT_X=%s" % (vm_params_dict["extent_x"]),
-                        "EXTENT_Y=%s" % (vm_params_dict["extent_y"]),
-                        "EXTENT_ZMAX=%s" % (vm_params_dict["extent_zmax"]),
-                        "EXTENT_ZMIN=%s" % (vm_params_dict["extent_zmin"]),
-                        "EXTENT_Z_SPACING=%s" % (vm_params_dict["hh"]),
-                        "EXTENT_LATLON_SPACING=%s" % (vm_params_dict["hh"]),
-                        "MIN_VS=%s" % (vm_params_dict["min_vs"]),
-                        "TOPO_TYPE=%s\n" % (vm_params_dict["topo_type"]),
-                    ]
-                )
-            )
-        logger.debug("Saved nzvm config file to {}".format(nzvm_cfg))
-    else:
-        logger.debug("Path to nzvm.conf should be specified")
-
-
-def save_vm_params(
-    vm_params=None,
-    vm_dir=None,
-    origin=(170, -40),
-    rot=0,
-    xlen=100,
-    ylen=100,
-    zmax=40,
-    zmin=0,
-    hh=0.4,
-    min_vs=0.5,
-    mag=5.5,
-    centroid_depth=7,
-    sim_duration=100,
-    code="rt",
-    model_version="1.65",
-    topo_type="BULLDOZED",
-    logger: Logger = qclogging.get_basic_logger(),
-
-):
-    """
-    Store VM config for NZVM generator and vm_params metadata store.
-    nzvm_cfg: path to NZVM cfg file
-    vm_params: path to vm_params.py that stores metadata
-    vm_dir: folder for NZVM output (cannot exist)
-    origin: model origin (longitude, latitude)
-    rot: model rotation
-    """
-
-    if vm_params is not None:
-        # must also convert mag from np.float to float
-        vm_params_dict={
-                "mag": float(mag),
-                "centroidDepth": float(centroid_depth),
-                "MODEL_LAT": float(origin[1]),
-                "MODEL_LON": float(origin[0]),
-                "MODEL_ROT": float(rot),
-                "hh": hh,
-                "min_vs": float(min_vs),
-                "model_version": model_version,
-                "topo_type": topo_type,
-                "output_directory": os.path.basename(vm_dir),
-                "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
-                "code": code,
-                "extent_x": float(xlen),
-                "extent_y": float(ylen),
-                "extent_zmax": float(zmax),
-                "extent_zmin": float(zmin),
-                "sim_duration": float(sim_duration),
-                "flo": min_vs / (5.0 * hh),
-                "nx": int(round(float(xlen) / hh)),
-                "ny": int(round(float(ylen) / hh)),
-                "nz": int(round(float(zmax - zmin) / hh)),
-                "sufx": "_%s01-h%.3f" % (code, hh),
-            }
-
-        dump_yaml(vm_params_dict,
-            "{}".format(vm_params),
-        )
-        logger.debug("Saved vm_params.yaml to {}".format("{}.yaml".format(vm_params)))
-        return vm_params_dict
-    return None
-
-
-
-# does both vm_params and vm
-def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm", plot_enabled=True):
-
-    # temp directory for current process
-    logger = qclogging.get_realisation_logger(
-        qclogging.get_logger(logger_name), srf_meta["name"]
-    )
-    ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=args.out_dir)
-
-    vm_params_dict = optimise_vm_parameters(args, srf_meta, ptemp, logger=logger)
-
-    if vm_params_dict is not None:
         # run the actual generation
-        gen_vm(args, srf_meta['name'], vm_params_dict, faultprop.Mw, ptemp, logger=logger)
+        gen_vm(args, srf_meta, vm_params, faultprop.Mw, ptemp, logger=logger)
     else:
         logger.debug("At least one dimension was 0. Not generating VM")
     # plot results
-    vm_params_dict["vm_dir"] = os.path.join(args.out_dir, srf_meta["name"])
-
-    if plot_enabled:
-        plot_vm(vm_params_dict, srf_meta["corners"], faultprop.Mw, ptemp, logger=logger)
+    plot_vm(vm_params, srf_meta["corners"], faultprop.Mw, ptemp, logger=logger)
 
     # working dir cleanup, return info about VM
     logger.debug("Cleaning up temp directory {}".format(ptemp))
     rmtree(ptemp)
-    return vm_params_dict
+    return vm_params
 
 
 def load_msgs(args, logger: Logger = qclogging.get_basic_logger()):
@@ -1129,7 +1078,6 @@ def load_msgs_nhm(args, logger: Logger = qclogging.get_basic_logger()):
     return msgs
 
 
-
 def store_nhm_selection(
     out_dir, reports, logger: Logger = qclogging.get_basic_logger()
 ):
@@ -1162,12 +1110,33 @@ def store_nhm_selection(
 def store_summary(table, info_store, logger: Logger = qclogging.get_basic_logger()):
     # initialise table file
     logger.debug("Saving summary")
-    keys = info_store[0].keys()
-    with open(table, "w") as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
-        writer.writerow(keys)
+    with open(table, "w") as t:
+        t.write(
+            '"name","mw","plane depth (km, to bottom)",'
+            '"vm depth (zlen, km)","xlen (km)",'
+            '"ylen (km)","land (% cover)","adjusted vm depth (zlen, km)",'
+            '"adjusted sim time (s)","adjusted xlen (km)",'
+            '"adjusted ylen (km)","adjusted land (% cover)"\n'
+        )
+
         for i in info_store:
-            writer.writerow([i[key] for key in keys])
+            t.write(
+                "%s,%s,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%.0f\n"
+                % (
+                    i["name"],
+                    i["mag"],
+                    i["dbottom"],
+                    i["zlen"],
+                    i["xlen"],
+                    i["ylen"],
+                    i["land"],
+                    i["zlen_mod"],
+                    i["sim_time_mod"],
+                    i["xlen_mod"],
+                    i["ylen_mod"],
+                    i["land_mod"],
+                )
+            )
     logger.info("Saved summary to {}".format(table))
 
 
@@ -1183,8 +1152,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
             os.path.dirname(os.path.abspath(__file__)), "NHM", "NZ_FLTmodel_2010.txt"
         ),
     )
-
-    arg(
+    parser.add_argument(
         "-o", "--out-dir", help="directory to place outputs", default="VMs"
     )
     arg(
@@ -1278,7 +1246,6 @@ if __name__ == "__main__":
             "info_glob is NHM. Loading messages from NHM file: {}".format(args.nhm_file)
         )
         msg_list = load_msgs_nhm(args, logger=logger)
-
     else:
         logger.debug(
             "info_glob is not NHM, assuming it is a valid path (possibly with stars)"

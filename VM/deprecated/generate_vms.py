@@ -15,8 +15,8 @@ import sys
 from qcore import simulation_structure, qclogging
 from qcore.formats import load_fault_selection_file as load_fsf
 
-from createSRF import leonard, mag2mom, mom2mag
-from srfinfo2vm import create_vm, NZVM_BIN, store_summary
+from createSRF import mag2mom, mom2mag
+from VM.deprecated.srfinfo2vm import create_vm, NZVM_BIN, store_summary
 
 
 NO_NZVM_MESSAGE = """NZVM binary not in PATH
