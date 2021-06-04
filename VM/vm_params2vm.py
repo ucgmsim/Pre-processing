@@ -90,7 +90,7 @@ def gen_vm(
     rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
     logger.debug("Generating coords")
-    #  gen_coords(vm_dir=out_dir)
+    gen_coords(vm_dir=out_dir)
     # validate
     logger.debug("Validating vm")
     success, message = validate_vm(out_dir)

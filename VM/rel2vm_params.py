@@ -867,7 +867,7 @@ def main(
                     logger=logger,
                 )
 
-            print(f"Success: Wrote vm_params.yaml at {out_dir}")
+            print(f"Success: Wrote vm_params.yaml at {out_dir}", file=sys.stderr)
             # generate a corners like NZVM would have
             logger.debug("Saving VeloModCorners.txt")
             with open("{}/VeloModCorners.txt".format(out_dir), "wb") as c:
