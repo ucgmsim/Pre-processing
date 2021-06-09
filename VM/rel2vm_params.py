@@ -4,11 +4,11 @@ REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
 
 most basic example
-mpirun -n 3 rel2vm_params.py "Srf/*.info" ~/Data/VMs
-(The root directory of VMs should be given. ~/Data/VMs/{faultname} will be auto-created)
+python rel2vm_params.py ~/Data/Sources/Hossack/Srf/Hossack_REL01.csv ~/Data/VMs/Hossack
+(if no output directory is specified, the same directory as REL01.csv will be used)
 
 HELP:
-./rel2vm_params.py -h
+python ./rel2vm_params.py -h
 """
 
 from argparse import ArgumentParser
@@ -47,6 +47,12 @@ siteprop.vs30 = 500
 faultprop = Fault()
 # DON'T CHANGE THIS - this assumes we have a surface point source
 faultprop.ztor = 0.0
+
+SPACE_LAND = 5.0 #min space between VM endge and land (km)
+SPACE_SRF = 15.0 #min space between VM edge and SRF (km)
+MIN_RJB = 0 # Specify a minimum horizontal distance (in km) for the VM to span
+            # from the fault - invalid VMs will still not be generated",
+
 
 # default scaling relationship
 def mag2pgv(mag):
@@ -275,8 +281,8 @@ def reduce_domain(
     xlen,
     ylen,
     hh,
-    space_srf,
-    space_land,
+    space_srf = SPACE_SRF,
+    space_land = SPACE_LAND,
     wd,
     logger: Logger = qclogging.get_basic_logger(),
 ):
@@ -519,7 +525,7 @@ def optimise_vm_params(
     if fault_depth < rrup * 2:
         # rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
         rjb = max(
-            options["min_rjb"], rrup
+            MIN_RJB, rrup
         )  # sets rrup equal to rjb to ensure deep ruptures have sufficient VM size
 
     # original, unrotated vm
@@ -597,8 +603,6 @@ def optimise_vm_params(
             xlen1,
             ylen1,
             options["hh"],
-            options["space_srf"],
-            options["space_land"],
             ptemp,
             logger=logger,
         )
@@ -654,50 +658,49 @@ def optimise_vm_params(
         round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / options["hh"]) * options["hh"]
     )
     logger.debug("zlen set to {}".format(zlen))
-    # modified sim time
-    vm_corners = np.asarray([c1, c2, c3, c4])
-    initial_time = auto_time2(
-        vm_corners,
-        np.concatenate(srf_meta["corners"], axis=0),
-        options["ds_multiplier"],
-        fault_depth,
-        logger=logger,
-    )
-    sim_time1 = (initial_time // options["dt"]) * options["dt"]
-    logger.debug(
-        "Unrounded sim duration: {}. Rounded sim duration: {}".format(
-            initial_time, sim_time1
-        )
-    )
-
-    # optimisation results
-    vm_params_dict_extended = {
-        "name": srf_meta["name"],
-        "mag": faultprop.Mw,
-        "dbottom": srf_meta["dbottom"],
-        "zlen": zlen,
-        "sim_time": sim_time1,
-        "xlen": xlen0,
-        "ylen": ylen0,
-        "land": land0,
-        "zlen_mod": zlen,
-        "sim_time_mod": sim_time1,
-        "xlen_mod": xlen1,
-        "ylen_mod": ylen1,
-        "land_mod": land1,
-        "origin": origin,
-        "bearing": bearing,
-        "adjusted": adjusted,
-        "plot_region": plot_region,
-        "path": "%s %s\n%s %s\n%s %s\n%s %s\n"
-        % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
-        "path_mod": "%s %s\n%s %s\n%s %s\n%s %s\n"
-        % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
-    }
 
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
 
-        return vm_params_dict_extended
+        # modified sim time
+        vm_corners = np.asarray([c1, c2, c3, c4])
+        initial_time = auto_time2(
+            vm_corners,
+            np.concatenate(srf_meta["corners"], axis=0),
+            options["ds_multiplier"],
+            fault_depth,
+            logger=logger,
+        )
+        sim_time1 = (initial_time // options["dt"]) * options["dt"]
+        logger.debug(
+            "Unrounded sim duration: {}. Rounded sim duration: {}".format(
+                initial_time, sim_time1
+            )
+        )
+
+        # optimisation results
+        return {
+            "name": srf_meta["name"],
+            "mag": faultprop.Mw,
+            "dbottom": srf_meta["dbottom"],
+            "zlen": zlen,
+            "sim_time": sim_time1,
+            "xlen": xlen0,
+            "ylen": ylen0,
+            "land": land0,
+            "zlen_mod": zlen,
+            "sim_time_mod": sim_time1,
+            "xlen_mod": xlen1,
+            "ylen_mod": ylen1,
+            "land_mod": land1,
+            "origin": origin,
+            "bearing": bearing,
+            "adjusted": adjusted,
+            "plot_region": plot_region,
+            "path": "%s %s\n%s %s\n%s %s\n%s %s\n"
+            % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
+            "path_mod": "%s %s\n%s %s\n%s %s\n%s %s\n"
+            % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
+        }
 
     return None  # failed to create VM if it is entirely in the ocean
 
@@ -803,12 +806,7 @@ def main(
         qclogging.get_logger(logger_name), srf_meta["name"]
     )
 
-    if not os.path.isdir(out_dir):
-        logger.debug(
-            "Output directory {} does not exist. Creating it now.".format(out_dir)
-        )
-        os.makedirs(out_dir)
-
+    
     # temp directory for current process
     ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=out_dir)
 
@@ -818,12 +816,7 @@ def main(
     )
     if vm_params_dict_extended is not None:
         # store configs
-        vm_working_dir, nzvm_cfg, vm_params_path = temp_paths(ptemp)
-
-        # NZVM won't run if folder exists
-        # if os.path.exists(vm_working_dir):
-        #     logger.debug("VM working directory {} already exists.".format(vm_working_dir))
-        #     rmtree(vm_working_dir)
+        vm_working_dir, _, vm_params_path = temp_paths(ptemp)
 
         vm_params_dict = save_vm_params_yaml(
             vm_params_path=vm_params_path,
@@ -881,92 +874,91 @@ def main(
     return vm_params_dict
 
 
-def load_msgs(args, logger: Logger = qclogging.get_basic_logger()):
+def load_msgs(
+        ds_multiplier,
+        dt,
+        hh,
+        min_vs,
+        no_optimise,
+        out_dir,
+        pgv,
+        rel_file,
+        vm_topo,
+        vm_version,
+        logger: Logger = qclogging.get_basic_logger()
+):
     # returns list of appropriate srf metadata
     msgs = []
-    faults = set()
 
-    # add task for every info file
-    rel_files = glob(args.rel_glob)
-    rel_files.sort()
-    # add task for every rel file
+    #rel_file is assumed to be the first realisation
+    if not os.path.exists(rel_file):
+        logger.info("REL csv file not found: {}".format(rel_file))
+        return
 
-    for rel in rel_files:
-        if not os.path.exists(rel):
-            logger.info("REL csv file not found: {}".format(rel))
-            continue
+    # name is unique and based on basename
+    name = os.path.splitext(os.path.basename(rel_file))[0].split("_")[0]
+    logger.debug("Found first REL file for {}".format(name))
 
-        # name is unique and based on basename
-        name = os.path.splitext(os.path.basename(rel))[0].split("_")[0]
+    a = pd.read_csv(rel_file)
+    rake = a["rake"].loc[0]
 
-        if name in faults:
-            continue  # this fault is already registered
-        logger.debug("Found first REL file for {}".format(name))
-        faults.add(name)
+    planes = []
+    num_subfaults = a["plane_count"].loc[0]
+    for i in range(num_subfaults):
+        plane = {}
+        plane["centre"] = [
+            a["clon_subfault_{}".format(i)].loc[0],
+            a["clat_subfault_{}".format(i)].loc[0],
+        ]
+        plane["length"] = a["length_subfault_{}".format(i)].loc[0]
+        plane["width"] = a["width_subfault_{}".format(i)].loc[0]
+        plane["strike"] = a["strike_subfault_{}".format(i)].loc[0]
+        plane["dip"] = a["dip_subfault_{}".format(i)].loc[0]
+        plane["dtop"] = a["dtop_subfault_{}".format(i)].loc[0]
+        planes.append(plane)
 
-        a = pd.read_csv(rel)
-        rake = a["rake"].loc[0]
+    corners, dbottom = get_corners_dbottom(planes, dip_dir=a["dip_dir"].loc[0])
 
-        planes = []
-        num_subfaults = a["plane_count"].loc[0]
-        for i in range(num_subfaults):
-            plane = {}
-            plane["centre"] = [
-                a["clon_subfault_{}".format(i)].loc[0],
-                a["clat_subfault_{}".format(i)].loc[0],
-            ]
-            plane["length"] = a["length_subfault_{}".format(i)].loc[0]
-            plane["width"] = a["width_subfault_{}".format(i)].loc[0]
-            plane["strike"] = a["strike_subfault_{}".format(i)].loc[0]
-            plane["dip"] = a["dip_subfault_{}".format(i)].loc[0]
-            plane["dtop"] = a["dtop_subfault_{}".format(i)].loc[0]
-            planes.append(plane)
+    mag = a["magnitude"].loc[0]
+    # try:
+    #    mag = mom2mag(sum(map(mag2mom, a["magnitude"].loc[0])))
+    # except TypeError:
+    #    mag = a["magnitude"].loc[0]
+    dtop = a["dtop"].loc[0]
+    dbottom = a["dbottom"].loc[0]
 
-        corners, dbottom = get_corners_dbottom(planes, dip_dir=a["dip_dir"].loc[0])
+    hdepth = (
+        np.round(a["dhypo"].loc[0], decimals=1)
+        * np.sin(np.radians(a["dip"].loc[0]))
+        + dtop
+    )
 
-        mag = a["magnitude"].loc[0]
-        # try:
-        #    mag = mom2mag(sum(map(mag2mom, a["magnitude"].loc[0])))
-        # except TypeError:
-        #    mag = a["magnitude"].loc[0]
-        dtop = a["dtop"].loc[0]
-        dbottom = a["dbottom"].loc[0]
-
-        hdepth = (
-            np.round(a["dhypo"].loc[0], decimals=1)
-            * np.sin(np.radians(a["dip"].loc[0]))
-            + dtop
+    msgs.append(
+        (
+            {
+                "name": name,
+                "dip": a["dip"].loc[0],
+                "rake": rake,
+                "dbottom": dbottom,
+                "corners": np.array(corners),
+                "mag": mag,
+                "hdepth": hdepth,
+            },
+            {
+                "pgv": pgv,
+                "hh": hh,
+                "no_optimise": no_optimise,
+                "ds_multiplier": ds_multiplier,
+                "dt": dt,
+                "min_vs": min_vs,
+                "vm_topo": vm_topo,
+                "vm_version": vm_version,
+            },
+            out_dir,
+            qclogging.get_realisation_logger(logger, name).name,
+            True,
         )
-
-        msgs.append(
-            (
-                {
-                    "name": name,
-                    "dip": a["dip"].loc[0],
-                    "rake": rake,
-                    "dbottom": dbottom,
-                    "corners": np.array(corners),
-                    "mag": mag,
-                    "hdepth": hdepth,
-                },
-                {
-                    "pgv": args.pgv,
-                    "min_rjb": args.min_rjb,
-                    "hh": args.hh,
-                    "no_optimise": args.no_optimise,
-                    "space_srf": args.space_srf,
-                    "space_land": args.space_land,
-                    "ds_multiplier": args.ds_multiplier,
-                    "dt": args.dt,
-                    "min_vs": args.min_vs,
-                    "vm_topo": args.vm_topo,
-                    "vm_version": args.vm_version,
-                },
-                os.path.join(args.vm_root_dir, name),
-                qclogging.get_realisation_logger(logger, name).name,
-                True,
-            )
-        )
+    )
 
     return msgs
 
@@ -975,9 +967,10 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     parser = ArgumentParser()
     arg = parser.add_argument
 
-    arg("rel_glob", help="rel csv file selection expression. eg: Srf/*.csv")
+    arg("rel_file",help="REL csv file")
 
-    arg("vm_root_dir", help="root directory to place VM files eg. Data/VMs")
+    arg("--out_dir", help="output directory to place VM files "
+                          "(if not specified, the same path as rel_file is used", default=None)
 
     arg(
         "--pgv",
@@ -988,32 +981,19 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     arg("--hh", help="velocity model grid spacing (km)", type=float, default=0.4)
     arg(
         "--dt",
-        help="timestep to estimate simulation duration (s)",
+        help="timestep to estimate simulation duration (s) Default: hh/20",
         type=float,
-        default=0.005,
+        default=None,
     )
-    arg(
-        "--space-land",
-        help="min space between VM edge and land (km)",
-        type=float,
-        default=5.0,
-    )
-    arg(
-        "--space-srf",
-        help="min space between VM edge and SRF (km)",
-        type=float,
-        default=15.0,
-    )
-    arg("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
-    arg("-n", "--nproc", help="number of processes", type=int, default=1)
 
-    arg("--vm-version", help="velocity model version to generate", default="1.65")
+    arg("--min-vs", help="for nzvm gen and flo (km/s)", type=float, default=0.5)
+
+    arg("--vm-version", help="velocity model version to generate", default="2.06")
     arg(
         "--vm-topo",
         help="topo_type parameter for velocity model generation",
         default="BULLDOZED",
     )
-    arg("--selection", help="also generate NHM selection file", action="store_true")
     arg(
         "--no_optimise",
         help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data",
@@ -1033,7 +1013,12 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         type=float,
     )
     args = parser.parse_args()
-    args.vm_root_dir = os.path.abspath(args.vm_root_dir)
+    if args.dt is None:
+        args.dt = args.hh / 20
+
+    if args.out_dir is None:
+        args.out_dir = os.path.abspath(os.path.dirname(args.rel_file))
+
 
     return args
 
@@ -1045,41 +1030,22 @@ if __name__ == "__main__":
     )
     args = load_args(logger=logger)
 
-    logger.debug("Loading Srf/*.csv")
-    msg_list = load_msgs(args, logger=logger)
+    logger.debug("Loading REL csv")
+    msg_list = load_msgs(args.ds_multiplier,args.dt,args.hh, args.min_vs,
+                         args.no_optimise,args.out_dir,args.pgv,args.vm_topo,args.vm_version,
+                         logger=logger)
+
     if len(msg_list) == 0:
         message = "Found nothing to do, exiting."
         logger.log(qclogging.NOPRINTCRITICAL, message)
         sys.exit(message)
 
     # prepare to run
-    if not os.path.isdir(args.vm_root_dir):
-        logger.debug(
-            "VM root directory {} does not exist. Creating it now.".format(
-                args.vm_root_dir
-            )
-        )
-        os.makedirs(args.vm_root_dir)
+    os.makedirs(args.out_dir, exist_ok=True)
 
-    # distribute work
-    logger.debug(
-        "Number of processes to use given as {}, number of tasks: {}.".format(
-            args.nproc, len(msg_list)
-        )
-    )
-    p = Pool(processes=args.nproc)
-    reports = p.starmap(main, msg_list)
+    reports = main(*msg_list)
 
     # store summary
     store_summary(
-        os.path.join(args.vm_root_dir, "rel2vm_params_info.csv"), reports, logger=logger
+        os.path.join(args.out_Dir, "rel2vm_params_info.csv"), reports, logger=logger
     )
-
-    # Hack to fix VM generation permission issue
-    hostname = platform.node()
-    if hostname.startswith(("maui", "mahuika", "wb", "ni")):  # Checks if is on the HPCF
-        logger.debug("HPC detected, changing folder ownership and permissions")
-        permission_cmd = ["chmod", "g+rwXs", "-R", args.out_dir]
-        subprocess.call(permission_cmd)
-        group_cmd = ["chgrp", constants.DEFAULT_ACCOUNT, "-R", args.out_dir]
-        subprocess.call(group_cmd)
