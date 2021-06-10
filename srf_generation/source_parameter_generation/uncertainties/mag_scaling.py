@@ -16,7 +16,6 @@ class MagnitudeScalingRelations(Enum):
     STIRLING2008 = "STIRLING2008"
 
 
-
 def get_area(fault: "Fault"):
     if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
         farea = mw_to_a_hanksbakun(fault.magnitude)
@@ -285,6 +284,7 @@ def mw_sigma_hanksbakun():
 def mw_sigma_villamor():
     return 0.195
 
+
 def a_to_mw_leonard(a, leonard_ds, leonard_ss, rake):
     if round(rake % 360 / 90.0) % 2:
         mw = np.log10(a) + leonard_ds
@@ -307,7 +307,7 @@ def a_to_mw_berrymanetal(a):
 
 def a_to_mw_hanksbakun(a):
     if a > 10 ** (6.71 - 3.98):
-        return 3.07 + (4.0/3.0) * np.log(a) * 0.434294
+        return 3.07 + (4.0 / 3.0) * np.log(a) * 0.434294
     return np.log10(a) + 3.98
 
 
@@ -320,7 +320,7 @@ def mw_to_a_skarlatoudis(mw):
 
 
 def lw_2_mw_stirling(l, w):
-    return 4.18 + (2. / 3.) * np.log10(w) + (4. / 3.) * np.log10(l)
+    return 4.18 + (2.0 / 3.0) * np.log10(w) + (4.0 / 3.0) * np.log10(l)
 
 
 def mag2mom(mw):
