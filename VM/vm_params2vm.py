@@ -35,6 +35,7 @@ from common import store_summary, temp_paths
 from gen_coords import gen_coords
 
 NZVM_BIN = find_executable("NZVM")
+NZVM_BIN = "/home/jam335/code/Velocity-Model/NZVM"
 
 
 def gen_vm(
@@ -233,7 +234,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         help="path to vm_params.yaml",
     )
 
-    arg("vm_root_dir", help="root directory to place VM files eg. Data/VMs")
+    arg("out_dir", help="root directory to place VM files eg. Data/VMs", type=os.path.abspath)
 
     arg("-n", "--nproc", help="number of processes", type=int, default=1)
     arg(
@@ -253,7 +254,6 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     args = parser.parse_args()
     args.vm_params_path = os.path.abspath(args.vm_params_path)
-    args.vm_root_dir = os.path.abspath(args.vm_root_dir)
     return args
 
 
@@ -266,7 +266,6 @@ if __name__ == "__main__":
     args = load_args(logger=logger)
 
     # prepare to run
-    args.out_dir = os.path.join(args.vm_root_dir, args.name)
     if not os.path.isdir(args.out_dir):
         logger.debug(
             "VM output directory {} does not exist. Creating it now.".format(
