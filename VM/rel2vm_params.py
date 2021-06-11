@@ -281,9 +281,9 @@ def reduce_domain(
     xlen,
     ylen,
     hh,
-    space_srf = SPACE_SRF,
-    space_land = SPACE_LAND,
     wd,
+    space_srf=SPACE_SRF,
+    space_land=SPACE_LAND,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
@@ -785,8 +785,8 @@ def save_vm_params_yaml(
 
 
 def main(
-    srf_meta, options, out_dir, logger_name: str = "rel2vm_params", plot_enabled=True
-):
+    srf_meta, options, out_dir,logger: Logger = qclogging.get_basic_logger(), plot_enabled=True):
+
     """
     Orchestrates conversion from rel CSV file to vm_params.yaml
     Parameters
@@ -802,11 +802,7 @@ def main(
     vm_params_dict: Dictionary already dumped to vm_params.yaml, Returned for store_summary
     """
 
-    logger = qclogging.get_realisation_logger(
-        qclogging.get_logger(logger_name), srf_meta["name"]
-    )
 
-    
     # temp directory for current process
     ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=out_dir)
 
@@ -874,19 +870,7 @@ def main(
     return vm_params_dict
 
 
-def load_msgs(
-        ds_multiplier,
-        dt,
-        hh,
-        min_vs,
-        no_optimise,
-        out_dir,
-        pgv,
-        rel_file,
-        vm_topo,
-        vm_version,
-        logger: Logger = qclogging.get_basic_logger()
-):
+def load_rel(rel_file, logger: Logger = qclogging.get_basic_logger()):
     # returns list of appropriate srf metadata
     msgs = []
 
@@ -933,9 +917,8 @@ def load_msgs(
         + dtop
     )
 
-    msgs.append(
-        (
-            {
+
+    return {
                 "name": name,
                 "dip": a["dip"].loc[0],
                 "rake": rake,
@@ -943,24 +926,9 @@ def load_msgs(
                 "corners": np.array(corners),
                 "mag": mag,
                 "hdepth": hdepth,
-            },
-            {
-                "pgv": pgv,
-                "hh": hh,
-                "no_optimise": no_optimise,
-                "ds_multiplier": ds_multiplier,
-                "dt": dt,
-                "min_vs": min_vs,
-                "vm_topo": vm_topo,
-                "vm_version": vm_version,
-            },
-            out_dir,
-            qclogging.get_realisation_logger(logger, name).name,
-            True,
-        )
-    )
+            }
 
-    return msgs
+
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
@@ -976,7 +944,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         "--pgv",
         help="max PGV at velocity model perimiter (estimated, cm/s)",
         type=float,
-        default=5.0,
+        default=-1.0,
     )
     arg("--hh", help="velocity model grid spacing (km)", type=float, default=0.4)
     arg(
@@ -1017,8 +985,8 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         args.dt = args.hh / 20
 
     if args.out_dir is None:
-        args.out_dir = os.path.abspath(os.path.dirname(args.rel_file))
-
+        args.out_dir = os.path.dirname(args.rel_file)
+    args.out_dir=os.path.abspath(args.out_dir)
 
     return args
 
@@ -1031,21 +999,26 @@ if __name__ == "__main__":
     args = load_args(logger=logger)
 
     logger.debug("Loading REL csv")
-    msg_list = load_msgs(args.ds_multiplier,args.dt,args.hh, args.min_vs,
-                         args.no_optimise,args.out_dir,args.pgv,args.vm_topo,args.vm_version,
-                         logger=logger)
+    srf_meta = load_rel(args.rel_file,logger=logger)
 
-    if len(msg_list) == 0:
-        message = "Found nothing to do, exiting."
-        logger.log(qclogging.NOPRINTCRITICAL, message)
-        sys.exit(message)
+    options = {
+
+        "ds_multiplier": args.ds_multiplier,
+        "dt": args.dt,
+        "hh": args.hh,
+        "min_vs": args.min_vs,
+        "no_optimise": args.no_optimise,
+        "pgv": args.pgv,
+        "vm_topo": args.vm_topo,
+        "vm_version": args.vm_version,
+    }
 
     # prepare to run
     os.makedirs(args.out_dir, exist_ok=True)
 
-    reports = main(*msg_list)
+    reports = main(srf_meta, options, args.out_dir,logger=logger)
 
     # store summary
     store_summary(
-        os.path.join(args.out_Dir, "rel2vm_params_info.csv"), reports, logger=logger
+        os.path.join(args.out_dir, "rel2vm_params_info.csv"), reports, logger=logger
     )
