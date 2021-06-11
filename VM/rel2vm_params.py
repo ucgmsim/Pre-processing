@@ -1014,7 +1014,6 @@ if __name__ == "__main__":
     reports = main(srf_meta, options, args.out_dir,logger=logger)
 
     # store summary
-
     store_summary(
-        os.path.join(args.out_dir, "rel2vm_params_info.csv"), reports, logger=logger
+        os.path.join(args.out_dir, "rel2vm_params_info.csv"), [reports], logger=logger
     )
