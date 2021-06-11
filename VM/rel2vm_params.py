@@ -232,58 +232,15 @@ def auto_time2(
     return s_wave_arrival + ds_multiplier * ds
 
 
-def vm_land(c1, c2, c3, c4, wd="."):
-    """
-    Proportion of VM on land.
-    """
-    path_vm = "%s/mask_vm.path" % (wd)
-    grd_vm = "%s/mask_vm.grd" % (wd)
-    grd_land = "%s/mask_land.grd" % (wd)
-    grd_vm_land = "%s/mask_vm_land.grd" % (wd)
-
-    geo.path_from_corners([c1, c2, c3, c4], output=path_vm)
-    vm_region = corners2region(c1, c2, c3, c4)
-    dxy = auto_dxy(vm_region)
-
-    gmt.grd_mask("f", grd_land, region=vm_region, dx=dxy, dy=dxy, wd=wd)
-    gmt.grd_mask(path_vm, grd_vm, region=vm_region, dx=dxy, dy=dxy, wd=wd)
-    gmt.grdmath([grd_land, grd_vm, "BITAND", "=", grd_vm_land], wd=wd)
-
-    return grd_proportion(grd_vm_land) / grd_proportion(grd_vm) * 100
-
-
-# get longitude on NZ centre path at given latitude
-def centre_lon(lat_target):
-    # find closest points either side
-    # TODO: use np.interp
-    with open(NZ_CENTRE_LINE, "r") as c:
-        for line in c:
-            ll = list(map(float, line.split()))
-            if ll[1] < lat_target:
-                ll_bottom = ll
-            else:
-                ll_top = ll
-                break
-    try:
-        # find rough proportion of distance
-        lat_ratio = (lat_target - ll_bottom[1]) / (ll_top[1] - ll_bottom[1])
-    except (UnboundLocalError, NameError):
-        print("ERROR: VM edge out of lat bounds for centre line.")
-        raise
-    # consider same ratio along longitude difference to be correct
-    return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
-
-
-# maximum width along lines a and b
 def reduce_domain(
     origin,
     bearing,
     xlen,
     ylen,
     hh,
+    wd,
     space_srf = SPACE_SRF,
     space_land = SPACE_LAND,
-    wd,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
@@ -481,6 +438,49 @@ def reduce_domain(
     logger.debug("New ylen: {}".format(ylen))
 
     return origin, bearing, xlen, ylen
+
+
+def vm_land(c1, c2, c3, c4, wd="."):
+    """
+    Proportion of VM on land.
+    """
+    path_vm = "%s/mask_vm.path" % (wd)
+    grd_vm = "%s/mask_vm.grd" % (wd)
+    grd_land = "%s/mask_land.grd" % (wd)
+    grd_vm_land = "%s/mask_vm_land.grd" % (wd)
+
+    geo.path_from_corners([c1, c2, c3, c4], output=path_vm)
+    vm_region = corners2region(c1, c2, c3, c4)
+    dxy = auto_dxy(vm_region)
+
+    gmt.grd_mask("f", grd_land, region=vm_region, dx=dxy, dy=dxy, wd=wd)
+    gmt.grd_mask(path_vm, grd_vm, region=vm_region, dx=dxy, dy=dxy, wd=wd)
+    gmt.grdmath([grd_land, grd_vm, "BITAND", "=", grd_vm_land], wd=wd)
+
+    return grd_proportion(grd_vm_land) / grd_proportion(grd_vm) * 100
+# get longitude on NZ centre path at given latitude
+
+
+def centre_lon(lat_target):
+    # find closest points either side
+    # TODO: use np.interp
+    with open(NZ_CENTRE_LINE, "r") as c:
+        for line in c:
+            ll = list(map(float, line.split()))
+            if ll[1] < lat_target:
+                ll_bottom = ll
+            else:
+                ll_top = ll
+                break
+    try:
+        # find rough proportion of distance
+        lat_ratio = (lat_target - ll_bottom[1]) / (ll_top[1] - ll_bottom[1])
+    except (UnboundLocalError, NameError):
+        print("ERROR: VM edge out of lat bounds for centre line.")
+        raise
+    # consider same ratio along longitude difference to be correct
+    return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
+# maximum width along lines a and b
 
 
 def optimise_vm_params(
@@ -887,8 +887,7 @@ def load_msgs(
         vm_version,
         logger: Logger = qclogging.get_basic_logger()
 ):
-    # returns list of appropriate srf metadata
-    msgs = []
+
 
     #rel_file is assumed to be the first realisation
     if not os.path.exists(rel_file):
@@ -933,8 +932,7 @@ def load_msgs(
         + dtop
     )
 
-    msgs.append(
-        (
+    return (
             {
                 "name": name,
                 "dip": a["dip"].loc[0],
@@ -958,9 +956,6 @@ def load_msgs(
             qclogging.get_realisation_logger(logger, name).name,
             True,
         )
-    )
-
-    return msgs
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
@@ -1032,7 +1027,7 @@ if __name__ == "__main__":
 
     logger.debug("Loading REL csv")
     msg_list = load_msgs(args.ds_multiplier,args.dt,args.hh, args.min_vs,
-                         args.no_optimise,args.out_dir,args.pgv,args.vm_topo,args.vm_version,
+                         args.no_optimise,args.out_dir,args.pgv,args.rel_file, args.vm_topo,args.vm_version,
                          logger=logger)
 
     if len(msg_list) == 0:
@@ -1046,6 +1041,8 @@ if __name__ == "__main__":
     reports = main(*msg_list)
 
     # store summary
-    store_summary(
-        os.path.join(args.out_Dir, "rel2vm_params_info.csv"), reports, logger=logger
-    )
+
+    #### COMMENTING OUT THE BELOW BECAUSE IT IS EXPECTING TO READ THE h5 datastore as reports
+    # store_summary(
+    #     os.path.join(args.out_dir, "rel2vm_params_info.csv"), reports, logger=logger
+    # )
