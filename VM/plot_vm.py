@@ -1,5 +1,4 @@
 import os
-from common import NZ_LAND_OUTLINE, NZ_CENTRE_LINE
 from qcore import gmt, qclogging
 from logging import Logger
 
@@ -7,6 +6,8 @@ from logging import Logger
 def plot_vm(
     vm_params,
     srf_corners,
+    land_outline,
+    centre_line,
     mag,
     outdir,
     ptemp,
@@ -30,7 +31,7 @@ def plot_vm(
     p.coastlines()
 
     # filled slip area
-    p.path("%s/srf.path" % (outdir), is_file=True, fill="yellow", split="-")
+    p.path("%s/srf.path" % (ptemp), is_file=True, fill="yellow", split="-")
     # top edge
     for plane in srf_corners:
         p.path("\n".join([" ".join(map(str, ll)) for ll in plane[:2]]), is_file=False)
@@ -68,8 +69,8 @@ def plot_vm(
         )
 
     # land outlines blue, nz centre line (for bearing calculation) red
-    p.path(NZ_LAND_OUTLINE, is_file=True, close=False, colour="blue", width="0.2p")
-    p.path(NZ_CENTRE_LINE, is_file=True, close=False, colour="red", width="0.2p")
+    p.path(land_outline, is_file=True, close=False, colour="blue", width="0.2p")
+    p.path(centre_line, is_file=True, close=False, colour="red", width="0.2p")
 
     # actual corners retrieved from NZVM output or generated if args.novm
     # not available if VM was skipped

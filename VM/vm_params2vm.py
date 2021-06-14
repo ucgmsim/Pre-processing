@@ -13,6 +13,7 @@ HELP:
 """
 
 from argparse import ArgumentParser
+import csv
 from distutils.spawn import find_executable
 
 from logging import Logger
@@ -25,16 +26,36 @@ import subprocess
 from subprocess import Popen
 import sys
 
-from tempfile import mkdtemp
+
+from tempfile import TemporaryDirectory
 import yaml
 
 from qcore import constants, qclogging
 from qcore.validate_vm import validate_vm
 
-from common import store_summary, temp_paths
 from gen_coords import gen_coords
 
 NZVM_BIN = find_executable("NZVM")
+
+def temp_paths(ptemp):
+    vm_working_dir = os.path.join(ptemp, "output")
+    nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
+    vm_params_path = os.path.join(ptemp, "vm_params.yaml")
+    return (vm_working_dir, nzvm_cfg, vm_params_path)
+
+
+def store_summary(table, info_store, logger: Logger = qclogging.get_basic_logger()):
+    # initialise table file
+    logger.debug("Saving summary")
+    keys = info_store[0].keys()
+    with open(table, "w") as csvfile:
+        writer = csv.writer(csvfile, delimiter=",")
+        writer.writerow(keys)
+        for i in info_store:
+            writer.writerow([i[key] for key in keys])
+    logger.info("Saved summary to {}".format(table))
+
+
 
 
 def gen_vm(
@@ -69,23 +90,20 @@ def gen_vm(
             env=nzvm_env,
         )
         nzvm_exe.communicate()
-    logger.debug("Moving VM files to vm directory")
-    # fix up directory contents
-    logger.debug("Removing Log and Velocity_Model directories")
-    logger.debug("Moving nzvm config and vm_params yaml to vm directory")
-    for f in [
+
+    logger.debug("Moving output files to vm directory")
+    files_to_move = [
         os.path.join(vm_working_dir, "Velocity_Model", vm3dfile)
         for vm3dfile in ["rho3dfile.d", "vp3dfile.p", "vs3dfile.s"]
-    ]:
-        move(f, os.path.join(out_dir, os.path.basename(f)))  # may overwrite
-
-    logger.debug("Removing Log and Velocity_Model directories")
-    for f in [
+    ] +  [
         os.path.join(vm_working_dir, "Log", "VeloModCorners.txt"),
         nzvm_cfg,
         vm_params_path,
-    ]:
+    ]
+
+    for f in files_to_move:
         move(f, os.path.join(out_dir, os.path.basename(f)))  # may overwrite
+    logger.debug("Removing Log and Velocity_Model directories")
 
     rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
@@ -130,19 +148,19 @@ def save_nzvm_cfg(
                 "\n".join(
                     [
                         "CALL_TYPE=GENERATE_VELOCITY_MOD",
-                        "MODEL_VERSION=%s" % (vm_params_dict["model_version"]),
-                        "OUTPUT_DIR=%s" % (vm_dir),
-                        "ORIGIN_LAT=%s" % (vm_params_dict["MODEL_LAT"]),
-                        "ORIGIN_LON=%s" % (vm_params_dict["MODEL_LON"]),
-                        "ORIGIN_ROT=%s" % (vm_params_dict["MODEL_ROT"]),
-                        "EXTENT_X=%s" % (vm_params_dict["extent_x"]),
-                        "EXTENT_Y=%s" % (vm_params_dict["extent_y"]),
-                        "EXTENT_ZMAX=%s" % (vm_params_dict["extent_zmax"]),
-                        "EXTENT_ZMIN=%s" % (vm_params_dict["extent_zmin"]),
-                        "EXTENT_Z_SPACING=%s" % (vm_params_dict["hh"]),
-                        "EXTENT_LATLON_SPACING=%s" % (vm_params_dict["hh"]),
-                        "MIN_VS=%s" % (vm_params_dict["min_vs"]),
-                        "TOPO_TYPE=%s\n" % (vm_params_dict["topo_type"]),
+                        f"MODEL_VERSION={vm_params_dict['model_version']}",
+                        f"OUTPUT_DIR={vm_dir}",
+                        f"ORIGIN_LAT={vm_params_dict['MODEL_LAT']}",
+                        f"ORIGIN_LON={vm_params_dict['MODEL_LON']}",
+                        f"ORIGIN_ROT={vm_params_dict['MODEL_ROT']}",
+                        f"EXTENT_X={vm_params_dict['extent_x']}",
+                        f"EXTENT_Y={vm_params_dict['extent_y']}",
+                        f"EXTENT_ZMAX={vm_params_dict['extent_zmax']}",
+                        f"EXTENT_ZMIN={vm_params_dict['extent_zmin']}",
+                        f"EXTENT_Z_SPACING={vm_params_dict['hh']}",
+                        f"EXTENT_LATLON_SPACING={vm_params_dict['hh']}",
+                        f"MIN_VS={vm_params_dict['min_vs']}",
+                        f"TOPO_TYPE={vm_params_dict['topo_type']}\n",
                     ]
                 )
             )
@@ -152,7 +170,7 @@ def save_nzvm_cfg(
 
 
 def main(
-    name, vm_params_path, out_dir, vm_threads=1, logger_name: str = "vm_params2vm"
+    name, vm_params_path, out_dir, vm_threads=1, logger: Logger = qclogging.get_basic_logger()
 ):
     """
     Orchestrates conversion from vm_params.yaml to VM output
@@ -169,56 +187,35 @@ def main(
     -------
     vm_params_dict : Used for store_summary
     """
-    logger = qclogging.get_realisation_logger(qclogging.get_logger(logger_name), name)
+
 
     # temp directory for current process
-    ptemp = mkdtemp(prefix="_tmp_%s_" % (name), dir=out_dir)
+    with TemporaryDirectory(prefix=f"_tmp_{name}_", dir=out_dir) as ptemp:
 
-    qclogging.add_general_file_handler(
-        logger, os.path.join(ptemp, "vm_params2vm_{}_log.txt".format(name))
-    )
+        qclogging.add_general_file_handler(
+            logger, os.path.join(out_dir, "vm_params2vm_{}_log.txt".format(name))
+        )
 
-    (vm_working_dir, nzvm_cfg_path, _) = temp_paths(ptemp)
+        (vm_working_dir, nzvm_cfg_path, _) = temp_paths(ptemp)
 
-    with open(vm_params_path, "r") as f:
-        vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
+        with open(vm_params_path, "r") as f:
+            vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
 
-    if vm_params_dict is not None:
-        # saves nzvm.cfg
-        save_nzvm_cfg(nzvm_cfg_path, vm_params_dict, vm_working_dir, logger=logger)
-        # makes a copy of vm_params.yaml
-        copyfile(vm_params_path, os.path.join(ptemp, os.path.basename(vm_params_path)))
-        # run the actual generation
-        gen_vm(out_dir, ptemp, vm_threads=vm_threads, logger=logger)
-    else:
-        logger.debug("vm_params.yaml has no data for VM generation")
+        if vm_params_dict is not None:
+            # saves nzvm.cfg
+            save_nzvm_cfg(nzvm_cfg_path, vm_params_dict, vm_working_dir, logger=logger)
+            # makes a copy of vm_params.yaml
+            copyfile(vm_params_path, os.path.join(ptemp, os.path.basename(vm_params_path)))
+            # run the actual generation
+            gen_vm(out_dir, ptemp, vm_threads=vm_threads, logger=logger)
+        else:
+            logger.debug("vm_params.yaml has no data for VM generation")
 
-    vm_params_dict["out_dir"] = out_dir
+        vm_params_dict["out_dir"] = out_dir
 
-    # working dir cleanup, return info about VM
-    logger.debug("Cleaning up temp directory {}".format(ptemp))
-    rmtree(ptemp)
+
     return vm_params_dict
 
-
-def load_msgs_vm_params(args, logger: Logger = qclogging.get_basic_logger()):
-
-    msgs = []
-    logger.debug("Checking VM params file: {}".format(args.vm_params_path))
-
-    if not os.path.exists(args.vm_params_path):
-        raise FileNotFoundError(args.vm_params_path)
-
-    msgs.append(
-        (
-            args.name,
-            args.vm_params_path,
-            args.out_dir,
-            args.vm_threads,
-            qclogging.get_realisation_logger(logger, args.name).name,
-        )
-    )
-    return msgs
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
@@ -233,9 +230,15 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         help="path to vm_params.yaml",
     )
 
-    arg("vm_root_dir", help="root directory to place VM files eg. Data/VMs")
+    arg(
+        "-o",
+        "--out_dir",
+        help="output directory to place VM files "
+             "(if not specified, the same path as rel_file is used",
+        default=None,
+    )
 
-    arg("-n", "--nproc", help="number of processes", type=int, default=1)
+
     arg(
         "-t",
         "--vm_threads",
@@ -244,16 +247,15 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         type=int,
         default=1,
     )
-    arg("--vm-version", help="velocity model version to generate", default="1.65")
-    arg(
-        "--vm-topo",
-        help="topo_type parameter for velocity model generation",
-        default="BULLDOZED",
-    )
+
 
     args = parser.parse_args()
     args.vm_params_path = os.path.abspath(args.vm_params_path)
-    args.vm_root_dir = os.path.abspath(args.vm_root_dir)
+
+    if args.out_dir is None:
+        args.out_dir = os.path.dirname(os.path.dirname(args.vm_params_path))
+    args.out_dir = os.path.abspath(args.out_dir)
+
     return args
 
 
@@ -266,31 +268,14 @@ if __name__ == "__main__":
     args = load_args(logger=logger)
 
     # prepare to run
-    args.out_dir = os.path.join(args.vm_root_dir, args.name)
-    if not os.path.isdir(args.out_dir):
-        logger.debug(
-            "VM output directory {} does not exist. Creating it now.".format(
-                args.out_dir
-            )
-        )
+    logger.debug("Checking VM params file: {}".format(args.vm_params_path))
+    if not os.path.exists(args.vm_params_path):
+        raise FileNotFoundError(args.vm_params_path)
 
-        os.makedirs(args.out_dir)
+    logger.debug("Checking/Creating output directory :{}".format(args.out_dir))
+    os.makedirs(args.out_dir, exist_ok=True)
 
-    msg_list = load_msgs_vm_params(args, logger=logger)
-
-    # distribute work
-    logger.debug(
-        "Number of processes to use given as {}, number of tasks: {}.".format(
-            args.nproc, len(msg_list)
-        )
-    )
-    p = Pool(processes=args.nproc)
-    reports = p.starmap(main, msg_list)
-
-    # store summary
-    store_summary(
-        os.path.join(args.out_dir, "vm_params2vm_info.csv"), reports, logger=logger
-    )
+    main(args.name, args.vm_params_path, args.out_dir,args.vm_threads,logger=logger)
 
     # Hack to fix VM generation permission issue
     hostname = platform.node()

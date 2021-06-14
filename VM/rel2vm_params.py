@@ -4,7 +4,7 @@ REQUIREMENTS:
 PATH contains NZVM binary (github:ucgmsim/Velocity-Model/NZVM)
 
 most basic example
-python rel2vm_params.py ~/Data/Sources/Hossack/Srf/Hossack_REL01.csv ~/Data/VMs/Hossack
+python rel2vm_params.py ~/Data/Sources/Hossack/Srf/Hossack_REL01.csv -o ~/Data/VMs/Hossack
 (if no output directory is specified, the same directory as REL01.csv will be used)
 
 HELP:
@@ -12,23 +12,15 @@ python ./rel2vm_params.py -h
 """
 
 from argparse import ArgumentParser
-from glob import glob
 from h5py import File as h5open
 from logging import Logger
 import math
-from multiprocessing import Pool
 import numpy as np
 import os
 import pandas as pd
-import platform
-import subprocess
-
 from shutil import rmtree, move
-
 import sys
-from tempfile import mkdtemp
-
-from common import store_summary, temp_paths, NZ_LAND_OUTLINE, NZ_CENTRE_LINE
+from tempfile import TemporaryDirectory
 
 from srf_generation.input_file_generation.realisation_to_srf import get_corners_dbottom
 from qcore import constants, geo, gmt, qclogging
@@ -40,6 +32,11 @@ from empirical.util.empirical_factory import compute_gmm
 
 from plot_vm import plot_vm
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+NZ_CENTRE_LINE = os.path.join(script_dir, "../SrfGen/NHM/res/centre.txt")
+NZ_LAND_OUTLINE = os.path.join(script_dir, "../SrfGen/NHM/res/rough_land.txt")
+
+
 S_WAVE_KM_PER_S = 3.5
 
 siteprop = Site()
@@ -48,10 +45,10 @@ faultprop = Fault()
 # DON'T CHANGE THIS - this assumes we have a surface point source
 faultprop.ztor = 0.0
 
-SPACE_LAND = 5.0 #min space between VM endge and land (km)
-SPACE_SRF = 15.0 #min space between VM edge and SRF (km)
-MIN_RJB = 0 # Specify a minimum horizontal distance (in km) for the VM to span
-            # from the fault - invalid VMs will still not be generated",
+SPACE_LAND = 5.0  # min space between VM edge and land (km)
+SPACE_SRF = 15.0  # min space between VM edge and SRF (km)
+MIN_RJB = 0  # Specify a minimum horizontal distance (in km) for the VM to span
+# from the fault - invalid VMs will still not be generated",
 
 
 # default scaling relationship
@@ -63,21 +60,32 @@ def mag2pgv(mag):
     )
 
 
-# rrup at which pgv is close to target
+#
 def find_rrup(pgv_target):
+    """
+    Find rrup at which pgv is close to target. Has to be computed iteratively as GMPE is irreversible.
+
+    Parameters
+    ----------
+    pgv_target :
+
+    Returns
+    -------
+
+    """
     rrup = 50.0
-    while True:
+    pgv = np.inf
+    while pgv_target / pgv < 0.99 or pgv_target / pgv > 1.01 :
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
         pgv = compute_gmm(faultprop, siteprop, GMM.Br_10, "PGV")[0]
         # factor 0.02 is conservative step to avoid infinite looping
-        if pgv_target / pgv - 1 > 0.01:
+        if pgv_target / pgv  > 1.01:
             rrup -= rrup * 0.02
-        elif pgv_target / pgv - 1 < -0.01:
+        elif pgv_target / pgv < 0.99:
             rrup += rrup * 0.02
-        else:
-            break
+
     return rrup, pgv
 
 
@@ -107,60 +115,6 @@ def corners2region(c1, c2, c3, c4):
     return (x_min, x_max, y_min, y_max)
 
 
-def build_corners(origin, rot, xlen, ylen):
-    # wanted xlen, ylen is at corners
-    # amount to shift from middle
-    x_shift = xlen / 2.0
-    y_shift = ylen / 2.0
-
-    y_len_mid_shift = R_EARTH * math.asin(
-        math.sin(y_shift / R_EARTH) / math.cos(x_shift / R_EARTH)
-    )
-
-    top_mid = geo.ll_shift(
-        lat=origin[1], lon=origin[0], distance=y_len_mid_shift, bearing=rot
-    )[::-1]
-    bottom_mid = geo.ll_shift(
-        lat=origin[1],
-        lon=origin[0],
-        distance=y_len_mid_shift,
-        bearing=(rot + 180) % 360,
-    )[::-1]
-
-    top_mid_bearing = geo.ll_bearing(*top_mid, *origin) + 180 % 360
-    bottom_mid_bearing = geo.ll_bearing(*bottom_mid, *origin)
-
-    c2 = geo.ll_shift(
-        lat=top_mid[1],
-        lon=top_mid[0],
-        distance=x_shift,
-        bearing=(top_mid_bearing - 90) % 360,
-    )[::-1]
-    c1 = geo.ll_shift(
-        lat=top_mid[1],
-        lon=top_mid[0],
-        distance=x_shift,
-        bearing=(top_mid_bearing + 90) % 360,
-    )[::-1]
-
-    c3 = geo.ll_shift(
-        lat=bottom_mid[1],
-        lon=bottom_mid[0],
-        distance=x_shift,
-        bearing=(bottom_mid_bearing - 90) % 360,
-    )[::-1]
-    c4 = geo.ll_shift(
-        lat=bottom_mid[1],
-        lon=bottom_mid[0],
-        distance=x_shift,
-        bearing=(bottom_mid_bearing + 90) % 360,
-    )[::-1]
-
-    # at this point we have a perfect square (by corner distance)
-    # c1 -> c4 == c2 -> c3 (right == left), c1 -> c2 == c3 -> c4 (top == bottom)
-    return c1, c2, c3, c4
-
-
 # proportion of gmt mask file filled (1s vs 0s)
 # TODO: should be part of GMT library
 def grd_proportion(grd_file):
@@ -175,7 +129,7 @@ def grd_proportion(grd_file):
 
 # keep dx and dy small enough relative to domain
 # h5py will crash when opening grd with less than 2^14 gridpoints
-def auto_dxy(region):
+def get_dxy(region):
     # assume not going over earth quadrants
     x_diff = region[1] - region[0]
     y_diff = region[3] - region[2]
@@ -189,7 +143,7 @@ def auto_dxy(region):
 
 
 # z extent based on magnitude, hypocentre depth
-def auto_z(mag, depth):
+def get_max_depth(mag, depth):
     return round(
         10
         + depth
@@ -199,7 +153,7 @@ def auto_z(mag, depth):
 
 
 # simulation time based on area
-def auto_time2(
+def get_sim_duration(
     vm_corners,
     srf_corners,
     ds_multiplier,
@@ -239,8 +193,8 @@ def reduce_domain(
     ylen,
     hh,
     wd,
-    space_srf = SPACE_SRF,
-    space_land = SPACE_LAND,
+    space_srf=SPACE_SRF,
+    space_land=SPACE_LAND,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
@@ -451,13 +405,15 @@ def vm_land(c1, c2, c3, c4, wd="."):
 
     geo.path_from_corners([c1, c2, c3, c4], output=path_vm)
     vm_region = corners2region(c1, c2, c3, c4)
-    dxy = auto_dxy(vm_region)
+    dxy = get_dxy(vm_region)
 
     gmt.grd_mask("f", grd_land, region=vm_region, dx=dxy, dy=dxy, wd=wd)
     gmt.grd_mask(path_vm, grd_vm, region=vm_region, dx=dxy, dy=dxy, wd=wd)
     gmt.grdmath([grd_land, grd_vm, "BITAND", "=", grd_vm_land], wd=wd)
 
     return grd_proportion(grd_vm_land) / grd_proportion(grd_vm) * 100
+
+
 # get longitude on NZ centre path at given latitude
 
 
@@ -480,11 +436,21 @@ def centre_lon(lat_target):
         raise
     # consider same ratio along longitude difference to be correct
     return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
+
+
 # maximum width along lines a and b
 
 
 def optimise_vm_params(
-    srf_meta, options, out_dir, ptemp, logger: Logger = qclogging.get_basic_logger()
+    srf_meta,
+    ds_multiplier,
+    dt,
+    hh,
+    pgv,
+    ptemp,
+    deep_rupture=False,
+    no_optimise=False,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Optimises VM domain and returns a dictionary that extends vm_params_dict
@@ -492,8 +458,7 @@ def optimise_vm_params(
     Parameters
     ----------
     srf_meta : Data extracted from REL csv file
-    options : Default/User-specified options (via arguments)
-    out_dir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
+
     ptemp : Temporary work directory (eg. .../Data/VMs/Hossack/_tmp_Hossack_nho8ui41)
     logger :
 
@@ -502,17 +467,17 @@ def optimise_vm_params(
     vm_params_dict_extended that contains extra info not stored in vm_params.yaml
 
     """
+
     # properties stored in classes (fault of external code)
     faultprop.Mw = srf_meta["mag"]
     faultprop.rake = srf_meta["rake"]
     faultprop.dip = srf_meta["dip"]
     faultprop.faultstyle = None
     # rrup to reach wanted PGV
-    if options["pgv"] == -1.0:
+    if pgv == -1.0:
         pgv = mag2pgv(faultprop.Mw)
         logger.debug("pgv determined from magnitude. pgv set to {}".format(pgv))
     else:
-        pgv = options["pgv"]
         logger.debug("pgv set to {}".format(pgv))
     rrup, pgv_actual = find_rrup(pgv)
 
@@ -531,18 +496,21 @@ def optimise_vm_params(
     # original, unrotated vm
     bearing = 0
     origin, xlen0, ylen0 = determine_vm_extent(
-        rjb, options["hh"], srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+        rjb, hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
     )
 
     if fault_depth > rrup:
-        logger.warning(
-            "fault_depth > rrup. Fault too deep, will not generate VM. "
-            f"Setting xlen, ylen to 0. Previous values: x:{xlen0}, y:{ylen0}"
-        )
-        xlen0 = 0
-        ylen0 = 0
+        if deep_rupture:
+            pass
+        else:
+            logger.warning(
+                "fault_depth > rrup. Fault too deep, will not generate VM. "
+                f"Setting xlen, ylen to 0. Previous values: x:{xlen0}, y:{ylen0}"
+            )
+            xlen0 = 0
+            ylen0 = 0
 
-    o1, o2, o3, o4 = build_corners(origin, bearing, xlen0, ylen0)
+    o1, o2, o3, o4 = geo.build_corners(origin, bearing, xlen0, ylen0)
     vm0_region = corners2region(o1, o2, o3, o4)
     plot_region = (
         vm0_region[0] - 1,
@@ -552,7 +520,7 @@ def optimise_vm_params(
     )
 
     # proportion in ocean
-    if options["no_optimise"] or xlen0 <= 0 or ylen0 <= 0:
+    if no_optimise or xlen0 <= 0 or ylen0 <= 0:
         logger.debug("Not optimising for land coverage")
         land0 = 100
     else:
@@ -585,7 +553,7 @@ def optimise_vm_params(
         # wanted distance is at corners, not middle top to bottom
         _, xlen1, ylen1 = determine_vm_extent(
             rjb,
-            options["hh"],
+            hh,
             srf_meta["corners"].reshape((-1, 2)),
             rot=bearing,
             wd=ptemp,
@@ -602,7 +570,7 @@ def optimise_vm_params(
             bearing,
             xlen1,
             ylen1,
-            options["hh"],
+            hh,
             ptemp,
             logger=logger,
         )
@@ -613,7 +581,7 @@ def optimise_vm_params(
         )
 
         try:
-            c1, c2, c3, c4 = build_corners(origin, bearing, xlen1, ylen1)
+            c1, c2, c3, c4 = geo.build_corners(origin, bearing, xlen1, ylen1)
         except ValueError:
             error_message = "Error for vm {}. Raising exception.".format(
                 srf_meta["name"]
@@ -654,26 +622,24 @@ def optimise_vm_params(
         ylen1 = 0
 
     # zlen is independent from xlen and ylen
-    zlen = (
-        round(auto_z(faultprop.Mw, srf_meta["dbottom"]) / options["hh"]) * options["hh"]
-    )
+    zlen = round(get_max_depth(faultprop.Mw, srf_meta["dbottom"]) / hh) * hh
     logger.debug("zlen set to {}".format(zlen))
 
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
 
         # modified sim time
         vm_corners = np.asarray([c1, c2, c3, c4])
-        initial_time = auto_time2(
+        initial_time = get_sim_duration(
             vm_corners,
             np.concatenate(srf_meta["corners"], axis=0),
-            options["ds_multiplier"],
+            ds_multiplier,
             fault_depth,
             logger=logger,
         )
-        sim_time1 = (initial_time // options["dt"]) * options["dt"]
+        sim_duration = (initial_time // dt) * dt
         logger.debug(
             "Unrounded sim duration: {}. Rounded sim duration: {}".format(
-                initial_time, sim_time1
+                initial_time, sim_duration
             )
         )
 
@@ -683,12 +649,12 @@ def optimise_vm_params(
             "mag": faultprop.Mw,
             "dbottom": srf_meta["dbottom"],
             "zlen": zlen,
-            "sim_time": sim_time1,
+            "sim_time": sim_duration,
             "xlen": xlen0,
             "ylen": ylen0,
             "land": land0,
             "zlen_mod": zlen,
-            "sim_time_mod": sim_time1,
+            "sim_time_mod": sim_duration,
             "xlen_mod": xlen1,
             "ylen_mod": ylen1,
             "land_mod": land1,
@@ -696,183 +662,129 @@ def optimise_vm_params(
             "bearing": bearing,
             "adjusted": adjusted,
             "plot_region": plot_region,
-            "path": "%s %s\n%s %s\n%s %s\n%s %s\n"
-            % (o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
-            "path_mod": "%s %s\n%s %s\n%s %s\n%s %s\n"
-            % (c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
+            "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
+            "path_mod": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
         }
 
     return None  # failed to create VM if it is entirely in the ocean
 
 
-def save_vm_params_yaml(
-    vm_params_path=None,
-    vm_dir=None,
-    origin=(170, -40),
-    rot=0,
-    xlen=100,
-    ylen=100,
-    zmax=40,
-    zmin=0,
-    hh=0.4,
-    min_vs=0.5,
-    mag=5.5,
-    centroid_depth=7,
-    sim_duration=100,
-    code="rt",
-    model_version="1.65",
-    topo_type="BULLDOZED",
+def main(
+    srf_meta,
+    ds_multiplier,
+    dt,
+    hh,
+    min_vs,
+    pgv,
+    vm_topo,
+    vm_version,
+    out_dir,
+    deep_rupture=False,
+    no_optimise=False,
+    plot_enabled=True,
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    """
-    Save vm_params.yaml with the specified info
-
-    Parameters
-    ----------
-    vm_params_path : Path to vm_params.yaml
-    vm_dir : A relative path (default: output) where NZVM will place output files (cannot exist)
-    origin :
-    rot :
-    xlen :
-    ylen :
-    zmax :
-    zmin :
-    hh :
-    min_vs :
-    mag :
-    centroid_depth :
-    sim_duration :
-    code :
-    model_version :
-    topo_type :
-    logger :
-    """
-
-    if vm_params_path is not None:
-        # must also convert mag from np.float to float
-        vm_params_dict = {
-            "mag": float(mag),
-            "centroidDepth": float(centroid_depth),
-            "MODEL_LAT": float(origin[1]),
-            "MODEL_LON": float(origin[0]),
-            "MODEL_ROT": float(rot),
-            "hh": hh,
-            "min_vs": float(min_vs),
-            "model_version": model_version,
-            "topo_type": topo_type,
-            "output_directory": os.path.basename(vm_dir),
-            "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
-            "code": code,
-            "extent_x": float(xlen),
-            "extent_y": float(ylen),
-            "extent_zmax": float(zmax),
-            "extent_zmin": float(zmin),
-            "sim_duration": float(sim_duration),
-            "flo": min_vs / (5.0 * hh),
-            "nx": int(round(float(xlen) / hh)),
-            "ny": int(round(float(ylen) / hh)),
-            "nz": int(round(float(zmax - zmin) / hh)),
-            "sufx": "_%s01-h%.3f" % (code, hh),
-        }
-
-        dump_yaml(
-            vm_params_dict,
-            "{}".format(vm_params_path),
-        )
-        logger.debug("Saved {}".format(vm_params_path))
-        return vm_params_dict
-    return None
-
-
-def main(
-    srf_meta, options, out_dir,logger: Logger = qclogging.get_basic_logger(), plot_enabled=True):
 
     """
     Orchestrates conversion from rel CSV file to vm_params.yaml
     Parameters
     ----------
     srf_meta : Data extracted from REL csv file
-    options : Default/User-specified options (via arguments)
-    out_dir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
-    logger_name :
-    plot_enabled :
 
-    Returns
-    -------
-    vm_params_dict: Dictionary already dumped to vm_params.yaml, Returned for store_summary
+    out_dir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
+    plot_enabled :
+    logger:
     """
 
-
     # temp directory for current process
-    ptemp = mkdtemp(prefix="_tmp_%s_" % (srf_meta["name"]), dir=out_dir)
-
-    vm_params_dict = {}
-    vm_params_dict_extended = optimise_vm_params(
-        srf_meta, options, out_dir, ptemp, logger=logger
-    )
-    if vm_params_dict_extended is not None:
-        # store configs
-        vm_working_dir, _, vm_params_path = temp_paths(ptemp)
-
-        vm_params_dict = save_vm_params_yaml(
-            vm_params_path=vm_params_path,
-            vm_dir=vm_working_dir,
-            origin=vm_params_dict_extended["origin"],
-            rot=vm_params_dict_extended["bearing"],
-            xlen=vm_params_dict_extended["xlen_mod"],
-            ylen=vm_params_dict_extended["ylen_mod"],
-            zmax=vm_params_dict_extended["zlen_mod"],
-            hh=options["hh"],
-            min_vs=options["min_vs"],
-            mag=faultprop.Mw,
-            centroid_depth=srf_meta["hdepth"],
-            sim_duration=vm_params_dict_extended["sim_time_mod"],
-            topo_type=options["vm_topo"],
-            model_version=options["vm_version"],
+    with TemporaryDirectory(prefix=f"_tmp_{srf_meta['name']}_", dir=out_dir) as ptemp:
+        qclogging.add_general_file_handler(
+            logger, os.path.join(out_dir, "rel2vm_params_{}_log.txt".format(srf_meta['name']))
         )
-        if vm_params_dict:
-            # save important files
-            logger.debug("Creating directory {}".format(vm_working_dir))
-            os.makedirs(vm_working_dir)
-            # move(nzvm_cfg_path, vm_working_dir)
-            vm_params_path_final = os.path.join(
-                out_dir, os.path.basename(vm_params_path)
-            )
-            if os.path.exists(vm_params_path_final):
-                logger.info(
-                    f"Warning: {vm_params_path_final} already exists and to be overwritten."
-                )
-                os.remove(vm_params_path_final)
+        vm_params_path = os.path.join(out_dir, "vm_params.yaml")
+        vm_working_dir = "output"
 
-            move("{}".format(vm_params_path), out_dir)
-            logger.info("Wrote vm_params.yaml at {}".format(out_dir))
+        vm_params_dict = {}
+        vm_params_dict_extended = optimise_vm_params(
+            srf_meta, ds_multiplier, dt, hh, pgv, ptemp,
+            deep_rupture=deep_rupture,
+            no_optimise=no_optimise,
+            logger=logger
+        )
+
+        if vm_params_dict_extended is not None:
+            xlen = float(vm_params_dict_extended["xlen_mod"])
+            ylen = float(vm_params_dict_extended["ylen_mod"])
+            zmax = float(vm_params_dict_extended["zlen_mod"])
+            zmin = 0.0
+
+            code = "rt"
+            vm_params_dict = {
+                "mag": float(
+                    faultprop.Mw,
+                ),
+                "centroidDepth": float(srf_meta["hdepth"]),
+                "MODEL_LAT": float(vm_params_dict_extended["origin"][1]),
+                "MODEL_LON": float(vm_params_dict_extended["origin"][0]),
+                "MODEL_ROT": float(vm_params_dict_extended["bearing"]),
+                "hh": hh,
+                "min_vs": min_vs,
+                "model_version": vm_version,
+                "topo_type": vm_topo,
+                "output_directory": os.path.basename(vm_working_dir),
+                "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
+                "code": code,
+                "extent_x": xlen,
+                "extent_y": ylen,
+                "extent_zmax": zmax,
+                "extent_zmin": zmin,
+                "sim_duration": float(vm_params_dict_extended["sim_time_mod"]),
+                "flo": min_vs / (5.0 * hh),
+                "nx": int(round(float(xlen) / hh)),
+                "ny": int(round(float(ylen) / hh)),
+                "nz": int(round(float(zmax - zmin) / hh)),
+                "sufx": "_%s01-h%.3f" % (code, hh),
+            }
+
+            if os.path.exists(vm_params_path):
+                logger.info(
+                    f"Warning: {vm_params_path} already exists and to be overwritten."
+                )
+                os.remove(vm_params_path)
+
+            dump_yaml(
+                vm_params_dict,
+                "{}".format(vm_params_path),
+            )
+            logger.debug("Saved {}".format(vm_params_path))
+            print(f"Success: Wrote vm_params.yaml at {out_dir}", file=sys.stderr)
+
             if plot_enabled:
                 plot_vm(
                     vm_params_dict_extended,
                     srf_meta["corners"],
+                    NZ_LAND_OUTLINE,
+                    NZ_CENTRE_LINE,
                     faultprop.Mw,
                     out_dir,
                     ptemp,
                     logger=logger,
                 )
 
-            print(f"Success: Wrote vm_params.yaml at {out_dir}", file=sys.stderr)
             # generate a corners like NZVM would have
             logger.debug("Saving VeloModCorners.txt")
-            with open("{}/VeloModCorners.txt".format(out_dir), "wb") as c:
-                c.write("> VM corners (python generated)\n".encode())
-                c.write(">Lon    Lat\n".encode())
-                c.write(vm_params_dict_extended["path_mod"].encode())
+            write_corner_file(out_dir, vm_params_dict_extended["path_mod"])
 
-    # working dir cleanup, return info about VM
-    logger.debug("Cleaning up temp directory {}".format(ptemp))
-    rmtree(ptemp)
-    return vm_params_dict
+def write_corner_file(out_dir, paths):
 
+    with open("{}/VeloModCorners.txt".format(out_dir), "wb") as c:
+        c.write(">Velocity model corners(python generated)\n".encode())
+        c.write(">Lon\tLat\n".encode())
+        c.write(paths.encode())
 
 
 def load_rel(rel_file, logger: Logger = qclogging.get_basic_logger()):
-    #rel_file is assumed to be the first realisation
+
     if not os.path.exists(rel_file):
         logger.info("REL csv file not found: {}".format(rel_file))
         return
@@ -910,20 +822,18 @@ def load_rel(rel_file, logger: Logger = qclogging.get_basic_logger()):
     dbottom = a["dbottom"].loc[0]
 
     hdepth = (
-        np.round(a["dhypo"].loc[0], decimals=1)
-        * np.sin(np.radians(a["dip"].loc[0]))
+        np.round(a["dhypo"].loc[0], decimals=1) * np.sin(np.radians(a["dip"].loc[0]))
         + dtop
     )
 
-
     return {
-            "name": name,
-            "dip": a["dip"].loc[0],
-            "rake": rake,
-            "dbottom": dbottom,
-            "corners": np.array(corners),
-            "mag": mag,
-            "hdepth": hdepth,
+        "name": name,
+        "dip": a["dip"].loc[0],
+        "rake": rake,
+        "dbottom": dbottom,
+        "corners": np.array(corners),
+        "mag": mag,
+        "hdepth": hdepth,
     }
 
 
@@ -931,10 +841,15 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     parser = ArgumentParser()
     arg = parser.add_argument
 
-    arg("rel_file",help="REL csv file")
+    arg("rel_file", help="REL csv file")
 
-    arg("--out_dir", help="output directory to place VM files "
-                          "(if not specified, the same path as rel_file is used", default=None)
+    arg(
+        "-o",
+        "--out_dir",
+        help="output directory to place VM files "
+        "(if not specified, the same path as rel_file is used",
+        default=None,
+    )
 
     arg(
         "--pgv",
@@ -964,6 +879,12 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         action="store_true",
     )
     arg(
+        "--deep_rupture",
+        help="The rupture is meant to be deep",
+        action="store_true",
+        default=False,
+    )
+    arg(
         "--min-rjb",
         help="Specify a minimum horizontal distance (in km) for the VM to span from the fault"
         " - invalid VMs will still not be generated",
@@ -982,7 +903,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     if args.out_dir is None:
         args.out_dir = os.path.dirname(args.rel_file)
-    args.out_dir=os.path.abspath(args.out_dir)
+    args.out_dir = os.path.abspath(args.out_dir)
 
     return args
 
@@ -995,25 +916,22 @@ if __name__ == "__main__":
     args = load_args(logger=logger)
 
     logger.debug("Loading REL csv")
-    srf_meta = load_rel(args.rel_file,logger=logger)
-
-    options = {
-        "ds_multiplier": args.ds_multiplier,
-        "dt": args.dt,
-        "hh": args.hh,
-        "min_vs": args.min_vs,
-        "no_optimise": args.no_optimise,
-        "pgv": args.pgv,
-        "vm_topo": args.vm_topo,
-        "vm_version": args.vm_version,
-    }
+    srf_meta = load_rel(args.rel_file, logger=logger)
 
     # prepare to run
     os.makedirs(args.out_dir, exist_ok=True)
 
-    reports = main(srf_meta, options, args.out_dir,logger=logger)
-
-    # store summary
-    store_summary(
-        os.path.join(args.out_dir, "rel2vm_params_info.csv"), [reports], logger=logger
+    main(
+        srf_meta,
+        args.ds_multiplier,
+        args.dt,
+        args.hh,
+        args.min_vs,
+        args.pgv,
+        args.vm_topo,
+        args.vm_version,
+        args.out_dir,
+        deep_rupture=args.deep_rupture,
+        no_optimise=args.no_optimise,
+        logger=logger,
     )
