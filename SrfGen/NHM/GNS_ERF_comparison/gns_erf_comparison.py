@@ -159,12 +159,12 @@ def compare(gns_fault: GNSFault, nhm_fault: NHMFault):
 
 
 if __name__ == "__main__":
-    standard_erf_ffp = os.path.joins(
+    standard_erf_ffp = os.path.join(
         os.path.dirname(__file__), "../NZ_FLTmodel_2010_v18p6.txt"
     )
     gns_erf_ffp = "./F501111U.DAT"
 
-    out_file = ""
+    out_file = "test"
     if len(out_file) == 0 or os.path.isfile(out_file):
         print("Specify a valid output file, quitting.")
         exit()

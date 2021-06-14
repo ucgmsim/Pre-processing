@@ -56,11 +56,12 @@ def store_summary(table, info_store, logger: Logger = qclogging.get_basic_logger
     logger.info("Saved summary to {}".format(table))
 
 
-
-
 def gen_vm(
     out_dir,
     ptemp,
+    vm_working_dir,
+    nzvm_cfg_path,
+    vm_params_path,
     vm_threads=1,
     logger: Logger = qclogging.get_basic_logger(),
 ):
@@ -76,8 +77,6 @@ def gen_vm(
     logger :
     """
     os.makedirs(out_dir, exist_ok=True)
-    vm_working_dir, nzvm_cfg, vm_params_path = temp_paths(ptemp)
-
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
         logger.debug("Running NZVM binary")
@@ -97,7 +96,7 @@ def gen_vm(
         for vm3dfile in ["rho3dfile.d", "vp3dfile.p", "vs3dfile.s"]
     ] +  [
         os.path.join(vm_working_dir, "Log", "VeloModCorners.txt"),
-        nzvm_cfg,
+        nzvm_cfg_path,
         vm_params_path,
     ]
 
@@ -196,7 +195,9 @@ def main(
             logger, os.path.join(out_dir, "vm_params2vm_{}_log.txt".format(name))
         )
 
-        (vm_working_dir, nzvm_cfg_path, _) = temp_paths(ptemp)
+        vm_working_dir = os.path.join(ptemp, "output")
+        nzvm_cfg_path = os.path.join(ptemp, "nzvm.cfg")
+        temp_vm_params_path = os.path.join(ptemp, "vm_params.yaml")
 
         with open(vm_params_path, "r") as f:
             vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
@@ -205,9 +206,9 @@ def main(
             # saves nzvm.cfg
             save_nzvm_cfg(nzvm_cfg_path, vm_params_dict, vm_working_dir, logger=logger)
             # makes a copy of vm_params.yaml
-            copyfile(vm_params_path, os.path.join(ptemp, os.path.basename(vm_params_path)))
+            copyfile(vm_params_path, temp_vm_params_path)
             # run the actual generation
-            gen_vm(out_dir, ptemp, vm_threads=vm_threads, logger=logger)
+            gen_vm(out_dir, ptemp, vm_working_dir, nzvm_cfg_path, temp_vm_params_path, vm_threads=vm_threads, logger=logger)
         else:
             logger.debug("vm_params.yaml has no data for VM generation")
 
@@ -238,7 +239,6 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         default=None,
     )
 
-
     arg(
         "-t",
         "--vm_threads",
@@ -268,6 +268,7 @@ if __name__ == "__main__":
     args = load_args(logger=logger)
 
     # prepare to run
+
     logger.debug("Checking VM params file: {}".format(args.vm_params_path))
     if not os.path.exists(args.vm_params_path):
         raise FileNotFoundError(args.vm_params_path)
