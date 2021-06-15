@@ -37,6 +37,7 @@ from gen_coords import gen_coords
 
 NZVM_BIN = find_executable("NZVM")
 
+
 def temp_paths(ptemp):
     vm_working_dir = os.path.join(ptemp, "output")
     nzvm_cfg = os.path.join(ptemp, "nzvm.cfg")
@@ -57,7 +58,7 @@ def store_summary(table, info_store, logger: Logger = qclogging.get_basic_logger
 
 
 def gen_vm(
-    out_dir,
+    outdir,
     ptemp,
     vm_working_dir,
     nzvm_cfg_path,
@@ -66,17 +67,17 @@ def gen_vm(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    Generates VM and relocate the output files from ptemp to out_dir
+    Generates VM and relocate the output files from ptemp to outdir
     Also generates coordinates files and validates.
 
     Parameters
     ----------
-    out_dir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
+    outdir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
     ptemp : Temporary work directory (eg. .../Data/VMs/Hossack/_tmp_Hossack_nho8ui41)
     vm_threads : Number of threads to run NZVM binary with if OpenMP-enabled
     logger :
     """
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(outdir, exist_ok=True)
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
     with open(os.path.join(ptemp, "NZVM.out"), "w") as logfile:
         logger.debug("Running NZVM binary")
@@ -94,31 +95,31 @@ def gen_vm(
     files_to_move = [
         os.path.join(vm_working_dir, "Velocity_Model", vm3dfile)
         for vm3dfile in ["rho3dfile.d", "vp3dfile.p", "vs3dfile.s"]
-    ] +  [
+    ] + [
         os.path.join(vm_working_dir, "Log", "VeloModCorners.txt"),
         nzvm_cfg_path,
         vm_params_path,
     ]
 
     for f in files_to_move:
-        move(f, os.path.join(out_dir, os.path.basename(f)))  # may overwrite
+        move(f, os.path.join(outdir, os.path.basename(f)))  # may overwrite
     logger.debug("Removing Log and Velocity_Model directories")
 
     rmtree(vm_working_dir)
     # create model_coords, model_bounds etc...
     logger.debug("Generating coords")
-    gen_coords(vm_dir=out_dir)
+    gen_coords(vm_dir=outdir)
     # validate
     logger.debug("Validating vm")
-    success, message = validate_vm(out_dir)
+    success, message = validate_vm(outdir)
     if success:
-        vm_check_str = f"VM check passed: {out_dir}"
+        vm_check_str = f"VM check passed: {outdir}"
         logger.debug(vm_check_str)
         print(vm_check_str, file=sys.stderr)
     else:
         logger.log(
             qclogging.NOPRINTCRITICAL,
-            "VM check for {} failed: {}".format(out_dir, message),
+            "VM check for {} failed: {}".format(outdir, message),
         )
         print(f"VM check BAD: {message}", file=sys.stderr)
 
@@ -169,7 +170,11 @@ def save_nzvm_cfg(
 
 
 def main(
-    name, vm_params_path, out_dir, vm_threads=1, logger: Logger = qclogging.get_basic_logger()
+    name,
+    vm_params_path,
+    outdir,
+    vm_threads=1,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Orchestrates conversion from vm_params.yaml to VM output
@@ -178,7 +183,7 @@ def main(
     ----------
     name : name of the fault
     vm_params_path : Path to the vm_params.yaml
-    out_dir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
+    outdir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
     vm_threads : Number of threads to run NZVM binary with if OpenMP-enabled
     logger_name : Name of the logger
 
@@ -187,12 +192,11 @@ def main(
     vm_params_dict : Used for store_summary
     """
 
-
     # temp directory for current process
-    with TemporaryDirectory(prefix=f"_tmp_{name}_", dir=out_dir) as ptemp:
+    with TemporaryDirectory(prefix=f"_tmp_{name}_", dir=outdir) as ptemp:
 
         qclogging.add_general_file_handler(
-            logger, os.path.join(out_dir, "vm_params2vm_{}_log.txt".format(name))
+            logger, os.path.join(outdir, "vm_params2vm_{}_log.txt".format(name))
         )
 
         vm_working_dir = os.path.join(ptemp, "output")
@@ -208,15 +212,21 @@ def main(
             # makes a copy of vm_params.yaml
             copyfile(vm_params_path, temp_vm_params_path)
             # run the actual generation
-            gen_vm(out_dir, ptemp, vm_working_dir, nzvm_cfg_path, temp_vm_params_path, vm_threads=vm_threads, logger=logger)
+            gen_vm(
+                outdir,
+                ptemp,
+                vm_working_dir,
+                nzvm_cfg_path,
+                temp_vm_params_path,
+                vm_threads=vm_threads,
+                logger=logger,
+            )
         else:
             logger.debug("vm_params.yaml has no data for VM generation")
 
-        vm_params_dict["out_dir"] = out_dir
-
+        vm_params_dict["outdir"] = outdir
 
     return vm_params_dict
-
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
@@ -233,9 +243,9 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     arg(
         "-o",
-        "--out_dir",
+        "--outdir",
         help="output directory to place VM files "
-             "(if not specified, the same path as rel_file is used",
+        "(if not specified, the same path as rel_file is used",
         default=None,
     )
 
@@ -248,13 +258,16 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         default=1,
     )
 
-
     args = parser.parse_args()
     args.vm_params_path = os.path.abspath(args.vm_params_path)
 
-    if args.out_dir is None:
-        args.out_dir = os.path.dirname(os.path.dirname(args.vm_params_path))
-    args.out_dir = os.path.abspath(args.out_dir)
+    logger.debug("Checking VM params file: {}".format(args.vm_params_path))
+    if not os.path.exists(args.vm_params_path):
+        parser.error(f"File is not present: {args.vm_params_path}")
+
+    if args.outdir is None:
+        args.outdir = os.path.dirname(os.path.dirname(args.vm_params_path))
+    args.outdir = os.path.abspath(args.outdir)
 
     return args
 
@@ -269,20 +282,7 @@ if __name__ == "__main__":
 
     # prepare to run
 
-    logger.debug("Checking VM params file: {}".format(args.vm_params_path))
-    if not os.path.exists(args.vm_params_path):
-        raise FileNotFoundError(args.vm_params_path)
+    logger.debug("Checking/Creating output directory :{}".format(args.outdir))
+    os.makedirs(args.outdir, exist_ok=True)
 
-    logger.debug("Checking/Creating output directory :{}".format(args.out_dir))
-    os.makedirs(args.out_dir, exist_ok=True)
-
-    main(args.name, args.vm_params_path, args.out_dir,args.vm_threads,logger=logger)
-
-    # Hack to fix VM generation permission issue
-    hostname = platform.node()
-    if hostname.startswith(("maui", "mahuika", "wb", "ni")):  # Checks if is on the HPCF
-        logger.debug("HPC detected, changing folder ownership and permissions")
-        permission_cmd = ["chmod", "g+rwXs", "-R", args.out_dir]
-        subprocess.call(permission_cmd)
-        group_cmd = ["chgrp", constants.DEFAULT_ACCOUNT, "-R", args.out_dir]
-        subprocess.call(group_cmd)
+    main(args.name, args.vm_params_path, args.outdir, args.vm_threads, logger=logger)

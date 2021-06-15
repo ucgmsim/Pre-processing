@@ -75,13 +75,13 @@ def find_rrup(pgv_target):
     """
     rrup = 50.0
     pgv = np.inf
-    while pgv_target / pgv < 0.99 or pgv_target / pgv > 1.01 :
+    while pgv_target / pgv < 0.99 or pgv_target / pgv > 1.01:
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
         pgv = compute_gmm(faultprop, siteprop, GMM.Br_10, "PGV")[0]
         # factor 0.02 is conservative step to avoid infinite looping
-        if pgv_target / pgv  > 1.01:
+        if pgv_target / pgv > 1.01:
             rrup -= rrup * 0.02
         elif pgv_target / pgv < 0.99:
             rrup += rrup * 0.02
@@ -394,7 +394,7 @@ def reduce_domain(
     return origin, bearing, xlen, ylen
 
 
-def vm_land(c1, c2, c3, c4, wd="."):
+def get_vm_land_proportion(c1, c2, c3, c4, wd="."):
     """
     Proportion of VM on land.
     """
@@ -449,6 +449,7 @@ def optimise_vm_params(
     pgv,
     ptemp,
     deep_rupture=False,
+    target_land_coverage=99,
     no_optimise=False,
     logger: Logger = qclogging.get_basic_logger(),
 ):
@@ -520,11 +521,14 @@ def optimise_vm_params(
     )
 
     # proportion in ocean
-    if no_optimise or xlen0 <= 0 or ylen0 <= 0:
-        logger.debug("Not optimising for land coverage")
+    if xlen0 <= 0 or ylen0 <= 0:
+        logger.debug(
+            "Optimising skipped for {}. Not enough land".format(srf_meta["name"])
+        )
         land0 = 100
+        no_optimise = True
     else:
-        land0 = vm_land(o1, o2, o3, o4, wd=ptemp)
+        land0 = get_vm_land_proportion(o1, o2, o3, o4, wd=ptemp)
         logger.debug("Land coverage found to be {}%".format(land0))
 
     # for plotting and calculating VM domain distance
@@ -534,13 +538,28 @@ def optimise_vm_params(
             np.savetxt(sp, plane, fmt="%f")
             sp.write("%f %f\n".encode() % (tuple(plane[0])))
 
-    # modify VM if necessary
-    adjusted = False
-    if faultprop.Mw >= 3.5 and land0 < 99:
-        adjusted = True
+    if no_optimise:
         logger.info(
-            "Fault {} has magnitude greater than 3.5 and less than 99% land coverage. Optimising.".format(
-                srf_meta["name"]
+            "Optimising skipped for {} : no_optimise==True".format(srf_meta["name"])
+        )
+
+    if faultprop.Mw < 3.5:
+        no_optimise = True
+        logger.info("Optimising skipped for {} : mw<3.5".format(srf_meta["name"]))
+
+    if land0 >= target_land_coverage:
+        logger.info(
+            "Optimising skipped for {} : land coverage >= {}%".format(
+                srf_meta["name"], target_land_coverage
+            )
+        )
+        no_optimise = True
+
+    # modify VM if necessary
+    if not no_optimise:
+        logger.info(
+            "Fault {} has magnitude greater than 3.5 and less than {}% land coverage. Optimising.".format(
+                srf_meta["name"], target_land_coverage
             )
         )
 
@@ -592,7 +611,7 @@ def optimise_vm_params(
             logger.debug("Optimised corners of the VM are: {}".format((c1, c2, c3, c4)))
 
         # proportion in ocean
-        land1 = vm_land(c1, c2, c3, c4, wd=ptemp)
+        land1 = get_vm_land_proportion(c1, c2, c3, c4, wd=ptemp)
         logger.debug("Optimised land coverage found to be {}%".format(land1))
 
         # adjust region to fit new corners
@@ -602,12 +621,7 @@ def optimise_vm_params(
             min(c4[1], c1[1], c3[1], c2[1], plot_region[2]),
             max(c4[1], c1[1], c3[1], c2[1], plot_region[3]),
         )
-    else:
-        logger.info(
-            "Magnitude less than 3.5 or land coverage is greater than 99%, not modifying {}".format(
-                srf_meta["name"]
-            )
-        )
+    else:  # not optimised
         # store original variables as final versions
         ylen1 = ylen0
         xlen1 = xlen0
@@ -660,10 +674,14 @@ def optimise_vm_params(
             "land_mod": land1,
             "origin": origin,
             "bearing": bearing,
-            "adjusted": adjusted,
+            "adjusted": not no_optimise,
             "plot_region": plot_region,
-            "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]),
-            "path_mod": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]),
+            "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
+                o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]
+            ),
+            "path_mod": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
+                c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
+            ),
         }
 
     return None  # failed to create VM if it is entirely in the ocean
@@ -678,8 +696,9 @@ def main(
     pgv,
     vm_topo,
     vm_version,
-    out_dir,
+    outdir,
     deep_rupture=False,
+    target_land_coverage=99.0,
     no_optimise=False,
     plot_enabled=True,
     logger: Logger = qclogging.get_basic_logger(),
@@ -691,25 +710,32 @@ def main(
     ----------
     srf_meta : Data extracted from REL csv file
 
-    out_dir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
+    outdir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
     plot_enabled :
     logger:
     """
 
     # temp directory for current process
-    with TemporaryDirectory(prefix=f"_tmp_{srf_meta['name']}_", dir=out_dir) as ptemp:
+    with TemporaryDirectory(prefix=f"_tmp_{srf_meta['name']}_", dir=outdir) as ptemp:
         qclogging.add_general_file_handler(
-            logger, os.path.join(out_dir, "rel2vm_params_{}_log.txt".format(srf_meta['name']))
+            logger,
+            os.path.join(outdir, "rel2vm_params_{}_log.txt".format(srf_meta["name"])),
         )
-        vm_params_path = os.path.join(out_dir, "vm_params.yaml")
+        vm_params_path = os.path.join(outdir, "vm_params.yaml")
         vm_working_dir = "output"
 
         vm_params_dict = {}
         vm_params_dict_extended = optimise_vm_params(
-            srf_meta, ds_multiplier, dt, hh, pgv, ptemp,
+            srf_meta,
+            ds_multiplier,
+            dt,
+            hh,
+            pgv,
+            ptemp,
             deep_rupture=deep_rupture,
+            target_land_coverage=target_land_coverage,
             no_optimise=no_optimise,
-            logger=logger
+            logger=logger,
         )
 
         if vm_params_dict_extended is not None:
@@ -757,7 +783,7 @@ def main(
                 "{}".format(vm_params_path),
             )
             logger.debug("Saved {}".format(vm_params_path))
-            print(f"Success: Wrote vm_params.yaml at {out_dir}", file=sys.stderr)
+            print(f"Success: Wrote vm_params.yaml at {outdir}", file=sys.stderr)
 
             if plot_enabled:
                 plot_vm(
@@ -766,18 +792,18 @@ def main(
                     NZ_LAND_OUTLINE,
                     NZ_CENTRE_LINE,
                     faultprop.Mw,
-                    out_dir,
+                    outdir,
                     ptemp,
                     logger=logger,
                 )
 
             # generate a corners like NZVM would have
             logger.debug("Saving VeloModCorners.txt")
-            write_corner_file(out_dir, vm_params_dict_extended["path_mod"])
+            write_corner_file(outdir, vm_params_dict_extended["path_mod"])
 
-def write_corner_file(out_dir, paths):
 
-    with open("{}/VeloModCorners.txt".format(out_dir), "wb") as c:
+def write_corner_file(outdir, paths):
+    with open("{}/VeloModCorners.txt".format(outdir), "wb") as c:
         c.write(">Velocity model corners(python generated)\n".encode())
         c.write(">Lon\tLat\n".encode())
         c.write(paths.encode())
@@ -787,7 +813,7 @@ def load_rel(rel_file, logger: Logger = qclogging.get_basic_logger()):
 
     if not os.path.exists(rel_file):
         logger.info("REL csv file not found: {}".format(rel_file))
-        return
+        raise FileNotFoundError(rel_file)
 
     # name is unique and based on basename
     name = os.path.splitext(os.path.basename(rel_file))[0].split("_")[0]
@@ -845,9 +871,9 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     arg(
         "-o",
-        "--out_dir",
+        "--outdir",
         help="output directory to place VM files "
-        "(if not specified, the same path as rel_file is used",
+        "(if not specified, the same location as rel_file is in)",
         default=None,
     )
 
@@ -871,18 +897,26 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     arg(
         "--vm-topo",
         help="topo_type parameter for velocity model generation",
+        choices=[x.value for x in constants.VelocityModelTopographyType],
         default="BULLDOZED",
     )
     arg(
-        "--no_optimise",
+        "--no-optimise",
         help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data",
         action="store_true",
+        default=False,
     )
     arg(
-        "--deep_rupture",
+        "--deep-rupture",
         help="The rupture is meant to be deep",
         action="store_true",
         default=False,
+    )
+    arg(
+        "--target-land-coverage",
+        help="Land coverage level (%) that triggers optimisation if not met (Default: 99.0)",
+        type=float,
+        default=None,
     )
     arg(
         "--min-rjb",
@@ -901,9 +935,17 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     if args.dt is None:
         args.dt = args.hh / 20
 
-    if args.out_dir is None:
-        args.out_dir = os.path.dirname(args.rel_file)
-    args.out_dir = os.path.abspath(args.out_dir)
+    if args.outdir is None:
+        args.outdir = os.path.dirname(args.rel_file)
+    args.outdir = os.path.abspath(args.outdir)
+
+    if args.no_optimise == True and args.target_land_coverage is not None:
+        parser.error(
+            "Both no_optimise and target_land_coverage are set. Set either one"
+        )
+
+    if args.target_land_coverage is None:
+        args.target_land_coverage = 99.0  # default if not set
 
     return args
 
@@ -919,7 +961,7 @@ if __name__ == "__main__":
     srf_meta = load_rel(args.rel_file, logger=logger)
 
     # prepare to run
-    os.makedirs(args.out_dir, exist_ok=True)
+    os.makedirs(args.outdir, exist_ok=True)
 
     main(
         srf_meta,
@@ -930,7 +972,7 @@ if __name__ == "__main__":
         args.pgv,
         args.vm_topo,
         args.vm_version,
-        args.out_dir,
+        args.outdir,
         deep_rupture=args.deep_rupture,
         no_optimise=args.no_optimise,
         logger=logger,
