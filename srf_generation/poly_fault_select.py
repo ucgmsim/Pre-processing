@@ -40,8 +40,13 @@ def points2trace(points):
 if __name__ == "__main__":
     # arguments
     parser = ArgumentParser()
-    parser.add_argument("nhm_file", type=os.path.abspath)
-    parser.add_argument("points", nargs="+", type=float)
+    parser.add_argument("nhm_file", help="path to NHM file", type=os.path.abspath)
+    parser.add_argument(
+        "points",
+        help="longitude latitude of each point in polygon",
+        nargs="+",
+        type=float,
+    )
     args = parser.parse_args()
     # process
     nhm = load_nhm(args.nhm_file)
