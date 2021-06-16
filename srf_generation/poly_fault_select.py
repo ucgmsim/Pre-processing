@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+"""
+Select faults based on being within a polygon.
+"""
 
 from argparse import ArgumentParser
+import os
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -35,14 +39,19 @@ def points2trace(points):
 
 if __name__ == "__main__":
     # arguments
-    nhm = load_nhm("NZ_FLTmodel_2010_v18p6.txt")
-    outline = np.array([[172, -42], [174, -42], [174, -44], [172, -44]])
+    parser = ArgumentParser()
+    parser.add_argument("nhm_file", type=os.path.abspath)
+    parser.add_argument("points", nargs="+", type=float)
+    args = parser.parse_args()
+    # process
+    nhm = load_nhm(args.nhm_file)
+    outline = np.array(args.points).reshape(-1, 2)
 
     # plot outline and store as GDAL object
     plt.plot(
         np.insert(outline[:, 0], 0, outline[-1, 0]),
         np.insert(outline[:, 1], 0, outline[-1, 1]),
-        color="blue"
+        color="blue",
     )
     outline = points2polygon(outline)
 
@@ -53,9 +62,13 @@ if __name__ == "__main__":
         intersection = outline.Intersection(trace)
         if intersection.GetPointCount() == 0:
             # not intersecting
-            plt.plot(fault.trace[:, 0], fault.trace[:, 1], color="black")
+            colour = "black"
         else:
             # intersecting
             print(fault.name)
-            plt.plot(fault.trace[:, 0], fault.trace[:, 1], color="red")
+            if trace.Within(outline):
+                colour = "red"
+            else:
+                colour = "orange"
+        plt.plot(fault.trace[:, 0], fault.trace[:, 1], color=colour)
     plt.show()
