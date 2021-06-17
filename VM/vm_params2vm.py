@@ -97,8 +97,7 @@ def gen_vm(
         print(vm_check_str, file=sys.stderr)
     else:
         logger.log(
-            qclogging.NOPRINTCRITICAL,
-            f"VM check for {outdir} failed: {message}"
+            qclogging.NOPRINTCRITICAL, f"VM check for {outdir} failed: {message}"
         )
         print(f"VM check BAD: {message}", file=sys.stderr)
 
@@ -172,7 +171,7 @@ def main(
     with TemporaryDirectory(prefix=f"_tmp_{name}_", dir=outdir) as ptemp:
         ptemp = Path(ptemp)
         qclogging.add_general_file_handler(
-            logger, outdir /  f"vm_params2vm_{name}_log.txt"
+            logger, outdir / f"vm_params2vm_{name}_log.txt"
         )
 
         vm_working_dir = ptemp / "output"
@@ -199,7 +198,6 @@ def main(
             )
         else:
             logger.debug("vm_params.yaml has no data for VM generation")
-
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
@@ -259,9 +257,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 if __name__ == "__main__":
 
     logger = qclogging.get_logger("vm_params2vm")
-    qclogging.add_general_file_handler(
-        logger, Path.cwd() / "vm_params2vm_log.txt"
-    )
+    qclogging.add_general_file_handler(logger, Path.cwd() / "vm_params2vm_log.txt")
     args = load_args(logger=logger)
 
     # prepare to run

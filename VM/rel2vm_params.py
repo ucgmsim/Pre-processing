@@ -127,6 +127,7 @@ def find_rrup(pgv_target: float):
 #         math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) / hh) * hh,
 #     )
 
+
 def determine_vm_extent(distance, hh, points, rot=0, wd="."):
     """
     rrup: in km
@@ -143,7 +144,6 @@ def determine_vm_extent(distance, hh, points, rot=0, wd="."):
         math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) / hh) * hh,
         math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) / hh) * hh,
     )
-
 
 
 def corners2region(c1: tuple, c2: tuple, c3: tuple, c4: tuple):
@@ -190,7 +190,6 @@ def grd_proportion(grd_file: Path):
         raise
 
 
-
 def get_dxy(region: tuple):
     """
     Get the grid spacing size that will be used to open a grd file
@@ -218,8 +217,7 @@ def get_dxy(region: tuple):
     return dxy
 
 
-
-def get_max_depth(mag: float, depth:float):
+def get_max_depth(mag: float, depth: float):
     """
     Maximum depth (ie. z extent) based on magnitude, hypocentre depth
     Parameters
@@ -240,11 +238,11 @@ def get_max_depth(mag: float, depth:float):
 
 
 def get_sim_duration(
-        vm_corners: np.ndarray,
-        srf_corners: np.ndarray,
-        ds_multiplier:int,
-        depth: float=0,
-        logger: Logger = qclogging.get_basic_logger(),
+    vm_corners: np.ndarray,
+    srf_corners: np.ndarray,
+    ds_multiplier: int,
+    depth: float = 0,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Calculates the sim duration from the bounds of the vm and srf
@@ -280,16 +278,17 @@ def get_sim_duration(
     logger.debug(f"ds_multiplier: {ds_multiplier}")
     return s_wave_arrival + ds_multiplier * ds
 
+
 def reduce_domain(
-        origin: float,
-        bearing: float,
-        xlen: float,
-        ylen: float,
-        hh: float,
-        wd:Path,
-        space_srf:float = SPACE_SRF,
-        space_land:float = SPACE_LAND,
-        logger: Logger = qclogging.get_basic_logger(),
+    origin: float,
+    bearing: float,
+    xlen: float,
+    ylen: float,
+    hh: float,
+    wd: Path,
+    space_srf: float = SPACE_SRF,
+    space_land: float = SPACE_LAND,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
@@ -347,23 +346,23 @@ def reduce_domain(
             # Make sure bearing is pointing northwards: [-90, 90] % 360
             bearing_p = (bearing_p + 180) % 360
         ap = geo.ll_shift(m[1], m[0], 600 + x_len_mid_shift, (bearing_p + 90) % 360)[
-             ::-1
-             ]
+            ::-1
+        ]
         bp = geo.ll_shift(m[1], m[0], 600 + x_len_mid_shift, (bearing_p + 270) % 360)[
-             ::-1
-             ]
+            ::-1
+        ]
 
         # GMT spatial is not great-circle path connective
         geo.path_from_corners(
             corners=[ap, bp],
-            output="%s/tempEXT.tmp"%wd,
+            output="%s/tempEXT.tmp" % wd,
             min_edge_points=80,
             close=False,
         )
         isections, icomps = gmt.intersections(
-            ["%s/srf.path" %wd, NZ_LAND_OUTLINE, "%s/tempEXT.tmp"%wd],
+            ["%s/srf.path" % wd, NZ_LAND_OUTLINE, "%s/tempEXT.tmp" % wd],
             items=True,
-            containing= "%s/tempEXT.tmp"%wd,
+            containing="%s/tempEXT.tmp" % wd,
         )
         if len(isections) == 0:
             scan_extremes[i] = np.nan
@@ -371,7 +370,7 @@ def reduce_domain(
         # shift different intersections by item-specific padding amount
 
         for c, intersection in enumerate(isections):
-            if "%s/srf.path"%wd in icomps[c]:
+            if "%s/srf.path" % wd in icomps[c]:
                 diff = space_srf
             elif NZ_LAND_OUTLINE in icomps[c]:
                 diff = space_land
@@ -381,15 +380,15 @@ def reduce_domain(
 
             isection_bearing = geo.ll_bearing(*m, *intersection)
             if (
-                    abs(isection_bearing - (bearing_p + 90)) < 5
-                    and dist_east_from_mid < x_shift
+                abs(isection_bearing - (bearing_p + 90)) < 5
+                and dist_east_from_mid < x_shift
             ):
                 # The intersection is (relatively) east of the mid point
                 east = geo.ll_dist(*intersection, *m) + diff
                 west = diff - geo.ll_dist(*intersection, *m)
             elif (
-                    abs(isection_bearing - (bearing_p + 270) % 360) < 5
-                    and dist_west_from_mid < x_shift
+                abs(isection_bearing - (bearing_p + 270) % 360) < 5
+                and dist_west_from_mid < x_shift
             ):
                 # The intersection is (relatively) west of the mid point
                 east = diff - geo.ll_dist(*intersection, *m)
@@ -503,7 +502,9 @@ def reduce_domain(
     return origin, bearing, xlen, ylen
 
 
-def get_vm_land_proportion(c1:tuple, c2:tuple, c3:tuple, c4:tuple, wd: Path=Path(".")):
+def get_vm_land_proportion(
+    c1: tuple, c2: tuple, c3: tuple, c4: tuple, wd: Path = Path(".")
+):
     """
     Proportion of VM on land. Can be used to decide whether area optimisation should be done
 
@@ -520,8 +521,8 @@ def get_vm_land_proportion(c1:tuple, c2:tuple, c3:tuple, c4:tuple, wd: Path=Path
     Proportion (%)
     """
     path_vm = wd / "mask_vm.path"
-    grd_vm = wd /"mask_vm.grd"
-    grd_land = wd /"mask_land.grd"
+    grd_vm = wd / "mask_vm.grd"
+    grd_land = wd / "mask_land.grd"
     grd_vm_land = wd / "mask_vm_land.grd"
 
     geo.path_from_corners([c1, c2, c3, c4], output=path_vm)
@@ -563,16 +564,16 @@ def centre_lon(lat_target: float):
 
 
 def optimise_vm_params(
-        srf_meta: dict,
-        ds_multiplier: float,
-        dt: float,
-        hh: float,
-        pgv: float,
-        ptemp: Path,
-        deep_rupture: bool = False,
-        optimise: bool = True,
-        target_land_coverage: float =99.0,
-        logger: Logger = qclogging.get_basic_logger(),
+    srf_meta: dict,
+    ds_multiplier: float,
+    dt: float,
+    hh: float,
+    pgv: float,
+    ptemp: Path,
+    deep_rupture: bool = False,
+    optimise: bool = True,
+    target_land_coverage: float = 99.0,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Optimises VM domain and returns a dictionary that extends vm_params_dict
@@ -649,9 +650,7 @@ def optimise_vm_params(
 
     # proportion in ocean
     if xlen0 <= 0 or ylen0 <= 0:
-        logger.debug(
-            f"Optimising skipped for {srf_meta['name']}. Not enough land"
-        )
+        logger.debug(f"Optimising skipped for {srf_meta['name']}. Not enough land")
         land0 = 100
         optimise = False
     else:
@@ -666,9 +665,7 @@ def optimise_vm_params(
             sp.write("%f %f\n".encode() % (tuple(plane[0])))
 
     if not optimise:
-        logger.info(
-            f"No optimisation for {srf_meta['name']} : no_optimise==True"
-        )
+        logger.info(f"No optimisation for {srf_meta['name']} : no_optimise==True")
 
     if faultprop.Mw < 3.5:
         optimise = False
@@ -802,20 +799,20 @@ def optimise_vm_params(
 
 
 def main(
-        srf_meta: dict,
-        ds_multiplier: float,
-        dt: float,
-        hh: float,
-        min_vs: float,
-        outdir: Path,
-        pgv: float,
-        vm_topo:str,
-        vm_version:str,
-        deep_rupture: bool=False,
-        target_land_coverage: float =99.0,
-        optimise:bool=True,
-        plot_enabled:bool=True,
-        logger: Logger = qclogging.get_basic_logger(),
+    srf_meta: dict,
+    ds_multiplier: float,
+    dt: float,
+    hh: float,
+    min_vs: float,
+    outdir: Path,
+    pgv: float,
+    vm_topo: str,
+    vm_version: str,
+    deep_rupture: bool = False,
+    target_land_coverage: float = 99.0,
+    optimise: bool = True,
+    plot_enabled: bool = True,
+    logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Orchestrates conversion from rel CSV file to vm_params.yaml
@@ -843,8 +840,7 @@ def main(
         ptemp = Path(ptemp)
 
         qclogging.add_general_file_handler(
-            logger,
-            outdir / f"rel2vm_params_{srf_meta['name']}_log.txt"
+            logger, outdir / f"rel2vm_params_{srf_meta['name']}_log.txt"
         )
         vm_params_path = outdir / "vm_params.yaml"
         vm_working_dir = "output"
@@ -982,8 +978,8 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
     dbottom = a["dbottom"].loc[0]
 
     hdepth = (
-            np.round(a["dhypo"].loc[0], decimals=1) * np.sin(np.radians(a["dip"].loc[0]))
-            + dtop
+        np.round(a["dhypo"].loc[0], decimals=1) * np.sin(np.radians(a["dip"].loc[0]))
+        + dtop
     )
 
     return {
@@ -1019,7 +1015,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         "-o",
         "--outdir",
         help="output directory to place VM files "
-             "(if not specified, the same location as rel_file is in)",
+        "(if not specified, the same location as rel_file is in)",
         default=None,
     )
 
@@ -1051,7 +1047,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data",
         action="store_false",
         default=True,
-        dest="optimise"
+        dest="optimise",
     )
     arg(
         "--deep-rupture",
@@ -1068,13 +1064,13 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     arg(
         "--min-rjb",
         help="Specify a minimum horizontal distance (in km) for the VM to span from the fault"
-             " - invalid VMs will still not be generated",
+        " - invalid VMs will still not be generated",
         default=0,
     )
     arg(
         "--ds-multiplier",
         help="Sets the DS multiplier for setting the sim-duration. Validation runs default to 1.2. Cybershake runs"
-             "should manually set it to 0.75",
+        "should manually set it to 0.75",
         default=1.2,
         type=float,
     )
@@ -1103,9 +1099,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
 if __name__ == "__main__":
     logger = qclogging.get_logger("rel2vm_params")
-    qclogging.add_general_file_handler(
-        logger, Path.cwd() / "rel2vm_params_log.txt"
-    )
+    qclogging.add_general_file_handler(logger, Path.cwd() / "rel2vm_params_log.txt")
     args = load_args(logger=logger)
 
     logger.debug("Loading REL csv")

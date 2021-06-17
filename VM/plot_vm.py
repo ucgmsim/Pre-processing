@@ -121,7 +121,12 @@ def plot_vm(
     )
 
 
-def main(name:str, vm_params_dict:dict, outdir:Path, logger: Logger = qclogging.get_basic_logger()):
+def main(
+    name: str,
+    vm_params_dict: dict,
+    outdir: Path,
+    logger: Logger = qclogging.get_basic_logger(),
+):
     """
     vm_params_dict loaded from vm_params.yaml doesn't have all info plot_vm() needs.
     This function gathers and works out the necessary input (except SRF-relevant info) to run this file as a stand-alone script
