@@ -76,7 +76,8 @@ def create_stoch(
         proc = run(command, stdin=srfp, stdout=stochp, stderr=PIPE)
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
-def get_corners_dbottom(planes,dip_dir=None):
+
+def get_corners_dbottom(planes, dip_dir=None):
     """
     planes: a list of dictionaries where each dictionary is structured like below.
      {
@@ -117,7 +118,8 @@ def get_corners_dbottom(planes,dip_dir=None):
         ]
         dbottom.append(p["dtop"] + p["width"] * np.sin(np.radians(p["dip"])))
 
-    return (corners,dbottom)
+    return (corners, dbottom)
+
 
 def create_info_file(
     srf_file,
