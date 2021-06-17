@@ -18,7 +18,7 @@ import math
 import numpy as np
 import os
 import pandas as pd
-from shutil import rmtree, move
+from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
 
@@ -32,10 +32,9 @@ from empirical.util.empirical_factory import compute_gmm
 
 from plot_vm import plot_vm
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-NZ_CENTRE_LINE = os.path.join(script_dir, "../SrfGen/NHM/res/centre.txt")
-NZ_LAND_OUTLINE = os.path.join(script_dir, "../SrfGen/NHM/res/rough_land.txt")
-
+script_dir = Path(__file__).resolve().parent
+NZ_CENTRE_LINE = script_dir / "../SrfGen/NHM/res/centre.txt"
+NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
 
 S_WAVE_KM_PER_S = 3.5
 
@@ -47,12 +46,22 @@ faultprop.ztor = 0.0
 
 SPACE_LAND = 5.0  # min space between VM edge and land (km)
 SPACE_SRF = 15.0  # min space between VM edge and SRF (km)
-MIN_RJB = 0  # Specify a minimum horizontal distance (in km) for the VM to span
-# from the fault - invalid VMs will still not be generated",
+MIN_RJB = 0  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
 
 
-# default scaling relationship
-def mag2pgv(mag):
+#
+def mag2pgv(mag: float):
+    """
+    Return PGV for a given magnitude based on default scaling relationship
+    Parameters
+    ----------
+    mag : magnitude
+
+    Returns
+    -------
+    Interpolated pgv
+
+    """
     return np.interp(
         mag,
         [3.5, 4.1, 4.7, 5.2, 5.5, 5.8, 6.2, 6.5, 6.8, 7.0, 7.4, 7.7, 8.0],
@@ -60,14 +69,13 @@ def mag2pgv(mag):
     )
 
 
-#
-def find_rrup(pgv_target):
+def find_rrup(pgv_target: float):
     """
     Find rrup at which pgv is close to target. Has to be computed iteratively as GMPE is irreversible.
 
     Parameters
     ----------
-    pgv_target :
+    pgv_target : pgv that we wish to come close to
 
     Returns
     -------
@@ -89,6 +97,36 @@ def find_rrup(pgv_target):
     return rrup, pgv
 
 
+# def determine_vm_extent(distance: float, hh: float, points: np.ndarray, rot: float =0, wd: Path=Path(".")):
+#     """
+#     Determine the extent of velocity model
+#
+#     Parameters
+#     ----------
+#     distance :
+#     hh :
+#     points : array of points in (lon,lat) format
+#     rot :
+#     wd : working directory
+#
+#     Returns
+#     -------
+#     ( (lan_mid,lat_mid), x extents, y extents )
+#
+#     """
+#     lon_mid, lat_mid, dx_km, dy_km = gmt.region_fit_oblique(points, 90 - rot, wd=wd)
+#     # extend by wanted rrup
+#     min_x = geo.ll_shift(lat_mid, lon_mid, distance + dx_km, 270 - rot)[::-1]
+#     max_x = geo.ll_shift(lat_mid, lon_mid, distance + dx_km, 90 - rot)[::-1]
+#     min_y = geo.ll_shift(lat_mid, lon_mid, distance + dy_km, 180 - rot)[::-1]
+#     max_y = geo.ll_shift(lat_mid, lon_mid, distance + dy_km, 0 - rot)[::-1]
+#     # mid, x, y extents
+#     return (
+#         (lon_mid, lat_mid),
+#         math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) / hh) * hh,
+#         math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) / hh) * hh,
+#     )
+
 def determine_vm_extent(distance, hh, points, rot=0, wd="."):
     """
     rrup: in km
@@ -107,29 +145,67 @@ def determine_vm_extent(distance, hh, points, rot=0, wd="."):
     )
 
 
-# return region that just fits the path made from 4 points
-def corners2region(c1, c2, c3, c4):
-    perimiter = np.array(geo.path_from_corners([c1, c2, c3, c4], output=None))
-    x_min, y_min = np.min(perimiter, axis=0)
-    x_max, y_max = np.max(perimiter, axis=0)
+
+def corners2region(c1: tuple, c2: tuple, c3: tuple, c4: tuple):
+    """
+    return region that just fits the path made from 4 points
+    Parameters
+    ----------
+    c1 : tuple of (lon,lat)
+    c2 : as above
+    c3 : as above
+    c4 : as above
+
+    Returns
+    -------
+    (x_min, x_max, y_min, y_max) : (min lon, max lon, min lat, max lat)
+
+    """
+    perimeter = np.array(geo.path_from_corners([c1, c2, c3, c4], output=None))
+    x_min, y_min = np.min(perimeter, axis=0)
+    x_max, y_max = np.max(perimeter, axis=0)
     return (x_min, x_max, y_min, y_max)
 
 
-# proportion of gmt mask file filled (1s vs 0s)
-# TODO: should be part of GMT library
-def grd_proportion(grd_file):
+def grd_proportion(grd_file: Path):
+    """
+    Get proportion of gmt mask file filled (1s vs 0s)
+
+    TODO: should be part of GMT library
+    Parameters
+    ----------
+    grd_file :
+
+    Returns
+    -------
+    Proportion (%) of gmt mask file filled
+
+    """
     try:
         with h5open(grd_file, "r") as grd:
             return 100.0 * np.nansum(grd["z"][...]) / float(grd["z"].size)
     except IOError:
-        print("INVALID GRD: %s" % (grd_file))
-        # this should no longer happen when auto_dxy is used
+        print(f"INVALID GRD: {grd_file}")
+        # this should no longer happen when get_dxy is used
         raise
 
 
-# keep dx and dy small enough relative to domain
-# h5py will crash when opening grd with less than 2^14 gridpoints
-def get_dxy(region):
+
+def get_dxy(region: tuple):
+    """
+    Get the grid spacing size that will be used to open a grd file
+    Note: h5py will crash when opening grd with less than 2^14 gridpoints,
+    so keep dx and dy small enough relative to domain
+
+    Parameters
+    ----------
+    region : (min lon, max lon, min lat, max lat)
+
+    Returns
+    -------
+    dxy
+
+    """
     # assume not going over earth quadrants
     x_diff = region[1] - region[0]
     y_diff = region[3] - region[2]
@@ -142,8 +218,19 @@ def get_dxy(region):
     return dxy
 
 
-# z extent based on magnitude, hypocentre depth
-def get_max_depth(mag, depth):
+
+def get_max_depth(mag: float, depth:float):
+    """
+    Maximum depth (ie. z extent) based on magnitude, hypocentre depth
+    Parameters
+    ----------
+    mag : magnitude
+    depth : hypocentre depth
+
+    Returns
+    -------
+    maximum depth
+    """
     return round(
         10
         + depth
@@ -152,21 +239,29 @@ def get_max_depth(mag, depth):
     )
 
 
-# simulation time based on area
 def get_sim_duration(
-    vm_corners,
-    srf_corners,
-    ds_multiplier,
-    depth=0,
-    logger: Logger = qclogging.get_basic_logger(),
+        vm_corners: np.ndarray,
+        srf_corners: np.ndarray,
+        ds_multiplier:int,
+        depth: float=0,
+        logger: Logger = qclogging.get_basic_logger(),
 ):
-    """Calculates the sim duration from the bounds of the vm and srf
-    :param vm_corners: A numpy array of (lon, lat) tuples
-    :param srf_corners: A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
-    :param ds_multiplier: An integer
-    :param logger: The logger to pass all messages to
-    :param depth: Depth of the fault. This allows the horizontal distance to be extended to include the distance to
-    travel to the surface too"""
+    """
+    Calculates the sim duration from the bounds of the vm and srf
+
+    Parameters
+    ----------
+    vm_corners : A numpy array of (lon, lat) tuples
+    srf_corners : A [4n*2] numpy array of (lon, lat) pairs where n is the number of planes in the srf
+    ds_multiplier :
+    depth : Depth of the fault. This allows the horizontal distance to be extended to include the distance to
+    travel to the surface too
+    logger :
+
+    Returns
+    -------
+    time in seconds
+    """
     # S wave arrival time is determined by the distance from the srf centroid to the furthest corner
     h_dist = geo.get_distances(
         vm_corners,
@@ -174,32 +269,50 @@ def get_sim_duration(
         (srf_corners[:, 1].max() + srf_corners[:, 1].min()) / 2,
     ).max()
     s_wave_arrival = (h_dist ** 2 + depth ** 2) ** 0.5 / S_WAVE_KM_PER_S
-    logger.debug("s_wave_arrival: {}".format(s_wave_arrival))
+    logger.debug(f"s_wave_arrival: {s_wave_arrival}")
     # Rrup is determined by the largest vm corner to nearest srf corner distance
     rjb = max([geo.get_distances(srf_corners, *corner).min() for corner in vm_corners])
     siteprop.Rrup = (rjb ** 2 + depth ** 2) ** 0.5
-    logger.debug("rrup: {}".format(siteprop.Rrup))
+    logger.debug(f"rrup: {siteprop.Rrup}")
     # magnitude is in faultprop
     ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
-    logger.debug("ds: {}".format(ds))
-    logger.debug("ds_multiplier: {}".format(ds_multiplier))
+    logger.debug(f"ds: {ds}")
+    logger.debug(f"ds_multiplier: {ds_multiplier}")
     return s_wave_arrival + ds_multiplier * ds
 
-
 def reduce_domain(
-    origin,
-    bearing,
-    xlen,
-    ylen,
-    hh,
-    wd,
-    space_srf=SPACE_SRF,
-    space_land=SPACE_LAND,
-    logger: Logger = qclogging.get_basic_logger(),
+        origin: float,
+        bearing: float,
+        xlen: float,
+        ylen: float,
+        hh: float,
+        wd:Path,
+        space_srf:float = SPACE_SRF,
+        space_land:float = SPACE_LAND,
+        logger: Logger = qclogging.get_basic_logger(),
 ):
-    """Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
-    srf boundary. Returns the new values to be used.
-    Uses great circle geometry"""
+    """
+    Reduces the domain of the VM by removing areas that are over sea only. Gives a buffer around coast line and the
+    srf boundary.
+    Uses great circle geometry
+
+    Parameters
+    ----------
+    origin :
+    bearing :
+    xlen :
+    ylen :
+    hh :
+    wd :
+    space_srf :  min space between VM edge and SRF (km)
+    space_land : min space between VM edge and land (km)
+    logger :
+
+    Returns
+    -------
+    origin, bearing, xlen, ylen : updated values
+
+    """
     # number of scan lines accross domain (inclusive of edges)
     scanlines = max(round(ylen / 5), 81)
 
@@ -234,23 +347,23 @@ def reduce_domain(
             # Make sure bearing is pointing northwards: [-90, 90] % 360
             bearing_p = (bearing_p + 180) % 360
         ap = geo.ll_shift(m[1], m[0], 600 + x_len_mid_shift, (bearing_p + 90) % 360)[
-            ::-1
-        ]
+             ::-1
+             ]
         bp = geo.ll_shift(m[1], m[0], 600 + x_len_mid_shift, (bearing_p + 270) % 360)[
-            ::-1
-        ]
+             ::-1
+             ]
 
         # GMT spatial is not great-circle path connective
         geo.path_from_corners(
             corners=[ap, bp],
-            output="%s/tempEXT.tmp" % (wd),
+            output="%s/tempEXT.tmp"%wd,
             min_edge_points=80,
             close=False,
         )
         isections, icomps = gmt.intersections(
-            ["%s/srf.path" % (wd), NZ_LAND_OUTLINE, "%s/tempEXT.tmp" % (wd)],
+            ["%s/srf.path" %wd, NZ_LAND_OUTLINE, "%s/tempEXT.tmp"%wd],
             items=True,
-            containing="%s/tempEXT.tmp" % (wd),
+            containing= "%s/tempEXT.tmp"%wd,
         )
         if len(isections) == 0:
             scan_extremes[i] = np.nan
@@ -258,7 +371,7 @@ def reduce_domain(
         # shift different intersections by item-specific padding amount
 
         for c, intersection in enumerate(isections):
-            if "%s/srf.path" % (wd) in icomps[c]:
+            if "%s/srf.path"%wd in icomps[c]:
                 diff = space_srf
             elif NZ_LAND_OUTLINE in icomps[c]:
                 diff = space_land
@@ -268,15 +381,15 @@ def reduce_domain(
 
             isection_bearing = geo.ll_bearing(*m, *intersection)
             if (
-                abs(isection_bearing - (bearing_p + 90)) < 5
-                and dist_east_from_mid < x_shift
+                    abs(isection_bearing - (bearing_p + 90)) < 5
+                    and dist_east_from_mid < x_shift
             ):
                 # The intersection is (relatively) east of the mid point
                 east = geo.ll_dist(*intersection, *m) + diff
                 west = diff - geo.ll_dist(*intersection, *m)
             elif (
-                abs(isection_bearing - (bearing_p + 270) % 360) < 5
-                and dist_west_from_mid < x_shift
+                    abs(isection_bearing - (bearing_p + 270) % 360) < 5
+                    and dist_west_from_mid < x_shift
             ):
                 # The intersection is (relatively) west of the mid point
                 east = diff - geo.ll_dist(*intersection, *m)
@@ -353,13 +466,11 @@ def reduce_domain(
             bearing = (bearing - 90) % 360
         origin = origin1
         logger.debug(
-            "New origin after x shift: {}, new bearing after x shift: {}".format(
-                origin, bearing
-            )
+            f"New origin after x shift: {origin}, new bearing after x shift: {bearing}"
         )
 
     xlen = math.ceil((dist_east_from_mid + dist_west_from_mid) / hh) * hh
-    logger.debug("New xlen: {}".format(xlen))
+    logger.debug(f"New xlen: {xlen}")
 
     # If either of the numbers is negative then we don't trim that edge, so set the minimum value of each to 0
     over_n_max = max(over_n, 0)
@@ -383,25 +494,35 @@ def reduce_domain(
             bearing = (bearing + 180) % 360
         origin = origin1
         logger.debug(
-            "New origin after y shift: {}, new bearing after y shift: {}".format(
-                origin, bearing
-            )
+            f"New origin after y shift: {origin}, new bearing after y shift: {bearing}"
         )
 
     ylen -= over_s_max + over_n_max
-    logger.debug("New ylen: {}".format(ylen))
+    logger.debug(f"New ylen: {ylen}")
 
     return origin, bearing, xlen, ylen
 
 
-def get_vm_land_proportion(c1, c2, c3, c4, wd="."):
+def get_vm_land_proportion(c1:tuple, c2:tuple, c3:tuple, c4:tuple, wd: Path=Path(".")):
     """
-    Proportion of VM on land.
+    Proportion of VM on land. Can be used to decide whether area optimisation should be done
+
+    Parameters
+    ----------
+    c1 : tuple of (lon,lat)
+    c2 : as above
+    c3 : as above
+    c4 : as above
+    wd : working directory
+
+    Returns
+    -------
+    Proportion (%)
     """
-    path_vm = "%s/mask_vm.path" % (wd)
-    grd_vm = "%s/mask_vm.grd" % (wd)
-    grd_land = "%s/mask_land.grd" % (wd)
-    grd_vm_land = "%s/mask_vm_land.grd" % (wd)
+    path_vm = wd / "mask_vm.path"
+    grd_vm = wd /"mask_vm.grd"
+    grd_land = wd /"mask_land.grd"
+    grd_vm_land = wd / "mask_vm_land.grd"
 
     geo.path_from_corners([c1, c2, c3, c4], output=path_vm)
     vm_region = corners2region(c1, c2, c3, c4)
@@ -414,52 +535,58 @@ def get_vm_land_proportion(c1, c2, c3, c4, wd="."):
     return grd_proportion(grd_vm_land) / grd_proportion(grd_vm) * 100
 
 
-# get longitude on NZ centre path at given latitude
+def centre_lon(lat_target: float):
+    """
+    get longitude on NZ centre path at given latitude
 
+    Parameters
+    ----------
+    lat_target :
 
-def centre_lon(lat_target):
-    # find closest points either side
-    # TODO: use np.interp
+    Returns
+    -------
+    Interpolated longitude of a location whose latitiude is lat_target
+
+    """
+
+    lat = []
+    lon = []
+
     with open(NZ_CENTRE_LINE, "r") as c:
         for line in c:
             ll = list(map(float, line.split()))
-            if ll[1] < lat_target:
-                ll_bottom = ll
-            else:
-                ll_top = ll
-                break
-    try:
-        # find rough proportion of distance
-        lat_ratio = (lat_target - ll_bottom[1]) / (ll_top[1] - ll_bottom[1])
-    except (UnboundLocalError, NameError):
-        print("ERROR: VM edge out of lat bounds for centre line.")
-        raise
-    # consider same ratio along longitude difference to be correct
-    return ll_bottom[0] + lat_ratio * (ll_top[0] - ll_bottom[0])
+            lat.append(ll[1])
+            lon.append(ll[0])
 
-
-# maximum width along lines a and b
+    lon_target = np.interp(lat_target, lat, lon)
+    return lon_target
 
 
 def optimise_vm_params(
-    srf_meta,
-    ds_multiplier,
-    dt,
-    hh,
-    pgv,
-    ptemp,
-    deep_rupture=False,
-    target_land_coverage=99,
-    no_optimise=False,
-    logger: Logger = qclogging.get_basic_logger(),
+        srf_meta: dict,
+        ds_multiplier: float,
+        dt: float,
+        hh: float,
+        pgv: float,
+        ptemp: Path,
+        deep_rupture: bool = False,
+        optimise: bool = True,
+        target_land_coverage: float =99.0,
+        logger: Logger = qclogging.get_basic_logger(),
 ):
     """
     Optimises VM domain and returns a dictionary that extends vm_params_dict
 
     Parameters
     ----------
-    srf_meta : Data extracted from REL csv file
-
+    srf_meta : Data dict extracted from REL csv file
+    ds_multiplier :
+    dt :
+    hh :
+    pgv :
+    deep_rupture : If true, continue even if the rupture is too deep.
+    optimise : Performs area optimisation if set true
+    target_land_coverage : Land coverage level (%) that triggers optimisation if not met. No guarantee to attain this level
     ptemp : Temporary work directory (eg. .../Data/VMs/Hossack/_tmp_Hossack_nho8ui41)
     logger :
 
@@ -477,9 +604,9 @@ def optimise_vm_params(
     # rrup to reach wanted PGV
     if pgv == -1.0:
         pgv = mag2pgv(faultprop.Mw)
-        logger.debug("pgv determined from magnitude. pgv set to {}".format(pgv))
+        logger.debug(f"pgv determined from magnitude. pgv set to {pgv}")
     else:
-        logger.debug("pgv set to {}".format(pgv))
+        logger.debug(f"pgv set to {pgv}")
     rrup, pgv_actual = find_rrup(pgv)
 
     if "dtop" in srf_meta:
@@ -523,44 +650,40 @@ def optimise_vm_params(
     # proportion in ocean
     if xlen0 <= 0 or ylen0 <= 0:
         logger.debug(
-            "Optimising skipped for {}. Not enough land".format(srf_meta["name"])
+            f"Optimising skipped for {srf_meta['name']}. Not enough land"
         )
         land0 = 100
-        no_optimise = True
+        optimise = False
     else:
         land0 = get_vm_land_proportion(o1, o2, o3, o4, wd=ptemp)
-        logger.debug("Land coverage found to be {}%".format(land0))
+        logger.debug(f"Land coverage found to be {land0}%")
 
     # for plotting and calculating VM domain distance
-    with open("%s/srf.path" % (ptemp), "wb") as sp:
+    with open(ptemp / "srf.path", "wb") as sp:
         for plane in srf_meta["corners"]:
             sp.write("> srf plane\n".encode())
             np.savetxt(sp, plane, fmt="%f")
             sp.write("%f %f\n".encode() % (tuple(plane[0])))
 
-    if no_optimise:
+    if not optimise:
         logger.info(
-            "Optimising skipped for {} : no_optimise==True".format(srf_meta["name"])
+            f"No optimisation for {srf_meta['name']} : no_optimise==True"
         )
 
     if faultprop.Mw < 3.5:
-        no_optimise = True
-        logger.info("Optimising skipped for {} : mw<3.5".format(srf_meta["name"]))
+        optimise = False
+        logger.info(f"No optimisation for {srf_meta['name']} : mw<3.5")
 
     if land0 >= target_land_coverage:
         logger.info(
-            "Optimising skipped for {} : land coverage >= {}%".format(
-                srf_meta["name"], target_land_coverage
-            )
+            f"No optimisation for {srf_meta['name']} : land coverage >= {target_land_coverage}%"
         )
-        no_optimise = True
+        optimise = False
 
     # modify VM if necessary
-    if not no_optimise:
+    if optimise:
         logger.info(
-            "Fault {} has magnitude greater than 3.5 and less than {}% land coverage. Optimising.".format(
-                srf_meta["name"], target_land_coverage
-            )
+            f"Optimising : {srf_meta['name']} has mw>= 3.5 and land coverage < {target_land_coverage}%"
         )
 
         # rotation based on centre line bearing at this point
@@ -579,9 +702,7 @@ def optimise_vm_params(
         )
 
         logger.debug(
-            "Pre-optimisation origin: {}, bearing: {}, xlen: {}, ylen: {}".format(
-                origin, bearing, xlen1, ylen1
-            )
+            f"Pre-optimisation origin: {origin}, bearing: {bearing}, xlen: {xlen1}, ylen: {ylen1}"
         )
         # cut down ocean areas
         origin, bearing, xlen1, ylen1, = reduce_domain(
@@ -594,25 +715,21 @@ def optimise_vm_params(
             logger=logger,
         )
         logger.debug(
-            "After optimisation origin: {}, bearing: {}, xlen: {}, ylen: {}".format(
-                origin, bearing, xlen1, ylen1
-            )
+            f"After optimisation origin: {origin}, bearing: {bearing}, xlen: {xlen1}, ylen: {ylen1}"
         )
 
         try:
             c1, c2, c3, c4 = geo.build_corners(origin, bearing, xlen1, ylen1)
         except ValueError:
-            error_message = "Error for vm {}. Raising exception.".format(
-                srf_meta["name"]
-            )
+            error_message = f"Error for vm {srf_meta['name']}. Raising exception."
             logger.log(qclogging.NOPRINTCRITICAL, error_message)
             raise ValueError(error_message)
         else:
-            logger.debug("Optimised corners of the VM are: {}".format((c1, c2, c3, c4)))
+            logger.debug(f"Optimised corners of the VM are: {(c1, c2, c3, c4)}")
 
         # proportion in ocean
         land1 = get_vm_land_proportion(c1, c2, c3, c4, wd=ptemp)
-        logger.debug("Optimised land coverage found to be {}%".format(land1))
+        logger.debug(f"Optimised land coverage found to be {land1}%")
 
         # adjust region to fit new corners
         plot_region = (
@@ -637,10 +754,9 @@ def optimise_vm_params(
 
     # zlen is independent from xlen and ylen
     zlen = round(get_max_depth(faultprop.Mw, srf_meta["dbottom"]) / hh) * hh
-    logger.debug("zlen set to {}".format(zlen))
+    logger.debug(f"zlen set to {zlen}")
 
     if xlen1 != 0 and ylen1 != 0 and zlen != 0:
-
         # modified sim time
         vm_corners = np.asarray([c1, c2, c3, c4])
         initial_time = get_sim_duration(
@@ -652,9 +768,7 @@ def optimise_vm_params(
         )
         sim_duration = (initial_time // dt) * dt
         logger.debug(
-            "Unrounded sim duration: {}. Rounded sim duration: {}".format(
-                initial_time, sim_duration
-            )
+            f"Unrounded sim duration: {initial_time}. Rounded sim duration: {sim_duration}"
         )
 
         # optimisation results
@@ -674,7 +788,7 @@ def optimise_vm_params(
             "land_mod": land1,
             "origin": origin,
             "bearing": bearing,
-            "adjusted": not no_optimise,
+            "adjusted": optimise,
             "plot_region": plot_region,
             "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
                 o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]
@@ -688,43 +802,53 @@ def optimise_vm_params(
 
 
 def main(
-    srf_meta,
-    ds_multiplier,
-    dt,
-    hh,
-    min_vs,
-    pgv,
-    vm_topo,
-    vm_version,
-    outdir,
-    deep_rupture=False,
-    target_land_coverage=99.0,
-    no_optimise=False,
-    plot_enabled=True,
-    logger: Logger = qclogging.get_basic_logger(),
+        srf_meta: dict,
+        ds_multiplier: float,
+        dt: float,
+        hh: float,
+        min_vs: float,
+        outdir: Path,
+        pgv: float,
+        vm_topo:str,
+        vm_version:str,
+        deep_rupture: bool=False,
+        target_land_coverage: float =99.0,
+        optimise:bool=True,
+        plot_enabled:bool=True,
+        logger: Logger = qclogging.get_basic_logger(),
 ):
-
     """
     Orchestrates conversion from rel CSV file to vm_params.yaml
+
     Parameters
     ----------
     srf_meta : Data extracted from REL csv file
-
+    ds_multiplier :
+    dt :
+    hh :
+    min_vs :
     outdir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
-    plot_enabled :
+    pgv :
+    vm_topo :
+    vm_version :
+    deep_rupture :  If true, continue even if the rupture is too deep.
+    target_land_coverage : Land coverage level (%) that triggers optimisation if not met.
+    optimise : Performs area optimisation if set true
+    plot_enabled : If true, plot the vm domain
     logger:
     """
 
     # temp directory for current process
     with TemporaryDirectory(prefix=f"_tmp_{srf_meta['name']}_", dir=outdir) as ptemp:
+        ptemp = Path(ptemp)
+
         qclogging.add_general_file_handler(
             logger,
-            os.path.join(outdir, "rel2vm_params_{}_log.txt".format(srf_meta["name"])),
+            outdir / f"rel2vm_params_{srf_meta['name']}_log.txt"
         )
-        vm_params_path = os.path.join(outdir, "vm_params.yaml")
+        vm_params_path = outdir / "vm_params.yaml"
         vm_working_dir = "output"
 
-        vm_params_dict = {}
         vm_params_dict_extended = optimise_vm_params(
             srf_meta,
             ds_multiplier,
@@ -733,8 +857,8 @@ def main(
             pgv,
             ptemp,
             deep_rupture=deep_rupture,
+            optimise=optimise,
             target_land_coverage=target_land_coverage,
-            no_optimise=no_optimise,
             logger=logger,
         )
 
@@ -757,7 +881,7 @@ def main(
                 "min_vs": min_vs,
                 "model_version": vm_version,
                 "topo_type": vm_topo,
-                "output_directory": os.path.basename(vm_working_dir),
+                "output_directory": vm_working_dir,
                 "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
                 "code": code,
                 "extent_x": xlen,
@@ -769,10 +893,10 @@ def main(
                 "nx": int(round(float(xlen) / hh)),
                 "ny": int(round(float(ylen) / hh)),
                 "nz": int(round(float(zmax - zmin) / hh)),
-                "sufx": "_%s01-h%.3f" % (code, hh),
+                "sufx": f"_{code}01-h{hh:.3f}",
             }
 
-            if os.path.exists(vm_params_path):
+            if vm_params_path.exists():
                 logger.info(
                     f"Warning: {vm_params_path} already exists and to be overwritten."
                 )
@@ -780,9 +904,9 @@ def main(
 
             dump_yaml(
                 vm_params_dict,
-                "{}".format(vm_params_path),
+                f"{vm_params_path}",
             )
-            logger.debug("Saved {}".format(vm_params_path))
+            logger.debug(f"Saved {vm_params_path}")
             print(f"Success: Wrote vm_params.yaml at {outdir}", file=sys.stderr)
 
             if plot_enabled:
@@ -802,22 +926,36 @@ def main(
             write_corner_file(outdir, vm_params_dict_extended["path_mod"])
 
 
-def write_corner_file(outdir, paths):
-    with open("{}/VeloModCorners.txt".format(outdir), "wb") as c:
+def write_corner_file(outdir: Path, paths: str):
+    """
+    Write a corner file
+    Parameters
+    ----------
+    outdir :
+    paths : str of corner corrdinates "Lon1\tLat1\nLon2\tLat2\nLon3\tLat3\nLon4\tLat4" where Lat or Lon are in .6f format.
+    """
+    with open(f"{outdir}/VeloModCorners.txt", "wb") as c:
         c.write(">Velocity model corners(python generated)\n".encode())
         c.write(">Lon\tLat\n".encode())
         c.write(paths.encode())
 
 
-def load_rel(rel_file, logger: Logger = qclogging.get_basic_logger()):
+def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
+    """
 
-    if not os.path.exists(rel_file):
-        logger.info("REL csv file not found: {}".format(rel_file))
-        raise FileNotFoundError(rel_file)
+    Parameters
+    ----------
+    rel_file : Path to REL csv file
+    logger :
 
-    # name is unique and based on basename
-    name = os.path.splitext(os.path.basename(rel_file))[0].split("_")[0]
-    logger.debug("Found first REL file for {}".format(name))
+    Returns
+    -------
+    SRF meta data dictionary
+    """
+
+    # name of the fault is found from the basename
+    name = rel_file.stem.split("_")[0]  # XXXX_REL01.csv --> XXXX
+    logger.debug(f"Found first REL file for {name}")
 
     a = pd.read_csv(rel_file)
     rake = a["rake"].loc[0]
@@ -827,29 +965,25 @@ def load_rel(rel_file, logger: Logger = qclogging.get_basic_logger()):
     for i in range(num_subfaults):
         plane = {}
         plane["centre"] = [
-            a["clon_subfault_{}".format(i)].loc[0],
-            a["clat_subfault_{}".format(i)].loc[0],
+            a[f"clon_subfault_{i}"].loc[0],
+            a[f"clat_subfault_{i}"].loc[0],
         ]
-        plane["length"] = a["length_subfault_{}".format(i)].loc[0]
-        plane["width"] = a["width_subfault_{}".format(i)].loc[0]
-        plane["strike"] = a["strike_subfault_{}".format(i)].loc[0]
-        plane["dip"] = a["dip_subfault_{}".format(i)].loc[0]
-        plane["dtop"] = a["dtop_subfault_{}".format(i)].loc[0]
+        plane["length"] = a[f"length_subfault_{i}"].loc[0]
+        plane["width"] = a[f"width_subfault_{i}"].loc[0]
+        plane["strike"] = a[f"strike_subfault_{i}"].loc[0]
+        plane["dip"] = a[f"dip_subfault_{i}"].loc[0]
+        plane["dtop"] = a[f"dtop_subfault_{i}"].loc[0]
         planes.append(plane)
 
     corners, dbottom = get_corners_dbottom(planes, dip_dir=a["dip_dir"].loc[0])
 
     mag = a["magnitude"].loc[0]
-    # try:
-    #    mag = mom2mag(sum(map(mag2mom, a["magnitude"].loc[0])))
-    # except TypeError:
-    #    mag = a["magnitude"].loc[0]
     dtop = a["dtop"].loc[0]
     dbottom = a["dbottom"].loc[0]
 
     hdepth = (
-        np.round(a["dhypo"].loc[0], decimals=1) * np.sin(np.radians(a["dip"].loc[0]))
-        + dtop
+            np.round(a["dhypo"].loc[0], decimals=1) * np.sin(np.radians(a["dip"].loc[0]))
+            + dtop
     )
 
     return {
@@ -864,6 +998,18 @@ def load_rel(rel_file, logger: Logger = qclogging.get_basic_logger()):
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
+    """
+    Unpacks arguments and does basic checks
+
+    Parameters
+    ----------
+    logger :
+
+    Returns
+    -------
+    Processed arguments
+
+    """
     parser = ArgumentParser()
     arg = parser.add_argument
 
@@ -873,7 +1019,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         "-o",
         "--outdir",
         help="output directory to place VM files "
-        "(if not specified, the same location as rel_file is in)",
+             "(if not specified, the same location as rel_file is in)",
         default=None,
     )
 
@@ -903,12 +1049,13 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     arg(
         "--no-optimise",
         help="Don't try and optimise the vm if it is off shore. Removes dependency on having GMT coastline data",
-        action="store_true",
-        default=False,
+        action="store_false",
+        default=True,
+        dest="optimise"
     )
     arg(
         "--deep-rupture",
-        help="The rupture is meant to be deep",
+        help="Continue even if too deep",
         action="store_true",
         default=False,
     )
@@ -921,13 +1068,13 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     arg(
         "--min-rjb",
         help="Specify a minimum horizontal distance (in km) for the VM to span from the fault"
-        " - invalid VMs will still not be generated",
+             " - invalid VMs will still not be generated",
         default=0,
     )
     arg(
         "--ds-multiplier",
         help="Sets the DS multiplier for setting the sim-duration. Validation runs default to 1.2. Cybershake runs"
-        "should manually set it to 0.75",
+             "should manually set it to 0.75",
         default=1.2,
         type=float,
     )
@@ -935,11 +1082,15 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     if args.dt is None:
         args.dt = args.hh / 20
 
-    if args.outdir is None:
-        args.outdir = os.path.dirname(args.rel_file)
-    args.outdir = os.path.abspath(args.outdir)
+    args.rel_file = Path(args.rel_file).resolve()
+    if not args.rel_file.exists():
+        parser.error(f"REL csv file not found: {args.rel_file}")
 
-    if args.no_optimise == True and args.target_land_coverage is not None:
+    if args.outdir is None:
+        args.outdir = args.rel_file.parent
+    args.outdir = Path(args.outdir).resolve()
+
+    if args.optimise == False and args.target_land_coverage is not None:
         parser.error(
             "Both no_optimise and target_land_coverage are set. Set either one"
         )
@@ -953,7 +1104,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 if __name__ == "__main__":
     logger = qclogging.get_logger("rel2vm_params")
     qclogging.add_general_file_handler(
-        logger, os.path.join(os.getcwd(), "rel2vm_params_log.txt")
+        logger, Path.cwd() / "rel2vm_params_log.txt"
     )
     args = load_args(logger=logger)
 
@@ -969,11 +1120,11 @@ if __name__ == "__main__":
         args.dt,
         args.hh,
         args.min_vs,
+        args.outdir,
         args.pgv,
         args.vm_topo,
         args.vm_version,
-        args.outdir,
         deep_rupture=args.deep_rupture,
-        no_optimise=args.no_optimise,
+        optimise=args.optimise,
         logger=logger,
     )

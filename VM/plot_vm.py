@@ -2,27 +2,32 @@ from argparse import ArgumentParser
 from logging import Logger
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+import numpy as np
 import yaml
 
 from qcore import geo, gmt, qclogging
 
 
 def plot_vm(
-    vm_params_dict,
-    srf_corners,
-    land_outline,
-    centre_line,
-    mag,
+    vm_params_dict: dict,
+    srf_corners: np.ndarray,
+    land_outline_path: Path,
+    centre_line_path: Path,
+    mag: float,
     outdir: Path,
     ptemp: Path,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
+    Plots VM domain as well as SRF domain if possible
 
     Parameters
     ----------
     vm_params_dict :
     srf_corners :
+    land_outline_path :
+    centre_line_path :
     mag :
     outdir :
     ptemp :
@@ -77,8 +82,8 @@ def plot_vm(
         )
 
     # land outlines blue, nz centre line (for bearing calculation) red
-    p.path(land_outline, is_file=True, close=False, colour="blue", width="0.2p")
-    p.path(centre_line, is_file=True, close=False, colour="red", width="0.2p")
+    p.path(land_outline_path, is_file=True, close=False, colour="blue", width="0.2p")
+    p.path(centre_line_path, is_file=True, close=False, colour="red", width="0.2p")
 
     # actual corners retrieved from NZVM output or generated if args.novm
     # not available if VM was skipped
@@ -116,7 +121,18 @@ def plot_vm(
     )
 
 
-def main(name, vm_params_dict, outdir, logger: Logger = qclogging.get_basic_logger()):
+def main(name:str, vm_params_dict:dict, outdir:Path, logger: Logger = qclogging.get_basic_logger()):
+    """
+    vm_params_dict loaded from vm_params.yaml doesn't have all info plot_vm() needs.
+    This function gathers and works out the necessary input (except SRF-relevant info) to run this file as a stand-alone script
+
+    Parameters
+    ----------
+    name : name of the fault/event
+    vm_params_dict : Dictionary extracted from vm_params.yaml
+    outdir :
+    logger :
+    """
     from rel2vm_params import (
         get_vm_land_proportion,
         corners2region,
@@ -172,7 +188,17 @@ def main(name, vm_params_dict, outdir, logger: Logger = qclogging.get_basic_logg
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
+    """
+    Unpacks arguments and does basic checks
 
+    Parameters
+    ----------
+    logger :
+
+    Returns
+    -------
+
+    """
     parser = ArgumentParser()
     arg = parser.add_argument
 
