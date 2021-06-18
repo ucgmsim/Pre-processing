@@ -77,11 +77,17 @@ def gen_vm(
     ] + [
         vm_working_dir / "Log" / "VeloModCorners.txt",
         nzvm_cfg_path,
-        vm_params_path,
     ]
 
     for f in files_to_move:
         move(f, outdir / f.name)  # may overwrite
+
+    vm_params_path_dest = outdir / vm_params_path.name
+    if vm_params_path != vm_params_path_dest:
+        if vm_params_path_dest.is_file():
+            vm_params_path_dest.unlink()
+        copyfile(vm_params_path,vm_params_path_dest)
+    #otherwise, vm_params.yaml is already in outdir
 
     logger.debug("Removing Log and Velocity_Model directories")
 
@@ -177,7 +183,7 @@ def main(
 
         vm_working_dir = ptemp / "output"
         nzvm_cfg_path = ptemp / "nzvm.cfg"
-        temp_vm_params_path = ptemp / "vm_params.yaml"
+
 
         with open(vm_params_path, "r") as f:
             vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
@@ -185,15 +191,14 @@ def main(
         if vm_params_dict is not None:
             # saves nzvm.cfg
             save_nzvm_cfg(nzvm_cfg_path, vm_params_dict, vm_working_dir, logger=logger)
-            # makes a copy of vm_params.yaml
-            copyfile(vm_params_path, temp_vm_params_path)
+
             # run the actual generation
             gen_vm(
                 outdir,
                 ptemp,
                 vm_working_dir,
                 nzvm_cfg_path,
-                temp_vm_params_path,
+                vm_params_path,
                 vm_threads=vm_threads,
                 logger=logger,
             )
