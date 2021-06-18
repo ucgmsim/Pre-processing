@@ -82,6 +82,7 @@ def gen_vm(
 
     for f in files_to_move:
         move(f, outdir / f.name)  # may overwrite
+
     logger.debug("Removing Log and Velocity_Model directories")
 
     rmtree(vm_working_dir)

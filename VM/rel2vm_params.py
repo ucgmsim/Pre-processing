@@ -97,40 +97,24 @@ def find_rrup(pgv_target: float):
     return rrup, pgv
 
 
-# def determine_vm_extent(distance: float, hh: float, points: np.ndarray, rot: float =0, wd: Path=Path(".")):
-#     """
-#     Determine the extent of velocity model
-#
-#     Parameters
-#     ----------
-#     distance :
-#     hh :
-#     points : array of points in (lon,lat) format
-#     rot :
-#     wd : working directory
-#
-#     Returns
-#     -------
-#     ( (lan_mid,lat_mid), x extents, y extents )
-#
-#     """
-#     lon_mid, lat_mid, dx_km, dy_km = gmt.region_fit_oblique(points, 90 - rot, wd=wd)
-#     # extend by wanted rrup
-#     min_x = geo.ll_shift(lat_mid, lon_mid, distance + dx_km, 270 - rot)[::-1]
-#     max_x = geo.ll_shift(lat_mid, lon_mid, distance + dx_km, 90 - rot)[::-1]
-#     min_y = geo.ll_shift(lat_mid, lon_mid, distance + dy_km, 180 - rot)[::-1]
-#     max_y = geo.ll_shift(lat_mid, lon_mid, distance + dy_km, 0 - rot)[::-1]
-#     # mid, x, y extents
-#     return (
-#         (lon_mid, lat_mid),
-#         math.ceil(geo.ll_dist(min_x[0], min_x[1], max_x[0], max_x[1]) / hh) * hh,
-#         math.ceil(geo.ll_dist(min_y[0], min_y[1], max_y[0], max_y[1]) / hh) * hh,
-#     )
-
-
-def determine_vm_extent(distance, hh, points, rot=0, wd="."):
+def determine_vm_extent(
+    distance: float, hh: float, points: np.ndarray, rot: float = 0, wd: Path = Path(".")
+):
     """
-    rrup: in km
+    Determine the extent of velocity model
+
+    Parameters
+    ----------
+    distance :
+    hh :
+    points : array of points in (lon,lat) format
+    rot :
+    wd : working directory
+
+    Returns
+    -------
+    ( (lan_mid,lat_mid), x extents, y extents )
+
     """
     lon_mid, lat_mid, dx_km, dy_km = gmt.region_fit_oblique(points, 90 - rot, wd=wd)
     # extend by wanted rrup
@@ -628,16 +612,19 @@ def optimise_vm_params(
         rjb, hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
     )
 
-    if fault_depth > rrup:
-        if deep_rupture:
-            pass
-        else:
-            logger.warning(
-                "fault_depth > rrup. Fault too deep, will not generate VM. "
-                f"Setting xlen, ylen to 0. Previous values: x:{xlen0}, y:{ylen0}"
-            )
-            xlen0 = 0
-            ylen0 = 0
+    # for plotting and calculating VM domain distance
+    with open(ptemp / "srf.path", "wb") as sp:
+        for plane in srf_meta["corners"]:
+            sp.write("> srf plane\n".encode())
+            np.savetxt(sp, plane, fmt="%f")
+            sp.write("%f %f\n".encode() % (tuple(plane[0])))
+
+    if fault_depth > rrup and not deep_rupture:
+        logger.warning(
+            "fault_depth > rrup. Fault too deep, will not generate VM. "
+            f"Setting xlen, ylen to 0. Previous values: x:{xlen0}, y:{ylen0}"
+        )
+        return None
 
     o1, o2, o3, o4 = geo.build_corners(origin, bearing, xlen0, ylen0)
     vm0_region = corners2region(o1, o2, o3, o4)
@@ -656,13 +643,6 @@ def optimise_vm_params(
     else:
         land0 = get_vm_land_proportion(o1, o2, o3, o4, wd=ptemp)
         logger.debug(f"Land coverage found to be {land0}%")
-
-    # for plotting and calculating VM domain distance
-    with open(ptemp / "srf.path", "wb") as sp:
-        for plane in srf_meta["corners"]:
-            sp.write("> srf plane\n".encode())
-            np.savetxt(sp, plane, fmt="%f")
-            sp.write("%f %f\n".encode() % (tuple(plane[0])))
 
     if not optimise:
         logger.info(f"No optimisation for {srf_meta['name']} : no_optimise==True")
@@ -741,61 +721,62 @@ def optimise_vm_params(
         xlen1 = xlen0
         land1 = land0
         c1, c2, c3, c4 = o1, o2, o3, o4
+
     # not enough land in final domain
     if math.floor(land1) == 0:
-        logger.info(
-            "Land coverage is less than 1%. Setting xlen and ylen to 0, not creating VM"
-        )
-        xlen1 = 0
-        ylen1 = 0
+        logger.info("Land coverage is less than 1%. Not creating VM")
+        return None
 
     # zlen is independent from xlen and ylen
     zlen = round(get_max_depth(faultprop.Mw, srf_meta["dbottom"]) / hh) * hh
     logger.debug(f"zlen set to {zlen}")
 
-    if xlen1 != 0 and ylen1 != 0 and zlen != 0:
-        # modified sim time
-        vm_corners = np.asarray([c1, c2, c3, c4])
-        initial_time = get_sim_duration(
-            vm_corners,
-            np.concatenate(srf_meta["corners"], axis=0),
-            ds_multiplier,
-            fault_depth,
-            logger=logger,
-        )
-        sim_duration = (initial_time // dt) * dt
+    if xlen1 == 0 or ylen1 == 0 or zlen == 0:
         logger.debug(
-            f"Unrounded sim duration: {initial_time}. Rounded sim duration: {sim_duration}"
+            f"All xlen={xlen1} ylen={ylen1} zlen={zlen} should be non-zero. Not creating VM"
         )
+        return None
 
-        # optimisation results
-        return {
-            "name": srf_meta["name"],
-            "mag": faultprop.Mw,
-            "dbottom": srf_meta["dbottom"],
-            "zlen": zlen,
-            "sim_time": sim_duration,
-            "xlen": xlen0,
-            "ylen": ylen0,
-            "land": land0,
-            "zlen_mod": zlen,
-            "sim_time_mod": sim_duration,
-            "xlen_mod": xlen1,
-            "ylen_mod": ylen1,
-            "land_mod": land1,
-            "origin": origin,
-            "bearing": bearing,
-            "adjusted": optimise,
-            "plot_region": plot_region,
-            "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
-                o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]
-            ),
-            "path_mod": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
-                c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
-            ),
-        }
+    # modified sim time
+    vm_corners = np.asarray([c1, c2, c3, c4])
+    initial_time = get_sim_duration(
+        vm_corners,
+        np.concatenate(srf_meta["corners"], axis=0),
+        ds_multiplier,
+        fault_depth,
+        logger=logger,
+    )
+    sim_duration = (initial_time // dt) * dt
+    logger.debug(
+        f"Unrounded sim duration: {initial_time}. Rounded sim duration: {sim_duration}"
+    )
 
-    return None  # failed to create VM if it is entirely in the ocean
+    # optimisation results
+    return {
+        "name": srf_meta["name"],
+        "mag": faultprop.Mw,
+        "dbottom": srf_meta["dbottom"],
+        "zlen": zlen,
+        "sim_time": sim_duration,
+        "xlen": xlen0,
+        "ylen": ylen0,
+        "land": land0,
+        "zlen_mod": zlen,
+        "sim_time_mod": sim_duration,
+        "xlen_mod": xlen1,
+        "ylen_mod": ylen1,
+        "land_mod": land1,
+        "origin": origin,
+        "bearing": bearing,
+        "adjusted": optimise,
+        "plot_region": plot_region,
+        "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
+            o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]
+        ),
+        "path_mod": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
+            c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
+        ),
+    }
 
 
 def main(
@@ -894,13 +875,13 @@ def main(
 
             if vm_params_path.exists():
                 logger.info(
-                    f"Warning: {vm_params_path} already exists and to be overwritten."
+                    f"Warning: {vm_params_path} already exists and is overwritten."
                 )
                 os.remove(vm_params_path)
 
             dump_yaml(
                 vm_params_dict,
-                f"{vm_params_path}",
+                vm_params_path,
             )
             logger.debug(f"Saved {vm_params_path}")
             print(f"Success: Wrote vm_params.yaml at {outdir}", file=sys.stderr)
@@ -930,10 +911,10 @@ def write_corner_file(outdir: Path, paths: str):
     outdir :
     paths : str of corner corrdinates "Lon1\tLat1\nLon2\tLat2\nLon3\tLat3\nLon4\tLat4" where Lat or Lon are in .6f format.
     """
-    with open(f"{outdir}/VeloModCorners.txt", "wb") as c:
-        c.write(">Velocity model corners(python generated)\n".encode())
-        c.write(">Lon\tLat\n".encode())
-        c.write(paths.encode())
+    with open(f"{outdir}/VeloModCorners.txt", "w") as c:
+        c.write(">Velocity model corners(python generated)\n")
+        c.write(">Lon\tLat\n")
+        c.write(paths)
 
 
 def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
@@ -953,38 +934,39 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
     name = rel_file.stem.split("_")[0]  # XXXX_REL01.csv --> XXXX
     logger.debug(f"Found first REL file for {name}")
 
-    a = pd.read_csv(rel_file)
-    rake = a["rake"].loc[0]
+    rel_meta = pd.read_csv(rel_file)
+    rake = rel_meta["rake"].loc[0]
 
     planes = []
-    num_subfaults = a["plane_count"].loc[0]
+    num_subfaults = rel_meta["plane_count"].loc[0]
     for i in range(num_subfaults):
         plane = {}
         plane["centre"] = [
-            a[f"clon_subfault_{i}"].loc[0],
-            a[f"clat_subfault_{i}"].loc[0],
+            rel_meta[f"clon_subfault_{i}"].loc[0],
+            rel_meta[f"clat_subfault_{i}"].loc[0],
         ]
-        plane["length"] = a[f"length_subfault_{i}"].loc[0]
-        plane["width"] = a[f"width_subfault_{i}"].loc[0]
-        plane["strike"] = a[f"strike_subfault_{i}"].loc[0]
-        plane["dip"] = a[f"dip_subfault_{i}"].loc[0]
-        plane["dtop"] = a[f"dtop_subfault_{i}"].loc[0]
+        plane["length"] = rel_meta[f"length_subfault_{i}"].loc[0]
+        plane["width"] = rel_meta[f"width_subfault_{i}"].loc[0]
+        plane["strike"] = rel_meta[f"strike_subfault_{i}"].loc[0]
+        plane["dip"] = rel_meta[f"dip_subfault_{i}"].loc[0]
+        plane["dtop"] = rel_meta[f"dtop_subfault_{i}"].loc[0]
         planes.append(plane)
 
-    corners, dbottom = get_corners_dbottom(planes, dip_dir=a["dip_dir"].loc[0])
+    corners, dbottom = get_corners_dbottom(planes, dip_dir=rel_meta["dip_dir"].loc[0])
 
-    mag = a["magnitude"].loc[0]
-    dtop = a["dtop"].loc[0]
-    dbottom = a["dbottom"].loc[0]
+    mag = rel_meta["magnitude"].loc[0]
+    dtop = rel_meta["dtop"].loc[0]
+    dbottom = rel_meta["dbottom"].loc[0]
 
     hdepth = (
-        np.round(a["dhypo"].loc[0], decimals=1) * np.sin(np.radians(a["dip"].loc[0]))
+        np.round(rel_meta["dhypo"].loc[0], decimals=1)
+        * np.sin(np.radians(rel_meta["dip"].loc[0]))
         + dtop
     )
 
     return {
         "name": name,
-        "dip": a["dip"].loc[0],
+        "dip": rel_meta["dip"].loc[0],
         "rake": rake,
         "dbottom": dbottom,
         "corners": np.array(corners),
@@ -993,13 +975,12 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
     }
 
 
-def load_args(logger: Logger = qclogging.get_basic_logger()):
+def load_args():
     """
     Unpacks arguments and does basic checks
 
     Parameters
     ----------
-    logger :
 
     Returns
     -------
@@ -1086,7 +1067,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         args.outdir = args.rel_file.parent
     args.outdir = Path(args.outdir).resolve()
 
-    if args.optimise == False and args.target_land_coverage is not None:
+    if args.optimise is False and args.target_land_coverage is not None:
         parser.error(
             "Both no_optimise and target_land_coverage are set. Set either one"
         )
