@@ -257,6 +257,9 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         args.outdir = args.vm_params_path.parent
     args.outdir = Path(args.outdir).resolve()
 
+    if (args.outdir / args.vm_params_path.name).exists() and args.outdir != args.vm_params_path.parent:
+        parser.error(f"There is an existing {args.vm_params_path.name} in {args.outdir}. Aborting.")
+
     return args
 
 
