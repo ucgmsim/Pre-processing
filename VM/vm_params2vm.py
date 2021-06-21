@@ -86,8 +86,8 @@ def gen_vm(
     if vm_params_path != vm_params_path_dest:
         if vm_params_path_dest.is_file():
             vm_params_path_dest.unlink()
-        copyfile(vm_params_path,vm_params_path_dest)
-    #otherwise, vm_params.yaml is already in outdir
+        copyfile(vm_params_path, vm_params_path_dest)
+    # otherwise, vm_params.yaml is already in outdir
 
     logger.debug("Removing Log and Velocity_Model directories")
 
@@ -184,7 +184,6 @@ def main(
         vm_working_dir = ptemp / "output"
         nzvm_cfg_path = ptemp / "nzvm.cfg"
 
-
         with open(vm_params_path, "r") as f:
             vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
 
@@ -257,8 +256,12 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         args.outdir = args.vm_params_path.parent
     args.outdir = Path(args.outdir).resolve()
 
-    if (args.outdir / args.vm_params_path.name).exists() and args.outdir != args.vm_params_path.parent:
-        parser.error(f"There is an existing {args.vm_params_path.name} in {args.outdir}. Aborting.")
+    if (
+        args.outdir / args.vm_params_path.name
+    ).exists() and args.outdir != args.vm_params_path.parent:
+        parser.error(
+            f"{args.vm_params_path.name} already exists in {args.outdir}. Aborting."
+        )
 
     return args
 
