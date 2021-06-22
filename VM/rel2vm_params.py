@@ -941,6 +941,7 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
         plane["dtop"] = rel_meta[f"dtop_subfault_{i}"].loc[0]
         planes.append(plane)
 
+    # Ignore dbottom returned by the function. The value will be taken from rel_meta below
     corners, _ = get_corners_dbottom(planes, dip_dir=rel_meta["dip_dir"].loc[0])
 
     mag = rel_meta["magnitude"].loc[0]
