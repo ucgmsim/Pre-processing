@@ -26,6 +26,7 @@ from srf_generation.input_file_generation.realisation_to_srf import get_corners_
 from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
 from qcore.utils import dump_yaml
+from qcore.simulation_structure import get_fault_from_realisation
 
 from empirical.util.classdef import GMM, Site, Fault
 from empirical.util.empirical_factory import compute_gmm
@@ -46,7 +47,9 @@ faultprop.ztor = 0.0
 
 SPACE_LAND = 5.0  # min space between VM edge and land (km)
 SPACE_SRF = 15.0  # min space between VM edge and SRF (km)
-MIN_RJB = 0  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
+MIN_RJB = (
+    0
+)  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
 
 
 #
@@ -553,7 +556,7 @@ def optimise_vm_params(
     dt: float,
     hh: float,
     pgv: float,
-    ptemp: Path,
+    temp_dir: Path,
     deep_rupture: bool = False,
     optimise: bool = True,
     target_land_coverage: float = 99.0,
@@ -572,7 +575,7 @@ def optimise_vm_params(
     deep_rupture : If true, continue even if the rupture is too deep.
     optimise : Performs area optimisation if set true
     target_land_coverage : Land coverage level (%) that triggers optimisation if not met. No guarantee to attain this level
-    ptemp : Temporary work directory (eg. .../Data/VMs/Hossack/_tmp_Hossack_nho8ui41)
+    temp_dir : Temporary work directory (eg. .../Data/VMs/Hossack/_tmp_Hossack_nho8ui41)
     logger :
 
     Returns
@@ -609,11 +612,11 @@ def optimise_vm_params(
     # original, unrotated vm
     bearing = 0
     origin, xlen0, ylen0 = determine_vm_extent(
-        rjb, hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=ptemp
+        rjb, hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=temp_dir
     )
 
     # for plotting and calculating VM domain distance
-    with open(ptemp / "srf.path", "wb") as sp:
+    with open(temp_dir / "srf.path", "wb") as sp:
         for plane in srf_meta["corners"]:
             sp.write("> srf plane\n".encode())
             np.savetxt(sp, plane, fmt="%f")
@@ -641,7 +644,7 @@ def optimise_vm_params(
         land0 = 100
         optimise = False
     else:
-        land0 = get_vm_land_proportion(o1, o2, o3, o4, wd=ptemp)
+        land0 = get_vm_land_proportion(o1, o2, o3, o4, wd=temp_dir)
         logger.debug(f"Land coverage found to be {land0}%")
 
     if not optimise:
@@ -671,11 +674,7 @@ def optimise_vm_params(
 
         # wanted distance is at corners, not middle top to bottom
         _, xlen1, ylen1 = determine_vm_extent(
-            rjb,
-            hh,
-            srf_meta["corners"].reshape((-1, 2)),
-            rot=bearing,
-            wd=ptemp,
+            rjb, hh, srf_meta["corners"].reshape((-1, 2)), rot=bearing, wd=temp_dir
         )
 
         logger.debug(
@@ -683,13 +682,7 @@ def optimise_vm_params(
         )
         # cut down ocean areas
         origin, bearing, xlen1, ylen1, = reduce_domain(
-            origin,
-            bearing,
-            xlen1,
-            ylen1,
-            hh,
-            ptemp,
-            logger=logger,
+            origin, bearing, xlen1, ylen1, hh, temp_dir, logger=logger
         )
         logger.debug(
             f"After optimisation origin: {origin}, bearing: {bearing}, xlen: {xlen1}, ylen: {ylen1}"
@@ -705,7 +698,7 @@ def optimise_vm_params(
             logger.debug(f"Optimised corners of the VM are: {(c1, c2, c3, c4)}")
 
         # proportion in ocean
-        land1 = get_vm_land_proportion(c1, c2, c3, c4, wd=ptemp)
+        land1 = get_vm_land_proportion(c1, c2, c3, c4, wd=temp_dir)
         logger.debug(f"Optimised land coverage found to be {land1}%")
 
         # adjust region to fit new corners
@@ -817,8 +810,8 @@ def main(
     """
 
     # temp directory for current process
-    with TemporaryDirectory(prefix=f"_tmp_{srf_meta['name']}_", dir=outdir) as ptemp:
-        ptemp = Path(ptemp)
+    with TemporaryDirectory(prefix=f"_tmp_{srf_meta['name']}_", dir=outdir) as temp_dir:
+        temp_dir = Path(temp_dir)
 
         qclogging.add_general_file_handler(
             logger, outdir / f"rel2vm_params_{srf_meta['name']}_log.txt"
@@ -832,7 +825,7 @@ def main(
             dt,
             hh,
             pgv,
-            ptemp,
+            temp_dir,
             deep_rupture=deep_rupture,
             optimise=optimise,
             target_land_coverage=target_land_coverage,
@@ -847,9 +840,7 @@ def main(
 
             code = "rt"
             vm_params_dict = {
-                "mag": float(
-                    faultprop.Mw,
-                ),
+                "mag": float(faultprop.Mw),
                 "centroidDepth": float(srf_meta["hdepth"]),
                 "MODEL_LAT": float(vm_params_dict_extended["origin"][1]),
                 "MODEL_LON": float(vm_params_dict_extended["origin"][0]),
@@ -879,10 +870,7 @@ def main(
                 )
                 os.remove(vm_params_path)
 
-            dump_yaml(
-                vm_params_dict,
-                vm_params_path,
-            )
+            dump_yaml(vm_params_dict, vm_params_path)
             logger.debug(f"Saved {vm_params_path}")
             print(f"Success: Wrote vm_params.yaml at {outdir}", file=sys.stderr)
 
@@ -894,7 +882,7 @@ def main(
                     NZ_CENTRE_LINE,
                     faultprop.Mw,
                     outdir,
-                    ptemp,
+                    temp_dir,
                     logger=logger,
                 )
 
@@ -931,7 +919,8 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
     """
 
     # name of the fault is found from the basename
-    name = rel_file.stem.split("_")[0]  # XXXX_REL01.csv --> XXXX
+
+    name = get_fault_from_realisation(rel_file)  # XXXX_REL01.csv --> XXXX
     logger.debug(f"Found first REL file for {name}")
 
     rel_meta = pd.read_csv(rel_file)

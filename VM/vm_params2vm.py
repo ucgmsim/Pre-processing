@@ -35,7 +35,7 @@ NZVM_BIN = find_executable("NZVM")
 
 def gen_vm(
     outdir: Path,
-    ptemp: Path,
+    temp_dir: Path,
     vm_working_dir: Path,
     nzvm_cfg_path: Path,
     vm_params_path: Path,
@@ -43,13 +43,13 @@ def gen_vm(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    Generates VM and relocate the output files from ptemp to outdir
+    Generates VM and relocate the output files from temp_dir to outdir
     Also generates coordinates files and validates.
 
     Parameters
     ----------
     outdir : Directory where output files are eventually saved (eg. ..../Data/VMs/Hossack)
-    ptemp : Temporary work directory (eg. .../Data/VMs/Hossack/_tmp_Hossack_nho8ui41)
+    temp_dir : Temporary work directory (eg. .../Data/VMs/Hossack/_tmp_Hossack_nho8ui41)
     vm_working_dir: working directory that NZVM will be generating its output/temporary files
     nzvm_cfg_path: the path to nzvm.cfg
     vm_params_path: the path to vm_params.yaml
@@ -58,7 +58,7 @@ def gen_vm(
     """
     os.makedirs(outdir, exist_ok=True)
     # NZVM won't find resources if WD is not NZVM dir, stdout not MPROC friendly
-    with open(ptemp / "NZVM.out", "w") as logfile:
+    with open(temp_dir / "NZVM.out", "w") as logfile:
         logger.debug("Running NZVM binary")
         nzvm_env = os.environ.copy()
         nzvm_env["OMP_NUM_THREADS"] = str(vm_threads)
@@ -74,10 +74,7 @@ def gen_vm(
     files_to_move = [
         vm_working_dir / "Velocity_Model" / vm3dfile
         for vm3dfile in ["rho3dfile.d", "vp3dfile.p", "vs3dfile.s"]
-    ] + [
-        vm_working_dir / "Log" / "VeloModCorners.txt",
-        nzvm_cfg_path,
-    ]
+    ] + [vm_working_dir / "Log" / "VeloModCorners.txt", nzvm_cfg_path]
 
     for f in files_to_move:
         move(f, outdir / f.name)  # may overwrite
@@ -122,7 +119,7 @@ def save_nzvm_cfg(
 
     Parameters
     ----------
-    nzvm_cfg_path : Path to nzvm.cfg (initially placed in ptemp, and relocated after NZVM run is successful)
+    nzvm_cfg_path : Path to nzvm.cfg (initially placed in temp_dir, and relocated after NZVM run is successful)
     vm_params_dict : Dictionary containing relevant data
     vm_dir : Directory where NZVM binary outputs are placed (cannot exist)
     logger :
@@ -175,14 +172,14 @@ def main(
     """
 
     # temp directory for current process
-    with TemporaryDirectory(prefix=f"_tmp_{name}_", dir=outdir) as ptemp:
-        ptemp = Path(ptemp)
+    with TemporaryDirectory(prefix=f"_tmp_{name}_", dir=outdir) as temp_dir:
+        temp_dir = Path(temp_dir)
         qclogging.add_general_file_handler(
             logger, outdir / f"vm_params2vm_{name}_log.txt"
         )
 
-        vm_working_dir = ptemp / "output"
-        nzvm_cfg_path = ptemp / "nzvm.cfg"
+        vm_working_dir = temp_dir / "output"
+        nzvm_cfg_path = temp_dir / "nzvm.cfg"
 
         with open(vm_params_path, "r") as f:
             vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
@@ -194,7 +191,7 @@ def main(
             # run the actual generation
             gen_vm(
                 outdir,
-                ptemp,
+                temp_dir,
                 vm_working_dir,
                 nzvm_cfg_path,
                 vm_params_path,
@@ -223,10 +220,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     arg("name", help="Name of the fault")
 
-    arg(
-        "vm_params_path",
-        help="path to vm_params.yaml",
-    )
+    arg("vm_params_path", help="path to vm_params.yaml")
 
     arg(
         "-o",
