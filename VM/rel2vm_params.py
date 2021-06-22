@@ -941,7 +941,7 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
         plane["dtop"] = rel_meta[f"dtop_subfault_{i}"].loc[0]
         planes.append(plane)
 
-    corners, dbottom = get_corners_dbottom(planes, dip_dir=rel_meta["dip_dir"].loc[0])
+    corners, _ = get_corners_dbottom(planes, dip_dir=rel_meta["dip_dir"].loc[0])
 
     mag = rel_meta["magnitude"].loc[0]
     dtop = rel_meta["dtop"].loc[0]
@@ -1070,7 +1070,8 @@ def load_args():
 if __name__ == "__main__":
     logger = qclogging.get_logger("rel2vm_params")
     qclogging.add_general_file_handler(logger, Path.cwd() / "rel2vm_params_log.txt")
-    args = load_args(logger=logger)
+
+    args = load_args()
 
     logger.debug("Loading REL csv")
     srf_meta = load_rel(args.rel_file, logger=logger)
