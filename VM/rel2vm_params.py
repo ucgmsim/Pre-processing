@@ -23,6 +23,7 @@ import sys
 from tempfile import TemporaryDirectory
 
 from srf_generation.input_file_generation.realisation_to_srf import get_corners_dbottom
+
 from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
 from qcore.utils import dump_yaml
@@ -347,7 +348,7 @@ def reduce_domain(
             close=False,
         )
         isections, icomps = gmt.intersections(
-            ["%s/srf.path" % wd, NZ_LAND_OUTLINE, "%s/tempEXT.tmp" % wd],
+            ["%s/srf.path" % wd, NZ_LAND_OUTLINE.as_posix(), "%s/tempEXT.tmp" % wd],
             items=True,
             containing="%s/tempEXT.tmp" % wd,
         )
@@ -359,7 +360,7 @@ def reduce_domain(
         for c, intersection in enumerate(isections):
             if "%s/srf.path" % wd in icomps[c]:
                 diff = space_srf
-            elif NZ_LAND_OUTLINE in icomps[c]:
+            elif NZ_LAND_OUTLINE.as_posix() in icomps[c]:
                 diff = space_land
             else:
                 # Something went wrong
@@ -580,7 +581,8 @@ def optimise_vm_params(
 
     Returns
     -------
-    vm_params_dict_extended that contains extra info not stored in vm_params.yaml
+    success: True/False to determine whether vm_params.yaml will be produced.
+    vm_params_dict_extended: that contains extra info not stored in vm_params.yaml
 
     """
 
@@ -589,6 +591,9 @@ def optimise_vm_params(
     faultprop.rake = srf_meta["rake"]
     faultprop.dip = srf_meta["dip"]
     faultprop.faultstyle = None
+
+    success = True  # will produce VM
+
     # rrup to reach wanted PGV
     if pgv == -1.0:
         pgv = mag2pgv(faultprop.Mw)
@@ -627,7 +632,9 @@ def optimise_vm_params(
             "fault_depth > rrup. Fault too deep, will not generate VM. "
             f"Setting xlen, ylen to 0. Previous values: x:{xlen0}, y:{ylen0}"
         )
-        return None
+        xlen0 = 0
+        ylen0 = 0
+        success = False
 
     o1, o2, o3, o4 = geo.build_corners(origin, bearing, xlen0, ylen0)
     vm0_region = corners2region(o1, o2, o3, o4)
@@ -640,7 +647,7 @@ def optimise_vm_params(
 
     # proportion in ocean
     if xlen0 <= 0 or ylen0 <= 0:
-        logger.debug(f"Optimising skipped for {srf_meta['name']}. Not enough land")
+        logger.debug(f"Optimising skipped for {srf_meta['name']}. 100% Land coverage")
         land0 = 100
         optimise = False
     else:
@@ -681,7 +688,7 @@ def optimise_vm_params(
             f"Pre-optimisation origin: {origin}, bearing: {bearing}, xlen: {xlen1}, ylen: {ylen1}"
         )
         # cut down ocean areas
-        origin, bearing, xlen1, ylen1, = reduce_domain(
+        (origin, bearing, xlen1, ylen1) = reduce_domain(
             origin, bearing, xlen1, ylen1, hh, temp_dir, logger=logger
         )
         logger.debug(
@@ -717,8 +724,12 @@ def optimise_vm_params(
 
     # not enough land in final domain
     if math.floor(land1) == 0:
-        logger.info("Land coverage is less than 1%. Not creating VM")
-        return None
+        logger.info(
+            "Land coverage is less than 1%. Setting xlen and ylen to 0. Not creating VM"
+        )
+        xlen1 = 0
+        ylen1 = 0
+        success = False
 
     # zlen is independent from xlen and ylen
     zlen = round(get_max_depth(faultprop.Mw, srf_meta["dbottom"]) / hh) * hh
@@ -728,7 +739,7 @@ def optimise_vm_params(
         logger.debug(
             f"All xlen={xlen1} ylen={ylen1} zlen={zlen} should be non-zero. Not creating VM"
         )
-        return None
+        success = False
 
     # modified sim time
     vm_corners = np.asarray([c1, c2, c3, c4])
@@ -745,31 +756,34 @@ def optimise_vm_params(
     )
 
     # optimisation results
-    return {
-        "name": srf_meta["name"],
-        "mag": faultprop.Mw,
-        "dbottom": srf_meta["dbottom"],
-        "zlen": zlen,
-        "sim_time": sim_duration,
-        "xlen": xlen0,
-        "ylen": ylen0,
-        "land": land0,
-        "zlen_mod": zlen,
-        "sim_time_mod": sim_duration,
-        "xlen_mod": xlen1,
-        "ylen_mod": ylen1,
-        "land_mod": land1,
-        "origin": origin,
-        "bearing": bearing,
-        "adjusted": optimise,
-        "plot_region": plot_region,
-        "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
-            o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]
-        ),
-        "path_mod": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
-            c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
-        ),
-    }
+    return (
+        success,
+        {
+            "name": srf_meta["name"],
+            "mag": faultprop.Mw,
+            "dbottom": srf_meta["dbottom"],
+            "zlen": zlen,
+            "sim_time": sim_duration,
+            "xlen": xlen0,
+            "ylen": ylen0,
+            "land": land0,
+            "zlen_mod": zlen,
+            "sim_time_mod": sim_duration,
+            "xlen_mod": xlen1,
+            "ylen_mod": ylen1,
+            "land_mod": land1,
+            "origin": origin,
+            "bearing": bearing,
+            "adjusted": optimise,
+            "plot_region": plot_region,
+            "path": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
+                o1[0], o1[1], o2[0], o2[1], o3[0], o3[1], o4[0], o4[1]
+            ),
+            "path_mod": "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
+                c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
+            ),
+        },
+    )
 
 
 def main(
@@ -819,7 +833,7 @@ def main(
         vm_params_path = outdir / "vm_params.yaml"
         vm_working_dir = "output"
 
-        vm_params_dict_extended = optimise_vm_params(
+        success, vm_params_dict_extended = optimise_vm_params(
             srf_meta,
             ds_multiplier,
             dt,
@@ -832,7 +846,7 @@ def main(
             logger=logger,
         )
 
-        if vm_params_dict_extended is not None:
+        if success:
             xlen = float(vm_params_dict_extended["xlen_mod"])
             ylen = float(vm_params_dict_extended["ylen_mod"])
             zmax = float(vm_params_dict_extended["zlen_mod"])
@@ -874,21 +888,23 @@ def main(
             logger.debug(f"Saved {vm_params_path}")
             print(f"Success: Wrote vm_params.yaml at {outdir}", file=sys.stderr)
 
-            if plot_enabled:
-                plot_vm(
-                    vm_params_dict_extended,
-                    srf_meta["corners"],
-                    NZ_LAND_OUTLINE,
-                    NZ_CENTRE_LINE,
-                    faultprop.Mw,
-                    outdir,
-                    temp_dir,
-                    logger=logger,
-                )
-
             # generate a corners like NZVM would have
             logger.debug("Saving VeloModCorners.txt")
             write_corner_file(outdir, vm_params_dict_extended["path_mod"])
+        else:
+            logger.error("Failed: Not good VM params to proceed")
+
+        if plot_enabled:
+            plot_vm(
+                vm_params_dict_extended,
+                srf_meta["corners"],
+                NZ_LAND_OUTLINE,
+                NZ_CENTRE_LINE,
+                faultprop.Mw,
+                outdir,
+                temp_dir,
+                logger=logger,
+            )
 
 
 def write_corner_file(outdir: Path, paths: str):
@@ -897,7 +913,7 @@ def write_corner_file(outdir: Path, paths: str):
     Parameters
     ----------
     outdir :
-    paths : str of corner corrdinates "Lon1\tLat1\nLon2\tLat2\nLon3\tLat3\nLon4\tLat4" where Lat or Lon are in .6f format.
+    paths : str of corner coordinates "Lon1\tLat1\nLon2\tLat2\nLon3\tLat3\nLon4\tLat4" where Lat or Lon are in .6f format.
     """
     with open(f"{outdir}/VeloModCorners.txt", "w") as c:
         c.write(">Velocity model corners(python generated)\n")
@@ -923,44 +939,75 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
     name = get_fault_from_realisation(rel_file)  # XXXX_REL01.csv --> XXXX
     logger.debug(f"Found first REL file for {name}")
 
-    rel_meta = pd.read_csv(rel_file)
-    rake = rel_meta["rake"].loc[0]
+    rel_df = pd.read_csv(rel_file)
 
-    planes = []
-    num_subfaults = rel_meta["plane_count"].loc[0]
-    for i in range(num_subfaults):
-        plane = {}
-        plane["centre"] = [
-            rel_meta[f"clon_subfault_{i}"].loc[0],
-            rel_meta[f"clat_subfault_{i}"].loc[0],
+    # common attributes in all types of rel csv
+    def rel_meta(attr):
+        return rel_df[attr].loc[0] if attr in rel_df.columns else None
+
+    type = rel_meta("type")
+    hdepth = None
+
+    if type == 1:  # point source
+        hdepth = rel_meta("depth")
+        planes = [
+            {
+                "centre": [rel_meta("longitude"), rel_meta("latitude")],
+                "length": 0.1,
+                "width": 0.1,
+                "strike": rel_meta("strike"),
+                "dip": rel_meta("dip"),
+                "dtop": hdepth,
+            }
         ]
-        plane["length"] = rel_meta[f"length_subfault_{i}"].loc[0]
-        plane["width"] = rel_meta[f"width_subfault_{i}"].loc[0]
-        plane["strike"] = rel_meta[f"strike_subfault_{i}"].loc[0]
-        plane["dip"] = rel_meta[f"dip_subfault_{i}"].loc[0]
-        plane["dtop"] = rel_meta[f"dtop_subfault_{i}"].loc[0]
-        planes.append(plane)
+        corners, [dbottom] = get_corners_dbottom(planes)
 
-    # Ignore dbottom returned by the function. The value will be taken from rel_meta below
-    corners, _ = get_corners_dbottom(planes, dip_dir=rel_meta["dip_dir"].loc[0])
+    elif type == 2:  # finite fault single plane
+        planes = [
+            {
+                "centre": [rel_meta("longitude"), rel_meta("latitude")],
+                "length": rel_meta("flen"),
+                "width": rel_meta("fwid"),
+                "strike": rel_meta("strike"),
+                "dip": rel_meta("dip"),
+                "dtop": rel_meta("dtop"),
+            }
+        ]
+        corners, [dbottom] = get_corners_dbottom(planes)
 
-    mag = rel_meta["magnitude"].loc[0]
-    dtop = rel_meta["dtop"].loc[0]
-    dbottom = rel_meta["dbottom"].loc[0]
+    else:  # type 4 (we never have type 3)
+        assert type != 3
 
-    hdepth = (
-        np.round(rel_meta["dhypo"].loc[0], decimals=1)
-        * np.sin(np.radians(rel_meta["dip"].loc[0]))
-        + dtop
-    )
+        planes = []
+        num_subfaults = rel_meta("plane_count")
+        for i in range(num_subfaults):
+            plane = {}
+            plane["centre"] = [
+                rel_meta(f"clon_subfault_{i}"),
+                rel_meta(f"clat_subfault_{i}"),
+            ]
+            plane["length"] = rel_meta(f"length_subfault_{i}")
+            plane["width"] = rel_meta(f"width_subfault_{i}")
+            plane["strike"] = rel_meta(f"strike_subfault_{i}")
+            plane["dip"] = rel_meta(f"dip_subfault_{i}")
+            plane["dtop"] = rel_meta(f"dtop_subfault_{i}")
+            planes.append(plane)
+
+        corners, _ = get_corners_dbottom(planes, dip_dir=rel_meta("dip_dir"))
+        dbottom = rel_meta("dbottom")
+
+    if type >= 2:  # type 2 and 4 will have hdepth computed
+        hdepth = np.round(rel_meta("dhypo"), decimals=1) * np.sin(
+            np.radians(rel_meta("dip"))
+        ) + rel_meta("dtop")
 
     return {
         "name": name,
-        "dip": rel_meta["dip"].loc[0],
-        "rake": rake,
+        "dip": rel_meta("dip"),
+        "rake": rel_meta("rake"),
         "dbottom": dbottom,
         "corners": np.array(corners),
-        "mag": mag,
+        "mag": rel_meta("magnitude"),
         "hdepth": hdepth,
     }
 
