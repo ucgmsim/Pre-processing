@@ -946,7 +946,6 @@ def load_rel(rel_file: Path, logger: Logger = qclogging.get_basic_logger()):
         return rel_df[attr].loc[0] if attr in rel_df.columns else None
 
     type = rel_meta("type")
-    hdepth = None
 
     if type == 1:  # point source
         hdepth = rel_meta("depth")
