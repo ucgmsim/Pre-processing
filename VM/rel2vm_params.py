@@ -48,9 +48,7 @@ faultprop.ztor = 0.0
 
 SPACE_LAND = 5.0  # min space between VM edge and land (km)
 SPACE_SRF = 15.0  # min space between VM edge and SRF (km)
-MIN_RJB = (
-    0
-)  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
+MIN_RJB = 0  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
 
 
 #
