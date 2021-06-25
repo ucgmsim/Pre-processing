@@ -855,7 +855,6 @@ def main(
             code = "rt"
             vm_params_dict = {
                 "mag": float(faultprop.Mw),
-                "centroidDepth": float(srf_meta["hdepth"]),
                 "MODEL_LAT": float(vm_params_dict_extended["origin"][1]),
                 "MODEL_LON": float(vm_params_dict_extended["origin"][0]),
                 "MODEL_ROT": float(vm_params_dict_extended["bearing"]),
@@ -863,9 +862,6 @@ def main(
                 "min_vs": min_vs,
                 "model_version": vm_version,
                 "topo_type": vm_topo,
-                "output_directory": vm_working_dir,
-                "extracted_slice_parameters_directory": "SliceParametersNZ/SliceParametersExtracted.txt",
-                "code": code,
                 "extent_x": xlen,
                 "extent_y": ylen,
                 "extent_zmax": zmax,
