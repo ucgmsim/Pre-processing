@@ -37,7 +37,7 @@ PATH_UNDER_TEST = os.path.join(
 # PATH_FOR_PRG_TOBE_TESTED = os.path.join(os.path.abspath(os.path.dirname(__file__)), "../gen_coords.py")
 
 PATH_FOR_PRG_TOBE_TESTED = os.path.join(
-    os.path.dirname(__file__), "../../SrfGen/gen_coords.py"
+    os.path.dirname(__file__), "../../VM/gen_coords.py"
 )
 SYMLINK_PATH = os.path.join(
     os.path.abspath(os.path.dirname(PATH_FOR_PRG_TOBE_TESTED)), VM_PARAMS_FILE_NAME

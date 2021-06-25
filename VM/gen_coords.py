@@ -23,7 +23,7 @@ def gen_coords(
 ):
     """
     Generate coordinate files for an emod3d domain (set of grid points).
-    outdir: directory to store coordinate files in
+    vm_dir: directory to store coordinate files in
     debug: print additional info
     geoproj:
     do_coords:

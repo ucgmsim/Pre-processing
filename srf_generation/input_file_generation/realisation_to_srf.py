@@ -77,6 +77,50 @@ def create_stoch(
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
+def get_corners_dbottom(planes, dip_dir=None):
+    """
+    planes: a list of dictionaries where each dictionary is structured like below.
+     {
+        "centre": [float(elon), float(elat)],
+        "nstrike": int(nstk),
+        "ndip": int(ndip),
+        "length": float(ln),
+        "width": float(wid),
+        "strike": stk,
+        "dip": dip,
+        "shyp": shyp,
+        "dhyp": dhyp,
+        "dtop": dtop,
+    }
+    """
+    dbottom = []
+    corners = np.zeros((len(planes), 4, 2))
+    for i, p in enumerate(planes):
+        # currently only support single dip dir value
+        if dip_dir is not None:
+            dip_deg = dip_dir
+        else:
+            dip_deg = p["strike"] + 90
+
+        # projected fault width (along dip direction)
+        pwid = p["width"] * np.cos(np.radians(p["dip"]))
+        corners[i, 0] = geo.ll_shift(
+            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"] + 180
+        )[::-1]
+        corners[i, 1] = geo.ll_shift(
+            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"]
+        )[::-1]
+        corners[i, 2] = geo.ll_shift(corners[i, 1, 1], corners[i, 1, 0], pwid, dip_deg)[
+            ::-1
+        ]
+        corners[i, 3] = geo.ll_shift(corners[i, 0, 1], corners[i, 0, 0], pwid, dip_deg)[
+            ::-1
+        ]
+        dbottom.append(p["dtop"] + p["width"] * np.sin(np.radians(p["dip"])))
+
+    return (corners, dbottom)
+
+
 def create_info_file(
     srf_file,
     srf_type,
@@ -105,30 +149,7 @@ def create_info_file(
     planes = srf.read_header(srf_file, idx=True)
     hlon, hlat, hdepth = srf.get_hypo(srf_file, depth=True)
 
-    dbottom = []
-    corners = np.zeros((len(planes), 4, 2))
-    for i, p in enumerate(planes):
-        # currently only support single dip dir value
-        if dip_dir is not None:
-            dip_deg = dip_dir
-        else:
-            dip_deg = p["strike"] + 90
-
-        # projected fault width (along dip direction)
-        pwid = p["width"] * np.cos(np.radians(p["dip"]))
-        corners[i, 0] = geo.ll_shift(
-            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"] + 180
-        )[::-1]
-        corners[i, 1] = geo.ll_shift(
-            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"]
-        )[::-1]
-        corners[i, 2] = geo.ll_shift(corners[i, 1, 1], corners[i, 1, 0], pwid, dip_deg)[
-            ::-1
-        ]
-        corners[i, 3] = geo.ll_shift(corners[i, 0, 1], corners[i, 0, 0], pwid, dip_deg)[
-            ::-1
-        ]
-        dbottom.append(p["dtop"] + p["width"] * np.sin(np.radians(p["dip"])))
+    corners, dbottom = get_corners_dbottom(planes, dip_dir=dip_dir)
 
     if file_name is None:
         file_name = srf_file.replace(".srf", ".info")
