@@ -343,14 +343,14 @@ def reduce_domain(
         # GMT spatial is not great-circle path connective
         geo.path_from_corners(
             corners=[ap, bp],
-            output="%s/tempEXT.tmp" % wd,
+            output=f"{wd}/tempEXT.tmp",
             min_edge_points=80,
             close=False,
         )
         isections, icomps = gmt.intersections(
-            ["%s/srf.path" % wd, NZ_LAND_OUTLINE.as_posix(), "%s/tempEXT.tmp" % wd],
+            [f"{wd}/srf.path", NZ_LAND_OUTLINE.as_posix(), f"{wd}/tempEXT.tmp"],
             items=True,
-            containing="%s/tempEXT.tmp" % wd,
+            containing=f"{wd}/tempEXT.tmp",
         )
         if len(isections) == 0:
             scan_extremes[i] = np.nan
@@ -358,7 +358,7 @@ def reduce_domain(
         # shift different intersections by item-specific padding amount
 
         for c, intersection in enumerate(isections):
-            if "%s/srf.path" % wd in icomps[c]:
+            if f"{wd}/srf.path" in icomps[c]:
                 diff = space_srf
             elif NZ_LAND_OUTLINE.as_posix() in icomps[c]:
                 diff = space_land
