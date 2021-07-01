@@ -266,6 +266,7 @@ class Type2(FiniteFault):
                 "longitude": self._lon_hyp,
                 "latitude": self._lat_hyp,
                 "mwsr": self._magnitude_scaling_relation.name,
+                "dbottom": self.dbottom,
             }
         )
         return base_dict

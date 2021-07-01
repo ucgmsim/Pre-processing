@@ -1,21 +1,22 @@
 import argparse
 from multiprocessing.pool import Pool
-from os.path import abspath, join
+from os.path import abspath, join, exists
 import pandas as pd
 
 from qcore.formats import load_fault_selection_file
-from qcore.utils import load_yaml
 from qcore.simulation_structure import (
     get_realisation_name,
     get_srf_path,
     get_fault_VM_dir,
 )
+from qcore.utils import load_yaml
+from qcore.vm_file import create_constant_vm_file
 
 from srf_generation.velocity_model_generation.fault_damage_zone import (
     add_fault_damage_zone_properties,
-    create_empty_perturbation_file,
     apply_fault_damage_zone,
 )
+
 from srf_generation.velocity_model_generation.generate_3d_velocity_model_perturbation import (
     generate_velocity_model_perturbation_file_from_config,
     load_parameter_file,
@@ -44,7 +45,9 @@ def generate_vm_perturbation(
                 common_params, layer_params, perturbation_file, 1
             )
     else:
-        create_empty_perturbation_file(perturbation_file, vm_params)
+        create_constant_vm_file(
+            perturbation_file, vm_params["nx"] * vm_params["ny"] * vm_params["nz"]
+        )
     if fault_damage_zone:
         srf_location = get_srf_path(cs_root, realisation)
         apply_fault_damage_zone(
@@ -67,6 +70,7 @@ def load_args():
     parser.add_argument("cs_root", type=abspath)
     parser.add_argument("fault_selection_file", type=abspath)
     parser.add_argument("-n", "--n_processes", default=1, type=int)
+    parser.add_argument("-c", "--checkpointing", action="store_true")
 
     parser.add_argument("--perturbation", action="store_true")
     parser.add_argument("--fault_damage_zone", action="store_true")
@@ -106,7 +110,6 @@ def main():
     cs_root = args.cs_root
     faults = load_fault_selection_file(args.fault_selection_file)
 
-    vm_params = load_yaml(args.vm_params_location)
     processes = args.n_processes
     perturbation = args.perturbation
     fault_damage_zone = args.fault_damage_zone
@@ -119,6 +122,14 @@ def main():
             perturbation_file = join(
                 get_fault_VM_dir(cs_root, realisation), f"{realisation}.pertb"
             )
+
+            if args.checkpointing and exists(perturbation_file):
+                print("Perturbation file {perturbation_file} exists, continuing.")
+                continue
+
+            vm_params = load_yaml(
+                join(get_fault_VM_dir(cs_root, realisation), "vm_params.yaml")
+            )
             pert_file_params.append(
                 (
                     args,
@@ -130,8 +141,8 @@ def main():
                     vm_params,
                 )
             )
-    pool = Pool(processes)
-    pool.starmap(generate_vm_perturbation, pert_file_params)
+    with Pool(processes) as pool:
+        pool.starmap(generate_vm_perturbation, pert_file_params)
 
 
 if __name__ == "__main__":

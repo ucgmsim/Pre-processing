@@ -77,6 +77,50 @@ def create_stoch(
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
+def get_corners_dbottom(planes, dip_dir=None):
+    """
+    planes: a list of dictionaries where each dictionary is structured like below.
+     {
+        "centre": [float(elon), float(elat)],
+        "nstrike": int(nstk),
+        "ndip": int(ndip),
+        "length": float(ln),
+        "width": float(wid),
+        "strike": stk,
+        "dip": dip,
+        "shyp": shyp,
+        "dhyp": dhyp,
+        "dtop": dtop,
+    }
+    """
+    dbottom = []
+    corners = np.zeros((len(planes), 4, 2))
+    for i, p in enumerate(planes):
+        # currently only support single dip dir value
+        if dip_dir is not None:
+            dip_deg = dip_dir
+        else:
+            dip_deg = p["strike"] + 90
+
+        # projected fault width (along dip direction)
+        pwid = p["width"] * np.cos(np.radians(p["dip"]))
+        corners[i, 0] = geo.ll_shift(
+            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"] + 180
+        )[::-1]
+        corners[i, 1] = geo.ll_shift(
+            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"]
+        )[::-1]
+        corners[i, 2] = geo.ll_shift(corners[i, 1, 1], corners[i, 1, 0], pwid, dip_deg)[
+            ::-1
+        ]
+        corners[i, 3] = geo.ll_shift(corners[i, 0, 1], corners[i, 0, 0], pwid, dip_deg)[
+            ::-1
+        ]
+        dbottom.append(p["dtop"] + p["width"] * np.sin(np.radians(p["dip"])))
+
+    return (corners, dbottom)
+
+
 def create_info_file(
     srf_file,
     srf_type,
@@ -105,30 +149,7 @@ def create_info_file(
     planes = srf.read_header(srf_file, idx=True)
     hlon, hlat, hdepth = srf.get_hypo(srf_file, depth=True)
 
-    dbottom = []
-    corners = np.zeros((len(planes), 4, 2))
-    for i, p in enumerate(planes):
-        # currently only support single dip dir value
-        if dip_dir is not None:
-            dip_deg = dip_dir
-        else:
-            dip_deg = p["strike"] + 90
-
-        # projected fault width (along dip direction)
-        pwid = p["width"] * np.cos(np.radians(p["dip"]))
-        corners[i, 0] = geo.ll_shift(
-            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"] + 180
-        )[::-1]
-        corners[i, 1] = geo.ll_shift(
-            p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"]
-        )[::-1]
-        corners[i, 2] = geo.ll_shift(corners[i, 1, 1], corners[i, 1, 0], pwid, dip_deg)[
-            ::-1
-        ]
-        corners[i, 3] = geo.ll_shift(corners[i, 0, 1], corners[i, 0, 0], pwid, dip_deg)[
-            ::-1
-        ]
-        dbottom.append(p["dtop"] + p["width"] * np.sin(np.radians(p["dip"])))
+    corners, dbottom = get_corners_dbottom(planes, dip_dir=dip_dir)
 
     if file_name is None:
         file_name = srf_file.replace(".srf", ".info")
@@ -226,7 +247,7 @@ def create_ps_srf(
             aa = np.exp(2.0 / 3.0 * np.log(moment) - 14.7 * np.log(10.0))
         dd = np.sqrt(aa)
         slip = (moment * 1.0e-20) / (aa * vs * vs * rho)
-    dd = np.round(dd)
+
     logger.debug(f"Slip: {slip}, fault plane edge length {dd}")
 
     ###
@@ -323,6 +344,7 @@ def create_ps_ff_srf(
     genslip_version = str(parameter_dictionary.pop("genslip_version"))
     seed = parameter_dictionary.pop("srfgen_seed")
     slip_cov = parameter_dictionary.pop("slip_cov", None)
+    risetime_coef = parameter_dictionary.pop("risetime_coef", None)
     rough = parameter_dictionary.pop("rough", 0.0)
     tect_type = parameter_dictionary.pop("tect_type", None)
     vel_mod_1d = parameter_dictionary.pop(
@@ -384,6 +406,7 @@ def create_ps_ff_srf(
         genslip_version=genslip_version,
         rvfac=rvfac,
         slip_cov=slip_cov,
+        risetime_coef=risetime_coef,
         rough=rough,
         logger=logger,
         tect_type=tect_type,
@@ -638,6 +661,7 @@ def gen_srf(
     rvfac=None,
     rough=0.0,
     slip_cov=None,
+    risetime_coef=None,
     tect_type=None,
     fault_planes=1,
     xseg: Union[float, List[float]] = "-1",
@@ -722,15 +746,18 @@ def gen_srf(
                 "ky_corner=2.3882",
                 "tsfac_slope=-0.5",
                 "tsfac_bzero=-0.1",
-                "risetime_coef=1.95",
             ]
         )
+        if risetime_coef is None:
+            cmd.append(f"risetime_coef=1.95")
     if rvfac is not None:
         cmd.append(f"rvfrac={rvfac}")
     if rough is not None:
         cmd.append(f"alpha_rough={rough}")
     if slip_cov is not None:
         cmd.append(f"slip_sigma={slip_cov}")
+    if risetime_coef is not None:
+        cmd.append(f"risetime_coef={risetime_coef}")
     logger.debug("Creating SRF with command: {}".format(" ".join(cmd)))
     with open(srf_file, "w") as srfp:
         proc = run(cmd, stdout=srfp, stderr=PIPE)

@@ -509,7 +509,7 @@ def statsll_from_V1A(loc_V1A, save_stats=False,
             print(e)
             continue
         else:
-            if YYYYMMDD is "":
+            if YYYYMMDD == "":
                 continue
             else:
                 break
