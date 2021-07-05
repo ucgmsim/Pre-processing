@@ -104,6 +104,8 @@ def generate_velocity_model_perturbation_file_from_config(
         for index, l_p in layer_params.items()
     ]
     try:
+        if n_processes == 1:
+            raise AssertionError
         with Pool(n_processes) as pool:
             layer_info = sorted(pool.starmap(kwarg_map, complete_layer_parameters))
     except AssertionError as e:
@@ -163,6 +165,8 @@ def generate_velocity_model_perturbation_file_from_model(
     )
 
     try:
+        if n_processes == 1:
+            raise AssertionError
         with Pool(n_processes) as pool:
             layer_info = sorted(
                 pool.starmap(create_perturbated_layer, complete_layer_parameters)
