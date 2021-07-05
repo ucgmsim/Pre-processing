@@ -57,7 +57,7 @@ def combine_layers(layers, nx, ny, out_file):
         f"filelist={filelist.name}",
         f"outfile={out_file}",
     ]
-    ret_code = call(command, stderr=DEVNULL)
+    ret_code = call(command)
     if ret_code == 0:
         remove(filelist.name)
     else:
