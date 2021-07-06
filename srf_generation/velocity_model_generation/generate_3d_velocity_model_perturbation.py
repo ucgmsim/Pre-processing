@@ -105,6 +105,7 @@ def generate_velocity_model_perturbation_file_from_config(
     ]
     try:
         if n_processes == 1:
+            # Throws an Assertion error to fall back to a for loop rather than pool (for memory usage)
             raise AssertionError
         with Pool(n_processes) as pool:
             layer_info = sorted(pool.starmap(kwarg_map, complete_layer_parameters))
@@ -166,6 +167,7 @@ def generate_velocity_model_perturbation_file_from_model(
 
     try:
         if n_processes == 1:
+            # Throws an Assertion error to fall back to a for loop rather than pool (for memory usage)
             raise AssertionError
         with Pool(n_processes) as pool:
             layer_info = sorted(
