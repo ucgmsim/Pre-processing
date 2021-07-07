@@ -38,6 +38,7 @@ def load_args():
         type=int,
         help="The number of layers to generate simultaneously. Setting a value greater than the layer count will have no effect.",
     )
+    parser.add_argument("-v", "--verbose", help="Output debug info to std_err")
 
     parser.add_argument(
         "--perturbation",
@@ -104,17 +105,18 @@ def main():
     perturbation_file = args.perturbation_file
     vm_params = load_yaml(args.vm_params_location)
     processes = args.n_processes
+    verbose = args.verbose
 
     if args.perturbation:
         if args.model:
             perturbation_model = pd.read_csv(args.model)
             generate_velocity_model_perturbation_file_from_model(
-                vm_params, perturbation_model, perturbation_file, processes
+                vm_params, perturbation_model, perturbation_file, processes, verbose
             )
         elif args.parameter_file:
             common_params, layer_params = load_parameter_file(args.parameter_file)
             generate_velocity_model_perturbation_file_from_config(
-                common_params, layer_params, perturbation_file, processes
+                common_params, layer_params, perturbation_file, processes, verbose
             )
     else:
         create_constant_vm_file(

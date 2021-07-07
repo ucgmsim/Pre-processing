@@ -92,18 +92,16 @@ def main():
     common_params, layer_params = load_parameter_file(args.parameter_file)
     out_file = args.output_file
 
-    if args.verbose:
-        global DEVNULL
-        DEVNULL = None
-
     generate_velocity_model_perturbation_file_from_config(
-        common_params, layer_params, out_file, args.n_processes
+        common_params, layer_params, out_file, args.n_processes, args.verbose
     )
 
 
 def generate_velocity_model_perturbation_file_from_config(
-    common_params, layer_params, out_file, n_processes=1
+    common_params, layer_params, out_file, n_processes=1, verbose=False,
 ):
+    set_verbose(verbose)
+
     complete_layer_parameters = [
         (create_perturbated_layer, dict({"index": index}, **l_p, **common_params))
         for index, l_p in layer_params.items()
@@ -122,9 +120,16 @@ def generate_velocity_model_perturbation_file_from_config(
         remove(file)
 
 
+def set_verbose(verbose):
+    if verbose:
+        global DEVNULL
+        DEVNULL = None
+
+
 def generate_velocity_model_perturbation_file_from_model(
-    vm_params, perturbation_model, out_file, n_processes=1
+    vm_params, perturbation_model, out_file, n_processes=1, verbose=False
 ):
+    set_verbose(verbose)
     max_depth = vm_params["nz"] * vm_params["hh"]
     current_depth = 0
 
