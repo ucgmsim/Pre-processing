@@ -21,7 +21,16 @@ PERTURBATION_LAYER_COLUMNS = ["nz", "h_corr", "v_corr" "sigma", "seed"]
 
 
 def create_perturbated_layer(
-    index, nx, ny, nz, grid_spacing, h_corr, v_corr, sigma, seed, temp_dir=Path(abspath("."))
+    index,
+    nx,
+    ny,
+    nz,
+    grid_spacing,
+    h_corr,
+    v_corr,
+    sigma,
+    seed,
+    temp_dir=Path(abspath(".")),
 ):
     layer_file = temp_dir / f"layer{index}.pertb"
     command = [
@@ -77,7 +86,9 @@ def load_args():
     parser.add_argument("parameter_file", type=abspath)
     parser.add_argument("output_file", type=abspath)
     parser.add_argument("-n", "--n_processes", default=1, type=int)
-    parser.add_argument("-v", "--verbose", action="store_true", help="Output debug info to std_err")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Output debug info to std_err"
+    )
     args = parser.parse_args()
     return args
 
@@ -98,7 +109,7 @@ def main():
 
 
 def generate_velocity_model_perturbation_file_from_config(
-    common_params, layer_params, out_file, n_processes=1, verbose=False,
+    common_params, layer_params, out_file, n_processes=1, verbose=False
 ):
     set_verbose(verbose)
 
@@ -176,12 +187,25 @@ def generate_velocity_model_perturbation_file_from_model(
     ).to_csv(f"{out_file}.csv", index=False, mode="w")
     pd.DataFrame(
         complete_layer_parameters,
-        columns=["index", "nx", "ny", "hh", "nz", "h_corr", "v_corr", "sigma", "seed", "temp_dir"],
+        columns=[
+            "index",
+            "nx",
+            "ny",
+            "hh",
+            "nz",
+            "h_corr",
+            "v_corr",
+            "sigma",
+            "seed",
+            "temp_dir",
+        ],
     )[["nz", "h_corr", "v_corr", "sigma", "seed"]].to_csv(
         f"{out_file}.csv", index=False, mode="a"
     )
     if n_processes == 1:
-        layer_info = sorted([create_perturbated_layer(*layer) for layer in complete_layer_parameters])
+        layer_info = sorted(
+            [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
+        )
     else:
         try:
             with Pool(n_processes) as pool:

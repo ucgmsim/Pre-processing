@@ -38,7 +38,9 @@ def load_args():
         type=int,
         help="The number of layers to generate simultaneously. Setting a value greater than the layer count will have no effect.",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Output debug info to std_err")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Output debug info to std_err"
+    )
 
     parser.add_argument(
         "--perturbation",
