@@ -46,7 +46,7 @@ def create_perturbated_layer(
     return index, nz, layer_file
 
 
-def combine_layers(layers, nx, ny, out_file, temp_dir=Path.resolve(".")):
+def combine_layers(layers, nx, ny, out_file, temp_dir=Path(".").resolve()):
     filelist = temp_dir / "filelist.txt"
     depth = 0
     with open(filelist, "w") as fl:
