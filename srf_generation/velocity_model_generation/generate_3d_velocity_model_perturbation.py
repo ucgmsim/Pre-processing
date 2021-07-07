@@ -77,7 +77,7 @@ def load_args():
     parser.add_argument("parameter_file", type=abspath)
     parser.add_argument("output_file", type=abspath)
     parser.add_argument("-n", "--n_processes", default=1, type=int)
-    parser.add_argument("-v", "--verbose", help="Output debug info to std_err")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Output debug info to std_err")
     args = parser.parse_args()
     return args
 
