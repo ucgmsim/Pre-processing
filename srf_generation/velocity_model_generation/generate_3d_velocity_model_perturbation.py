@@ -1,8 +1,10 @@
 import argparse
 from multiprocessing.pool import Pool
-from os import remove
-from os.path import abspath
+from pathlib import Path
+from os import remove, makedirs
+from os.path import abspath, join
 from random import randint
+from shutil import rmtree
 
 import pandas as pd
 from subprocess import call, DEVNULL
@@ -10,6 +12,8 @@ from tempfile import NamedTemporaryFile
 
 from qcore.binary_version import get_unversioned_bin
 
+# Uncomment to enable stderr output
+# DEVNULL = None
 
 FRACTAL3D_BIN = get_unversioned_bin("fractal3D")
 LAYER_COMBINE_BIN = get_unversioned_bin("combine_pertb")
@@ -19,10 +23,11 @@ PERTURBATION_LAYER_COLUMNS = ["nz", "h_corr", "v_corr" "sigma", "seed"]
 
 
 def create_perturbated_layer(
-    index, nx, ny, nz, grid_spacing, h_corr, v_corr, sigma, seed
+    index, nx, ny, nz, grid_spacing, h_corr, v_corr, sigma, seed, temp_dir=Path(abspath("."))
 ):
-    layer_file = NamedTemporaryFile(delete=False)
-    layer_file.close()
+    #layer_file = NamedTemporaryFile(delete=False)
+    #layer_file.close()
+    layer_file = temp_dir / f"layer{index}.pertb"
     command = [
         FRACTAL3D_BIN,
         f"nx={nx}",
@@ -34,32 +39,31 @@ def create_perturbated_layer(
         f"z_corlen={v_corr}",
         f"sigma={sigma}",
         f"seed={seed}",
-        f"perturbfile={layer_file.name}",
+        f"perturbfile={layer_file}",
         "usd_fftw=1",
     ]
     call(command, stderr=DEVNULL)
-    return index, nz, layer_file.name
+    return index, nz, layer_file
 
 
-def combine_layers(layers, nx, ny, out_file):
-    filelist = NamedTemporaryFile(mode="w", delete=False)
+def combine_layers(layers, nx, ny, out_file, temp_dir=Path.resolve(".")):
+    filelist = temp_dir / "filelist.txt"
     depth = 0
-    with filelist as fl:
+    with open(filelist, "w") as fl:
         for index, nz, file_name in layers:
             fl.write(f"{file_name} {depth} {depth+nz}\n")
             depth += nz
-    filelist.close()
     command = [
         LAYER_COMBINE_BIN,
         f"nx={nx}",
         f"ny={ny}",
         f"nz={depth}",
-        f"filelist={filelist.name}",
+        f"filelist={filelist}",
         f"outfile={out_file}",
     ]
-    ret_code = call(command)
+    ret_code = call(command, stderr=DEVNULL)
     if ret_code == 0:
-        remove(filelist.name)
+        remove(filelist)
     else:
         print(
             f"Non zero return code returned by layer combiner. Error code: {ret_code}"
@@ -104,9 +108,6 @@ def generate_velocity_model_perturbation_file_from_config(
         for index, l_p in layer_params.items()
     ]
     try:
-        if n_processes == 1:
-            # Throws an Assertion error to fall back to a for loop rather than pool (for memory usage)
-            raise AssertionError
         with Pool(n_processes) as pool:
             layer_info = sorted(pool.starmap(kwarg_map, complete_layer_parameters))
     except AssertionError as e:
@@ -123,6 +124,9 @@ def generate_velocity_model_perturbation_file_from_model(
     current_depth = 0
 
     i = 0
+    
+    temp_dir = Path(out_file).parent / "pertb_temp"
+    makedirs(temp_dir, exist_ok=True)
 
     complete_layer_parameters = []
     while current_depth < max_depth:
@@ -144,6 +148,7 @@ def generate_velocity_model_perturbation_file_from_model(
                 layer["v_corr"],
                 layer["sigma"],
                 seed,
+                temp_dir,
             )
         )
 
@@ -160,26 +165,25 @@ def generate_velocity_model_perturbation_file_from_model(
     ).to_csv(f"{out_file}.csv", index=False, mode="w")
     pd.DataFrame(
         complete_layer_parameters,
-        columns=["index", "nx", "ny", "hh", "nz", "h_corr", "v_corr", "sigma", "seed"],
+        columns=["index", "nx", "ny", "hh", "nz", "h_corr", "v_corr", "sigma", "seed", "temp_dir"],
     )[["nz", "h_corr", "v_corr", "sigma", "seed"]].to_csv(
         f"{out_file}.csv", index=False, mode="a"
     )
-
-    try:
-        if n_processes == 1:
-            # Throws an Assertion error to fall back to a for loop rather than pool (for memory usage)
-            raise AssertionError
-        with Pool(n_processes) as pool:
-            layer_info = sorted(
-                pool.starmap(create_perturbated_layer, complete_layer_parameters)
-            )
-    except AssertionError as e:
-        layer_info = sorted(
-            [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
-        )
-    combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file)
-    for _, _, file in layer_info:
-        remove(file)
+    layer_info = sorted([create_perturbated_layer(layer) for layer in complete_layer_parameters])
+    #try:
+        #with Pool(n_processes) as pool:
+            # layer_info = sorted(
+                # pool.starmap(create_perturbated_layer, complete_layer_parameters)
+            # )
+    # except AssertionError as e:
+        # layer_info = sorted(
+            # [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
+        # )
+    combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir)
+    # for _, _, file in layer_info:
+        # remove(file)
+    # Comment out the following line to examine the intermediate files
+    rmtree(temp_dir)
 
 
 if __name__ == "__main__":
