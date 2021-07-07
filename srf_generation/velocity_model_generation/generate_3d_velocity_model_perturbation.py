@@ -169,7 +169,7 @@ def generate_velocity_model_perturbation_file_from_model(
     )[["nz", "h_corr", "v_corr", "sigma", "seed"]].to_csv(
         f"{out_file}.csv", index=False, mode="a"
     )
-    layer_info = sorted([create_perturbated_layer(layer) for layer in complete_layer_parameters])
+    layer_info = sorted([create_perturbated_layer(*layer) for layer in complete_layer_parameters])
     #try:
         #with Pool(n_processes) as pool:
             # layer_info = sorted(
