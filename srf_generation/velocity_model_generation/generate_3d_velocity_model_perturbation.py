@@ -35,7 +35,7 @@ def create_perturbated_layer(
         f"sigma={sigma}",
         f"seed={seed}",
         f"perturbfile={layer_file.name}",
-        "usd_fftw=1",
+        "use_fftw=1",
     ]
     call(command, stderr=DEVNULL)
     return index, nz, layer_file.name
