@@ -148,78 +148,74 @@ def generate_velocity_model_perturbation_file_from_model(
     i = 0
 
     # Uses a temp dir in the current folder structure due to memory issues if using an actual temp directory
-    temp_dir = TemporaryDirectory(dir=Path(out_file).parent)
-    #temp_dir = Path(out_file).parent / "pertb_temp"
-    makedirs(temp_dir, exist_ok=True)
+    with TemporaryDirectory(dir=Path(out_file).parent) as temp_dir:
+        temp_dir_path = Path(temp_dir)
+        complete_layer_parameters = []
+        while current_depth < max_depth:
+            layer = perturbation_model.iloc[i]
+            layer_depth = layer["depth"]
+            if layer["depth"] + current_depth > max_depth:
+                layer_depth = max_depth - current_depth
+            nz = int(layer_depth / vm_params["hh"])
+            seed = randint(0, 2 ** 31 - 1)
 
-    complete_layer_parameters = []
-    while current_depth < max_depth:
-        layer = perturbation_model.iloc[i]
-        layer_depth = layer["depth"]
-        if layer["depth"] + current_depth > max_depth:
-            layer_depth = max_depth - current_depth
-        nz = int(layer_depth / vm_params["hh"])
-        seed = randint(0, 2 ** 31 - 1)
-
-        complete_layer_parameters.append(
-            (
-                i,
-                vm_params["nx"],
-                vm_params["ny"],
-                nz,
-                vm_params["hh"],
-                layer["h_corr"],
-                layer["v_corr"],
-                layer["sigma"],
-                seed,
-                temp_dir,
-            )
-        )
-
-        current_depth += layer_depth
-        i += 1
-
-    # Save config files for future use
-    pd.DataFrame.from_dict(
-        {
-            "nx": [vm_params["nx"]],
-            "ny": [vm_params["ny"]],
-            "grid_spacing": [vm_params["hh"]],
-        }
-    ).to_csv(f"{out_file}.csv", index=False, mode="w")
-    pd.DataFrame(
-        complete_layer_parameters,
-        columns=[
-            "index",
-            "nx",
-            "ny",
-            "hh",
-            "nz",
-            "h_corr",
-            "v_corr",
-            "sigma",
-            "seed",
-            "temp_dir",
-        ],
-    )[["nz", "h_corr", "v_corr", "sigma", "seed"]].to_csv(
-        f"{out_file}.csv", index=False, mode="a"
-    )
-    if n_processes == 1:
-        layer_info = sorted(
-            [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
-        )
-    else:
-        try:
-            with Pool(n_processes) as pool:
-                layer_info = sorted(
-                    pool.starmap(create_perturbated_layer, complete_layer_parameters)
+            complete_layer_parameters.append(
+                (
+                    i,
+                    vm_params["nx"],
+                    vm_params["ny"],
+                    nz,
+                    vm_params["hh"],
+                    layer["h_corr"],
+                    layer["v_corr"],
+                    layer["sigma"],
+                    seed,
+                    temp_dir_path,
                 )
-        except AssertionError:
-            print("Failed, try with n_proc=1")
-            raise
-    combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir)
-    # Comment out the following line to examine the intermediate files
-    rmtree(temp_dir)
+            )
+
+            current_depth += layer_depth
+            i += 1
+
+        # Save config files for future use
+        pd.DataFrame.from_dict(
+            {
+                "nx": [vm_params["nx"]],
+                "ny": [vm_params["ny"]],
+                "grid_spacing": [vm_params["hh"]],
+            }
+        ).to_csv(f"{out_file}.csv", index=False, mode="w")
+        pd.DataFrame(
+            complete_layer_parameters,
+            columns=[
+                "index",
+                "nx",
+                "ny",
+                "hh",
+                "nz",
+                "h_corr",
+                "v_corr",
+                "sigma",
+                "seed",
+                "temp_dir",
+            ],
+        )[["nz", "h_corr", "v_corr", "sigma", "seed"]].to_csv(
+            f"{out_file}.csv", index=False, mode="a"
+        )
+        if n_processes == 1:
+            layer_info = sorted(
+                [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
+            )
+        else:
+            try:
+                with Pool(n_processes) as pool:
+                    layer_info = sorted(
+                        pool.starmap(create_perturbated_layer, complete_layer_parameters)
+                    )
+            except AssertionError:
+                print("Failed, try with n_proc=1")
+                raise
+        combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir_path)
 
 
 if __name__ == "__main__":
