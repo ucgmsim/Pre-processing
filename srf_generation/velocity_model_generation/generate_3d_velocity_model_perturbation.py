@@ -206,18 +206,25 @@ def generate_velocity_model_perturbation_file_from_model(
         )
         if n_processes == 1:
             layer_info = sorted(
-                [create_perturbated_layer(*layer) for layer in complete_layer_parameters]
+                [
+                    create_perturbated_layer(*layer)
+                    for layer in complete_layer_parameters
+                ]
             )
         else:
             try:
                 with Pool(n_processes) as pool:
                     layer_info = sorted(
-                        pool.starmap(create_perturbated_layer, complete_layer_parameters)
+                        pool.starmap(
+                            create_perturbated_layer, complete_layer_parameters
+                        )
                     )
             except AssertionError:
                 print("Failed, try with n_proc=1")
                 raise
-        combine_layers(layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir_path)
+        combine_layers(
+            layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir_path
+        )
 
 
 if __name__ == "__main__":
