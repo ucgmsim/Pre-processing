@@ -45,7 +45,7 @@ def create_perturbated_layer(
         f"z_corlen={v_corr}",
         f"sigma={sigma}",
         f"seed={seed}",
-        f"perturbfile={layer_file.name}",
+        f"perturbfile={str(layer_file)}",
         "use_fftw=1",
     ]
     subprocess.call(command, stderr=DEVNULL)
