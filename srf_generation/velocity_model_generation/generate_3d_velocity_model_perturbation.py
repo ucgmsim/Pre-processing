@@ -48,6 +48,7 @@ def create_perturbated_layer(
         f"perturbfile={layer_file.name}",
         "use_fftw=1",
     ]
+    print(command)
     subprocess.call(command, stderr=DEVNULL)
     return index, nz, layer_file
 
@@ -67,6 +68,7 @@ def combine_layers(layers, nx, ny, out_file, temp_dir=Path(".").resolve()):
         f"filelist={filelist}",
         f"outfile={out_file}",
     ]
+    print(command)
     ret_code = subprocess.call(command, stderr=DEVNULL)
     if ret_code == 0:
         remove(filelist)
