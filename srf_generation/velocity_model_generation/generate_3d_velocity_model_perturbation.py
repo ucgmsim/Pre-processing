@@ -1,4 +1,5 @@
 import argparse
+from tempfile import TemporaryDirectory
 from multiprocessing.pool import Pool
 from pathlib import Path
 from os import remove, makedirs
@@ -147,7 +148,8 @@ def generate_velocity_model_perturbation_file_from_model(
     i = 0
 
     # Uses a temp dir in the current folder structure due to memory issues if using an actual temp directory
-    temp_dir = Path(out_file).parent / "pertb_temp"
+    temp_dir = TemporaryDirectory(dir=Path(out_file).parent)
+    #temp_dir = Path(out_file).parent / "pertb_temp"
     makedirs(temp_dir, exist_ok=True)
 
     complete_layer_parameters = []
