@@ -12,7 +12,7 @@ import subprocess
 
 from qcore.binary_version import get_unversioned_bin
 
-DEVNULL = subprocess.DEVNULL
+DEBUG_OUTPUT_LOCATION = subprocess.DEVNULL
 
 FRACTAL3D_BIN = get_unversioned_bin("fractal3D")
 LAYER_COMBINE_BIN = get_unversioned_bin("combine_pertb")
@@ -20,6 +20,7 @@ LAYER_COMBINE_BIN = get_unversioned_bin("combine_pertb")
 PERTURBATION_COMMON_COLUMNS = ["nx", "ny", "grid_spacing"]
 PERTURBATION_LAYER_COLUMNS = ["nz", "h_corr", "v_corr" "sigma", "seed"]
 
+LAYER_GENERATION_ERROR_TEXT = "The process failed at the layer generation, try with n_proc=1"
 
 def create_perturbated_layer(
     index,
@@ -49,7 +50,7 @@ def create_perturbated_layer(
         "use_fftw=1",
     ]
     print(command)
-    subprocess.call(command, stderr=DEVNULL)
+    subprocess.call(command, stderr=DEBUG_OUTPUT_LOCATION)
     return index, nz, layer_file
 
 
@@ -69,13 +70,14 @@ def combine_layers(layers, nx, ny, out_file, temp_dir=Path(".").resolve()):
         f"outfile={out_file}",
     ]
     print(command)
-    ret_code = subprocess.call(command, stderr=DEVNULL)
+    ret_code = subprocess.call(command, stderr=DEBUG_OUTPUT_LOCATION)
     if ret_code == 0:
         remove(filelist)
     else:
         print(
             f"Non zero return code returned by layer combiner. Error code: {ret_code}"
         )
+        raise AssertionError("ERROR Layer Combiner error code was non-zero. (See stdout for more information)")
 
 
 def load_parameter_file(parameter_file):
@@ -127,7 +129,7 @@ def generate_velocity_model_perturbation_file_from_config(
             with Pool(n_processes) as pool:
                 layer_info = sorted(pool.starmap(kwarg_map, complete_layer_parameters))
         except AssertionError:
-            print("Failed, try with n_proc=1")
+            print("The process failed at the layer generation, try with n_proc=1")
             raise
     combine_layers(layer_info, common_params["nx"], common_params["ny"], out_file)
     for _, _, file in layer_info:
@@ -136,8 +138,8 @@ def generate_velocity_model_perturbation_file_from_config(
 
 def set_verbose(verbose):
     if verbose:
-        global DEVNULL
-        DEVNULL = None
+        global DEBUG_OUTPUT_LOCATION
+        DEBUG_OUTPUT_LOCATION = None
 
 
 def generate_velocity_model_perturbation_file_from_model(
@@ -220,7 +222,7 @@ def generate_velocity_model_perturbation_file_from_model(
                         )
                     )
             except AssertionError:
-                print("Failed, try with n_proc=1")
+            print(LAYER_GENERATION_ERROR_TEXT)
                 raise
         combine_layers(
             layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir_path
