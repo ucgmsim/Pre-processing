@@ -20,7 +20,10 @@ LAYER_COMBINE_BIN = get_unversioned_bin("combine_pertb")
 PERTURBATION_COMMON_COLUMNS = ["nx", "ny", "grid_spacing"]
 PERTURBATION_LAYER_COLUMNS = ["nz", "h_corr", "v_corr" "sigma", "seed"]
 
-LAYER_GENERATION_ERROR_TEXT = "The process failed at the layer generation, try with n_proc=1"
+LAYER_GENERATION_ERROR_TEXT = (
+    "The process failed at the layer generation, try with n_proc=1"
+)
+
 
 def create_perturbated_layer(
     index,
@@ -77,7 +80,9 @@ def combine_layers(layers, nx, ny, out_file, temp_dir=Path(".").resolve()):
         print(
             f"Non zero return code returned by layer combiner. Error code: {ret_code}"
         )
-        raise AssertionError("ERROR Layer Combiner error code was non-zero. (See stdout for more information)")
+        raise AssertionError(
+            "ERROR Layer Combiner error code was non-zero. (See stdout for more information)"
+        )
 
 
 def load_parameter_file(parameter_file):
@@ -222,7 +227,7 @@ def generate_velocity_model_perturbation_file_from_model(
                         )
                     )
             except AssertionError:
-            print(LAYER_GENERATION_ERROR_TEXT)
+                print(LAYER_GENERATION_ERROR_TEXT)
                 raise
         combine_layers(
             layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir_path
