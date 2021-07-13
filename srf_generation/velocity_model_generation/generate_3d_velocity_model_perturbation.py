@@ -200,8 +200,8 @@ def generate_velocity_model_perturbation_file_from_model(
                 "index",
                 "nx",
                 "ny",
-                "hh",
                 "nz",
+                "hh",
                 "h_corr",
                 "v_corr",
                 "sigma",
@@ -230,7 +230,7 @@ def generate_velocity_model_perturbation_file_from_model(
                 print(LAYER_GENERATION_ERROR_TEXT)
                 raise
         combine_layers(
-            layer_info, vm_params["nx"], vm_params["nz"], out_file, temp_dir_path
+            layer_info, vm_params["nx"], vm_params["ny"], out_file, temp_dir_path
         )
 
 
