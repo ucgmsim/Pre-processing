@@ -60,15 +60,9 @@ def load_args():
     parser = argparse.ArgumentParser(allow_abbrev=False)
 
     parser.add_argument(
-        "cybershake_root",
-        type=abspath,
-        help="Path to the simulation root directory.",
+        "cybershake_root", type=abspath, help="Path to the simulation root directory."
     )
-    parser.add_argument(
-        "fsf",
-        type=abspath,
-        help="Path to the fault selection file.",
-    )
+    parser.add_argument("fsf", type=abspath, help="Path to the fault selection file.")
 
     parser.add_argument(
         "-n",

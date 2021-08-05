@@ -91,13 +91,7 @@ def plot_vm(
 
     if corner_file.exists():
         logger.debug("Getting corners from VeloModCorners.txt")
-        p.points(
-            corner_file,
-            fill="red",
-            line=None,
-            shape="c",
-            size=0.05,
-        )
+        p.points(corner_file, fill="red", line=None, shape="c", size=0.05)
     else:
         logger.debug("VeloModCorners.txt doesn't exist, deriving corners from path mod")
         p.points(
@@ -209,10 +203,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     arg("name", help="Name of the fault")
 
-    arg(
-        "vm_params_path",
-        help="path to vm_params.yaml",
-    )
+    arg("vm_params_path", help="path to vm_params.yaml")
 
     arg(
         "-o",
