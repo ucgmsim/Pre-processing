@@ -30,9 +30,7 @@ def load_args():
         help="Path to the model to use. Must be in standard VM file binary format. Must have the same dimensions as the current Eberhart-Phillips model.",
     )
     parser.add_argument(
-        "outfile_path",
-        type=abspath,
-        help="Path to the output Q files without suffix.",
+        "outfile_path", type=abspath, help="Path to the output Q files without suffix."
     )
 
     parser.add_argument(
