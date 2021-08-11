@@ -86,6 +86,7 @@ SRFGEN_TYPE_2_PARAMS = [
     "rt_scalefac",
     "rt_rand",
     "stype",
+    "dbottom",
 ]
 
 SRFGEN_TYPE_3_PARAMS = [
