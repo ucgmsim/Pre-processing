@@ -316,7 +316,7 @@ def main():
 
     if args.aggregate_file is not None:
         ordered_rels = [
-            get_realisation_name(pid, i + 1) for pid in pids for i in faults[pid]
+            get_realisation_name(pid, i + 1) for pid in pids for i in range(faults[pid])
         ]
 
         agg = pd.read_csv(args.aggregate_file)
