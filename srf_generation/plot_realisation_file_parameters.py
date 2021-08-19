@@ -220,9 +220,7 @@ def plot_area_mag(
 
 
 def plot_area_nhm(
-    median_faults: Dict[str, pd.DataFrame],
-    nhm_file: Dict[str, NHMFault],
-    out_dir: str,
+    median_faults: Dict[str, pd.DataFrame], nhm_file: Dict[str, NHMFault], out_dir: str
 ):
     srf_area = []
     fault_name = []
@@ -354,11 +352,7 @@ def plot_mag_nrup(
     )
 
 
-def plot_dbottom(
-    info_files: List[str],
-    nhm_data: Dict[str, NHMFault],
-    out_dir: str,
-):
+def plot_dbottom(info_files: List[str], nhm_data: Dict[str, NHMFault], out_dir: str):
 
     srf_depths = []
     fault_names = []
@@ -641,7 +635,7 @@ def plot_hypo_dist(
     n_y = norm.cdf(n_x, 0.5, 0.25)
     n_call = lambda x: norm.cdf(x, 0.5, 0.25)
     # weibull distribution
-    w_x = np.random.weibull(3.353, size=100000) * 0.612
+    w_x = np.random.weibull(3.353, size=100_000) * 0.612
     w_x.sort()
     w_x = np.asarray(w_x)[(0 <= np.asarray(w_x)) * (np.asarray(w_x) <= 1)]
     w_y = np.arange(w_x.size) / (w_x.size - 1.0)
@@ -770,10 +764,7 @@ def plot_hypo_dist(
             d.write("%s %s %s %s\n" % (names[i], p_s[i], p_d[i], mw[i]))
 
 
-def plot_srf_error(
-    info_files: List[str],
-    out_dir: str,
-):
+def plot_srf_error(info_files: List[str], out_dir: str):
     # strike and dip error assuming 0.1km subfault spacing
     error_s = []
     error_d = []
@@ -925,7 +916,7 @@ def plot_size_mag(vm_dirs, out_dir):
     sizes = []
     magnitudes = []
     for d in vm_dirs:
-        sizes.append(os.stat(os.path.join(d, "vs3dfile.s")).st_size / 1000000.0)
+        sizes.append(os.stat(os.path.join(d, "vs3dfile.s")).st_size / 1_000_000.0)
         with open(os.path.join(d, VM_PARAMS_FILE_NAME), "r") as jo:
             magnitudes.append(yaml.load(jo)["mag"])
 

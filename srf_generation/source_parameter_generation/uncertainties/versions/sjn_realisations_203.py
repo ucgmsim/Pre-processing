@@ -53,10 +53,7 @@ def generate_from_gcmt(source_data: GCMT_Source):
     mag = distributions.truncated_normal(source_data.mag, 0.075, 2)  # magnitude
     # rvfrac = uniform_dist(0.8, 0.075)                   #rupture velocity factor
     lat_temp, lon_temp = geo.ll_shift(
-        source_data.lat,
-        source_data.lon,
-        distributions.truncated_normal(0.0, 1.0, 2),
-        0,
+        source_data.lat, source_data.lon, distributions.truncated_normal(0.0, 1.0, 2), 0
     )
     lat, lon = geo.ll_shift(
         lat_temp, lon_temp, distributions.truncated_normal(0.0, 1.0, 2), 90

@@ -108,10 +108,7 @@ def calculate_damage(
     elif distance_ratio <= 1 and depth_ratio <= 0:
         ratio = min_damage_velocity + distance_ratio * (1 - min_damage_velocity)
     elif distance_ratio <= 1 and depth_ratio <= 1:
-        scale_ratio = max(
-            depth_ratio,
-            distance_ratio,
-        )
+        scale_ratio = max(depth_ratio, distance_ratio)
         ratio = min_damage_velocity + scale_ratio * (1 - min_damage_velocity)
     if ratio is not None:
         return i, j, k, ratio
