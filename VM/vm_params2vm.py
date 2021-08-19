@@ -26,7 +26,7 @@ from tempfile import TemporaryDirectory
 import yaml
 
 from qcore import qclogging
-from qcore.validate_vm import validate_vm
+from qcore.validate_vm import validate_vm_files
 
 from gen_coords import gen_coords
 
@@ -94,7 +94,7 @@ def gen_vm(
     gen_coords(vm_dir=outdir)
     # validate
     logger.debug("Validating vm")
-    success, message = validate_vm(outdir)
+    success, message = validate_vm_files(outdir)
     if success:
         vm_check_str = f"VM check passed: {outdir}"
         logger.debug(vm_check_str)
