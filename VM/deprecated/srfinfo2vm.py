@@ -30,7 +30,7 @@ import numpy as np
 from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
 from qcore.utils import dump_yaml
-from qcore.validate_vm import validate_vm
+from qcore.validate_vm import validate_vm_files
 
 from empirical.util.classdef import GMM, Site, Fault
 from empirical.util.empirical_factory import compute_gmm
@@ -652,7 +652,7 @@ def gen_vm(
     gen_coords(vm_dir=out_vm_dir)
     # validate
     logger.debug("Validating vm")
-    success, message = validate_vm(out_vm_dir)
+    success, message = validate_vm_files(out_vm_dir)
     if success:
         vm_check_str = f"VM check passed: {vm_working_dir}"
         logger.debug(vm_check_str)
