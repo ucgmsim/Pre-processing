@@ -226,7 +226,7 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
         "-o",
         "--outdir",
         help="output directory to place VM files "
-        "(if not specified, the same path as rel_file is used",
+        "(if not specified, the directory containing vm_params.yaml is used",
         default=None,
     )
 
