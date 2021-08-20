@@ -1074,7 +1074,7 @@ def load_args():
     )
     arg(
         "--target-land-coverage",
-        help="Land coverage level (%) that triggers optimisation if not met (Default: 99.0)",
+        help="Land coverage level (%%) that triggers optimisation if not met (Default: 99.0)",
         type=float,
         default=None,
     )
