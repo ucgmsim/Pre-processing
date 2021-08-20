@@ -28,6 +28,7 @@ from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
 from qcore.utils import dump_yaml
 from qcore.simulation_structure import get_fault_from_realisation
+from qcore.validate_vm import validate_vm_bounds
 
 from empirical.util.classdef import GMM, Site, Fault
 from empirical.util.empirical_factory import compute_gmm
@@ -745,6 +746,11 @@ def optimise_vm_params(
         )
         success = False
 
+    bounds_valid = validate_vm_bounds([c1, c2, c3, c4], srf_meta["corners"].tolist())
+    if not bounds_valid:
+        logger.warning(f"Bounds not valid, not making VM: {bounds_valid}")
+        success = False
+
     # modified sim time
     vm_corners = np.asarray([c1, c2, c3, c4])
     initial_time = get_sim_duration(
@@ -835,7 +841,6 @@ def main(
             logger, outdir / f"rel2vm_params_{srf_meta['name']}_log.txt"
         )
         vm_params_path = outdir / "vm_params.yaml"
-        vm_working_dir = "output"
 
         success, vm_params_dict_extended = optimise_vm_params(
             srf_meta,
