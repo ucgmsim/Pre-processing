@@ -746,9 +746,9 @@ def optimise_vm_params(
         )
         success = False
 
-    bounds_valid = validate_vm_bounds([c1, c2, c3, c4], srf_meta["corners"].tolist())
-    if not bounds_valid:
-        logger.warning(f"Bounds not valid, not making VM: {bounds_valid}")
+    bounds_invalid = validate_vm_bounds([c1, c2, c3, c4], srf_meta["corners"].tolist())
+    if bounds_invalid:
+        logger.warning(f"Bounds not valid, not making VM: {bounds_invalid}")
         success = False
 
     # modified sim time
