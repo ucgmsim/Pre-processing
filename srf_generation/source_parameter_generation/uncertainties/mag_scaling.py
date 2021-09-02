@@ -53,16 +53,25 @@ def get_area(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
         farea = mw_to_a_allen_2017_slab(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
+    ):
         farea = mw_to_a_allen_2017_linear_interface(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
+    ):
         farea = mw_to_a_allen_2017_bilinear_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
         farea = mw_to_a_strasser_2010_slab(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010INTERFACE:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.STRASSER2010INTERFACE
+    ):
         farea = mw_to_a_strasser_2010_interface(fault.magnitude)
 
     else:
@@ -104,16 +113,25 @@ def get_width(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
         fwidth = mw_to_w_allen_2017_slab(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
+    ):
         fwidth = mw_to_w_allen_2017_linear_interface(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
+    ):
         fwidth = mw_to_w_allen_2017_bilinear_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
         fwidth = mw_to_w_strasser_2010_slab(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010INTERFACE:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.STRASSER2010INTERFACE
+    ):
         fwidth = mw_to_w_strasser_2010_interface(fault.magnitude)
 
     else:
@@ -153,16 +171,25 @@ def get_length(fault: "Fault"):
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
         flength = mw_to_l_allen_2017_slab(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
+    ):
         flength = mw_to_l_allen_2017_linear_interface(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
+    ):
         flength = mw_to_l_allen_2017_bilinear_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
         flength = mw_to_l_strasser_2010_slab(fault.magnitude)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010INTERFACE:
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.STRASSER2010INTERFACE
+    ):
         flength = mw_to_l_strasser_2010_interface(fault.magnitude)
 
     else:
