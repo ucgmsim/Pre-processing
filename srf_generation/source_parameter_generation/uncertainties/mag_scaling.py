@@ -42,13 +42,13 @@ def get_area(fault: "Fault"):
         farea = mw_to_a_skarlatoudis(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.THINGBAIJAM2017:
-        farea = mw_to_a_thingbaijam(fault.magnitude)
+        farea = mw_to_a_thingbaijam_2017(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BLASER2010:
-        farea = mw_to_a_blaser(fault.magnitude)
+        farea = mw_to_a_blaser_2010(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        farea = mw_to_a_murotani(fault.magnitude)
+        farea = mw_to_a_murotani_2013(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
         farea = mw_to_a_allen_2017_slab(fault.magnitude)
@@ -93,13 +93,13 @@ def get_width(fault: "Fault"):
         fwidth = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.THINGBAIJAM2017:
-        fwidth = np.sqrt(mw_to_a_thingbaijam(fault.magnitude))
+        fwidth = np.sqrt(mw_to_a_thingbaijam_2017(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BLASER2010:
-        fwidth = np.sqrt(mw_to_a_blaser(fault.magnitude))
+        fwidth = np.sqrt(mw_to_a_blaser_2010(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        fwidth = np.sqrt(mw_to_a_murotani(fault.magnitude))
+        fwidth = np.sqrt(mw_to_a_murotani_2013(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
         fwidth = mw_to_w_allen_2017_slab(fault.magnitude)
@@ -142,13 +142,13 @@ def get_length(fault: "Fault"):
         flength = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.THINGBAIJAM2017:
-        flength = np.sqrt(mw_to_a_thingbaijam(fault.magnitude))
+        flength = np.sqrt(mw_to_a_thingbaijam_2017(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BLASER2010:
-        flength = np.sqrt(mw_to_a_blaser(fault.magnitude))
+        flength = np.sqrt(mw_to_a_blaser_2010(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        flength = np.sqrt(mw_to_a_murotani(fault.magnitude))
+        flength = np.sqrt(mw_to_a_murotani_2013(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
         flength = mw_to_l_allen_2017_slab(fault.magnitude)
@@ -399,15 +399,15 @@ def lw_to_mw_stirling(l, w):
     return 4.18 + (2.0 / 3.0) * np.log10(w) + (4.0 / 3.0) * np.log10(l)
 
 
-def mw_to_a_thingbaijam(mw):
+def mw_to_a_thingbaijam_2017(mw):
     return np.power(10, 0.949 * mw - 3.292)
 
 
-def mw_to_a_blaser(mw):
+def mw_to_a_blaser_2010(mw):
     return np.power(10, 0.62 * mw - 2.81) * np.power(10, 0.45 * mw - 1.79)
 
 
-def mw_to_a_murotani(mw):
+def mw_to_a_murotani_2013(mw):
     return 1.34 * np.power(10, -10) * np.power(mw, 2 / 3)
 
 
