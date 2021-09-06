@@ -26,211 +26,6 @@ class MagnitudeScalingRelations(Enum):
     STRASSER2010INTERFACE = "STRASSER2010INTERFACE"
 
 
-def get_area(fault: "Fault"):
-    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
-        farea = mw_to_a_hanksbakun(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
-        farea = mw_to_a_berrymanetal(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
-        farea = mw_to_a_villamoretal(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
-        farea = mw_to_a_leonard(fault.magnitude, fault.rake)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
-        farea = mw_to_a_skarlatoudis(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.THINGBAIJAM2017:
-        farea = mw_to_a_thingbaijam_2017(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BLASER2010:
-        farea = mw_to_a_blaser_2010(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        farea = mom_to_a_murotani_2013(fault.moment)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
-        farea = allen_2017.mw_to_a_allen_2017_slab(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
-    ):
-        farea = allen_2017.mw_to_a_allen_2017_linear_interface(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
-    ):
-        farea = allen_2017.mw_to_a_allen_2017_bilinear_interface(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
-        farea = strasser_2010.mw_to_a_strasser_2010_slab(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.STRASSER2010INTERFACE
-    ):
-        farea = strasser_2010.mw_to_a_strasser_2010_interface(fault.magnitude)
-
-    else:
-        raise ValueError(
-            "Invalid mw_scaling_rel: {}. Exiting.".format(
-                fault.magnitude_scaling_relation
-            )
-        )
-
-    # Area
-    return farea
-
-
-def get_width(fault: "Fault"):
-    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
-        fwidth = np.sqrt(mw_to_a_hanksbakun(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
-        fwidth = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
-        fwidth = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
-        fwidth = mw_to_w_leonard(fault.magnitude, fault.rake)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
-        fwidth = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.THINGBAIJAM2017:
-        fwidth = np.sqrt(mw_to_a_thingbaijam_2017(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BLASER2010:
-        fwidth = np.sqrt(mw_to_a_blaser_2010(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        fwidth = np.sqrt(mom_to_a_murotani_2013(fault.moment))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
-        fwidth = allen_2017.mw_to_w_allen_2017_slab(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
-    ):
-        fwidth = allen_2017.mw_to_w_allen_2017_linear_interface(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
-    ):
-        fwidth = allen_2017.mw_to_w_allen_2017_bilinear_interface(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
-        fwidth = strasser_2010.mw_to_w_strasser_2010_slab(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.STRASSER2010INTERFACE
-    ):
-        fwidth = strasser_2010.mw_to_w_strasser_2010_interface(fault.magnitude)
-
-    else:
-        raise ValueError(
-            "Invalid mw_scaling_rel: {}. Exiting.".format(
-                fault.magnitude_scaling_relation
-            )
-        )
-    return fwidth
-
-
-def get_length(fault: "Fault"):
-    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.HANKSBAKUN2002:
-        flength = np.sqrt(mw_to_a_hanksbakun(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BERRYMANETAL2002:
-        flength = np.sqrt(mw_to_a_berrymanetal(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.VILLAMORETAL2001:
-        flength = np.sqrt(mw_to_a_villamoretal(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
-        flength = mw_to_l_leonard(fault.magnitude, fault.rake)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.SKARLATOUDIS2016:
-        flength = np.sqrt(mw_to_a_skarlatoudis(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.THINGBAIJAM2017:
-        flength = np.sqrt(mw_to_a_thingbaijam_2017(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.BLASER2010:
-        flength = np.sqrt(mw_to_a_blaser_2010(fault.magnitude))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        flength = np.sqrt(mom_to_a_murotani_2013(fault.moment))
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
-        flength = allen_2017.mw_to_l_allen_2017_slab(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
-    ):
-        flength = allen_2017.mw_to_l_allen_2017_linear_interface(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
-    ):
-        flength = allen_2017.mw_to_l_allen_2017_bilinear_interface(fault.magnitude)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
-        flength = strasser_2010.mw_to_l_strasser_2010_slab(fault.magnitude)
-
-    elif (
-        fault.magnitude_scaling_relation
-        == MagnitudeScalingRelations.STRASSER2010INTERFACE
-    ):
-        flength = strasser_2010.mw_to_l_strasser_2010_interface(fault.magnitude)
-
-    else:
-        raise ValueError(
-            "Invalid mw_scaling_rel: {}. Exiting.".format(
-                fault.magnitude_scaling_relation
-            )
-        )
-    return flength
-
-
-def mw_to_lw_scaling_relation(
-    mw: float,
-    mw_scaling_rel: MagnitudeScalingRelations,
-    rake: Union[None, float] = None,
-):
-    """
-    Return the fault Area from the mw and a mw Scaling relation.
-    """
-    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
-        l = w = np.sqrt(mw_to_a_hanksbakun(mw))
-
-    elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
-        l = w = np.sqrt(mw_to_a_berrymanetal(mw))
-
-    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
-        l = w = np.sqrt(mw_to_a_villamoretal(mw))
-
-    elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
-        l, w = mw_to_lw_leonard(mw, rake)
-
-    elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
-        l = w = np.sqrt(mw_to_a_skarlatoudis(mw))
-
-    else:
-        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
-
-    # Area
-    return l, w
-
 
 def mw_to_a_hanksbakun(mw):
     if mw > 6.71:
@@ -469,3 +264,164 @@ def round_subfault_size(dist, mag):
         return round(dist * 2) / 2
     else:
         return round(dist * 10) / 10
+
+
+magnitude_only_scaling_relations = {
+    MagnitudeScalingRelations.HANKSBAKUN2002: mw_to_a_hanksbakun,
+    MagnitudeScalingRelations.BERRYMANETAL2002: mw_to_a_berrymanetal,
+    MagnitudeScalingRelations.VILLAMORETAL2001: mw_to_a_villamoretal,
+    MagnitudeScalingRelations.SKARLATOUDIS2016: mw_to_a_skarlatoudis,
+    MagnitudeScalingRelations.THINGBAIJAM2017: mw_to_a_thingbaijam_2017,
+    MagnitudeScalingRelations.BLASER2010: mw_to_a_blaser_2010,
+    MagnitudeScalingRelations.ALLEN2017SLAB: allen_2017.mw_to_a_allen_2017_slab,
+    MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR: allen_2017.mw_to_a_allen_2017_linear_interface,
+    MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR: allen_2017.mw_to_a_allen_2017_bilinear_interface,
+    MagnitudeScalingRelations.STRASSER2010SLAB: strasser_2010.mw_to_a_strasser_2010_slab,
+    MagnitudeScalingRelations.STRASSER2010INTERFACE: strasser_2010.mw_to_a_strasser_2010_interface,
+}
+
+
+def get_area(fault: "Fault"):
+    if fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
+        farea = magnitude_only_scaling_relations[fault.magnitude_scaling_relation](fault.magnitude)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
+        farea = mw_to_a_leonard(fault.magnitude, fault.rake)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
+        farea = mom_to_a_murotani_2013(fault.moment)
+
+    else:
+        raise ValueError(
+            "Invalid mw_scaling_rel: {}. Exiting.".format(
+                fault.magnitude_scaling_relation
+            )
+        )
+
+    # Area
+    return farea
+
+
+def get_width(fault: "Fault"):
+    """
+    Get the expected width of the given fault.
+    If model doesn't have a specific width formula the square root of the total area is returned.
+    :param fault: Fault object with mangitude, moment and rake attributes, depending on which model is to be used
+    :return: the width of the fault in km
+    """
+    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
+        fwidth = mw_to_w_leonard(fault.magnitude, fault.rake)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
+        fwidth = np.sqrt(mom_to_a_murotani_2013(fault.moment))
+
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
+    ):
+        fwidth = allen_2017.mw_to_w_allen_2017_linear_interface(fault.magnitude)
+
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
+    ):
+        fwidth = allen_2017.mw_to_w_allen_2017_bilinear_interface(fault.magnitude)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
+        fwidth = strasser_2010.mw_to_w_strasser_2010_slab(fault.magnitude)
+
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.STRASSER2010INTERFACE
+    ):
+        fwidth = strasser_2010.mw_to_w_strasser_2010_interface(fault.magnitude)
+
+    elif fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
+        fwidth = np.sqrt(magnitude_only_scaling_relations[fault.magnitude_scaling_relation](fault.magnitude))
+
+    else:
+        raise ValueError(
+            "Invalid mw_scaling_rel: {}. Exiting.".format(
+                fault.magnitude_scaling_relation
+            )
+        )
+    return fwidth
+
+
+def get_length(fault: "Fault"):
+    """
+    Get the expected length of the given fault.
+    If model doesn't have a specific length formula the square root of the total area is returned.
+    :param fault: Fault object with mangitude, moment and rake attributes, depending on which model is to be used
+    :return: the length of the fault in km
+    """
+    if fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
+        flength = mw_to_l_leonard(fault.magnitude, fault.rake)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
+        flength = np.sqrt(mom_to_a_murotani_2013(fault.moment))
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
+        flength = allen_2017.mw_to_l_allen_2017_slab(fault.magnitude)
+
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
+    ):
+        flength = allen_2017.mw_to_l_allen_2017_linear_interface(fault.magnitude)
+
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
+    ):
+        flength = allen_2017.mw_to_l_allen_2017_bilinear_interface(fault.magnitude)
+
+    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
+        flength = strasser_2010.mw_to_l_strasser_2010_slab(fault.magnitude)
+
+    elif (
+        fault.magnitude_scaling_relation
+        == MagnitudeScalingRelations.STRASSER2010INTERFACE
+    ):
+        flength = strasser_2010.mw_to_l_strasser_2010_interface(fault.magnitude)
+
+    elif fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
+        flength = np.sqrt(magnitude_only_scaling_relations[fault.magnitude_scaling_relation](fault.magnitude))
+
+    else:
+        raise ValueError(
+            "Invalid mw_scaling_rel: {}. Exiting.".format(
+                fault.magnitude_scaling_relation
+            )
+        )
+    return flength
+
+
+def mw_to_lw_scaling_relation(
+    mw: float,
+    mw_scaling_rel: MagnitudeScalingRelations,
+    rake: Union[None, float] = None,
+):
+    """
+    Return the fault Area from the mw and a mw Scaling relation.
+    """
+    if mw_scaling_rel == MagnitudeScalingRelations.HANKSBAKUN2002:
+        l = w = np.sqrt(mw_to_a_hanksbakun(mw))
+
+    elif mw_scaling_rel == MagnitudeScalingRelations.BERRYMANETAL2002:
+        l = w = np.sqrt(mw_to_a_berrymanetal(mw))
+
+    elif mw_scaling_rel == MagnitudeScalingRelations.VILLAMORETAL2001:
+        l = w = np.sqrt(mw_to_a_villamoretal(mw))
+
+    elif mw_scaling_rel == MagnitudeScalingRelations.LEONARD2014:
+        l, w = mw_to_lw_leonard(mw, rake)
+
+    elif mw_scaling_rel == MagnitudeScalingRelations.SKARLATOUDIS2016:
+        l = w = np.sqrt(mw_to_a_skarlatoudis(mw))
+
+    else:
+        raise ValueError("Invalid mw_scaling_rel: {}. Exiting.".format(mw_scaling_rel))
+
+    # Area
+    return l, w
