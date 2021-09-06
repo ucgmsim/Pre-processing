@@ -12,7 +12,7 @@ from srf_generation.source_parameter_generation.uncertainties.mag_scaling import
     get_width,
     mag2mom,
     round_subfault_size,
-    lw_2_mw_scaling_relation,
+    lw_to_mw_scaling_relation,
 )
 
 LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
@@ -586,7 +586,7 @@ class Type4(MultiPlaneFault):
             ]
         )
 
-        self._mag = lw_2_mw_scaling_relation(
+        self._mag = lw_to_mw_scaling_relation(
             length, dummy_plane.width, self.mwsr, nhm_data.rake
         )
 
