@@ -26,7 +26,6 @@ class MagnitudeScalingRelations(Enum):
     STRASSER2010INTERFACE = "STRASSER2010INTERFACE"
 
 
-
 def mw_to_a_hanksbakun(mw):
     if mw > 6.71:
         raise ValueError("Cannot use HanksAndBakun2002 equation for mw > 6.71")
@@ -283,7 +282,9 @@ magnitude_only_scaling_relations = {
 
 def get_area(fault: "Fault"):
     if fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
-        farea = magnitude_only_scaling_relations[fault.magnitude_scaling_relation](fault.magnitude)
+        farea = magnitude_only_scaling_relations[fault.magnitude_scaling_relation](
+            fault.magnitude
+        )
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         farea = mw_to_a_leonard(fault.magnitude, fault.rake)
@@ -337,7 +338,11 @@ def get_width(fault: "Fault"):
         fwidth = strasser_2010.mw_to_w_strasser_2010_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
-        fwidth = np.sqrt(magnitude_only_scaling_relations[fault.magnitude_scaling_relation](fault.magnitude))
+        fwidth = np.sqrt(
+            magnitude_only_scaling_relations[fault.magnitude_scaling_relation](
+                fault.magnitude
+            )
+        )
 
     else:
         raise ValueError(
@@ -386,7 +391,11 @@ def get_length(fault: "Fault"):
         flength = strasser_2010.mw_to_l_strasser_2010_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
-        flength = np.sqrt(magnitude_only_scaling_relations[fault.magnitude_scaling_relation](fault.magnitude))
+        flength = np.sqrt(
+            magnitude_only_scaling_relations[fault.magnitude_scaling_relation](
+                fault.magnitude
+            )
+        )
 
     else:
         raise ValueError(
