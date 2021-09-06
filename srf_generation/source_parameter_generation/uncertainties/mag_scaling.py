@@ -313,9 +313,6 @@ def get_width(fault: "Fault"):
     if fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         fwidth = mw_to_w_leonard(fault.magnitude, fault.rake)
 
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        fwidth = np.sqrt(mom_to_a_murotani_2013(fault.moment))
-
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
@@ -338,11 +335,7 @@ def get_width(fault: "Fault"):
         fwidth = strasser_2010.mw_to_w_strasser_2010_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
-        fwidth = np.sqrt(
-            magnitude_only_scaling_relations[fault.magnitude_scaling_relation](
-                fault.magnitude
-            )
-        )
+        fwidth = np.sqrt(get_area(fault))
 
     else:
         raise ValueError(
@@ -362,9 +355,6 @@ def get_length(fault: "Fault"):
     """
     if fault.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014:
         flength = mw_to_l_leonard(fault.magnitude, fault.rake)
-
-    elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        flength = np.sqrt(mom_to_a_murotani_2013(fault.moment))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
         flength = allen_2017.mw_to_l_allen_2017_slab(fault.magnitude)
@@ -391,11 +381,7 @@ def get_length(fault: "Fault"):
         flength = strasser_2010.mw_to_l_strasser_2010_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation in magnitude_only_scaling_relations.keys():
-        flength = np.sqrt(
-            magnitude_only_scaling_relations[fault.magnitude_scaling_relation](
-                fault.magnitude
-            )
-        )
+        flength = np.sqrt(get_area(fault))
 
     else:
         raise ValueError(
