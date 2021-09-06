@@ -1,8 +1,9 @@
 from enum import Enum
 from typing import Union
 
-from magnitude_scaling.allen_2017 import *
-from magnitude_scaling.strasser_2010 import *
+import numpy as np
+
+from .magnitude_scaling import allen_2017, strasser_2010
 
 
 MAGNITUDE_ROUNDING_THRESHOLD = 7.5
@@ -48,31 +49,31 @@ def get_area(fault: "Fault"):
         farea = mw_to_a_blaser_2010(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        farea = mw_to_a_murotani_2013(fault.magnitude)
+        farea = mw_to_a_murotani_2013(fault.moment)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
-        farea = mw_to_a_allen_2017_slab(fault.magnitude)
+        farea = allen_2017.mw_to_a_allen_2017_slab(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
     ):
-        farea = mw_to_a_allen_2017_linear_interface(fault.magnitude)
+        farea = allen_2017.mw_to_a_allen_2017_linear_interface(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
     ):
-        farea = mw_to_a_allen_2017_bilinear_interface(fault.magnitude)
+        farea = allen_2017.mw_to_a_allen_2017_bilinear_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
-        farea = mw_to_a_strasser_2010_slab(fault.magnitude)
+        farea = strasser_2010.mw_to_a_strasser_2010_slab(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.STRASSER2010INTERFACE
     ):
-        farea = mw_to_a_strasser_2010_interface(fault.magnitude)
+        farea = strasser_2010.mw_to_a_strasser_2010_interface(fault.magnitude)
 
     else:
         raise ValueError(
@@ -108,31 +109,31 @@ def get_width(fault: "Fault"):
         fwidth = np.sqrt(mw_to_a_blaser_2010(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        fwidth = np.sqrt(mw_to_a_murotani_2013(fault.magnitude))
+        fwidth = np.sqrt(mw_to_a_murotani_2013(fault.moment))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
-        fwidth = mw_to_w_allen_2017_slab(fault.magnitude)
+        fwidth = allen_2017.mw_to_w_allen_2017_slab(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
     ):
-        fwidth = mw_to_w_allen_2017_linear_interface(fault.magnitude)
+        fwidth = allen_2017.mw_to_w_allen_2017_linear_interface(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
     ):
-        fwidth = mw_to_w_allen_2017_bilinear_interface(fault.magnitude)
+        fwidth = allen_2017.mw_to_w_allen_2017_bilinear_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
-        fwidth = mw_to_w_strasser_2010_slab(fault.magnitude)
+        fwidth = strasser_2010.mw_to_w_strasser_2010_slab(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.STRASSER2010INTERFACE
     ):
-        fwidth = mw_to_w_strasser_2010_interface(fault.magnitude)
+        fwidth = strasser_2010.mw_to_w_strasser_2010_interface(fault.magnitude)
 
     else:
         raise ValueError(
@@ -166,31 +167,31 @@ def get_length(fault: "Fault"):
         flength = np.sqrt(mw_to_a_blaser_2010(fault.magnitude))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.MUROTANI2013:
-        flength = np.sqrt(mw_to_a_murotani_2013(fault.magnitude))
+        flength = np.sqrt(mw_to_a_murotani_2013(fault.moment))
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.ALLEN2017SLAB:
-        flength = mw_to_l_allen_2017_slab(fault.magnitude)
+        flength = allen_2017.mw_to_l_allen_2017_slab(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.ALLEN2017INTERFACELINEAR
     ):
-        flength = mw_to_l_allen_2017_linear_interface(fault.magnitude)
+        flength = allen_2017.mw_to_l_allen_2017_linear_interface(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.ALLEN2017INTERFACEBILINEAR
     ):
-        flength = mw_to_l_allen_2017_bilinear_interface(fault.magnitude)
+        flength = allen_2017.mw_to_l_allen_2017_bilinear_interface(fault.magnitude)
 
     elif fault.magnitude_scaling_relation == MagnitudeScalingRelations.STRASSER2010SLAB:
-        flength = mw_to_l_strasser_2010_slab(fault.magnitude)
+        flength = strasser_2010.mw_to_l_strasser_2010_slab(fault.magnitude)
 
     elif (
         fault.magnitude_scaling_relation
         == MagnitudeScalingRelations.STRASSER2010INTERFACE
     ):
-        flength = mw_to_l_strasser_2010_interface(fault.magnitude)
+        flength = strasser_2010.mw_to_l_strasser_2010_interface(fault.magnitude)
 
     else:
         raise ValueError(
@@ -232,8 +233,8 @@ def mw_to_lw_scaling_relation(
 
 
 def mw_to_a_hanksbakun(mw):
-    if mw > 6.71:
-        raise ValueError("Cannot use HanksAndBakun2002 equation for mw > 6.71")
+    # if mw > 6.71:
+    #     raise ValueError("Cannot use HanksAndBakun2002 equation for mw > 6.71")
     return 10 ** (mw - 3.98)
 
 
@@ -434,8 +435,13 @@ def mw_to_a_blaser_2010(mw):
     return np.power(10, 0.62 * mw - 2.81) * np.power(10, 0.45 * mw - 1.79)
 
 
-def mw_to_a_murotani_2013(mw):
-    return 1.34 * np.power(10, -10) * np.power(mw, 2 / 3)
+def mw_to_a_murotani_2013(mom):
+    """
+    Magnitude to area scaling ratio from Murotani 2013
+    :param mom: Moment of rupture in Nm
+    :return: Area of rupture in km^2
+    """
+    return (1.34 * 10 ** -10) * np.power(mom, 2 / 3)
 
 
 def mag2mom(mw):
