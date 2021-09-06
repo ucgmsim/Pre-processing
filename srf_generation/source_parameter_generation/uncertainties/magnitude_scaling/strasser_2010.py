@@ -57,6 +57,7 @@ def mw_to_a_strasser_2010_slab(mw):
     """
     return np.power(10, 0.890 * mw - 3.225)
 
+
 @strasser_slab_bounds
 def mw_to_w_strasser_2010_slab(mw):
     return np.power(10, 0.356 * mw - 1.058)
