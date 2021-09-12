@@ -322,7 +322,7 @@ def main():
         ]
 
         agg = pd.read_csv(args.aggregate_file)
-        agg = agg.sort_values(
+        agg.sort_values(
             by="name", key=lambda x: [ordered_rels.index(y) for y in x], inplace=True
         )
         agg.to_csv(args.aggregate_file)
