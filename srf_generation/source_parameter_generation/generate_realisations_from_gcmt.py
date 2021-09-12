@@ -316,7 +316,7 @@ def main():
 
     if args.aggregate_file is not None:
         ordered_rels = [
-            get_realisation_name(pid, i + 1) if i > 1 else pid
+            get_realisation_name(pid, i + 1) if faults[pid] > 1 else pid
             for pid in pids
             for i in range(faults[pid])
         ]
