@@ -16,7 +16,7 @@ from srf_generation.source_parameter_generation.uncertainties.distributions impo
     truncated_weibull,
 )
 from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    lw_2_mw_sigma_scaling_relation,
+    lw_to_mw_sigma_scaling_relation,
 )
 
 TYPE = 4
@@ -46,7 +46,7 @@ def generate_source_params(
     fault.dhypo = fault.width * truncated_weibull(1)
 
     fault.rake = truncated_normal(fault.rake, 15, 4)
-    mag, sigma = lw_2_mw_sigma_scaling_relation(
+    mag, sigma = lw_to_mw_sigma_scaling_relation(
         fault.length, fault.width, fault.mwsr, fault.rake
     )
     perturbated_magnitude = truncated_normal(mag, sigma, 1)
