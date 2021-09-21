@@ -49,7 +49,9 @@ faultprop.ztor = 0.0
 
 SPACE_LAND = 5.0  # min space between VM edge and land (km)
 SPACE_SRF = 15.0  # min space between VM edge and SRF (km)
-MIN_RJB = 0  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
+MIN_RJB = (
+    0
+)  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
 
 
 #
@@ -564,7 +566,7 @@ def optimise_vm_params(
     deep_rupture: bool = False,
     optimise: bool = True,
     target_land_coverage: float = 99.0,
-    min_rjb = MIN_RJB,
+    min_rjb=MIN_RJB,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
@@ -809,7 +811,7 @@ def main(
     target_land_coverage: float = 99.0,
     optimise: bool = True,
     plot_enabled: bool = True,
-    min_rjb = MIN_RJB,
+    min_rjb=MIN_RJB,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
