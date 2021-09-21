@@ -316,11 +316,13 @@ def main():
 
     if args.aggregate_file is not None:
         ordered_rels = [
-            get_realisation_name(pid, i + 1) for pid in pids for i in range(faults[pid])
+            get_realisation_name(pid, i + 1) if faults[pid] > 1 else pid
+            for pid in pids
+            for i in range(faults[pid])
         ]
 
         agg = pd.read_csv(args.aggregate_file)
-        agg = agg.sort_values(
+        agg.sort_values(
             by="name", key=lambda x: [ordered_rels.index(y) for y in x], inplace=True
         )
         agg.to_csv(args.aggregate_file)
