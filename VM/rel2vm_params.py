@@ -564,6 +564,7 @@ def optimise_vm_params(
     deep_rupture: bool = False,
     optimise: bool = True,
     target_land_coverage: float = 99.0,
+    min_rjb = MIN_RJB,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
@@ -611,10 +612,10 @@ def optimise_vm_params(
         fault_depth = srf_meta["hdepth"]
 
     rjb = 0
-    if fault_depth < rrup * 2:
+    if fault_depth < rrup * 2 or deep_rupture:
         # rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
         rjb = max(
-            MIN_RJB, rrup
+            min_rjb, rrup
         )  # sets rrup equal to rjb to ensure deep ruptures have sufficient VM size
 
     # original, unrotated vm
@@ -808,6 +809,7 @@ def main(
     target_land_coverage: float = 99.0,
     optimise: bool = True,
     plot_enabled: bool = True,
+    min_rjb = MIN_RJB,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
@@ -850,6 +852,7 @@ def main(
             deep_rupture=deep_rupture,
             optimise=optimise,
             target_land_coverage=target_land_coverage,
+            min_rjb=min_rjb,
             logger=logger,
         )
 
@@ -1141,5 +1144,6 @@ if __name__ == "__main__":
         args.vm_version,
         deep_rupture=args.deep_rupture,
         optimise=args.optimise,
+        min_rjb=args.min_rjb,
         logger=logger,
     )
