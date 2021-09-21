@@ -612,6 +612,7 @@ def optimise_vm_params(
         fault_depth = srf_meta["hdepth"]
 
     rjb = 0
+    # TODO: Make this conditional useful. Currently always True
     if fault_depth < rrup * 2:
         # rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
         rjb = max(
