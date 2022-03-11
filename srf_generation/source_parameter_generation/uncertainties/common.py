@@ -4,10 +4,9 @@ from pandas import DataFrame
 import numpy as np
 from scipy.stats import randint
 
+from qcore.uncertainties.mag_scaling import mw_to_lw_scaling_relation
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    mw_to_lw_scaling_relation,
-)
+
 
 GCMT_PARAM_NAMES = [
     "pid",  # str

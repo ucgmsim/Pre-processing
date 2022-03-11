@@ -1,10 +1,11 @@
 """A basic perturbator as an example and starting point"""
-import numpy as np
-import pandas as pd
 from typing import Any, Dict
 
-from qcore.nhm import NHMFault
+import numpy as np
+import pandas as pd
 
+from qcore.nhm import NHMFault
+from qcore.uncertainties.mag_scaling import lw_to_mw_sigma_scaling_relation
 from srf_generation.Fault import fault_factory, Type4
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
@@ -14,9 +15,6 @@ from srf_generation.source_parameter_generation.uncertainties.distributions impo
     rand_shyp,
     truncated_normal,
     truncated_weibull,
-)
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    lw_to_mw_sigma_scaling_relation,
 )
 
 TYPE = 4

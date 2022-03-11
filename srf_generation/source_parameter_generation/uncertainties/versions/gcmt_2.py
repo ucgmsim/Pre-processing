@@ -1,8 +1,10 @@
 """The template for future perturbation versions.
 Update this docstring with information about the version"""
-import pandas as pd
 from typing import Any, Dict
 
+import pandas as pd
+
+from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
 from srf_generation.Fault import fault_factory, Type2
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
@@ -10,9 +12,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
     get_seed,
     filter_realisation_input_params,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    MagnitudeScalingRelations,
-)
+
 
 TYPE = 2
 

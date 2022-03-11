@@ -2,6 +2,8 @@
 from typing import Any, Dict
 
 from pandas import DataFrame
+
+from qcore.uncertainties.mag_scaling import mag2mom
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
@@ -11,7 +13,6 @@ from srf_generation.source_parameter_generation.uncertainties.distributions impo
     truncated_log_normal,
     uniform,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
 
 
 def generate_source_params(
