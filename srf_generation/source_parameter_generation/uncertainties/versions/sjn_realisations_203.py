@@ -4,8 +4,8 @@ from typing import Any, Dict
 import numpy as np
 
 from qcore import geo
+from qcore.uncertainties import distributions
 from qcore.uncertainties.mag_scaling import mag2mom
-from srf_generation.source_parameter_generation.uncertainties import distributions
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
