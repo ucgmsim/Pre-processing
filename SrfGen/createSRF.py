@@ -24,7 +24,7 @@ FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
-    return randint(0, 2 ** 31 - 1)
+    return randint(0, 2**31 - 1)
 
 
 def mkdir_p(out_dir, logger: Logger = qclogging.get_basic_logger()):
