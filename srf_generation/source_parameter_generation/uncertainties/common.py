@@ -4,10 +4,9 @@ from pandas import DataFrame
 import numpy as np
 from scipy.stats import randint
 
+from qcore.uncertainties.mag_scaling import mw_to_lw_scaling_relation
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    mw_to_lw_scaling_relation,
-)
+
 
 GCMT_PARAM_NAMES = [
     "pid",  # str
@@ -178,7 +177,7 @@ RUN_TIME_PARAMS = HF_RUN_PARAMS + LF_RUN_PARAMS + BB_RUN_PARAMS
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
-    return randint(0, 2 ** 31 - 1).rvs()
+    return randint(0, 2**31 - 1).rvs()
 
 
 def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):

@@ -3,16 +3,16 @@ import pandas as pd
 from typing import Any, Dict
 
 from qcore.nhm import NHMFault
-
+from qcore.uncertainties.distributions import (
+    rand_shyp,
+    truncated_weibull,
+)
 from srf_generation.Fault import fault_factory, Type4
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     get_seed,
 )
-from srf_generation.source_parameter_generation.uncertainties.distributions import (
-    rand_shyp,
-    truncated_weibull,
-)
+
 
 TYPE = 4
 
