@@ -468,6 +468,7 @@ def create_multi_plane_srf(
     plane_count = parameter_dictionary.pop("plane_count")
 
     rough = parameter_dictionary.pop("rough", 0.0)
+    slip_cov = parameter_dictionary.pop("slip_cov", None)
 
     strike = [
         parameter_dictionary.pop(f"strike_subfault_{i}") for i in range(plane_count)
@@ -576,6 +577,7 @@ def create_multi_plane_srf(
         genslip_version=genslip_version,
         rvfac=rvfac,
         rough=rough,
+        slip_cov=slip_cov,
         xseg=xseg,
         logger=rel_logger,
         tect_type=tect_type,
