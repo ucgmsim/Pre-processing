@@ -266,6 +266,17 @@ def generate_realisation(
         z_df.to_csv(realisation_file_name.replace(".csv", "_z_values.csv"), index=False)
 
     makedirs(dirname(realisation_file_name), exist_ok=True)
+
+    if "asperities" in perturbed_realisation.keys():
+        background_value = perturbed_realisation["asperities"]["background"]
+        asperities_list = perturbed_realisation["asperities"]["asperities"]
+        asperity_file = realisation_file_name.replace(".csv", ".aspf")
+        with open(asperity_file, 'w') as aspf:
+            aspf.write(f"{background_value}\n")
+            for asperity in asperities_list:
+                aspf.write(f"{asperity.to_asperity_file_format()}\n")
+        perturbed_realisation["params"]["asperity_file"] = asperity_file
+
     fault_logger.debug(
         f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
     )
