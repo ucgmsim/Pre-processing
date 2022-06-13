@@ -48,10 +48,10 @@ def generate_source_params(
     right = fault.length/4
     top = fault.width/4
     bottom = 3 * fault.width/4
-    bottom_asperity = Asperity.Asperity(left, right, top, bottom, v=10)
+    bottom_asperity = Asperity.Asperity(left, right, top, bottom, v=3)
     top = 3 * fault.width / 8
     bottom = 5 * fault.width / 8
-    top_asperity = Asperity.Asperity(left/2, right/2, top, bottom, v=10)
+    top_asperity = Asperity.Asperity(left/2, right/2, top, bottom, v=9)
 
     realisation = kwargs
 

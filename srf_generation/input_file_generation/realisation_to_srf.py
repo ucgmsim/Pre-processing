@@ -766,7 +766,8 @@ def gen_srf(
     if risetime_coef is not None:
         cmd.append(f"risetime_coef={risetime_coef}")
     if asperity_file is not None:
-        cmd.append(f"asperity_file={asperity_file}")
+        cmd.append(f"read_slip_file=1")
+        cmd.append(f"init_slip_file={asperity_file}")
     logger.debug("Creating SRF with command: {}".format(" ".join(cmd)))
     with open(srf_file, "w") as srfp:
         proc = run(cmd, stdout=srfp, stderr=PIPE)
