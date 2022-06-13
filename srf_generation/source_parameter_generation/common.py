@@ -142,5 +142,5 @@ def write_asperites(asperities_dict, realisation_file_name):
     with open(asperity_file, "w") as aspf:
         aspf.write(f"{background_value}\n")
         for asperity in asperities_list:
-            aspf.write(f"{asperity.to_asperity_file_format()}\n")
+            aspf.write(f"{asperity.to_genslip_format()}\n")
     return asperity_file

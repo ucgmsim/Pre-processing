@@ -24,7 +24,7 @@ class Asperity:
             self.y0, self.y1 = self.y1, self.y0
         assert not np.isnan(self.v)
 
-    def to_asperity_file_format(self):
+    def to_genslip_format(self):
         return f"{self.v} {self.x0} {self.y0} {self.x1} {self.y1}"
 
     def __str__(self):
