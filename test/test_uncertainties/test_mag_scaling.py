@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
+from qcore.uncertainties.mag_scaling import (
     mw_to_lw_scaling_relation,
     lw_to_mw_scaling_relation,
     MagnitudeScalingRelations,

@@ -3,16 +3,16 @@ import pandas as pd
 from typing import Any, Dict
 
 from qcore.nhm import NHMFault
-
+from qcore.uncertainties.distributions import (
+    rand_shyp,
+    truncated_weibull,
+)
 from srf_generation.Fault import fault_factory, Type4
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     get_seed,
 )
-from srf_generation.source_parameter_generation.uncertainties.distributions import (
-    rand_shyp,
-    truncated_weibull,
-)
+
 
 TYPE = 4
 
@@ -37,7 +37,7 @@ def generate_source_params(
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
-    fault.shypo = fault.length / 2 * rand_shyp()
+    fault.shypo = fault.length * rand_shyp()
     fault.dhypo = fault.width * truncated_weibull(1)
 
     params = fault.to_dict()

@@ -4,8 +4,7 @@ from typing import Union
 import numpy as np
 from qcore import geo
 from qcore.nhm import NHMFault
-
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
+from qcore.uncertainties.mag_scaling import (
     MagnitudeScalingRelations,
     get_area,
     get_length,

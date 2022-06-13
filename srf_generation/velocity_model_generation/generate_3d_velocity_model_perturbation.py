@@ -166,7 +166,7 @@ def generate_velocity_model_perturbation_file_from_model(
             if layer["depth"] + current_depth > max_depth:
                 layer_depth = max_depth - current_depth
             nz = int(layer_depth / vm_params["hh"])
-            seed = randint(0, 2 ** 31 - 1)
+            seed = randint(0, 2**31 - 1)
 
             complete_layer_parameters.append(
                 (
