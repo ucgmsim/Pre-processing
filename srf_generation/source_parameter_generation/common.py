@@ -133,3 +133,14 @@ def get_depth_property(target_depths, vel_mod_1d_layers, property_name):
         np.asarray(target_depths).round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
     )
     return np.asarray(vel_mod_1d_layers[property_name].iloc[binned_depths])
+
+
+def write_asperites(asperities_dict, realisation_file_name):
+    background_value = asperities_dict["background"]
+    asperities_list = asperities_dict["asperities"]
+    asperity_file = realisation_file_name.replace(".csv", ".aspf")
+    with open(asperity_file, "w") as aspf:
+        aspf.write(f"{background_value}\n")
+        for asperity in asperities_list:
+            aspf.write(f"{asperity.to_asperity_file_format()}\n")
+    return asperity_file
