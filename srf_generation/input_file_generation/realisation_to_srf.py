@@ -10,6 +10,11 @@ import numpy as np
 from os import makedirs, path, remove
 from qcore import binary_version, srf, geo, qclogging, utils
 from qcore.utils import compare_versions
+from qcore.uncertainties.mag_scaling import (
+    mag2mom,
+    MagnitudeScalingRelations,
+    mw_to_a_skarlatoudis,
+)
 
 from srf_generation.pre_processing_common import (
     calculate_corners,
@@ -24,11 +29,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
     BB_RUN_PARAMS,
     LF_RUN_PARAMS,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    mag2mom,
-    MagnitudeScalingRelations,
-    mw_to_a_skarlatoudis,
-)
+
 
 SRF_SUBFAULT_SIZE_KM = 0.1
 
@@ -470,6 +471,7 @@ def create_multi_plane_srf(
     plane_count = parameter_dictionary.pop("plane_count")
 
     rough = parameter_dictionary.pop("rough", 0.0)
+    slip_cov = parameter_dictionary.pop("slip_cov", None)
 
     asperity_file = parameter_dictionary.pop("asperity_file", None)
 
@@ -580,6 +582,7 @@ def create_multi_plane_srf(
         genslip_version=genslip_version,
         rvfac=rvfac,
         rough=rough,
+        slip_cov=slip_cov,
         xseg=xseg,
         logger=rel_logger,
         tect_type=tect_type,

@@ -73,7 +73,7 @@ def gen_vm(
     logger.debug("Moving output files to vm directory")
     files_to_move = [
         vm_working_dir / "Velocity_Model" / vm3dfile
-        for vm3dfile in ["rho3dfile.d", "vp3dfile.p", "vs3dfile.s"]
+        for vm3dfile in ["rho3dfile.d", "vp3dfile.p", "vs3dfile.s", "in_basin_mask.b"]
     ] + [vm_working_dir / "Log" / "VeloModCorners.txt", nzvm_cfg_path]
 
     for f in files_to_move:

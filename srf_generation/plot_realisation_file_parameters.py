@@ -11,18 +11,20 @@ from os import path
 from shutil import copy, rmtree
 from tempfile import mkdtemp
 
-from h5py import File as h5open
 import matplotlib
 from matplotlib.lines import Line2D
+from h5py import File as h5open
+
 from qcore.nhm import load_nhm, NHMFault
 from qcore.simulation_structure import get_fault_from_realisation
-
-from srf_generation.pre_processing_common import load_realisation_file_as_dict
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
+from qcore.uncertainties.mag_scaling import (
     a_to_mw_leonard,
     mw_to_a_leonard,
     mw_sigma_leonard,
 )
+
+from srf_generation.pre_processing_common import load_realisation_file_as_dict
+
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
