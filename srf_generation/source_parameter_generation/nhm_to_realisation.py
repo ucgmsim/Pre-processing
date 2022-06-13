@@ -197,9 +197,9 @@ def generate_realisation(
         perturbed_realisation["params"]["srfgen_seed"] = get_seed()
 
     if (
-            vel_mod_1d_dir is not None
-            and "vel_mod_1d" in perturbed_realisation.keys()
-            and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
+        vel_mod_1d_dir is not None
+        and "vel_mod_1d" in perturbed_realisation.keys()
+        and not vel_mod_1d.equals(perturbed_realisation["vel_mod_1d"])
     ):
         perturbed_vel_mod_1d = perturbed_realisation.pop("vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
@@ -209,12 +209,12 @@ def generate_realisation(
         perturbed_realisation["params"]["srf_vel_mod_1d"] = file_name_srf_1d_vel_mod
 
     if (
-            vel_mod_1d_dir is not None
-            and "hf_vel_mod_1d" in perturbed_realisation.keys()
-            and (
+        vel_mod_1d_dir is not None
+        and "hf_vel_mod_1d" in perturbed_realisation.keys()
+        and (
             hf_vel_mod_1d is None
             or not hf_vel_mod_1d.equals(perturbed_realisation["hf_vel_mod_1d"])
-    )
+        )
     ):
         perturbed_vel_mod_1d = perturbed_realisation.pop("hf_vel_mod_1d")
         makedirs(vel_mod_1d_dir, exist_ok=True)
@@ -240,7 +240,7 @@ def generate_realisation(
         background_value = perturbed_realisation["asperities"]["background"]
         asperities_list = perturbed_realisation["asperities"]["asperities"]
         asperity_file = realisation_file_name.replace(".csv", ".aspf")
-        with open(asperity_file, 'w') as aspf:
+        with open(asperity_file, "w") as aspf:
             aspf.write(f"{background_value}\n")
             for asperity in asperities_list:
                 aspf.write(f"{asperity.to_asperity_file_format()}\n")

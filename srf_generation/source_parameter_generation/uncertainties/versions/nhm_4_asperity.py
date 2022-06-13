@@ -44,20 +44,20 @@ def generate_source_params(
     params = fault.to_dict()
     params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "5.4.2"})
 
-    left = -fault.length/4
-    right = fault.length/4
-    top = fault.width/4
-    bottom = 3 * fault.width/4
+    left = -fault.length / 4
+    right = fault.length / 4
+    top = fault.width / 4
+    bottom = 3 * fault.width / 4
     bottom_asperity = Asperity.Asperity(left, right, top, bottom, v=3)
     top = 3 * fault.width / 8
     bottom = 5 * fault.width / 8
-    top_asperity = Asperity.Asperity(left/2, right/2, top, bottom, v=9)
+    top_asperity = Asperity.Asperity(left / 2, right / 2, top, bottom, v=9)
 
     realisation = kwargs
 
     realisation["asperities"] = {
         "background": 1,
-        "asperities": [bottom_asperity, top_asperity]
+        "asperities": [bottom_asperity, top_asperity],
     }
 
     realisation["params"] = params

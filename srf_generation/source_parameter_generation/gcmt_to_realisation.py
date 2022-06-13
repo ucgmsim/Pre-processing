@@ -271,7 +271,7 @@ def generate_realisation(
         background_value = perturbed_realisation["asperities"]["background"]
         asperities_list = perturbed_realisation["asperities"]["asperities"]
         asperity_file = realisation_file_name.replace(".csv", ".aspf")
-        with open(asperity_file, 'w') as aspf:
+        with open(asperity_file, "w") as aspf:
             aspf.write(f"{background_value}\n")
             for asperity in asperities_list:
                 aspf.write(f"{asperity.to_asperity_file_format()}\n")
