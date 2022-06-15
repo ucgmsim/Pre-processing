@@ -119,73 +119,72 @@ def generate_fault_realisations(
     fault_name = data.name
     fault_logger.info(f"Generating realisations for event {fault_name}")
 
-    if realisation_count == 1:
-        fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
-        vs30_out_file = join(
-            get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
-        )
-        generate_realisation(
-            get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
-            fault_name,
-            perturbation_function,
-            data,
-            additional_source_parameters,
-            aggregate_file,
-            vel_mod_1d,
-            get_realisation_VM_dir(cybershake_root, fault_name),
-            None,
-            vs30_data,
-            vs30_out_file,
-            fault_logger,
-        )
-        return
+    fault_logger.debug(f"Generating the median realisation of fault {fault_name}")
+    vs30_out_file = join(
+        get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
+    )
+    generate_realisation(
+        get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
+        fault_name,
+        perturbation_function,
+        data,
+        additional_source_parameters,
+        aggregate_file,
+        vel_mod_1d,
+        get_realisation_VM_dir(cybershake_root, fault_name),
+        None,
+        vs30_data,
+        vs30_out_file,
+        fault_logger,
+    )
 
-    for i in range(1, realisation_count + 1):
-        realisation_name = get_realisation_name(fault_name, i)
+    if realisation_count > 1:
+        for i in range(1, realisation_count + 1):
+            realisation_name = get_realisation_name(fault_name, i)
 
-        realisation_file_name = get_srf_path(cybershake_root, realisation_name).replace(
-            ".srf", ".csv"
-        )
-
-        if checkpointing and isfile(realisation_file_name):
-            fault_logger.debug(
-                f"Realisation file for {realisation_name} already exists, continuing"
+            realisation_file_name = get_srf_path(cybershake_root, realisation_name).replace(
+                ".srf", ".csv"
             )
-            continue
 
-        vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
-        vs30_out_file = join(vel_mod_1d_dir, f"{realisation_name}.vs30")
+            if checkpointing and isfile(realisation_file_name):
+                fault_logger.debug(
+                    f"Realisation file for {realisation_name} already exists, continuing"
+                )
+                continue
 
-        fault_logger.debug(
-            f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
-        )
+            vel_mod_1d_dir = get_realisation_VM_dir(cybershake_root, realisation_name)
+            vs30_out_file = join(vel_mod_1d_dir, f"{realisation_name}.vs30")
 
-        generate_realisation(
-            realisation_file_name,
-            realisation_name,
-            perturbation_function,
-            data,
-            additional_source_parameters,
-            aggregate_file,
-            vel_mod_1d,
-            vel_mod_1d_dir,
-            None,
-            vs30_data,
-            vs30_out_file,
-            fault_logger,
-        )
+            fault_logger.debug(
+                f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
+            )
 
-    if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
-            source_data=data,
-            additional_source_parameters=additional_source_parameters,
-            vel_mod_1d=None,
-        )
-        rel_df = pd.DataFrame(unperturbated_realisation["params"], index=[0])
-        realisation_file_name = join(
-            get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
-        )
-        rel_df.to_csv(realisation_file_name, index=False)
+            generate_realisation(
+                realisation_file_name,
+                realisation_name,
+                perturbation_function,
+                data,
+                additional_source_parameters,
+                aggregate_file,
+                vel_mod_1d,
+                vel_mod_1d_dir,
+                None,
+                vs30_data,
+                vs30_out_file,
+                fault_logger,
+            )
+
+        if perturbation_function != unperturbation_function:
+            unperturbated_realisation = unperturbation_function(
+                source_data=data,
+                additional_source_parameters=additional_source_parameters,
+                vel_mod_1d=None,
+            )
+            rel_df = pd.DataFrame(unperturbated_realisation["params"], index=[0])
+            realisation_file_name = join(
+                get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
+            )
+            rel_df.to_csv(realisation_file_name, index=False)
 
 
 def generate_messages(
