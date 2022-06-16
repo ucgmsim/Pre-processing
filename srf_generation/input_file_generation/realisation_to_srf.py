@@ -352,6 +352,8 @@ def create_ps_ff_srf(
         "srf_vel_mod_1d", DEFAULT_1D_VELOCITY_MODEL_PATH
     )
 
+    asperity_file = parameter_dictionary.pop("asperity_file", None)
+
     mwsr = MagnitudeScalingRelations(parameter_dictionary.pop("mwsr"))
 
     # gets
@@ -411,6 +413,7 @@ def create_ps_ff_srf(
         rough=rough,
         logger=logger,
         tect_type=tect_type,
+        asperity_file=asperity_file,
     )
 
     if stoch_file is None:
@@ -469,6 +472,8 @@ def create_multi_plane_srf(
 
     rough = parameter_dictionary.pop("rough", 0.0)
     slip_cov = parameter_dictionary.pop("slip_cov", None)
+
+    asperity_file = parameter_dictionary.pop("asperity_file", None)
 
     strike = [
         parameter_dictionary.pop(f"strike_subfault_{i}") for i in range(plane_count)
@@ -581,6 +586,7 @@ def create_multi_plane_srf(
         xseg=xseg,
         logger=rel_logger,
         tect_type=tect_type,
+        asperity_file=asperity_file,
     )
 
     rel_logger.info("srf generated, creating stoch")
@@ -667,6 +673,7 @@ def gen_srf(
     risetime_coef=None,
     tect_type=None,
     fault_planes=1,
+    asperity_file=None,
     xseg: Union[float, List[float]] = "-1",
     logger: Logger = qclogging.get_basic_logger(),
 ):
@@ -761,6 +768,9 @@ def gen_srf(
         cmd.append(f"slip_sigma={slip_cov}")
     if risetime_coef is not None:
         cmd.append(f"risetime_coef={risetime_coef}")
+    if asperity_file is not None:
+        cmd.append(f"read_slip_file=1")
+        cmd.append(f"init_slip_file={asperity_file}")
     logger.debug("Creating SRF with command: {}".format(" ".join(cmd)))
     with open(srf_file, "w") as srfp:
         proc = run(cmd, stdout=srfp, stderr=PIPE)

@@ -23,6 +23,7 @@ from srf_generation.source_parameter_generation.common import (
     load_vs30_median_sigma,
     load_1d_velocity_mod,
     save_1d_velocity_model,
+    write_asperites,
 )
 from srf_generation.source_parameter_generation.uncertainties.common import get_seed
 from srf_generation.source_parameter_generation.uncertainties.versions import (
@@ -235,6 +236,12 @@ def generate_realisation(
         z_df.to_csv(realisation_file_name.replace(".csv", "_z_values.csv"), index=False)
 
     makedirs(dirname(realisation_file_name), exist_ok=True)
+
+    if "asperities" in perturbed_realisation.keys():
+        asperity_file_path = realisation_file_name.replace(".csv", ".aspf")
+        write_asperites(perturbed_realisation["asperities"], asperity_file_path)
+        perturbed_realisation["params"]["asperity_file"] = asperity_file_path
+
     fault_logger.debug(
         f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
     )
