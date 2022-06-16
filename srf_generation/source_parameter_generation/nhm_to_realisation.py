@@ -238,9 +238,11 @@ def generate_realisation(
     makedirs(dirname(realisation_file_name), exist_ok=True)
 
     if "asperities" in perturbed_realisation.keys():
-        perturbed_realisation["params"]["asperity_file"] = write_asperites(
-            perturbed_realisation["asperities"], realisation_file_name
+        asperity_file_path = realisation_file_name.replace(".csv", ".aspf")
+        write_asperites(
+            perturbed_realisation["asperities"], asperity_file_path
         )
+        perturbed_realisation["params"]["asperity_file"] = asperity_file_path
 
     fault_logger.debug(
         f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
