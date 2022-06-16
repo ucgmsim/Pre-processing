@@ -270,9 +270,7 @@ def generate_realisation(
 
     if "asperities" in perturbed_realisation.keys():
         asperity_file_path = realisation_file_name.replace(".csv", ".aspf")
-        write_asperites(
-            perturbed_realisation["asperities"], asperity_file_path
-        )
+        write_asperites(perturbed_realisation["asperities"], asperity_file_path)
         perturbed_realisation["params"]["asperity_file"] = asperity_file_path
 
     fault_logger.debug(
