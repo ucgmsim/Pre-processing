@@ -41,7 +41,7 @@ def generate_source_params(
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
-    fault.shypo = (fault.length / 2) * rand_shyp()
+    fault.shypo = fault.length * rand_shyp()
     fault.dhypo = fault.width * truncated_weibull(1)
 
     fault.rake = truncated_normal(fault.rake, 15, 4)
