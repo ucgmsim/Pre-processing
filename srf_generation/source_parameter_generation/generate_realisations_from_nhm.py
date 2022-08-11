@@ -60,12 +60,18 @@ def load_args(primary_logger: Logger):
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
-    parser.add_argument("type", type=str, help="The type of srf to generate.")
     parser.add_argument(
         "--n_processes",
         type=int,
         help="The number of processes to run at once. Capped at the number of events to generate realisations for.",
         default=1,
+    )
+    parser.add_argument(
+        "--unperturbated_version",
+        type=str,
+        help="The name of the base version which doesn't have perturbations. "
+        "Should be the name of the file without the .py suffix.",
+        default=f"nhm_4",
     )
 
     add_common_arguments(parser, single_event=False)
@@ -237,7 +243,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"nhm_{args.type}")
+    unperturbation_function = load_perturbation_function(args.unperturbated_version)
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)

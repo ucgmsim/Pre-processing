@@ -14,9 +14,6 @@ from qcore.uncertainties.mag_scaling import (
     lw_to_mw_scaling_relation,
 )
 
-LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
-NHM_SEISMOGENIC_DEPTH = 12
-
 
 def fault_factory(fault_type: int):
     return [Type1, Type2, Type3, Type4][fault_type - 1]
@@ -349,11 +346,6 @@ class Type2(FiniteFault):
         self._dbottom = (
             self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
         )
-        if (
-            self.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014
-            and self._dbottom > NHM_SEISMOGENIC_DEPTH
-        ):
-            self._dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
 
         self.ny = int(round(self.width / self.dwid))
         self.nx = int(round(self.length / self.dlen))
@@ -507,7 +499,6 @@ class Type3(FiniteFault):
 
         else:
             self.mwsr = MagnitudeScalingRelations.LEONARD2014
-            self._dbottom += 3
 
         raw_fwid = (self._dbottom - dtop) / np.sin(np.radians(dip))
         self._width = round_subfault_size(raw_fwid, magnitude)
@@ -563,7 +554,6 @@ class Type4(MultiPlaneFault):
 
         else:
             self.mwsr = MagnitudeScalingRelations.LEONARD2014
-            self._dbottom += 3
 
         dummy_plane = Type3(
             nhm_data.name,

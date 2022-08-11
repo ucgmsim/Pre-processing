@@ -1,6 +1,9 @@
 """A basic perturbator as an example and starting point"""
-import pandas as pd
+import copy
+
 from typing import Any, Dict
+
+import pandas as pd
 
 from qcore.nhm import NHMFault
 from qcore.uncertainties.distributions import (
@@ -11,6 +14,7 @@ from srf_generation.Fault import fault_factory, Type4
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     get_seed,
+    nhm_2012_seismogenic_adjustment,
 )
 
 
@@ -34,7 +38,9 @@ def generate_source_params(
     - source_data.dip
     - source_data.rake
     """
+    source_data = copy.copy(source_data)
 
+    source_data.dbottom = nhm_2012_seismogenic_adjustment(source_data.dbottom, source_data.tectonic_type)
     fault: Type4 = fault_factory(TYPE)(source_data)
 
     fault.shypo = fault.length * rand_shyp()
