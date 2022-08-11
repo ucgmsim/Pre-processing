@@ -178,17 +178,14 @@ NHM_SEISMOGENIC_DEPTH = 12
 
 
 def nhm_2012_seismogenic_adjustment(dbottom, tect_type):
-    if (
-            tect_type == "ACTIVE_SHALLOW"
-            and dbottom >= NHM_SEISMOGENIC_DEPTH
-    ):
+    if tect_type == "ACTIVE_SHALLOW" and dbottom >= NHM_SEISMOGENIC_DEPTH:
         dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
     return dbottom
 
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
-    return randint(0, 2 ** 31 - 1).rvs()
+    return randint(0, 2**31 - 1).rvs()
 
 
 def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
@@ -214,7 +211,7 @@ def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
             key: value
             for key, value in params.items()
             if key
-               in GENERAL_PARAMS + SRFGEN_TYPE_4_PARAMS + RUN_TIME_PARAMS + SUBPLANE_PARAMS
+            in GENERAL_PARAMS + SRFGEN_TYPE_4_PARAMS + RUN_TIME_PARAMS + SUBPLANE_PARAMS
         }
     else:
         raise ValueError(
@@ -246,10 +243,10 @@ def verify_realisation_params(params: Dict[str, Any]):
             name
             for name in params.keys()
             if name
-               not in GENERAL_PARAMS
-               + SRFGEN_TYPE_4_PARAMS
-               + RUN_TIME_PARAMS
-               + SUBPLANE_PARAMS
+            not in GENERAL_PARAMS
+            + SRFGEN_TYPE_4_PARAMS
+            + RUN_TIME_PARAMS
+            + SUBPLANE_PARAMS
         ]
     else:
         raise ValueError(
@@ -324,7 +321,7 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
     # locations taking the center of the fault plane as (x,y)=(0,0)
     x_pos: np.ndarray = np.arange(dlen / 2.0, fault_length, dlen) - fault_length / 2.0
     y_pos: np.ndarray = (
-            np.arange(dwid / 2.0, fault_width, dwid)[::-1] - fault_width / 2.0
+        np.arange(dwid / 2.0, fault_width, dwid)[::-1] - fault_width / 2.0
     )
 
     lats, lons = calculate_corners(dip, x_pos, y_pos, lat, lon, strike)

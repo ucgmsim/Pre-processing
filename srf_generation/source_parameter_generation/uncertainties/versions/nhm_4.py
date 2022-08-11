@@ -40,7 +40,9 @@ def generate_source_params(
     """
     source_data = copy.copy(source_data)
 
-    source_data.dbottom = nhm_2012_seismogenic_adjustment(source_data.dbottom, source_data.tectonic_type)
+    source_data.dbottom = nhm_2012_seismogenic_adjustment(
+        source_data.dbottom, source_data.tectonic_type
+    )
     fault: Type4 = fault_factory(TYPE)(source_data)
 
     fault.shypo = fault.length * rand_shyp()

@@ -22,6 +22,7 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
 
 TYPE = 4
 
+
 def generate_source_params(
     source_data: NHMFault,
     additional_source_parameters: Dict[str, Any],
@@ -41,7 +42,9 @@ def generate_source_params(
     """
     source_data = copy.copy(source_data)
 
-    source_data.dbottom = nhm_2012_seismogenic_adjustment(source_data.dbottom, source_data.tectonic_type)
+    source_data.dbottom = nhm_2012_seismogenic_adjustment(
+        source_data.dbottom, source_data.tectonic_type
+    )
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
