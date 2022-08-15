@@ -173,6 +173,14 @@ LF_RUN_PARAMS = ["qsfrac", "qpfrac", "qpqs_factor"]
 BB_RUN_PARAMS = ["flo", "fmin", "fmidbot", "lfvsref"]
 
 RUN_TIME_PARAMS = HF_RUN_PARAMS + LF_RUN_PARAMS + BB_RUN_PARAMS
+LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
+NHM_SEISMOGENIC_DEPTH = 12
+
+
+def nhm_2012_seismogenic_adjustment(dbottom, tect_type):
+    if tect_type == "ACTIVE_SHALLOW" and dbottom >= NHM_SEISMOGENIC_DEPTH:
+        dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
+    return dbottom
 
 
 def get_seed():

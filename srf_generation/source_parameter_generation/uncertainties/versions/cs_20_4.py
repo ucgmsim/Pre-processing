@@ -1,5 +1,6 @@
 """A basic perturbator as an example and starting point"""
 from typing import Any, Dict
+import copy
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ from srf_generation.Fault import fault_factory, Type4
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     get_seed,
+    nhm_2012_seismogenic_adjustment,
 )
 
 
@@ -32,12 +34,17 @@ def generate_source_params(
     - source_data.pid: name of the event
     - source_data.lat: latitude
     - source_data.lon: longitude
-    - source_data.depth
+    - source_data.dbottom
     - source_data.mag: magnitude
     - source_data.strike
     - source_data.dip
     - source_data.rake
     """
+    source_data = copy.copy(source_data)
+
+    source_data.dbottom = nhm_2012_seismogenic_adjustment(
+        source_data.dbottom, source_data.tectonic_type
+    )
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
@@ -60,6 +67,8 @@ def generate_source_params(
 
     realisation["params"] = params
     realisation["params"].update(additional_source_parameters)
+
+    # params["rough"] = 0.01
 
     if vs30_data is not None:
         realisation["vs30"] = vs30_data
