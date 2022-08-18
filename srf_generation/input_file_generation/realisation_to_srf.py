@@ -606,7 +606,7 @@ def create_multi_plane_srf(
         dt,
         tect_type=tect_type,
         dip_dir=dip_dir,
-        shypo=[shypo + 0.5 * flen[0]],
+        shypo=[shypo],
         dhypo=dhypo,
         vm=vel_mod_1d,
         logger=rel_logger,
