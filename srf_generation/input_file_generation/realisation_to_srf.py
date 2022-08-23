@@ -72,9 +72,9 @@ def create_stoch(
         command = [srf2stoch, f"target_dx={dx}", f"target_dy={dy}"]
     else:
         command = [srf2stoch, f"dx={dx}", f"dy={dy}"]
+    command.extend([f"outfile={stoch_file}", f"infile={srf_file}"])
     logger.debug(f"Creating stoch with command: {command}")
-    with open(stoch_file, "w") as stochp, open(srf_file, "r") as srfp:
-        proc = run(command, stdin=srfp, stdout=stochp, stderr=PIPE)
+    proc = run(command, stderr=PIPE)
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
