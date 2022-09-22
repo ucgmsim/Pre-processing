@@ -257,6 +257,7 @@ def generate_realisation(
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
         perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
+        makedirs(dirname(vs30_out_file), exist_ok=True)
         perturbated_vs30.to_csv(
             vs30_out_file, columns=["vs30"], sep=" ", index=True, header=False
         )
