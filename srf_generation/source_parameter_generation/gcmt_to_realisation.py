@@ -154,7 +154,7 @@ def generate_fault_realisations(
     realisation_count: int,
     output_directory: str,
     perturbation_function: Callable,
-    unperturbation_function: Callable,
+    unperturbed_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vel_mod_1d_dir: str,
@@ -189,13 +189,13 @@ def generate_fault_realisations(
             fault_logger,
         )
 
-    if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
+    if perturbation_function != unperturbed_function:
+        unperturbed_realisation = unperturbed_function(
             source_data=data,
             additional_source_parameters=additional_source_parameters,
             vel_mod_1d=None,
         )
-        rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
+        rel_df = pd.DataFrame(unperturbed_realisation, index=[0])
         realisation_file_name = join(output_directory, f"{fault_name}.csv")
         rel_df.to_csv(realisation_file_name, index=False)
 
@@ -256,9 +256,9 @@ def generate_realisation(
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
-        perturbated_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
+        perturbed_vs30: pd.DataFrame = perturbed_realisation.pop("vs30")
         makedirs(dirname(vs30_out_file), exist_ok=True)
-        perturbated_vs30.to_csv(
+        perturbed_vs30.to_csv(
             vs30_out_file, columns=["vs30"], sep=" ", index=True, header=False
         )
         perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
@@ -275,7 +275,7 @@ def generate_realisation(
         perturbed_realisation["params"]["asperity_file"] = asperity_file_path
 
     fault_logger.debug(
-        f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
+        f"Created Srf directory and attempting to save perturbed source generation parameters there: {realisation_file_name}"
     )
     rel_df = pd.DataFrame(perturbed_realisation["params"], index=[0])
     rel_df.to_csv(realisation_file_name, index=False)
@@ -345,7 +345,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"gcmt_{args.version}")
+    unperturbed_function = load_perturbation_function(f"gcmt_{args.version}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     gcmt_data = pd.read_csv(args.gcmt_file, usecols=GCMT_FILE_COLUMNS, index_col=0)[
@@ -394,7 +394,7 @@ def main():
             args.realisation_count,
             args.output_dir,
             perturbation_function,
-            unperturbation_function,
+            unperturbed_function,
             args.aggregate_file,
             vel_mod_1d_layers,
             args.vel_mod_1d_out,

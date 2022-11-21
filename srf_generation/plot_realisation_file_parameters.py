@@ -194,7 +194,7 @@ def plot_area_mag(
         plt.plot(
             ds_mw_mean,
             a_to_mw_leonard(ds_area_mean, 4, 3.99, 90),
-            label="Actual (dip slip) (unperturbated)",
+            label="Actual (dip slip) (unperturbed)",
             marker="x",
             linestyle="None",
         )
@@ -209,7 +209,7 @@ def plot_area_mag(
         plt.plot(
             ss_mw_mean,
             a_to_mw_leonard(ss_area_mean, 4, 3.99, 180),
-            label="Actual (strike slip) (unperturbated)",
+            label="Actual (strike slip) (unperturbed)",
             marker="x",
             linestyle="None",
         )
