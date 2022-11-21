@@ -25,7 +25,7 @@ LAYER_GENERATION_ERROR_TEXT = (
 )
 
 
-def create_perturbated_layer(
+def create_perturbed_layer(
     index,
     nx,
     ny,
@@ -124,7 +124,7 @@ def generate_velocity_model_perturbation_file_from_config(
     set_verbose(verbose)
 
     complete_layer_parameters = [
-        (create_perturbated_layer, dict({"index": index}, **l_p, **common_params))
+        (create_perturbed_layer, dict({"index": index}, **l_p, **common_params))
         for index, l_p in layer_params.items()
     ]
     if n_processes == 1:
@@ -214,7 +214,7 @@ def generate_velocity_model_perturbation_file_from_model(
         if n_processes == 1:
             layer_info = sorted(
                 [
-                    create_perturbated_layer(*layer)
+                    create_perturbed_layer(*layer)
                     for layer in complete_layer_parameters
                 ]
             )
@@ -223,7 +223,7 @@ def generate_velocity_model_perturbation_file_from_model(
                 with Pool(n_processes) as pool:
                     layer_info = sorted(
                         pool.starmap(
-                            create_perturbated_layer, complete_layer_parameters
+                            create_perturbed_layer, complete_layer_parameters
                         )
                     )
             except AssertionError:

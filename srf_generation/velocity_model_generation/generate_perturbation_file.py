@@ -45,7 +45,7 @@ def load_args():
     parser.add_argument(
         "--perturbation",
         action="store_true",
-        help="Generate perturbated layers using Rob Graves Fractal3D code. If not used a base perturbation file of 1s will be used",
+        help="Generate perturbed layers using Rob Graves Fractal3D code. If not used a base perturbation file of 1s will be used",
     )
     parser.add_argument(
         "--fault_damage_zone",

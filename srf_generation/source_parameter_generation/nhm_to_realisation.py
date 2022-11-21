@@ -173,8 +173,8 @@ def generate_realisation(
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
-        perturbated_vs30: pd.DataFrame = perturbed_realisation["vs30"]
-        perturbated_vs30.to_csv(
+        perturbed_vs30: pd.DataFrame = perturbed_realisation["vs30"]
+        perturbed_vs30.to_csv(
             vs30_out_file, columns="vs30", sep=" ", index=True, header=False
         )
         perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
@@ -191,7 +191,7 @@ def generate_realisation(
         perturbed_realisation["params"]["asperity_file"] = asperity_file_path
 
     fault_logger.debug(
-        f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
+        f"Created Srf directory and attempting to save perturbed source generation parameters there: {realisation_file_name}"
     )
     rel_df = pd.DataFrame(perturbed_realisation["params"], index=[0])
     rel_df.to_csv(realisation_file_name, index=False)
@@ -252,7 +252,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"nhm_{args.type}")
+    unperturbed_function = load_perturbation_function(f"nhm_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     nhm_data = load_nhm(args.nhm_file)

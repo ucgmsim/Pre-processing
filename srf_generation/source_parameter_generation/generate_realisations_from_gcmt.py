@@ -108,7 +108,7 @@ def generate_fault_realisations(
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
-    unperturbation_function: Callable,
+    unperturbed_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
@@ -184,7 +184,7 @@ def generate_messages(
     faults,
     gcmt_lines,
     perturbation_function,
-    unperturbation_function,
+    unperturbed_function,
     vel_mod_1d,
     checkpointing,
     vs30_data: pd.DataFrame,
@@ -208,7 +208,7 @@ def generate_messages(
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
-                unperturbation_function,
+                unperturbed_function,
                 aggregate_file,
                 vel_mod_1d,
                 vs30_data,
@@ -227,7 +227,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"gcmt_{args.type}")
+    unperturbed_function = load_perturbation_function(f"gcmt_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
@@ -277,7 +277,7 @@ def main():
         faults,
         gcmt_lines,
         perturbation_function,
-        unperturbation_function,
+        unperturbed_function,
         velocity_model_1d,
         args.checkpointing,
         vs30,

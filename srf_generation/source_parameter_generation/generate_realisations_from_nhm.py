@@ -66,8 +66,9 @@ def load_args(primary_logger: Logger):
         help="The number of processes to run at once. Capped at the number of events to generate realisations for.",
         default=1,
     )
+    parser.add_argument("type", type=str, help="The type of srf to generate.", default="4", nargs="?")
     parser.add_argument(
-        "--unperturbated_version",
+        "--unperturbed_version",
         type=str,
         help="The name of the base version which doesn't have perturbations. "
         "Should be the name of the file without the .py suffix.",
@@ -111,7 +112,7 @@ def generate_fault_realisations(
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
-    unperturbation_function: Callable,
+    unperturbed_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
@@ -187,7 +188,7 @@ def generate_messages(
     faults,
     nhm_faults,
     perturbation_function,
-    unperturbation_function,
+    unperturbed_function,
     vel_mod_1d,
     checkpointing,
     vs30_data: pd.DataFrame,
@@ -210,7 +211,7 @@ def generate_messages(
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
-                unperturbation_function,
+                unperturbed_function,
                 aggregate_file,
                 vel_mod_1d,
                 vs30_data,
@@ -229,7 +230,10 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(args.unperturbated_version)
+    if args.unperturbed_version is None:
+        unperturbed_function = load_perturbation_function(f"nhm_{args.type}")
+    else:
+        unperturbed_function = load_perturbation_function(args.unperturbed_version)
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
@@ -271,7 +275,7 @@ def main():
         faults,
         nhm_faults,
         perturbation_function,
-        unperturbation_function,
+        unperturbed_function,
         velocity_model_1d,
         args.checkpointing,
         vs30,
