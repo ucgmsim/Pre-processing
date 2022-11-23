@@ -133,7 +133,7 @@ def generate_fault_realisations(
     generate_realisation(
         get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
         fault_name,
-        unperturbation_function,
+        unperturbed_function,
         data,
         additional_source_parameters,
         aggregate_file,

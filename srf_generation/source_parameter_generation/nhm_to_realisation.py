@@ -298,7 +298,7 @@ def main():
         args.realisation_count,
         args.output_dir,
         perturbation_function,
-        unperturbation_function,
+        unperturbed_function,
         args.aggregate_file,
         vel_mod_1d_layers,
         args.vel_mod_1d_out,
