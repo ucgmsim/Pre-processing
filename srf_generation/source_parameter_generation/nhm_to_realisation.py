@@ -4,17 +4,15 @@ import argparse
 from logging import Logger
 from os import makedirs
 from os.path import abspath, isfile, dirname, join
-from typing import Callable, Union, Dict, Any, Tuple, List
+from typing import Dict, Tuple, List
 
 import pandas as pd
 from qcore.nhm import load_nhm, NHMFault
 
-from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
     get_logger,
     add_general_file_handler,
     NOPRINTCRITICAL,
-    get_realisation_logger,
     get_basic_logger,
 )
 
@@ -24,6 +22,7 @@ from srf_generation.source_parameter_generation.common import (
     load_1d_velocity_mod,
     save_1d_velocity_model,
     write_asperites,
+    generate_fault_realisations,
 )
 from srf_generation.source_parameter_generation.uncertainties.common import get_seed
 from srf_generation.source_parameter_generation.uncertainties.versions import (
@@ -116,57 +115,6 @@ def verify_args(args, errors, parser_logger=get_basic_logger()):
         errors.append(
             f"If the vs30 sigma file is given the median file should also be given"
         )
-
-
-def generate_fault_realisations(
-    data: NHMFault,
-    realisation_count: int,
-    output_directory: str,
-    perturbation_function: Callable,
-    unperturbation_function: Callable,
-    aggregate_file: Union[str, None],
-    vel_mod_1d: pd.DataFrame,
-    vel_mod_1d_dir: str,
-    vs30_data: pd.DataFrame,
-    vs30_out_file: str,
-    primary_logger_name: str,
-    additional_source_parameters: Dict[str, Any],
-):
-    primary_logger = get_logger(name=primary_logger_name)
-    fault_logger = get_realisation_logger(primary_logger, data.name)
-    fault_logger.debug(f"Fault {data.name} had data {data}")
-    fault_name = data.name
-
-    for i in range(1, realisation_count + 1):
-        realisation_name = get_realisation_name(fault_name, i)
-        realisation_file_name = join(output_directory, f"{realisation_name}.csv")
-        fault_logger.debug(
-            f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
-        )
-        generate_realisation(
-            realisation_file_name,
-            realisation_name,
-            perturbation_function,
-            data,
-            additional_source_parameters,
-            aggregate_file,
-            vel_mod_1d,
-            vel_mod_1d_dir,
-            None,
-            vs30_data,
-            vs30_out_file,
-            fault_logger,
-        )
-
-    if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
-            source_data=data,
-            additional_source_parameters=additional_source_parameters,
-            vel_mod_1d=None,
-        )
-        rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
-        realisation_file_name = join(output_directory, f"{fault_name}.csv")
-        rel_df.to_csv(realisation_file_name, index=False)
 
 
 def generate_realisation(
@@ -344,36 +292,21 @@ def main():
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
-    if args.realisation_count > 1:
-        generate_fault_realisations(
-            fault_nhm,
-            args.realisation_count,
-            args.output_dir,
-            perturbation_function,
-            unperturbation_function,
-            args.aggregate_file,
-            vel_mod_1d_layers,
-            args.vel_mod_1d_out,
-            vs30,
-            args.vs30_out,
-            primary_logger.name,
-            additional_source_specific_data,
-        )
-    else:
-        generate_realisation(
-            join(args.output_dir, f"{args.fault_name}.csv"),
-            args.fault_name,
-            perturbation_function,
-            fault_nhm,
-            additional_source_parameters,
-            args.aggregate_file,
-            args.vel_mod_1d,
-            args.vel_mod_1d_out,
-            None,
-            vs30,
-            args.vs30_out,
-            primary_logger,
-        )
+    generate_fault_realisations(
+        fault_nhm.name,
+        fault_nhm,
+        args.realisation_count,
+        args.output_dir,
+        perturbation_function,
+        unperturbation_function,
+        args.aggregate_file,
+        vel_mod_1d_layers,
+        args.vel_mod_1d_out,
+        vs30,
+        args.vs30_out,
+        primary_logger.name,
+        additional_source_specific_data,
+    )
 
 
 if __name__ == "__main__":
