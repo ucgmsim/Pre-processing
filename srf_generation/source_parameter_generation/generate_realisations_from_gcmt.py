@@ -108,7 +108,7 @@ def generate_fault_realisations(
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
-    unperturbation_function: Callable,
+    unperturbed_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
@@ -178,13 +178,13 @@ def generate_fault_realisations(
             fault_logger,
         )
 
-    if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
+    if perturbation_function != unperturbed_function:
+        unperturbed_realisation = unperturbed_function(
             source_data=data,
             additional_source_parameters=additional_source_parameters,
             vel_mod_1d=None,
         )
-        rel_df = pd.DataFrame(unperturbated_realisation["params"], index=[0])
+        rel_df = pd.DataFrame(unperturbed_realisation["params"], index=[0])
         realisation_file_name = join(
             get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
         )
@@ -198,7 +198,7 @@ def generate_messages(
     faults,
     gcmt_lines,
     perturbation_function,
-    unperturbation_function,
+    unperturbed_function,
     vel_mod_1d,
     checkpointing,
     vs30_data: pd.DataFrame,
@@ -222,7 +222,7 @@ def generate_messages(
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
-                unperturbation_function,
+                unperturbed_function,
                 aggregate_file,
                 vel_mod_1d,
                 vs30_data,
@@ -241,7 +241,7 @@ def main():
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"gcmt_{args.type}")
+    unperturbed_function = load_perturbation_function(f"gcmt_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
@@ -291,7 +291,7 @@ def main():
         faults,
         gcmt_lines,
         perturbation_function,
-        unperturbation_function,
+        unperturbed_function,
         velocity_model_1d,
         args.checkpointing,
         vs30,

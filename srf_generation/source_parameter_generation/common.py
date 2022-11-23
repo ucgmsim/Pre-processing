@@ -67,7 +67,7 @@ def add_common_arguments(parser, single_event=True):
         vs30_parser.add_argument(
             "--vs30_out",
             type=abspath,
-            help="The path to a file to save the perturbated VS30s to",
+            help="The path to a file to save the perturbed VS30s to",
             default=abspath("."),
         )
     else:
