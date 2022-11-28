@@ -66,7 +66,9 @@ def load_args(primary_logger: Logger):
         help="The number of processes to run at once. Capped at the number of events to generate realisations for.",
         default=1,
     )
-    parser.add_argument("type", type=str, help="The type of srf to generate.", default="4", nargs="?")
+    parser.add_argument(
+        "type", type=str, help="The type of srf to generate.", default="4", nargs="?"
+    )
     parser.add_argument(
         "--unperturbed_version",
         type=str,
