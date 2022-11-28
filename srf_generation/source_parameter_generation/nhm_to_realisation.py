@@ -306,6 +306,7 @@ def main():
         args.vs30_out,
         primary_logger.name,
         additional_source_specific_data,
+        generate_realisation,
     )
 
 
