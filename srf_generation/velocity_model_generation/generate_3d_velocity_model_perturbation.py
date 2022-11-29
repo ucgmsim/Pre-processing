@@ -213,18 +213,13 @@ def generate_velocity_model_perturbation_file_from_model(
         )
         if n_processes == 1:
             layer_info = sorted(
-                [
-                    create_perturbed_layer(*layer)
-                    for layer in complete_layer_parameters
-                ]
+                [create_perturbed_layer(*layer) for layer in complete_layer_parameters]
             )
         else:
             try:
                 with Pool(n_processes) as pool:
                     layer_info = sorted(
-                        pool.starmap(
-                            create_perturbed_layer, complete_layer_parameters
-                        )
+                        pool.starmap(create_perturbed_layer, complete_layer_parameters)
                     )
             except AssertionError:
                 print(LAYER_GENERATION_ERROR_TEXT)
