@@ -176,7 +176,6 @@ def generate_fault_realisations(
         )
 
 
-
 def generate_messages(
     additional_source_parameters: pd.DataFrame,
     aggregate_file,

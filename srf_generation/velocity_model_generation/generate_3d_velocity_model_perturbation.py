@@ -166,7 +166,7 @@ def generate_velocity_model_perturbation_file_from_model(
             if layer["depth"] + current_depth > max_depth:
                 layer_depth = max_depth - current_depth
             nz = int(layer_depth / vm_params["hh"])
-            seed = randint(0, 2**31 - 1)
+            seed = randint(0, 2 ** 31 - 1)
 
             complete_layer_parameters.append(
                 (
@@ -213,18 +213,13 @@ def generate_velocity_model_perturbation_file_from_model(
         )
         if n_processes == 1:
             layer_info = sorted(
-                [
-                    create_perturbed_layer(*layer)
-                    for layer in complete_layer_parameters
-                ]
+                [create_perturbed_layer(*layer) for layer in complete_layer_parameters]
             )
         else:
             try:
                 with Pool(n_processes) as pool:
                     layer_info = sorted(
-                        pool.starmap(
-                            create_perturbed_layer, complete_layer_parameters
-                        )
+                        pool.starmap(create_perturbed_layer, complete_layer_parameters)
                     )
             except AssertionError:
                 print(LAYER_GENERATION_ERROR_TEXT)

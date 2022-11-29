@@ -33,7 +33,7 @@ def ll_srf_dist_3d(srf_points, point):
     a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
     h_dist = 6378.139 * 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
 
-    return np.sqrt(h_dist**2 + v_dist**2)
+    return np.sqrt(h_dist ** 2 + v_dist ** 2)
 
 
 def calculate_damage(

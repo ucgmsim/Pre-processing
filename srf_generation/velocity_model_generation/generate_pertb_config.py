@@ -21,7 +21,7 @@ def generate_pertb_config(vm_params, perturbation_model: pd.DataFrame):
         if layer["depth"] + bottom_depth > max_depth:
             layer_depth = max_depth - bottom_depth
         nz = int(layer_depth / vm_params["hh"])
-        seed = randint(0, 2**31 - 1)
+        seed = randint(0, 2 ** 31 - 1)
         layers.append(
             {
                 "nz": nz,

@@ -107,7 +107,12 @@ def main():
         worker_pool.starmap(
             process_realisation_file,
             [
-                (args.cybershake_root, filename, args.checkpointing, primary_logger.name)
+                (
+                    args.cybershake_root,
+                    filename,
+                    args.checkpointing,
+                    primary_logger.name,
+                )
                 for filename in realisation_files
             ],
         )

@@ -24,7 +24,7 @@ MIN_QS = 0
 
 # 2Gb, as is standard on Maui. Memory use is only an estimation, and may not be linear in the number of grid points
 MEMORY = 2  # * (10 ** 3) ** 3
-MEMORY_SIZE = (10**3) ** 3  # Gb
+MEMORY_SIZE = (10 ** 3) ** 3  # Gb
 
 # fmt: off
 XS = [
