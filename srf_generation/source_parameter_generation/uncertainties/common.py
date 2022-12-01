@@ -185,7 +185,7 @@ def nhm_2012_seismogenic_adjustment(dbottom, tect_type):
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
-    return randint(0, 2 ** 31 - 1).rvs()
+    return randint(0, 2**31 - 1).rvs()
 
 
 def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
