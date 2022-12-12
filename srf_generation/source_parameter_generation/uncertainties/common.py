@@ -170,7 +170,7 @@ HF_RUN_PARAMS = [
 
 LF_RUN_PARAMS = ["qsfrac", "qpfrac", "qpqs_factor"]
 
-BB_RUN_PARAMS = ["flo", "fmin", "fmidbot", "lfvsref"]
+BB_RUN_PARAMS = ["flo", "fmin", "fmidbot", "lfvsref", "site-amp-uncertainty"]
 
 RUN_TIME_PARAMS = HF_RUN_PARAMS + LF_RUN_PARAMS + BB_RUN_PARAMS
 LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
