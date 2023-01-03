@@ -12,6 +12,14 @@ from srf_generation.source_parameter_generation.uncertainties.common import (
     GCMT_Source,
 )
 
+def uniform_dist(u_mean, u_half_range):
+    """function for sampling uniform distribution"""
+    u_sample = np.random.uniform(
+        low=u_mean - u_half_range, high=u_mean + u_half_range, size=1
+    )
+    return u_sample
+
+
 
 def generate_source_params(
     source_data: GCMT_Source,
@@ -30,23 +38,22 @@ def generate_source_params(
     - source_data.dip
     - source_data.rake
     """
+    realisation = kwargs
 
     params = generate_from_gcmt(source_data)
-
+    params.update(additional_source_parameters)
     verify_realisation_params(params)
-    return params
+
+    realisation["params"] = params
+
+    if vs30_data is not None:
+        realisation["vs30"] = vs30_data
+        realisation["vs30"]["vs30"] = vs30_data["median"]
+
+    return realisation
 
 
 # distribution functions:
-
-
-def uniform_dist(u_mean, u_half_range):
-    """function for sampling uniform distribution"""
-    u_sample = np.random.uniform(
-        low=u_mean - u_half_range, high=u_mean + u_half_range, size=1
-    )
-    return u_sample
-
 
 def generate_from_gcmt(source_data: GCMT_Source):
 

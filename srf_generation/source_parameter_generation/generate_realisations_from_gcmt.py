@@ -296,8 +296,12 @@ def main():
         f"{len(messages)} messages were created to create a total of {sum([m[1] for m in messages])} realisations"
     )
 
-    with pool.Pool(processes=n_processes) as worker_pool:
-        worker_pool.starmap(generate_fault_realisations, messages)
+    if n_processes == 1:
+        for cur_msg in messages:
+            generate_fault_realisations(*cur_msg)
+    else:
+        with pool.Pool(processes=n_processes) as worker_pool:
+            worker_pool.starmap(generate_fault_realisations, messages)
 
     if args.aggregate_file is not None:
         ordered_rels = [
