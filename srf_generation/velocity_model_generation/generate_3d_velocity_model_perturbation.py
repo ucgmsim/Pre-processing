@@ -183,7 +183,7 @@ def generate_velocity_model_perturbation_file_from_model(
                 )
             )
 
-            current_depth += layer_depth
+            current_depth += nz * vm_params["hh"]
             i += 1
 
         # Save config files for future use
