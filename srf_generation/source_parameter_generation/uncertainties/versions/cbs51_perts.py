@@ -7,10 +7,15 @@ import pandas as pd
 from qcore import geo
 from qcore.uncertainties import distributions
 from qcore.uncertainties.mag_scaling import mag2mom
+from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
+from srf_generation.Fault import fault_factory, Type2
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
+    filter_realisation_input_params,
 )
+
+TYPE = 2
 
 def uniform_dist(u_mean, u_half_range):
     """function for sampling uniform distribution"""
@@ -38,29 +43,27 @@ def generate_source_params(
     - source_data.dip
     - source_data.rake
     """
+    additional_source_parameters = filter_realisation_input_params(
+        TYPE, additional_source_parameters
+    )
+
     realisation = kwargs
 
     params = generate_from_gcmt(source_data)
     params.update(additional_source_parameters)
-    verify_realisation_params(params)
-
     realisation["params"] = params
 
     if vs30_data is not None:
         realisation["vs30"] = vs30_data
         realisation["vs30"]["vs30"] = vs30_data["median"]
 
+    verify_realisation_params(params)
     return realisation
 
 
-# distribution functions:
-
 def generate_from_gcmt(source_data: GCMT_Source):
 
-    ### the following parameters feed into srfgen
-
     mag = distributions.truncated_normal(source_data.mag, 0.075, 2)  # magnitude
-    # rvfrac = uniform_dist(0.8, 0.075)                   #rupture velocity factor
     lat_temp, lon_temp = geo.ll_shift(
         source_data.lat, source_data.lon, distributions.truncated_normal(0.0, 1.0, 2), 0
     )
@@ -101,19 +104,22 @@ def generate_from_gcmt(source_data: GCMT_Source):
     rvfac = uniform_dist(0.8, 0.075)  # rupture velocity factor
     kappa = distributions.truncated_log_normal(0.045, 0.3, 2)
 
+    fault: Type2 = Type2(
+        source_data.pid,
+        lat,
+        lon,
+        mag,
+        strike,
+        rake,
+        dip,
+        depth,
+    )
+    fault.magnitude_scaling_relation = MagnitudeScalingRelations.LEONARD2014
+
     params = {
-        "type": 1,
-        "name": source_data.pid,
-        "latitude": lat,
-        "longitude": lon,
-        "depth": depth,
-        "magnitude": mag,
-        "moment": float(mag2mom(mag)),
-        "strike": strike,
-        "dip": dip,
-        "rake": rake,
         "kappa": kappa,
         "sdrop": sdrop,
         "rvfac": rvfac,
     }
+    params.update(fault.to_dict())
     return params
