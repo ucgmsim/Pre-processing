@@ -6,12 +6,12 @@ import pandas as pd
 
 from qcore import geo
 from qcore.uncertainties import distributions
-from qcore.uncertainties.mag_scaling import mag2mom
 from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
-from srf_generation.Fault import fault_factory, Type2
+from srf_generation.Fault import Type2
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
+    get_seed,
     filter_realisation_input_params,
 )
 
@@ -24,8 +24,6 @@ def uniform_dist(u_mean, u_half_range):
     )
     return u_sample
 
-
-
 def generate_source_params(
     source_data: GCMT_Source,
     additional_source_parameters: Dict[str, Any],
@@ -33,16 +31,6 @@ def generate_source_params(
     vs30_data: pd.DataFrame = None,
     **kwargs,
 ) -> Dict[str, Any]:
-    """source_data should have the following parameters available via . notation:
-    - source_data.pid: name of the event
-    - source_data.lat: latitude
-    - source_data.lon: longitude
-    - source_data.depth: depth
-    - source_data.mag: magnitude
-    - source_data.strike
-    - source_data.dip
-    - source_data.rake
-    """
     additional_source_parameters = filter_realisation_input_params(
         TYPE, additional_source_parameters
     )
@@ -51,6 +39,7 @@ def generate_source_params(
 
     params = generate_from_gcmt(source_data)
     params.update(additional_source_parameters)
+    params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "5.4.2"})
     realisation["params"] = params
 
     if vs30_data is not None:
