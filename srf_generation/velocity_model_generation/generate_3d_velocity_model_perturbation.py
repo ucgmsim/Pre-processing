@@ -182,7 +182,8 @@ def generate_velocity_model_perturbation_file_from_model(
                     temp_dir_path,
                 )
             )
-
+            # Adds the actual depth of the new layer to the current depth. 
+            # In some cases this may not be the whole model layer due to rounding.
             current_depth += nz * vm_params["hh"]
             i += 1
 
