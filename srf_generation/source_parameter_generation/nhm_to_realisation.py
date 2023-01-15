@@ -44,7 +44,9 @@ def load_args(primary_logger: Logger):
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
-    parser.add_argument("--type", type=str, help="The type of srf to generate.", default=4, nargs="?")
+    parser.add_argument(
+        "--type", type=str, help="The type of srf to generate.", default=4, nargs="?"
+    )
 
     add_common_arguments(parser)
 

@@ -235,7 +235,7 @@ def generate_realisation(
             rel_df.to_csv(aggregate_file, mode="a", header=False)
 
     fault_logger.debug(
-        f"Parameters saved succesfully. Continuing to next realisation if one exists."
+        f"Parameters saved successfully. Continuing to next realisation if one exists."
     )
 
 
