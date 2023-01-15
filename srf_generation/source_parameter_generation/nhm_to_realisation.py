@@ -45,7 +45,7 @@ def load_args(primary_logger: Logger):
         "Additional events not named will be ignored.",
     )
     parser.add_argument(
-        "--type", type=str, help="The type of srf to generate.", default=4, nargs="?"
+        "--type", type=str, help="The type of srf to generate.", default=4
     )
 
     add_common_arguments(parser)
