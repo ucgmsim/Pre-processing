@@ -226,7 +226,6 @@ def generate_messages(
 
 
 def main():
-
     primary_logger = get_logger("realisations_from_nhm")
 
     args = load_args(primary_logger)

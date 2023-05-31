@@ -89,6 +89,8 @@ get_fileroot = lambda MAG, FLEN, FWID, seed: "m%.2f-%.1fx%.1f_s%d" % (
     seed,
 )
 get_gsfname = lambda MAG, DLEN, DWID: "m%.2f-%.2fx%.2f.gsf" % (MAG, DLEN, DWID)
+
+
 # Leonard 2014 Relations
 def leonard(rake, A, ds=4.00, ss=3.99):
     # if dip slip else strike slip

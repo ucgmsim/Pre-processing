@@ -175,7 +175,6 @@ class MultiPlaneFault(Fault):
 
 
 class PointSourceFault(SinglePlaneFault):
-
     type = 1
 
     # vs = 3.2
@@ -219,7 +218,6 @@ Type1 = PointSourceFault
 
 
 class FiniteFault(SinglePlaneFault):
-
     dlen = 0.1
     dwid = 0.1
     shypo = 0.00
@@ -242,7 +240,6 @@ class FiniteFault(SinglePlaneFault):
 
 
 class Type2(FiniteFault):
-
     type = 2
 
     _ratio_override: Union[float, None] = None
@@ -533,7 +530,6 @@ class Type3(FiniteFault):
 
 
 class Type4(MultiPlaneFault):
-
     type = 4
 
     def __init__(self, nhm_data: NHMFault):
@@ -636,7 +632,6 @@ class Type4(MultiPlaneFault):
             sub_plane._shypo = shypo
 
     def to_dict(self):
-
         base_dict = {
             "type": self.type,
             "magnitude": self._mag,

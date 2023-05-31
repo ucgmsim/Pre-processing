@@ -18,7 +18,6 @@ from srf_generation.input_file_generation.realisation_to_srf import (
 def process_realisation_file(
     cybershake_root: str, realisation_file: str, checkpointing: bool, logger_name: str
 ):
-
     primary_logger = qclogging.get_logger(logger_name)
     primary_logger.debug(f"Getting realisation values for {realisation_file}")
 

@@ -1,4 +1,4 @@
-#TODO This test is not working
+# TODO This test is not working
 """ Command to run this test: 'python -m pytest -v -s test_gen_coords.py'
 If the test passed it will delete the files in the output folder. 
 Otherwise it would not delete files. 
@@ -46,7 +46,7 @@ SYMLINK_PATH = os.path.join(
 
 
 def setup_module(scope="module"):
-    """ create a symbolic link for vm_params.yaml"""
+    """create a symbolic link for vm_params.yaml"""
     print("---------setup_module------------")
     try:
         os.mkdir(PATH_UNDER_TEST)
@@ -60,7 +60,7 @@ def setup_module(scope="module"):
 
 
 def _test_gencoords():
-    """ test qcore/gen_coords.py """
+    """test qcore/gen_coords.py"""
     print("---------test_gencoords------------")
     shared.exe("python " + PATH_FOR_PRG_TOBE_TESTED + " " + PATH_UNDER_TEST)
     ref_files = glob(os.path.join(PATH_TO_SAMPLE_OUTDIR, "*.100"))
@@ -75,7 +75,7 @@ def _test_gencoords():
 
 
 def teardown_module():
-    """ delete the symbolic link for vm_params.yaml"""
+    """delete the symbolic link for vm_params.yaml"""
     print("---------teardown_module------------")
     if os.path.isfile(SYMLINK_PATH):
         os.remove(SYMLINK_PATH)

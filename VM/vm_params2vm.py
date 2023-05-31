@@ -261,7 +261,6 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
 
 if __name__ == "__main__":
-
     logger = qclogging.get_logger("vm_params2vm")
     qclogging.add_general_file_handler(logger, Path.cwd() / "vm_params2vm_log.txt")
     args = load_args(logger=logger)

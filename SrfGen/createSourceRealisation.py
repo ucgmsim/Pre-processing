@@ -89,7 +89,6 @@ def perturbate_parameters(unperturbed_standard_options, unperturbed_additional_o
         unperturbed_additional_options.keys()
     )
     for key in options_to_perturbate:
-
         # Load the correct dictionaries to be read from/written to
         if key in unperturbed_standard_options:
             dict_to_read_from = unperturbed_standard_options
