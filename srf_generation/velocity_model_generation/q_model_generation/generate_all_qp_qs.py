@@ -112,7 +112,6 @@ def load_args():
 
 
 def main():
-
     args = load_args()
     faults = load_fault_selection_file(args.fsf)
 

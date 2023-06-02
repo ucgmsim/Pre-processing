@@ -850,7 +850,12 @@ def create_vm(args, srf_meta, logger_name: str = "srfinfo2vm"):
             )
         )
         # cut down ocean areas
-        origin, bearing, xlen1, ylen1, = reduce_domain(
+        (
+            origin,
+            bearing,
+            xlen1,
+            ylen1,
+        ) = reduce_domain(
             origin,
             bearing,
             xlen1,
@@ -1141,7 +1146,6 @@ def store_summary(table, info_store, logger: Logger = qclogging.get_basic_logger
 
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
-
     parser = ArgumentParser()
     arg = parser.add_argument
     arg("info_glob", help="info file selection expression. eg: Srf/*.info")

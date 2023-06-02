@@ -104,7 +104,6 @@ def load_args(primary_logger: Logger):
 
 
 def verify_args(args, errors, parser_logger=get_basic_logger()):
-
     if args.version is None:
         if args.type is not None:
             args.version = f"gcmt_{args.type}"
@@ -287,7 +286,6 @@ def get_additional_source_parameters(
 
 
 def main():
-
     primary_logger = get_logger("GCMT_2_realisation")
 
     args = load_args(primary_logger)
