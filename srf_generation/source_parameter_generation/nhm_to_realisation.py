@@ -277,7 +277,7 @@ def main():
     additional_source_parameters = get_additional_source_parameters(
         args.source_parameter,
         args.common_source_parameter,
-        fault_nhm,
+        {fault_nhm.name: fault_nhm},
         vel_mod_1d_layers,
     )
 
