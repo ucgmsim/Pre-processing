@@ -51,5 +51,10 @@ def generate_source_params(
         realisation["vs30"] = vs30_data
         realisation["vs30"]["vs30"] = vs30_data["median"]
 
-    verify_realisation_params(realisation["params"])
+
+    bad_params = verify_realisation_params(realisation["params"], throw_exception=False)
+    for bad_param in bad_params:
+        print("WARNING: Unsupported parameters will be ignored {bad_param}")
+        realisation["params"].pop(bad_param)
+
     return realisation
