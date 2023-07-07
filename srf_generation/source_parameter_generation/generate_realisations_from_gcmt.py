@@ -131,7 +131,7 @@ def generate_fault_realisations(
         unperturbed_function,
         data,
         additional_source_parameters,
-        aggregate_file,
+        None,
         vel_mod_1d,
         get_realisation_VM_dir(cybershake_root, fault_name),
         None,
