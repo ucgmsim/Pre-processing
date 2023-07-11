@@ -30,8 +30,9 @@ from qcore.utils import dump_yaml
 from qcore.simulation_structure import get_fault_from_realisation
 from qcore.validate_vm import validate_vm_bounds
 
-from empirical.util.classdef import GMM, Site, Fault
-from empirical.util.empirical_factory import compute_gmm
+from VM.models.classdef import Site, Fault, TectType, estimate_z1p0, FaultStyle
+from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
+from VM.models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
 from plot_vm import plot_vm
 
@@ -43,9 +44,13 @@ S_WAVE_KM_PER_S = 3.5
 
 siteprop = Site()
 siteprop.vs30 = 500
+siteprop.Rtvz = 0
+siteprop.vs30measured = False
+siteprop.z1p0 = estimate_z1p0(siteprop.vs30)
 faultprop = Fault()
-# DON'T CHANGE THIS - this assumes we have a surface point source
-faultprop.ztor = 0.0
+faultprop.ztor = 0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
+faultprop.tect_type = TectType.ACTIVE_SHALLOW
+faultprop.faultstyle = FaultStyle.UNKNOWN
 
 SPACE_LAND = 5.0  # min space between VM edge and land (km)
 SPACE_SRF = 15.0  # min space between VM edge and SRF (km)
@@ -90,7 +95,7 @@ def find_rrup(pgv_target: float):
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
-        pgv = compute_gmm(faultprop, siteprop, GMM.Br_10, "PGV")[0]
+        pgv = Bradley_2010_Sa(siteprop, faultprop, "PGV")[0]
         # factor 0.02 is conservative step to avoid infinite looping
         if pgv_target / pgv > 1.01:
             rrup -= rrup * 0.02
@@ -260,7 +265,7 @@ def get_sim_duration(
     siteprop.Rrup = (rjb**2 + depth**2) ** 0.5
     logger.debug(f"rrup: {siteprop.Rrup}")
     # magnitude is in faultprop
-    ds = compute_gmm(faultprop, siteprop, GMM.AS_16, "Ds595")[0]
+    ds = Afshari_Stewart_2016_Ds(siteprop, faultprop, "Ds595")[0]
     logger.debug(f"ds: {ds}")
     logger.debug(f"ds_multiplier: {ds_multiplier}")
     return s_wave_arrival + ds_multiplier * ds
