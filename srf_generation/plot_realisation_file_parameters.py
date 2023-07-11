@@ -61,7 +61,6 @@ def format_and_save_plot(title=None, xlabel=None, ylabel=None, filepath=None):
 def plot_parameter_histogram(
     param: str, realisations: Dict[str, pd.DataFrame], out_dir: str
 ):
-
     all_param = []
     mags = []
 
@@ -355,7 +354,6 @@ def plot_mag_nrup(
 
 
 def plot_dbottom(info_files: List[str], nhm_data: Dict[str, NHMFault], out_dir: str):
-
     srf_depths = []
     fault_names = []
     for info_file in info_files:
@@ -1044,7 +1042,6 @@ def main():
 
     # # run VM plots and checks
     if len(vm_dirs):
-
         plot_vm(vm_dirs, args.out_dir)
         plot_duration_mag(vm_dirs, args.out_dir)
         plot_size_mag(vm_dirs, args.out_dir)

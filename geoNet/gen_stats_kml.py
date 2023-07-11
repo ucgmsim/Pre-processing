@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-google_earth_start_kml="""<?xml version="1.0" encoding="UTF-8"?>
+google_earth_start_kml = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document>
     <name>station_locations.kml</name>
@@ -43,12 +43,12 @@ google_earth_start_kml="""<?xml version="1.0" encoding="UTF-8"?>
     </StyleMap>
 """
 
-google_earth_end_kml="""
+google_earth_end_kml = """
 </Document>
 </kml>
 """
 
-#def read_statsll(fname=None, loc=os.getcwd()):
+# def read_statsll(fname=None, loc=os.getcwd()):
 #    stats_dict = {}
 #    with open("/".join([loc, fname]), "r") as f:
 #        for line in f:
@@ -58,11 +58,11 @@ google_earth_end_kml="""
 #
 #    return stats_dict
 #
-#statsll_fname = "20150105_175001_eventStats_2016-12-12.ll" 
-#stats_dict = read_statsll(fname=statsll_fname,
+# statsll_fname = "20150105_175001_eventStats_2016-12-12.ll"
+# stats_dict = read_statsll(fname=statsll_fname,
 #                         loc=".")
 #
-#with open("20150105_175001_eventStats_2016-12-12.kml", 'w') as f:
+# with open("20150105_175001_eventStats_2016-12-12.kml", 'w') as f:
 #    f.write(google_earth_start_kml)
 #    for stat_code in stats_dict.keys():
 #        f.write("\n")
@@ -78,31 +78,33 @@ google_earth_end_kml="""
 #        f.write("\n")
 #    f.write(google_earth_end_kml)
 
+
 def write_stats_kml(loc, fname, stats_dict):
     """
     stats_dict: dict in the form given by read_statsll
     """
     if not fname.endswith(".kml"):
-        fname+=".kml"
+        fname += ".kml"
 
-    with open("/".join([loc, fname]), 'w') as f:
+    with open("/".join([loc, fname]), "w") as f:
         f.write(google_earth_start_kml)
         for stat_code in stats_dict.keys():
             f.write("\n")
             f.write("<Placemark>")
-            f.write("<name> %s </name>" %stat_code)
+            f.write("<name> %s </name>" % stat_code)
             f.write("<styleUrl>#msn_ylw-pushpin1</styleUrl>")
             f.write("<Point>")
             f.write("<gx:drawOrder>1</gx:drawOrder>")
             lon, lat = stats_dict[stat_code]
-            f.write("<coordinates>%s,%s,0</coordinates>" %(str(lon), str(lat)))
+            f.write("<coordinates>%s,%s,0</coordinates>" % (str(lon), str(lat)))
             f.write("</Point>")
             f.write("</Placemark>")
             f.write("\n")
         f.write(google_earth_end_kml)
     return
 
-def gen_stats_kml(loc,fname):
+
+def gen_stats_kml(loc, fname):
     """
     fname: station_file_name.ll
     saves: station_file_name.kml

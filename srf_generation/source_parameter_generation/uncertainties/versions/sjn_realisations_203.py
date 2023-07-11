@@ -42,7 +42,6 @@ def uniform_dist(u_mean, u_half_range):
 
 
 def generate_from_gcmt(source_data: GCMT_Source):
-
     # area = mw_2_a_scaling_relation(
     #    source_data.mag,
     #    MagnitudeScalingRelations.LEONARD2014.value,

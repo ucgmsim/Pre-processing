@@ -219,7 +219,7 @@ def get_max_depth(mag: float, depth: float):
     return round(
         10
         + depth
-        + (10 * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), (0.3))),
+        + (10 * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), 0.3)),
         0,
     )
 

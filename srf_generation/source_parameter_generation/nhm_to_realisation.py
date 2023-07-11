@@ -44,7 +44,9 @@ def load_args(primary_logger: Logger):
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
-    parser.add_argument("type", type=str, help="The type of srf to generate.")
+    parser.add_argument(
+        "--type", type=str, help="The type of srf to generate.", default=4
+    )
 
     add_common_arguments(parser)
 
@@ -73,7 +75,6 @@ def load_args(primary_logger: Logger):
 
 
 def verify_args(args, errors, parser_logger=get_basic_logger()):
-
     if args.version is None:
         if args.type is not None:
             args.version = f"nhm_{args.type}"
@@ -246,7 +247,6 @@ def get_additional_source_parameters(
 
 
 def main():
-
     primary_logger = get_logger("NHM_2_realisation")
 
     args = load_args(primary_logger)
@@ -277,7 +277,7 @@ def main():
     additional_source_parameters = get_additional_source_parameters(
         args.source_parameter,
         args.common_source_parameter,
-        fault_nhm,
+        {fault_nhm.name: fault_nhm},
         vel_mod_1d_layers,
     )
 

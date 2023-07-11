@@ -52,7 +52,6 @@ def generate_config_header(vm_params):
 def write_pertb_config(
     config_header: pd.DataFrame, config_layers: pd.DataFrame, out_file
 ):
-
     config_header.to_csv(out_file, index=False, mode="w")
     config_layers.to_csv(out_file, index=False, mode="a")
 
