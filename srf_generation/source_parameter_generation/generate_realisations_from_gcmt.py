@@ -304,7 +304,9 @@ def main():
             if faults[pid] == 0:
                 ordered_rels.append(pid)
             else:
-                ordered_rels.extend([get_realisation_name(pid, i + 1) for i in range(faults[pid])])
+                ordered_rels.extend(
+                    [get_realisation_name(pid, i + 1) for i in range(faults[pid])]
+                )
 
         agg = pd.read_csv(args.aggregate_file)
         agg.sort_values(
