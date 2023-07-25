@@ -22,7 +22,7 @@ from subprocess import Popen
 import sys
 
 
-from tempfile import TemporaryDirectory,mkdtemp
+from tempfile import mkdtemp
 import yaml
 
 from qcore import qclogging
@@ -69,13 +69,7 @@ def gen_vm(
             env=nzvm_env,
         )
         nzvm_exe.communicate()
-    print(f"{NZVM_BIN} {nzvm_cfg_path}")
-
-    with open(temp_dir /"NZVM.out", "r") as logfile:
-        lines = logfile.readlines()
-        logger.debug("\n".join(lines))
-    logger.debug([x.name for x in temp_dir.glob("*")])
-
+    
     logger.debug("Moving output files to vm directory")
     files_to_move = [
         vm_working_dir / "Velocity_Model" / vm3dfile
@@ -177,41 +171,40 @@ def main(
 
     """
 
-    # temp directory for current process
-#    with TemporaryDirectory(prefix=f"_tmp_{name}_", dir=outdir) as temp_dir:
-#    tempd = TemporaryDirectory(prefix=f"_tmp_{name}_", dir=outdir)
+    # temp directory for current process. 
+    # mkdtemp() favoured over TemporaryDirectory as its auto cleanup upon exit
+    # made debugging harder
     tempd = mkdtemp(prefix=f"_tmp_{name}_",dir=outdir)
-    if True:
-        temp_dir = Path(tempd)
-        temp_dir.exists()
-        qclogging.add_general_file_handler(
-            logger, outdir / f"vm_params2vm_{name}_log.txt"
+    temp_dir = Path(tempd)
+    qclogging.add_general_file_handler(
+        logger, outdir / f"vm_params2vm_{name}_log.txt"
+    )
+    logger.debug(f"{temp_dir} created")
+
+    vm_working_dir = temp_dir / "output"
+    nzvm_cfg_path = temp_dir / "nzvm.cfg"
+
+    with open(vm_params_path, "r") as f:
+        vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
+
+    if vm_params_dict is not None:
+        # saves nzvm.cfg
+        save_nzvm_cfg(nzvm_cfg_path, vm_params_dict, vm_working_dir, logger=logger)
+
+        # run the actual generation
+        gen_vm(
+            outdir,
+            temp_dir,
+            vm_working_dir,
+            nzvm_cfg_path,
+            vm_params_path,
+            vm_threads=vm_threads,
+            logger=logger,
         )
-        logger.debug(f"{temp_dir} created")
-
-        vm_working_dir = temp_dir / "output"
-        nzvm_cfg_path = temp_dir / "nzvm.cfg"
-
-        with open(vm_params_path, "r") as f:
-            vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
-
-        if vm_params_dict is not None:
-            # saves nzvm.cfg
-            save_nzvm_cfg(nzvm_cfg_path, vm_params_dict, vm_working_dir, logger=logger)
-
-            # run the actual generation
-            gen_vm(
-                outdir,
-                temp_dir,
-                vm_working_dir,
-                nzvm_cfg_path,
-                vm_params_path,
-                vm_threads=vm_threads,
-                logger=logger,
-            )
-        else:
-            logger.debug("vm_params.yaml has no data for VM generation")
-#    tempd.cleanup()
+    else:
+        logger.debug("vm_params.yaml has no data for VM generation")
+    tempd.cleanup()
+    logger.debug(f"{temp_dir} removed")
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
     """
