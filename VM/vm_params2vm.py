@@ -69,12 +69,21 @@ def gen_vm(
             env=nzvm_env,
         )
         nzvm_exe.communicate()
-    
+
     logger.debug("Moving output files to vm directory")
-    files_to_move = [
-        vm_working_dir / "Velocity_Model" / vm3dfile
-        for vm3dfile in ["rho3dfile.d", "vp3dfile.p", "vs3dfile.s", "in_basin_mask.b"]
-    ] + [nzvm_cfg_path] + list((vm_working_dir / "Log").glob("VeloModCorners*.txt")) # due to NZVM's MPI support, it is now VeloModCorners-%d
+    files_to_move = (
+        [
+            vm_working_dir / "Velocity_Model" / vm3dfile
+            for vm3dfile in [
+                "rho3dfile.d",
+                "vp3dfile.p",
+                "vs3dfile.s",
+                "in_basin_mask.b",
+            ]
+        ]
+        + [nzvm_cfg_path]
+        + list((vm_working_dir / "Log").glob("VeloModCorners*.txt"))
+    )  # due to NZVM's MPI support, it is now VeloModCorners-%d
 
     for f in files_to_move:
         move(f, outdir / f.name)  # may overwrite
@@ -171,14 +180,12 @@ def main(
 
     """
 
-    # temp directory for current process. 
+    # temp directory for current process.
     # mkdtemp() favoured over TemporaryDirectory as its auto cleanup upon exit
     # made debugging harder
-    tempd = mkdtemp(prefix=f"_tmp_{name}_",dir=outdir)
+    tempd = mkdtemp(prefix=f"_tmp_{name}_", dir=outdir)
     temp_dir = Path(tempd)
-    qclogging.add_general_file_handler(
-        logger, outdir / f"vm_params2vm_{name}_log.txt"
-    )
+    qclogging.add_general_file_handler(logger, outdir / f"vm_params2vm_{name}_log.txt")
     logger.debug(f"{temp_dir} created")
 
     vm_working_dir = temp_dir / "output"
@@ -205,6 +212,7 @@ def main(
         logger.debug("vm_params.yaml has no data for VM generation")
     tempd.cleanup()
     logger.debug(f"{temp_dir} removed")
+
 
 def load_args(logger: Logger = qclogging.get_basic_logger()):
     """
