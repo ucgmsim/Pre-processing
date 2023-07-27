@@ -229,9 +229,9 @@ def generate_realisation(
 
     if aggregate_file is not None:
         if not isfile(aggregate_file):
-            rel_df.to_csv(aggregate_file)
+            rel_df.to_csv(aggregate_file, index=False)
         else:
-            rel_df.to_csv(aggregate_file, mode="a", header=False)
+            rel_df.to_csv(aggregate_file, mode="a", header=False, index=False)
 
     fault_logger.debug(
         f"Parameters saved successfully. Continuing to next realisation if one exists."
