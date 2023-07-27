@@ -210,7 +210,7 @@ def main(
         )
     else:
         logger.debug("vm_params.yaml has no data for VM generation")
-    tempd.cleanup()
+    rmtree(tempd)
     logger.debug(f"{temp_dir} removed")
 
 
