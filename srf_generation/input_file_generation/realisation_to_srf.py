@@ -852,9 +852,6 @@ def main():
     qclogging.add_general_file_handler(primary_logger, "rel2srf.txt")
     args = load_args()
     realisation = load_realisation_file_as_dict(args.realisation_file)
-    realisation["name"] = str(
-        realisation["name"]
-    )  # str() to avoid all-number name becoming an integer
     rel_logger = qclogging.get_realisation_logger(primary_logger, realisation["name"])
     if realisation["type"] == 1:
         create_ps_srf(args.realisation_file, realisation, logger=rel_logger)
