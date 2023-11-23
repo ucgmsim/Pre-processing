@@ -167,7 +167,6 @@ def generate_velocity_model_perturbation_file_from_model(
     # Uses a temp dir in the current folder structure due to memory issues if using an actual temp directory
     with TemporaryDirectory(dir=Path(out_file).parent) as temp_dir:
         temp_dir_path = Path(temp_dir).resolve()
-
         complete_layer_parameters = []
         while current_depth < max_depth:
             layer = perturbation_model.iloc[i]
