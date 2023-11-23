@@ -123,10 +123,16 @@ def generate_velocity_model_perturbation_file_from_config(
 ):
     set_verbose(verbose)
 
+
+    temp_dir = TemporaryDirectory(dir=Path(out_file).parent)
+    temp_dir_path = Path(temp_dir.name).resolve()
+
     complete_layer_parameters = [
-        (create_perturbed_layer, dict({"index": index}, **l_p, **common_params))
+        (create_perturbed_layer, dict({"index": index, "temp_dir":  temp_dir_path}, **l_p, **common_params))
         for index, l_p in layer_params.items()
     ]
+
+    print(complete_layer_parameters)
     if n_processes == 1:
         layer_info = sorted([kwarg_map(*layer) for layer in complete_layer_parameters])
     else:
@@ -139,7 +145,7 @@ def generate_velocity_model_perturbation_file_from_config(
     combine_layers(layer_info, common_params["nx"], common_params["ny"], out_file)
     for _, _, file in layer_info:
         remove(file)
-
+    temp_dir.cleanup()
 
 def set_verbose(verbose):
     if verbose:
@@ -159,6 +165,7 @@ def generate_velocity_model_perturbation_file_from_model(
     # Uses a temp dir in the current folder structure due to memory issues if using an actual temp directory
     with TemporaryDirectory(dir=Path(out_file).parent) as temp_dir:
         temp_dir_path = Path(temp_dir).resolve()
+
         complete_layer_parameters = []
         while current_depth < max_depth:
             layer = perturbation_model.iloc[i]
