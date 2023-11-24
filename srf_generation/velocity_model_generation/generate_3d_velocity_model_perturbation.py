@@ -143,7 +143,7 @@ def generate_velocity_model_perturbation_file_from_config(
         except AssertionError:
             print("The process failed at the layer generation, try with n_proc=1")
             raise
-    combine_layers(layer_info, common_params["nx"], common_params["ny"], out_file)
+    combine_layers(layer_info, common_params["nx"], common_params["ny"], out_file, temp_dir_path)
     for _, _, file in layer_info:
         remove(file)
     temp_dir.cleanup()
