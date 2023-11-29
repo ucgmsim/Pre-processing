@@ -262,6 +262,7 @@ def verify_realisation_params(params: Dict[str, Any], throw_exception=True):
     if mismatch:
         raise ValueError(f"Unexpected parameters found: {mismatch}")
 
+
 def verify_1d_vel_mod(vel_mod_1d: DataFrame):
     assert vel_mod_1d.columns == ("depth", "vp", "vs", "rho", "qp", "qs")
 
