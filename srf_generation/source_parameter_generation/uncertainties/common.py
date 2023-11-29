@@ -227,7 +227,13 @@ def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
     return params
 
 
-def verify_realisation_params(params: Dict[str, Any]):
+def verify_realisation_params(params: Dict[str, Any], throw_exception=True):
+    def _raise_value_error(msg, throw_exception=True):
+        if throw_exception:
+            raise ValueError(msg)
+        else:
+            print(f"WARNING: {msg}")
+
     if params["type"] == 1:
         mismatch = [
             name
@@ -256,11 +262,13 @@ def verify_realisation_params(params: Dict[str, Any]):
             + SUBPLANE_PARAMS
         ]
     else:
-        raise ValueError(
+        _raise_value_error(
             f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."
-        )
+        , throw_exception=throw_exception)
     if mismatch:
-        raise ValueError(f"Unexpected parameters found: {mismatch}")
+        _raise_value_error(f"Unexpected parameters found: {mismatch}", throw_exception=throw_exception)
+
+    return mismatch
 
 
 def verify_1d_vel_mod(vel_mod_1d: DataFrame):
