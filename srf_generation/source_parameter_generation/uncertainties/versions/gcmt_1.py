@@ -46,11 +46,7 @@ def generate_source_params(
 
     realisation["params"] = params
 
-    bad_params = verify_realisation_params(realisation["params"], throw_exception=False)
-    for bad_param in bad_params:
-        print(f"WARNING: Unsupported parameters will be ignored {bad_param}")
-        realisation["params"].pop(bad_param)
-
+    verify_realisation_params(realisation["params"])
     realisation["params"].update(additional_source_parameters)
 
     if vs30_data is not None:
