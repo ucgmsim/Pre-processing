@@ -227,7 +227,7 @@ def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
     return params
 
 
-def verify_realisation_params(params: Dict[str, Any], throw_exception=True):
+def verify_realisation_params(params: Dict[str, Any]):
     if params["type"] == 1:
         mismatch = [
             name
