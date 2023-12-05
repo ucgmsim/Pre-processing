@@ -257,7 +257,7 @@ def verify_realisation_params(params: Dict[str, Any]):
         ]
     else:
         raise ValueError(
-            f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."
+            f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}.",
         )
     if mismatch:
         raise ValueError(f"Unexpected parameters found: {mismatch}")
