@@ -1,21 +1,20 @@
 import argparse
 from logging import Logger
-from subprocess import run, PIPE, Popen
-from typing import Dict, Any, Union, List
+from os import makedirs, path
+from subprocess import PIPE, Popen, run
 from tempfile import NamedTemporaryFile
+from typing import Any, Dict, List, Union
 
+import numpy as np
 import yaml
 from h5py import File as h5open
-import numpy as np
-from os import makedirs, path, remove
-from qcore import binary_version, srf, geo, qclogging, utils
-from qcore.utils import compare_versions
+from qcore import binary_version, geo, qclogging, srf, utils
 from qcore.uncertainties.mag_scaling import (
-    mag2mom,
     MagnitudeScalingRelations,
+    mag2mom,
     mw_to_a_skarlatoudis,
 )
-
+from qcore.utils import compare_versions
 from srf_generation.pre_processing_common import (
     calculate_corners,
     get_hypocentre,
