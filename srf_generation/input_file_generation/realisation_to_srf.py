@@ -36,12 +36,10 @@ GENERICSLIP2SRF = "generic_slip2srf"
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 CORNERS_HEADER = (
-    "> header line here for specifics \n\
-> This is the standard input file format where the \
-hypocenter is first then for each \n\
->Hypocenter (reference??) \n",
-    "> Below are the corners \
-(first point repeated as fifth to close box \n",
+    """> header line here for specifics
+> This is the standard input file format where the hypocenter is first then for each
+> Hypocenter (reference??) """,
+    "> Below are the corners (first point repeated as fifth to close box)\n",
 )
 
 
