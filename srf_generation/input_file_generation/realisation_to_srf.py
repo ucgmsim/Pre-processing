@@ -74,7 +74,7 @@ def create_stoch(
         command = [srf2stoch, f"dx={dx}", f"dy={dy}"]
     command.extend([f"infile={srf_file}", f"outfile={stoch_file}"])
     logger.debug(f"Creating stoch with command: {command}")
-    proc = run(command, stderr=PIPE)
+    proc = run(command, stderr=PIPE, check=True)
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
@@ -287,7 +287,7 @@ def create_ps_srf(
         "risetimefac=1.0",
         "risetimedep=0.0",
     ]
-    run(commands, stderr=PIPE)
+    run(commands, stderr=PIPE, check=True)
 
     ###
     ### save STOCH
@@ -767,7 +767,7 @@ def gen_srf(
         cmd.append(f"init_slip_file={asperity_file}")
     logger.debug("Creating SRF with command: {}".format(" ".join(cmd)))
     with open(srf_file, "w") as srfp:
-        proc = run(cmd, stdout=srfp, stderr=PIPE)
+        proc = run(cmd, stdout=srfp, stderr=PIPE, check=True)
     logger.debug(f"{genslip_bin} stderr: {proc.stderr}")
 
 
