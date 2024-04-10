@@ -362,9 +362,6 @@ def create_ps_ff_srf(
     logger.debug(
         "All srf generation parameters successfully obtained from the realisation file"
     )
-
-    gsf_file = NamedTemporaryFile(mode="w", delete=False)
-    logger.debug(f"Gsf will be saved to the temporary file {gsf_file}")
     srf_file = realisation_file.replace(".csv", ".srf")
     logger.debug(f"Srf will be saved to {srf_file}")
     corners_file = realisation_file.replace(".csv", ".corners")
@@ -394,27 +391,27 @@ def create_ps_ff_srf(
             ny,
             logger=logger,
         )
-    gen_srf(
-        srf_file,
-        gsfp.name,
-        2,
-        magnitude,
-        dt,
-        nx,
-        ny,
-        seed,
-        shypo,
-        dhypo,
-        vel_mod_1d,
-        genslip_version=genslip_version,
-        rvfac=rvfac,
-        slip_cov=slip_cov,
-        risetime_coef=risetime_coef,
-        rough=rough,
-        logger=logger,
-        tect_type=tect_type,
-        asperity_file=asperity_file,
-    )
+        gen_srf(
+            srf_file,
+            gsfp.name,
+            2,
+            magnitude,
+            dt,
+            nx,
+            ny,
+            seed,
+            shypo,
+            dhypo,
+            vel_mod_1d,
+            genslip_version=genslip_version,
+            rvfac=rvfac,
+            slip_cov=slip_cov,
+            risetime_coef=risetime_coef,
+            rough=rough,
+            logger=logger,
+            tect_type=tect_type,
+            asperity_file=asperity_file,
+        )
 
     if stoch_file is None:
         stoch_file = realisation_file.replace(".csv", ".stoch")
@@ -515,14 +512,15 @@ def create_multi_plane_srf(
             "Subduction interface faults are only available for version 5.4.2 and above"
         )
 
-    gsf_file = NamedTemporaryFile(mode="w", delete=False)
-    rel_logger.debug(f"Gsf will be saved to the temporary file {gsf_file.name}")
     srf_file = realisation_file.replace(".csv", ".srf")
     rel_logger.debug(f"Srf will be saved to {srf_file}")
     corners_file = realisation_file.replace(".csv", ".corners")
     rel_logger.debug(f"The corners file will be saved to {corners_file}")
 
-    with NamedTemporaryFile(mode="w", delete=False) as gsfp:
+    fault_seg_bin = binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR)
+    with NamedTemporaryFile(mode="w", delete=False) as gsfp, NamedTemporaryFile(
+        mode="w", delete=False
+    ) as gsf_file:
         rel_logger.debug("Saving segments file to {}".format(gsfp.name))
         gsfp.write("{}\n".format(plane_count))
         for f in range(plane_count):
@@ -540,54 +538,50 @@ def create_multi_plane_srf(
                     ny,
                 )
             )
+        rel_logger.debug(f"Gsf will be saved to the temporary file {gsf_file.name}")
+        cmd = [
+            fault_seg_bin,
+            "read_slip_vals=0",
+            f"infile={gsfp.name}",
+            f"outfile={gsf_file.name}",
+        ]
+        if dip_dir is not None:
+            cmd.append(f"dipdir={dip_dir}")
 
-    fault_seg_bin = binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR)
-    cmd = [
-        fault_seg_bin,
-        "read_slip_vals=0",
-        "infile={}".format(gsfp.name),
-        "outfile={}".format(gsf_file.name),
-    ]
-    if dip_dir is not None:
-        cmd.append("dipdir={}".format(dip_dir))
+        rel_logger.info(f"Calling fault_seg2gsf_dipdir with command {' '.join(cmd)}")
+        gexec = run(cmd, check=True)
+        rel_logger.debug(
+            f"{fault_seg_bin} finished running with stderr: {gexec.stderr}"
+        )
 
-    rel_logger.info(
-        "Calling fault_seg2gsf_dipdir with command {}".format(" ".join(cmd))
-    )
-    gexec = run(cmd)
-    rel_logger.debug(f"{fault_seg_bin} finished running with stderr: {gexec.stderr}")
+        if int(plane_count > 1):
+            rel_logger.debug("Multiple segments detected. Generating xseg argument")
+            flen_array = np.asarray(flen)
+            xseg = ",".join(map(str, flen_array.cumsum() - flen_array / 2))
+        else:
+            xseg = "-1"
 
-    # remove(gsfp.name)
-    # rel_logger.debug("Removed segments file")
-
-    if int(plane_count > 1):
-        rel_logger.debug("Multiple segments detected. Generating xseg argument")
-        flen_array = np.asarray(flen)
-        xseg = ",".join(map(str, flen_array.cumsum() - flen_array / 2))
-    else:
-        xseg = "-1"
-
-    gen_srf(
-        srf_file,
-        gsf_file.name,
-        4,
-        magnitude,
-        dt,
-        sum(nx),
-        ny,
-        seed,
-        shypo,
-        dhypo,
-        vel_mod_1d,
-        genslip_version=genslip_version,
-        rvfac=rvfac,
-        rough=rough,
-        slip_cov=slip_cov,
-        xseg=xseg,
-        logger=rel_logger,
-        tect_type=tect_type,
-        asperity_file=asperity_file,
-    )
+        gen_srf(
+            srf_file,
+            gsf_file.name,
+            4,
+            magnitude,
+            dt,
+            sum(nx),
+            ny,
+            seed,
+            shypo,
+            dhypo,
+            vel_mod_1d,
+            genslip_version=genslip_version,
+            rvfac=rvfac,
+            rough=rough,
+            slip_cov=slip_cov,
+            xseg=xseg,
+            logger=rel_logger,
+            tect_type=tect_type,
+            asperity_file=asperity_file,
+        )
 
     rel_logger.info("srf generated, creating stoch")
 
