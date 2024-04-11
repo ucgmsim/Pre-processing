@@ -1,28 +1,8 @@
 """
-This script takes converts one realisation CSV file to an SRF output file. The
-parameters of the realisation are loaded into a dictionary and stored as follows:
+This script takes converts one realisation CSV file to an SRF output file.
 
-- type: The realisation type (1, 2, 3, 4)
-- magnitude: The magnitude of the realisation
-- name: The name of the realisation.
-- longitude: The longitude of the hypocentre.
-- latitidue: The latitude of the hypocentre.
-- strike: The strike angle of the fault.
-- rake: The rake angle of the fault.
-- dip: The dip angle of the fault.
-- depth: The depth of the hypocentre.
-- flen: Fault length TODO.
-- fwid: Fault width TODO.
-- dlen: TODO
-- dwid: TODO
-- dtop: TODO
-- shypo: TODO
-- mwsr: The magnitude scaling technique.
-- dbottom: TODO
-- dt: Timestep TODO
-- seed: TODO
-- genslip_version: The genslip binary version to use
-- srfgen_seed: TODO
+The parameters that are read from the CSV file are documented on the
+[wiki](https://wiki.canterbury.ac.nz/display/QuakeCore/File+Formats+Used+On+GM).
 """
 
 import argparse
@@ -92,7 +72,7 @@ def create_stoch(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    Creates a stoch file from a srf file.
+    Create a stoch file from a srf file.
 
     Parameters
     ----------
@@ -194,19 +174,21 @@ def create_info_file(
     ----------
     srf_file: SRF path used as basename for info file and additional metadata.
     srf_type: Realisation type (e.g. 1, 2, 3, or 4).
-    mag: Magnitude of the realisation.
-    rake: Rake of the fault.
-    dt: TODO
-    vm: TODO
-    vs: TODO
-    rho: TODO
-    centroid_depth: Depth of the hypocentre.
-    lon: longitude of the hypocentre.
-    lat: latitude of the hypocentre.
-    shypo: TODO |
-    dhypo: TODO | Something to do with the hypocentre
-    mwsr: Magnitude scaling method. See mag_scaling in qcore.
-    tect_type: Type of the interface (e.g. 'SUBDUCTION_INTERFACE')
+
+    mag           |
+    rake          |
+    dt            |
+    vm            |
+    vs            |
+    rho           | Refer to wiki (see module documentation for link).
+    mwsr          |
+    tect_type     |
+    centroid_depth|
+    shypo         |
+    dhypo         |
+
+    lon: longitude of the centroid.
+    lat: latitude of the centroid.
     dip_dir: TODO | Directory of something?
     file_name: File path to save metadata
     logger: Logger for debug output
@@ -259,16 +241,18 @@ def create_ps_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
-    """Generate SRF file (point source modeling)
+    """
+    Generate SRF file (point source modeling).
 
     Parameters
     ----------
-    realisation_file: Path to the realisation (a CSV file). The output files (srf, stoch, etc) are produced relative to this file path.
-    parameter_dictionary: Parameters of the realisation. See module documentation for a description of these parameters.
+    realisation_file: Path to the realisation (a CSV file). The output files
+    (srf, stoch, etc) are produced relative to this file path.
+    parameter_dictionary: Parameters of the realisation. See module
+    documentation for a description of these parameters.
     stoch_file: An optional alternative location for the stoch file.
     logger: optional alternative logger for log output.
     """
-
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
     depth = parameter_dictionary.pop("depth")
@@ -706,12 +690,12 @@ def get_corners(
 
     Parameters
     ---------
-    lat: The latitude of the point source.
-    lon: The longitude of the point source.
-    flen: The length of the fault.
-    fwid: The width of the fault.
-    dip: The dip angle of the fault.
-    strike: The strike angle of the fault.
+    lat   |
+    lon   |
+    flen  |
+    fwid  | Refer to wiki (see module documentation for link).
+    dip   |
+    strike|
 
     Returns
     -------
@@ -800,32 +784,36 @@ def gen_srf(
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    Wrapper around genslip, which actually generates the SRF files. The
-    arguments to this function are validated and passed to genslip as command
+    Wrapper around genslip, which actually generates the SRF files.
+
+    The arguments to this function are validated and passed to genslip as command
     line arguments in a subprocess.
 
     Parameters
     ----------
     srf_file: The output srf file.
     gsf_file: The input gsf file (TODO).
-    type: The type the source model.
-    magnitude: The magnitude of the event.
-    dt: TODO
-    nx: TODO
-    ny: TODO
-    seed: TODO
-    shypo: TODO | Involved with the hypocentre?
-    dhypo: TODO |
-    velocity_model: path to velocity model.
-    genslip_version: The version of genslip to use.
-    rvfac: TODO
-    rough: TODO
-    slip_cov: TODO
-    risetime_coef: TODO
-    tect_type: TODO
-    fault_planes: TODO | Number of fault planes?
-    asperity_file: TODO?
+
+    type           |
+    magnitude      |
+    dt             |
+    nx             |
+    ny             |
+    seed           |
+    shypo          |
+    dhypo          |
+    velocity_model | Refer to wiki (see module documentation for link).
+    genslip_version|
+    rvfac          |
+    rough          |
+    slip_cov       |
+    risetime_coef  |
+    tect_type      |
+
+    fault_planes:  TODO | Number of fault planes?
+    asperity_file: TODO
     xseg: TODO | Segments for type 4 simulations?
+
     logger: optional alternative logger for log output.
     """
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
@@ -938,14 +926,16 @@ def gen_gsf(
     Parameters
     ----------
     gsfp: File path for the GSF file.
-    lon: hypocentre longitude TODO
-    lat: hypocentre latitude TODO
-    dtop: TODO
-    strike: strike angle of the fault.
-    dip: dip angle of the fault.
-    rake: rake angle of the fault.
-    flen: length of the fault.
-    fwid: width of the fault.
+
+    lon   |
+    lat   |
+    dtop  |
+    strike| Refer to wiki (see module documentation for link).
+    dip   |
+    rake  |
+    flen  |
+    fwid  |
+
     nx: TODO
     ny: TODO
     logger: optional alternative logger for log output.
