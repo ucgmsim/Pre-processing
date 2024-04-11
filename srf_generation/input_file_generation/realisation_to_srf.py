@@ -10,7 +10,7 @@ from logging import Logger
 from os import makedirs, path
 from subprocess import PIPE, Popen, run
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, TextIO
 
 import numpy as np
 import yaml
@@ -910,7 +910,7 @@ def gen_srf(
 
 
 def gen_gsf(
-    gsfp: str,
+    gsf_handle: TextIO,
     lon: float,
     lat: float,
     dtop: float,
@@ -927,7 +927,8 @@ def gen_gsf(
 
     Parameters
     ----------
-    gsfp: File path for the GSF file.
+    gsf_handle: File handle for the GSF file. Must come from NamedTemporaryFile
+    because it must have the `name` property.
 
     lon   |
     lat   |
@@ -942,11 +943,11 @@ def gen_gsf(
     ny: TODO
     logger: optional alternative logger for log output.
     """
-    logger.debug(f"Saving gsf to {gsfp.name}")
+    logger.debug(f"Saving gsf to {gsf_handle.name}")
     with Popen(
         [binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), "read_slip_vals=0"],
         stdin=PIPE,
-        stdout=gsfp,
+        stdout=gsf_handle,
     ) as gexec:
         gexec.communicate(
             f"1\n{lon:f} {lat:f} {dtop:f} {strike} {dip} {rake} {flen:f} {fwid:f} {nx:d} {ny:d}".encode(
