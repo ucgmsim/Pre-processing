@@ -597,8 +597,11 @@ def create_multi_plane_srf(
         gsfp.write(f"{plane_count}\n")
         for f in range(plane_count):
             gsfp.write(
-                f"{clon[f]} {clat[f]} {dtop} {strike[f]:.4f} {dip:.4f} {rake:.4f} {flen[f]:.4f} {fwid[f]:.4f} {nx[f]} {ny}\n"
+                f"{clon[f]:6f} {clat[f]:6f} {dtop:6f} {strike[f]:.4f} {dip:.4f} {rake:.4f} {flen[f]:.4f} {fwid[f]:.4f} {nx[f]:d} {ny:d}\n"
             )
+        # NOTE: This flush call is vital. It ensures that the input file for fault_seg_bin actually contains input for fault_seg_bin to read.
+        # without this, genslip will segfault later.
+        gsfp.flush()
         rel_logger.debug(f"Gsf will be saved to the temporary file {gsf_file.name}")
         cmd = [
             fault_seg_bin,
