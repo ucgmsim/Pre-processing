@@ -1,4 +1,5 @@
 """Script to generate a Qp/Qs binary model file from an Eberhart-Phillips style ascii model"""
+
 import argparse
 from os.path import abspath
 import pandas as pd

@@ -1,4 +1,5 @@
 """A basic perturbator as an example and starting point"""
+
 import copy
 
 from typing import Any, Dict
