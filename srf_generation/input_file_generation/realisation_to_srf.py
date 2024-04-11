@@ -910,17 +910,17 @@ def gen_srf(
 
 
 def gen_gsf(
-    gsfp,
-    lon,
-    lat,
-    dtop,
-    strike,
-    dip,
-    rake,
-    flen,
-    fwid,
-    nx,
-    ny,
+    gsfp: str,
+    lon: float,
+    lat: float,
+    dtop: float,
+    strike: float,
+    dip: float,
+    rake: float,
+    flen: float,
+    fwid: float,
+    nx: float,
+    ny: float,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """Wrapper around the fault_seg2gsf_dipdir binary.
