@@ -703,11 +703,12 @@ def get_corners(
     (lon, lat) pairs  representing coordinates in the WGS84 coordinate system.
     The indices 0, 1, 2, 3 correspond to the corners of the fault in the
     following fashion.
-                  fwid
+
+                  flen
             0 +------------+ 1
               |            |
               |            |
-              |            | flen
+              |            | fwid
               |            |
             2 +------------+ 3
     """
@@ -728,7 +729,8 @@ def write_corners(filename: str, hypocentre: np.ndarray, corners: np.ndarray):
     """
     Write a corners text file (used to plot faults).
 
-    The format of the corners file given a hypocentre [lonc, latc] an array of corners [[lon0, lat0], ..., [lon3, lat3]] is as follows
+    The format of the corners file given a hypocentre [lonc, latc] and an array
+    of corners [[lon0, lat0], ..., [lon3, lat3]] is as follows
 
     ```
     OUTPUT_PREHEADER # see CORNERS_HEADER[0]
