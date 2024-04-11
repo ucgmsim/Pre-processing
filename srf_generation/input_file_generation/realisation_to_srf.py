@@ -119,7 +119,7 @@ def create_stoch(
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
-def get_corners_dbottom(planes: dict, dip_dir: Union[str, None] = None):
+def get_corners_dbottom(planes: Dict[str, Any], dip_dir: Union[str, None] = None):
     """
     TODO
 
