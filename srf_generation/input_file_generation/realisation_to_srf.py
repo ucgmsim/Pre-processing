@@ -219,7 +219,7 @@ def create_info_file(
 
     if file_name is None:
         file_name = srf_file.replace(".srf", ".info")
-    logger.debug("Saving info file to {}".format(file_name))
+    logger.debug(f"Saving info file to {file_name}")
     with h5open(file_name, "w") as h:
         a = h.attrs
         # only taken from given parameters
@@ -616,22 +616,11 @@ def create_multi_plane_srf(
     with NamedTemporaryFile(mode="w", delete=False) as gsfp, NamedTemporaryFile(
         mode="w", delete=False
     ) as gsf_file:
-        rel_logger.debug("Saving segments file to {}".format(gsfp.name))
-        gsfp.write("{}\n".format(plane_count))
+        rel_logger.debug(f"Saving segments file to {gsfp.name}")
+        gsfp.write(f"{plane_count}\n")
         for f in range(plane_count):
             gsfp.write(
-                "{:f} {:f} {:f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:d} {:d}\n".format(
-                    clon[f],
-                    clat[f],
-                    dtop,
-                    strike[f],
-                    dip,
-                    rake,
-                    flen[f],
-                    fwid[f],
-                    nx[f],
-                    ny,
-                )
+                f"{clon[f]} {clat[f]} {dtop} {strike[f]:.4f} {dip:.4f} {rake:.4f} {flen[f]:.4f} {fwid[f]:.4f} {nx[f]} {ny}\n"
             )
         rel_logger.debug(f"Gsf will be saved to the temporary file {gsf_file.name}")
         cmd = [
@@ -779,12 +768,12 @@ def write_corners(filename: str, hypocentre: np.ndarray, corners: np.ndarray):
     with open(filename, "w") as cf:
         # lines beginning with '>' are ignored
         cf.write(CORNERS_HEADER[0])
-        cf.write("{:f} {:f}\n".format(*hypocentre))
+        cf.write(f"{hypocentre[0]} {hypocentre[1]}\n")
         cf.write(CORNERS_HEADER[1])
         # 0 1 - draw in order to close box
         # 2 3
         for i in [0, 1, 3, 2, 0]:
-            cf.write("{:f} {:f}\n".format(*corners[i]))
+            cf.write(f"{corners[i, 0]:f} {corners[i, 1]:f}\n")
 
 
 def gen_srf(
@@ -850,9 +839,7 @@ def gen_srf(
     if compare_versions(genslip_version, "5") > 0:
         # Positive so version greater than 5
         logger.debug(
-            "Using genslip version {}. Using nstk and ndip and rup_delay (for type 4)".format(
-                genslip_version
-            )
+            f"Using genslip version {genslip_version}. Using nstk and ndip and rup_delay (for type 4)"
         )
         xstk = "nstk"
         ydip = "ndip"
@@ -860,9 +847,7 @@ def gen_srf(
     else:
         # Not positive so version at most 5
         logger.debug(
-            "Using genslip version {}. Using nx and ny and rupture_delay (for type 4)".format(
-                genslip_version
-            )
+            f"Using genslip version {genslip_version}. Using nx and ny and rupture_delay (for type 4)"
         )
         xstk = "nx"
         ydip = "ny"
@@ -890,15 +875,15 @@ def gen_srf(
     if type == 4:
         cmd.extend(
             [
-                f"seg_delay={0}",
+                "seg_delay={0}",
                 f"nseg={fault_planes}",
                 f"nseg_bounds={fault_planes - 1}",
                 f"xseg={xseg}",
-                f"rvfac_seg=-1",
-                f"gwid=-1",
-                f"side_taper=0.02",
-                f"bot_taper=0.02",
-                f"top_taper=0.0",
+                "rvfac_seg=-1",
+                "gwid=-1",
+                "side_taper=0.02",
+                "bot_taper=0.02",
+                "top_taper=0.0",
                 f"{rup_name}=0",
             ]
         )
@@ -916,7 +901,7 @@ def gen_srf(
             ]
         )
         if risetime_coef is None:
-            cmd.append(f"risetime_coef=1.95")
+            cmd.append("risetime_coef=1.95")
     if rvfac is not None:
         cmd.append(f"rvfrac={rvfac}")
     if rough is not None:
@@ -926,9 +911,9 @@ def gen_srf(
     if risetime_coef is not None:
         cmd.append(f"risetime_coef={risetime_coef}")
     if asperity_file is not None:
-        cmd.append(f"read_slip_file=1")
+        cmd.append("read_slip_file=1")
         cmd.append(f"init_slip_file={asperity_file}")
-    logger.debug("Creating SRF with command: {}".format(" ".join(cmd)))
+    logger.debug(f"Creating SRF with command: {' '.join(cmd)}")
     with open(srf_file, "w") as srfp:
         proc = run(cmd, stdout=srfp, stderr=PIPE, check=True)
     logger.debug(f"{genslip_bin} stderr: {proc.stderr}")
@@ -1020,7 +1005,7 @@ def generate_sim_params_yaml(
     logger.debug(f"Saving sim params to {sim_params_file}")
     with open(sim_params_file, "w") as spf:
         yaml.dump(sim_params, spf)
-    logger.debug(f"Sim params saved")
+    logger.debug("Sim params saved")
 
 
 def load_args() -> argparse.Namespace:
@@ -1050,7 +1035,7 @@ def main():
     else:
         raise ValueError(
             f"Type {realisation['type']} faults are not currently supported. "
-            f"Contact the software team if you believe this is an error."
+            "Contact the software team if you believe this is an error."
         )
     sim_params_file = args.realisation_file.replace(".csv", ".yaml")
     generate_sim_params_yaml(sim_params_file, realisation)
