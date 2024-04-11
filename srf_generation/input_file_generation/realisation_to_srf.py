@@ -621,9 +621,9 @@ def create_multi_plane_srf(
         if int(plane_count > 1):
             rel_logger.debug("Multiple segments detected. Generating xseg argument")
             flen_array = np.asarray(flen)
-            xseg = ",".join(map(str, flen_array.cumsum() - flen_array / 2))
+            xseg = flen_array.cumsum() - flen_array / 2
         else:
-            xseg = "-1"
+            xseg = [-1]
 
         gen_srf(
             srf_file,
@@ -774,7 +774,7 @@ def gen_srf(
     tect_type: Union[str, None] = None,
     fault_planes: int = 1,
     asperity_file: Union[str, None] = None,
-    xseg: Union[float, List[float]] = "-1",
+    xseg: List[float] = [-1],
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
@@ -855,12 +855,13 @@ def gen_srf(
         "srf_version=1.0",
     ]
     if type == 4:
+        xseg_array = ",".join(str(seg) for seg in xseg)
         cmd.extend(
             [
                 "seg_delay={0}",
                 f"nseg={fault_planes}",
                 f"nseg_bounds={fault_planes - 1}",
-                f"xseg={xseg}",
+                f"xseg={xseg_array}",
                 "rvfac_seg=-1",
                 "gwid=-1",
                 "side_taper=0.02",
