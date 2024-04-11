@@ -7,27 +7,21 @@ The parameters that are read from the CSV file are documented on the
 
 from pathlib import Path
 import argparse
+import os
+import subprocess
+from subprocess import Popen
 from logging import Logger
-from os import makedirs, path
-from subprocess import PIPE, Popen, run
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, Union, TextIO
+from typing import Any, Dict, List, TextIO, Union
 
 import numpy as np
 import yaml
-from h5py import File as h5open
+import h5py
 from qcore import binary_version, geo, qclogging, srf, utils
-from qcore.uncertainties.mag_scaling import (
-    MagnitudeScalingRelations,
-    mag2mom,
-    mw_to_a_skarlatoudis,
-)
+from qcore.uncertainties import mag_scaling
+from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
 from qcore.utils import compare_versions
-from srf_generation.pre_processing_common import (
-    calculate_corners,
-    get_hypocentre,
-    load_realisation_file_as_dict,
-)
+from srf_generation import pre_processing_common
 from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
 )
@@ -83,8 +77,8 @@ def create_stoch(
     logger: optional alternative logger for log output.
     """
     logger.debug("Generating stoch file")
-    out_dir = path.dirname(stoch_file)
-    makedirs(out_dir, exist_ok=True)
+    out_dir = os.path.dirname(stoch_file)
+    os.makedirs(out_dir, exist_ok=True)
     dx, dy = 2.0, 2.0
     if not srf.is_ff(srf_file):
         dx, dy = srf.srf_dxy(srf_file)
@@ -96,7 +90,7 @@ def create_stoch(
         command = [srf2stoch, f"dx={dx}", f"dy={dy}"]
     command.extend([f"infile={srf_file}", f"outfile={stoch_file}"])
     logger.debug(f"Creating stoch with command: {command}")
-    proc = run(command, stderr=PIPE, check=True)
+    proc = subprocess.run(command, stderr=subprocess.PIPE, check=True)
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
@@ -203,7 +197,7 @@ def create_info_file(
     if file_name is None:
         file_name = srf_file.replace(".srf", ".info")
     logger.debug(f"Saving info file to {file_name}")
-    with h5open(file_name, "w") as h:
+    with h5py.File(file_name, "w") as h:
         a = h.attrs
         # only taken from given parameters TODO: ???
         a["type"] = srf_type
@@ -221,7 +215,7 @@ def create_info_file(
             a["hlat"] = lat
             a["hdepth"] = centroid_depth
         else:
-            a["vm"] = np.string_(path.basename(vm))
+            a["vm"] = np.string_(os.path.basename(vm))
             a["hlon"] = hlon
             a["hlat"] = hlat
             a["hdepth"] = hdepth
@@ -285,7 +279,7 @@ def create_ps_srf(
 
     if moment <= 0:
         logger.debug("moment is negative, calculating from magnitude")
-        moment = mag2mom(magnitude)
+        moment = mag_scaling.mag2mom(magnitude)
 
     # size (dd) and slip TODO: what is this comment saying?
     # TODO: Why is this random calculation here?
@@ -303,7 +297,7 @@ def create_ps_srf(
         slip = target_slip_cm
     else:
         if tect_type is not None and tect_type == "SUBDUCTION_INTERFACE":
-            aa = mw_to_a_skarlatoudis(magnitude)
+            aa = mag_scaling.mw_to_a_skarlatoudis(magnitude)
         else:
             # Shallow crustal and subduction slab (currently) use Leonard moment-area scaling relation
             aa = np.exp(2.0 / 3.0 * np.log(moment) - 14.7 * np.log(10.0))
@@ -348,7 +342,7 @@ def create_ps_srf(
         "risetimefac=1.0",
         "risetimedep=0.0",
     ]
-    run(commands, stderr=PIPE, check=True)
+    subprocess.run(commands, stderr=subprocess.PIPE, check=True)
 
     ###
     ### save STOCH
@@ -438,7 +432,9 @@ def create_ps_ff_srf(
 
     logger.debug("Getting corners and hypocentre")
     corners = get_corners(latitude, longitude, flen, fwid, dip, strike)
-    hypocentre = get_hypocentre(latitude, longitude, shypo, dhypo, strike, dip)
+    hypocentre = pre_processing_common.get_hypocentre(
+        latitude, longitude, shypo, dhypo, strike, dip
+    )
     logger.debug("Saving corners and hypocentre")
     write_corners(corners_file, hypocentre, corners)
 
@@ -614,11 +610,10 @@ def create_multi_plane_srf(
             cmd.append(f"dipdir={dip_dir}")
 
         rel_logger.info(f"Calling fault_seg2gsf_dipdir with command {' '.join(cmd)}")
-        gexec = run(cmd, check=True)
+        gexec = subprocess.run(cmd, check=True)
         rel_logger.debug(
             f"{fault_seg_bin} finished running with stderr: {gexec.stderr}"
         )
-
         if int(plane_count > 1):
             rel_logger.debug("Multiple segments detected. Generating xseg argument")
             flen_array = np.asarray(flen)
@@ -705,7 +700,7 @@ def get_corners(
               |            |
             2 +------------+ 3
     """
-    lats, lons = calculate_corners(
+    lats, lons = pre_processing_common.calculate_corners(
         dip,
         np.array([-flen / 2.0, flen / 2.0]),
         np.array([-fwid, 0.0]),
@@ -899,7 +894,7 @@ def gen_srf(
         cmd.append(f"init_slip_file={asperity_file}")
     logger.debug(f"Creating SRF with command: {' '.join(cmd)}")
     with open(srf_file, "w", encoding="utf-8") as srfp:
-        proc = run(cmd, stdout=srfp, stderr=PIPE, check=True)
+        proc = subprocess.run(cmd, stdout=srfp, stderr=subprocess.PIPE, check=True)
     logger.debug(f"{genslip_bin} stderr: {proc.stderr}")
 
 
@@ -940,7 +935,7 @@ def gen_gsf(
     logger.debug(f"Saving gsf to {gsf_handle.name}")
     with Popen(
         [binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), "read_slip_vals=0"],
-        stdin=PIPE,
+        stdin=subprocess.PIPE,
         stdout=gsf_handle,
     ) as gexec:
         gexec.communicate(
@@ -963,7 +958,7 @@ def generate_sim_params_yaml(
     parameters: The parameters to save.
     logger: optional alternative logger for log output.
     """
-    makedirs(path.dirname(sim_params_file), exist_ok=True)
+    os.makedirs(os.path.dirname(sim_params_file), exist_ok=True)
 
     logger.debug(f"Raw sim params: {parameters}")
     sim_params = {}
@@ -1002,7 +997,7 @@ def load_args() -> argparse.Namespace:
     A Namespace object containing the command line arguments (as specified by parse_args).
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("realisation_file", type=Path)
+    parser.add_argument("realisation_file", type=str)
     return parser.parse_args()
 
 
@@ -1010,7 +1005,9 @@ def main():
     primary_logger = qclogging.get_logger("realisation_to_srf")
     qclogging.add_general_file_handler(primary_logger, "rel2srf.txt")
     args = load_args()
-    realisation = load_realisation_file_as_dict(args.realisation_file)
+    realisation = pre_processing_common.load_realisation_file_as_dict(
+        args.realisation_file
+    )
     rel_logger = qclogging.get_realisation_logger(primary_logger, realisation["name"])
     if realisation["type"] == 1:
         create_ps_srf(args.realisation_file, realisation, logger=rel_logger)
