@@ -45,19 +45,24 @@ CORNERS_HEADER = (
 )
 
 
-def get_n(fault_size: float, sub_fault_size: float) -> int:
-    """Get the number of subfaults for simulation TODO
+def number_subdivisions(fault_size: float, subdivision_size: float) -> int:
+    """
+    Calculate the number of meshgrid subdivisions for each fault plane.
 
     Parameters
     ----------
-    fault_size: Size of the fault.
-    sub_fault_size: Size of the subfaults.
+    fault_size : float
+        The size of the fault.
+    subdivision_size : float
+        The size of each subgrid
 
     Returns
     -------
-    The number of subfaults within the fault. TODO
+    int
+        The number of subdivisions
     """
-    return round(fault_size / sub_fault_size)
+
+    return round(fault_size / subdivision_size)
 
 
 def create_stoch(
@@ -438,8 +443,8 @@ def create_ps_ff_srf(
     logger.debug("Saving corners and hypocentre")
     write_corners(corners_file, hypocentre, corners)
 
-    nx = get_n(flen, dlen)
-    ny = get_n(fwid, dwid)
+    nx = number_subdivisions(flen, dlen)
+    ny = number_subdivisions(fwid, dwid)
 
     with NamedTemporaryFile(mode="w", delete=False) as gsfp:
         gen_gsf(
@@ -573,8 +578,8 @@ def create_multi_plane_srf(
 
     dlen = dwid = SRF_SUBFAULT_SIZE_KM
 
-    nx = [get_n(flen[i], dlen) for i in range(plane_count)]
-    ny = get_n(fwid[0], dwid)
+    nx = [number_subdivisions(flen[i], dlen) for i in range(plane_count)]
+    ny = number_subdivisions(fwid[0], dwid)
 
     if (
         utils.compare_versions(genslip_version, "5.4.2") < 0
@@ -911,8 +916,8 @@ def gen_gsf(
     rake: float,
     flen: float,
     fwid: float,
-    nx: float,
-    ny: float,
+    nstk: float,
+    ndip: float,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """Wrapper around the fault_seg2gsf_dipdir binary.
@@ -925,14 +930,13 @@ def gen_gsf(
     lon   |
     lat   |
     dtop  |
-    strike| Refer to wiki (see module documentation for link).
+    strike|
     dip   |
-    rake  |
+    rake  | Refer to wiki (see module documentation for link).
     flen  |
     fwid  |
-
-    nx: TODO
-    ny: TODO
+    nstk  |
+    ndip  |
     logger: optional alternative logger for log output.
     """
     logger.debug(f"Saving gsf to {gsf_handle.name}")
@@ -942,7 +946,7 @@ def gen_gsf(
         stdout=gsf_handle,
     ) as gexec:
         gexec.communicate(
-            f"1\n{lon:f} {lat:f} {dtop:f} {strike} {dip} {rake} {flen:f} {fwid:f} {nx:d} {ny:d}".encode(
+            f"1\n{lon:f} {lat:f} {dtop:f} {strike} {dip} {rake} {flen:f} {fwid:f} {nstk:d} {ndip:d}".encode(
                 "utf-8"
             )
         )
