@@ -320,15 +320,15 @@ def create_ps_srf(
     ### create GSF
     ###
     with NamedTemporaryFile(mode="w+", delete=False) as gsfp:
-        gsfp.write("# nstk= 1 ndip= 1\n")
-        gsfp.write(f"# flen= {dd:10.4f} fwid= {dd:10.4f}\n")
-        gsfp.write(
-            "# LON  LAT  DEP(km)  SUB_DX  SUB_DY  LOC_STK  LOC_DIP  LOC_RAKE  SLIP(cm)  INIT_TIME  SEG_NO\n"
-        )
-        gsfp.write("1\n")
-        gsfp.write(
-            f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} "
-            f"{strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2f} {inittime:8.3f}    0\n"
+        gsfp.writelines(
+            [
+                "# nstk= 1 ndip= 1",
+                f"# flen= {dd:10.4f} fwid= {dd:10.4f}",
+                "# LON  LAT  DEP(km)  SUB_DX  SUB_DY  LOC_STK  LOC_DIP  LOC_RAKE  SLIP(cm)  INIT_TIME  SEG_NO",
+                "1",
+                f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} {strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2f} {inittime:8.3f}    0",
+                "",
+            ]
         )
 
     ###
