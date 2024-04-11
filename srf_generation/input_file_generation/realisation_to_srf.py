@@ -751,7 +751,7 @@ def write_corners(filename: str, hypocentre: np.ndarray, corners: np.ndarray):
     hypocentre: The hypocentre of the eruption.
     corners: The bounds of the finite fault (as described in `get_corners`)
     """
-    with open(filename, "w") as cf:
+    with open(filename, "w", encoding="utf-8") as cf:
         # lines beginning with '>' are ignored
         cf.write(CORNERS_HEADER[0])
         cf.write(f"{hypocentre[0]} {hypocentre[1]}\n")
@@ -904,7 +904,7 @@ def gen_srf(
         cmd.append("read_slip_file=1")
         cmd.append(f"init_slip_file={asperity_file}")
     logger.debug(f"Creating SRF with command: {' '.join(cmd)}")
-    with open(srf_file, "w") as srfp:
+    with open(srf_file, "w", encoding="utf-8") as srfp:
         proc = run(cmd, stdout=srfp, stderr=PIPE, check=True)
     logger.debug(f"{genslip_bin} stderr: {proc.stderr}")
 
@@ -994,7 +994,7 @@ def generate_sim_params_yaml(
 
     logger.debug(f"Processed sim params: {sim_params}")
     logger.debug(f"Saving sim params to {sim_params_file}")
-    with open(sim_params_file, "w") as spf:
+    with open(sim_params_file, "w", encoding="utf-8") as spf:
         yaml.dump(sim_params, spf)
     logger.debug("Sim params saved")
 
