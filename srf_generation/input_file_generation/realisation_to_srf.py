@@ -943,17 +943,16 @@ def gen_gsf(
     logger: optional alternative logger for log output.
     """
     logger.debug(f"Saving gsf to {gsfp.name}")
-    gexec = Popen(
+    with Popen(
         [binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), "read_slip_vals=0"],
         stdin=PIPE,
         stdout=gsfp,
-    )
-    gexec.communicate(
-        f"1\n{lon:f} {lat:f} {dtop:f} {strike} {dip} {rake} {flen:f} {fwid:f} {nx:d} {ny:d}".encode(
-            "utf-8"
+    ) as gexec:
+        gexec.communicate(
+            f"1\n{lon:f} {lat:f} {dtop:f} {strike} {dip} {rake} {flen:f} {fwid:f} {nx:d} {ny:d}".encode(
+                "utf-8"
+            )
         )
-    )
-    gexec.wait()
 
 
 def generate_sim_params_yaml(
