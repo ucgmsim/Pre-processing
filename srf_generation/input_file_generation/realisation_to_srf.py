@@ -1,3 +1,30 @@
+"""
+This script takes converts one realisation CSV file to an SRF output file. The
+parameters of the realisation are loaded into a dictionary and stored as follows:
+
+- type: The realisation type (1, 2, 3, 4)
+- magnitude: The magnitude of the realisation
+- name: The name of the realisation.
+- longitude: The longitude of the hypocentre.
+- latitidue: The latitude of the hypocentre.
+- strike: The strike angle of the fault.
+- rake: The rake angle of the fault.
+- dip: The dip angle of the fault.
+- depth: The depth of the hypocentre.
+- flen: Fault length TODO.
+- fwid: Fault width TODO.
+- dlen: TODO
+- dwid: TODO
+- dtop: TODO
+- shypo: TODO
+- mwsr: The magnitude scaling technique.
+- dbottom: TODO
+- dt: Timestep TODO
+- seed: TODO
+- genslip_version: The genslip binary version to use
+- srfgen_seed: TODO
+"""
+
 import argparse
 from logging import Logger
 from os import makedirs, path
@@ -43,18 +70,36 @@ CORNERS_HEADER = (
 )
 
 
-def get_n(fault_size, sub_fault_size):
-    return int(round(fault_size / sub_fault_size))
+def get_n(fault_size: float, sub_fault_size: float) -> int:
+    """Get the number of subfaults for simulation TODO
+
+    Parameters
+    ----------
+    fault_size: Size of the fault.
+    sub_fault_size: Size of the subfaults.
+
+    Returns
+    -------
+    The number of subfaults within the fault. TODO
+    """
+    return round(fault_size / sub_fault_size)
 
 
 def create_stoch(
-    stoch_file,
-    srf_file,
-    single_segment=False,
+    stoch_file: str,
+    srf_file: str,
+    single_segment: bool = False,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    Creates stoch file from srf file.
+    Creates a stoch file from a srf file.
+
+    Parameters
+    ----------
+    stoch_file: The filepath to output the stoch file.
+    srf_file: The filepath of the SRF file
+    single_segment: TODO
+    logger: optional alternative logger for log output.
     """
     logger.debug("Generating stoch file")
     out_dir = path.dirname(stoch_file)
@@ -74,8 +119,12 @@ def create_stoch(
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
-def get_corners_dbottom(planes, dip_dir=None):
+def get_corners_dbottom(planes: dict, dip_dir: Union[str, None] = None):
     """
+    TODO
+
+    Parameters
+    ----------
     planes: a list of dictionaries where each dictionary is structured like below.
      {
         "centre": [float(elon), float(elat)],
@@ -119,28 +168,48 @@ def get_corners_dbottom(planes, dip_dir=None):
 
 
 def create_info_file(
-    srf_file,
-    srf_type,
-    mag,
-    rake,
-    dt,
-    vm=None,
-    vs=None,
-    rho=None,
-    centroid_depth=None,
-    lon=None,
-    lat=None,
-    shypo=None,
-    dhypo=None,
-    mwsr=None,
-    tect_type=None,
-    dip_dir=None,
-    file_name=None,
+    srf_file: str,
+    srf_type: int,
+    mag: float,
+    rake: float,
+    dt: float,
+    vm: Union[float, None] = None,
+    vs: Union[float, None] = None,
+    rho: Union[float, None] = None,
+    centroid_depth: Union[float, None] = None,
+    lon: Union[float, None] = None,
+    lat: Union[float, None] = None,
+    shypo: Union[float, None] = None,
+    dhypo: Union[float, None] = None,
+    mwsr: Union[MagnitudeScalingRelations, None] = None,
+    tect_type: Union[str, None] = None,
+    dip_dir: Union[str, None] = None,
+    file_name: Union[str, None] = None,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    Stores SRF metadata as hdf5.
-    srf_file: SRF path used as basename for info file and additional metadata
+    Store SRF metadata as hdf5.
+
+    Parameters
+    ----------
+    srf_file: SRF path used as basename for info file and additional metadata.
+    srf_type: Realisation type (e.g. 1, 2, 3, or 4).
+    mag: Magnitude of the realisation.
+    rake: Rake of the fault.
+    dt: TODO
+    vm: TODO
+    vs: TODO
+    rho: TODO
+    centroid_depth: Depth of the hypocentre.
+    lon: longitude of the hypocentre.
+    lat: latitude of the hypocentre.
+    shypo: TODO |
+    dhypo: TODO | Something to do with the hypocentre
+    mwsr: Magnitude scaling method. See mag_scaling in qcore.
+    tect_type: Type of the interface (e.g. 'SUBDUCTION_INTERFACE')
+    dip_dir: TODO | Directory of something?
+    file_name: File path to save metadata
+    logger: Logger for debug output
     """
     logger.debug("Generating srf info file")
     planes = srf.read_header(srf_file, idx=True)
@@ -190,6 +259,16 @@ def create_ps_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
+    """Generate SRF file (point source modeling)
+
+    Parameters
+    ----------
+    realisation_file: Path to the realisation (a CSV file). The output files (srf, stoch, etc) are produced relative to this file path.
+    parameter_dictionary: Parameters of the realisation. See module documentation for a description of these parameters.
+    stoch_file: An optional alternative location for the stoch file.
+    logger: optional alternative logger for log output.
+    """
+
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
     depth = parameter_dictionary.pop("depth")
@@ -319,6 +398,16 @@ def create_ps_ff_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
+    """Generate SRF file (point source finite fault modeling)
+
+    Parameters
+    ----------
+    realisation_file: Path to the realisation (a CSV file). The output files (srf, stoch, etc) are produced relative to this file path.
+    parameter_dictionary: Parameters of the realisation. See module documentation for a description of these parameters.
+    stoch_file: An optional alternative location for the stoch file.
+    logger: optional alternative logger for log output.
+    """
+
     name = parameter_dictionary.get("name")
     logger.info(f"Generating srf for realisation {name}")
 
@@ -442,6 +531,16 @@ def create_multi_plane_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger(),
 ):
+    """Generate SRF file (multi-plane source modeling)
+
+    Parameters
+    ----------
+    realisation_file: Path to the realisation (a CSV file). The output files (srf, stoch, etc) are produced relative to this file path.
+    parameter_dictionary: Parameters of the realisation. See module documentation for a description of these parameters.
+    stoch_file: An optional alternative location for the stoch file.
+    logger: optional alternative logger for log output.
+    """
+
     name = parameter_dictionary.get("name")
     rel_logger = qclogging.get_realisation_logger(logger, name)
     rel_logger.info(f"Generating srf for realisation {name}")
@@ -610,11 +709,34 @@ def create_multi_plane_srf(
     return srf_file
 
 
-def get_corners(lat, lon, flen, fwid, dip, strike):
+def get_corners(
+    lat: float, lon: float, flen: float, fwid: float, dip: float, strike: float
+) -> np.ndarray:
     """
-    Return Corners of a fault. Indexes are as below.
-    0 1
-    2 3
+    Get the corners of a finite-fault plane generated from a point-source specified in the WGS84 coordinate system.
+
+    Parameters
+    ---------
+    lat: The latitude of the point source.
+    lon: The longitude of the point source.
+    flen: The length of the fault.
+    fwid: The width of the fault.
+    dip: The dip angle of the fault.
+    strike: The strike angle of the fault.
+
+    Returns
+    -------
+    A numpy array containing the corners of a fault. The values of the array are
+    (lon, lat) pairs  representing coordinates in the WGS84 coordinate system.
+    The indices 0, 1, 2, 3 correspond to the corners of the fault in the
+    following fashion.
+                  fwid
+            0 +------------+ 1
+              |            |
+              |            |
+              |            | flen
+              |            |
+            2 +------------+ 3
     """
     lats, lons = calculate_corners(
         dip,
@@ -629,9 +751,30 @@ def get_corners(lat, lon, flen, fwid, dip, strike):
     return np.dstack((lons.flat, lats.flat))[0]
 
 
-def write_corners(filename, hypocentre, corners):
+def write_corners(filename: str, hypocentre: np.ndarray, corners: np.ndarray):
     """
     Write a corners text file (used to plot faults).
+
+    The format of the corners file given a hypocentre [lonc, latc] an array of corners [[lon0, lat0], ..., [lon3, lat3]] is as follows
+
+    ```
+    OUTPUT_PREHEADER # see CORNERS_HEADER[0]
+    lonc latc
+    OUTPUT_CORNERS_HEADER # see CORNERS_HEADER[1]
+    lon0 lat0
+    lon1 lat1
+    lon2 lat2
+    lon3 lat3
+    lon0 lat0
+    ```
+
+    The "#"'s are informational comments for documentation and not written to the file.
+
+    Parameters
+    ----------
+    filename: The filepath to write the corners to.
+    hypocentre: The hypocentre of the eruption.
+    corners: The bounds of the finite fault (as described in `get_corners`)
     """
     with open(filename, "w") as cf:
         # lines beginning with '>' are ignored
@@ -645,32 +788,56 @@ def write_corners(filename, hypocentre, corners):
 
 
 def gen_srf(
-    srf_file,
-    gsf_file,
-    type,
-    magnitude,
-    dt,
-    nx,
-    ny,
-    seed,
-    shypo,
-    dhypo,
-    velocity_model,
-    genslip_version="3.3",
-    rvfac=None,
-    rough=0.0,
-    slip_cov=None,
-    risetime_coef=None,
-    tect_type=None,
-    fault_planes=1,
-    asperity_file=None,
+    srf_file: str,
+    gsf_file: str,
+    type: int,
+    magnitude: float,
+    dt: float,
+    nx: float,
+    ny: float,
+    seed: int,
+    shypo: float,
+    dhypo: float,
+    velocity_model: str,
+    genslip_version: str = "3.3",
+    rvfac: Union[float, None] = None,
+    rough: float = 0.0,
+    slip_cov: Union[float, None] = None,
+    risetime_coef: Union[float, None] = None,
+    tect_type: Union[str, None] = None,
+    fault_planes: int = 1,
+    asperity_file: Union[str, None] = None,
     xseg: Union[float, List[float]] = "-1",
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    :param xseg: Genslip parameter:
-        For multi plane arrays the length (along strike) of each plane. -1 for single plane.
-        Deprecated in genslip 5.4.2, ignored if present
+    Wrapper around genslip, which actually generates the SRF files. The
+    arguments to this function are validated and passed to genslip as command
+    line arguments in a subprocess.
+
+    Parameters
+    ----------
+    srf_file: The output srf file.
+    gsf_file: The input gsf file (TODO).
+    type: The type the source model.
+    magnitude: The magnitude of the event.
+    dt: TODO
+    nx: TODO
+    ny: TODO
+    seed: TODO
+    shypo: TODO | Involved with the hypocentre?
+    dhypo: TODO |
+    velocity_model: path to velocity model.
+    genslip_version: The version of genslip to use.
+    rvfac: TODO
+    rough: TODO
+    slip_cov: TODO
+    risetime_coef: TODO
+    tect_type: TODO
+    fault_planes: TODO | Number of fault planes?
+    asperity_file: TODO?
+    xseg: TODO | Segments for type 4 simulations?
+    logger: optional alternative logger for log output.
     """
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
     if (
@@ -781,6 +948,23 @@ def gen_gsf(
     ny,
     logger: Logger = qclogging.get_basic_logger(),
 ):
+    """Wrapper around the fault_seg2gsf_dipdir binary.
+
+    Parameters
+    ----------
+    gsfp: File path for the GSF file.
+    lon: hypocentre longitude TODO
+    lat: hypocentre latitude TODO
+    dtop: TODO
+    strike: strike angle of the fault.
+    dip: dip angle of the fault.
+    rake: rake angle of the fault.
+    flen: length of the fault.
+    fwid: width of the fault.
+    nx: TODO
+    ny: TODO
+    logger: optional alternative logger for log output.
+    """
     logger.debug(f"Saving gsf to {gsfp.name}")
     gexec = Popen(
         [binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), "read_slip_vals=0"],
@@ -800,6 +984,14 @@ def generate_sim_params_yaml(
     parameters: Dict[str, Any],
     logger: Logger = qclogging.get_basic_logger(),
 ):
+    """Write simulation parameters to a yaml file.
+
+    Parameters
+    ----------
+    sim_params_file: The filepath to save the simulation parameters.
+    parameters: The parameters to save.
+    logger: optional alternative logger for log output.
+    """
     makedirs(path.dirname(sim_params_file), exist_ok=True)
 
     logger.debug(f"Raw sim params: {parameters}")
@@ -831,7 +1023,13 @@ def generate_sim_params_yaml(
     logger.debug(f"Sim params saved")
 
 
-def load_args():
+def load_args() -> argparse.Namespace:
+    """Parse command lines arguments.
+
+    Returns
+    -------
+    A Namespace object containing the command line arguments (as specified by parse_args).
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("realisation_file", type=path.abspath)
     return parser.parse_args()
