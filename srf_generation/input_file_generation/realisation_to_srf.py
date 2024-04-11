@@ -5,6 +5,7 @@ The parameters that are read from the CSV file are documented on the
 [wiki](https://wiki.canterbury.ac.nz/display/QuakeCore/File+Formats+Used+On+GM).
 """
 
+from pathlib import Path
 import argparse
 from logging import Logger
 from os import makedirs, path
@@ -1001,7 +1002,7 @@ def load_args() -> argparse.Namespace:
     A Namespace object containing the command line arguments (as specified by parse_args).
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("realisation_file", type=path.abspath)
+    parser.add_argument("realisation_file", type=Path)
     return parser.parse_args()
 
 
