@@ -678,9 +678,6 @@ def create_multi_plane_srf(
         f"Generated srf for realisation {name}. Moving to next available realisation."
     )
 
-    # path to resulting SRF
-    return srf_file
-
 
 def get_corners(
     lat: float, lon: float, flen: float, fwid: float, dip: float, strike: float
