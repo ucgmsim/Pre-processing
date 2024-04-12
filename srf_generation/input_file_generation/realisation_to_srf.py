@@ -77,8 +77,8 @@ def create_stoch(
     Parameters
     ----------
     stoch_file: The filepath to output the stoch file.
-    srf_file: The filepath of the SRF file
-    single_segment: TODO
+    srf_file: The filepath of the SRF file.
+    single_segment: True if the stoch file is a single segment.
     logger: optional alternative logger for log output.
     """
     logger.debug("Generating stoch file")
@@ -101,7 +101,7 @@ def create_stoch(
 
 def get_corners_dbottom(planes: Dict[str, Any], dip_dir: Union[str, None] = None):
     """
-    TODO
+    Get projected bottom corners of the planes for info file output.
 
     Parameters
     ----------
@@ -122,13 +122,13 @@ def get_corners_dbottom(planes: Dict[str, Any], dip_dir: Union[str, None] = None
     dbottom = []
     corners = np.zeros((len(planes), 4, 2))
     for i, p in enumerate(planes):
-        # currently only support single dip dir value TODO: is this true?
+        # currently only support single dip dir value
         if dip_dir is not None:
             dip_deg = dip_dir
         else:
             dip_deg = p["strike"] + 90
 
-        # projected fault width (along dip direction) TODO: more descriptive comment here (but it does need a comment)
+        # projected fault width (along dip direction)
         pwid = p["width"] * np.cos(np.radians(p["dip"]))
         corners[i, 0] = geo.ll_shift(
             p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"] + 180
@@ -189,7 +189,7 @@ def create_info_file(
 
     lon: longitude of the centroid.
     lat: latitude of the centroid.
-    dip_dir: TODO | Directory of something?
+    dip_dir: direction of dip
     file_name: File path to save metadata
     logger: Logger for debug output
     """
@@ -204,7 +204,7 @@ def create_info_file(
     logger.debug(f"Saving info file to {file_name}")
     with h5py.File(file_name, "w") as h:
         a = h.attrs
-        # only taken from given parameters TODO: ???
+        # only taken from given parameters
         a["type"] = srf_type
         a["dt"] = dt
         a["rake"] = rake
@@ -286,8 +286,7 @@ def create_ps_srf(
         logger.debug("moment is negative, calculating from magnitude")
         moment = mag_scaling.mag2mom(magnitude)
 
-    # size (dd) and slip TODO: what is this comment saying?
-    # TODO: Why is this random calculation here?
+    # size (dd) and slip
     if target_area_km is not None:
         logger.debug(
             f"target_area_km given ({target_area_km}), using it to calculate fault edge length and slip"
@@ -752,8 +751,6 @@ def write_corners(filename: str, hypocentre: np.ndarray, corners: np.ndarray):
         cf.write(CORNERS_HEADER[0])
         cf.write(f"{hypocentre[0]} {hypocentre[1]}\n")
         cf.write(CORNERS_HEADER[1])
-        # 0 1 - draw in order to close box
-        # 2 3 TODO: bad explanation of the file format
         for i in [0, 1, 3, 2, 0]:
             cf.write(f"{corners[i, 0]:f} {corners[i, 1]:f}\n")
 
@@ -790,7 +787,7 @@ def gen_srf(
     Parameters
     ----------
     srf_file: The output srf file.
-    gsf_file: The input gsf file (TODO).
+    gsf_file: The input gsf file.
 
     type           |
     magnitude      |
@@ -808,9 +805,9 @@ def gen_srf(
     risetime_coef  |
     tect_type      |
 
-    fault_planes:  TODO | Number of fault planes?
-    asperity_file: TODO
-    xseg: TODO | Segments for type 4 simulations?
+    fault_planes: Number of fault planes.
+    asperity_file: Slip file location.
+    xseg: Segments for type 4 simulations.
 
     logger: optional alternative logger for log output.
     """
