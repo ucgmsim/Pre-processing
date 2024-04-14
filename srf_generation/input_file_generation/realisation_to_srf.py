@@ -5,7 +5,6 @@ The parameters that are read from the CSV file are documented on the
 [wiki](https://wiki.canterbury.ac.nz/display/QuakeCore/File+Formats+Used+On+GM).
 """
 
-from pathlib import Path
 import argparse
 import os
 import subprocess
