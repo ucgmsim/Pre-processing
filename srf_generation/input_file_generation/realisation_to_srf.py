@@ -12,7 +12,7 @@ import subprocess
 from subprocess import Popen
 from logging import Logger
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, TextIO, Union
+from typing import Any, Dict, List, TextIO, Union, Tuple
 
 import numpy as np
 import yaml
@@ -71,16 +71,20 @@ def create_stoch(
     single_segment: bool = False,
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    """
-    Create a stoch file from a srf file.
+    """Create a stoch file from a SRF file.
 
     Parameters
     ----------
-    stoch_file: The filepath to output the stoch file.
-    srf_file: The filepath of the SRF file.
-    single_segment: True if the stoch file is a single segment.
-    logger: optional alternative logger for log output.
+    stoch_file : str
+        The filepath to output the stoch file to.
+    srf_file : str
+        The filepath of the SRF file.
+    single_segment : bool
+        True if the stoch file is a single segment.
+    logger : Logger
+        Optional alternative logger for log output.
     """
+
     logger.debug("Generating stoch file")
     out_dir = os.path.dirname(stoch_file)
     os.makedirs(out_dir, exist_ok=True)
@@ -99,26 +103,31 @@ def create_stoch(
     logger.debug(f"{srf2stoch} stderr: {proc.stderr}")
 
 
-def get_corners_dbottom(planes: Dict[str, Any], dip_dir: Union[str, None] = None):
-    """
-    Get projected bottom corners of the planes for info file output.
+def get_corners_dbottom(
+    planes: List[Dict[str, Any]], dip_dir: Union[str, None] = None
+) -> Tuple[np.ndarray, List[float]]:
+    """Get projected bottom corners of the planes (used for info file output).
 
     Parameters
     ----------
-    planes: a list of dictionaries where each dictionary is structured like below.
-     {
-        "centre": [float(elon), float(elat)],
-        "nstrike": int(nstk),
-        "ndip": int(ndip),
-        "length": float(ln),
-        "width": float(wid),
-        "strike": stk,
-        "dip": dip,
-        "shyp": shyp,
-        "dhyp": dhyp,
-        "dtop": dtop,
-    }
+    planes : List[Dict[str, Any]]
+        A list of dictionaries where each dictionary is structured like below.
+        ```
+            {
+                "centre": [float(elon), float(elat)],
+                "nstrike": int(nstk),
+                "ndip": int(ndip),
+                "length": float(ln),
+                "width": float(wid),
+                "strike": stk,
+                "dip": dip,
+                "shyp": shyp,
+                "dhyp": dhyp,
+                "dtop": dtop,
+            }
+        ```
     """
+
     dbottom = []
     corners = np.zeros((len(planes), 4, 2))
     for i, p in enumerate(planes):
@@ -167,31 +176,33 @@ def create_info_file(
     file_name: Union[str, None] = None,
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    """
-    Store SRF metadata as hdf5.
+    """Store SRF metadat as hdf5.
+
 
     Parameters
     ----------
-    srf_file: SRF path used as basename for info file and additional metadata.
-    srf_type: Realisation type (e.g. 1, 2, 3, or 4).
-
-    mag           |
-    rake          |
-    dt            |
-    vm            |
-    vs            |
-    rho           | Refer to wiki (see module documentation for link).
-    mwsr          |
-    tect_type     |
-    centroid_depth|
-    shypo         |
-    dhypo         |
-
-    lon: longitude of the centroid.
-    lat: latitude of the centroid.
-    dip_dir: direction of dip
-    file_name: File path to save metadata
-    logger: Logger for debug output
+    srf_file : str
+        SRF path used as basename for info file and additional metadata.
+    srf_type : int
+        Realisation type (e.g. 1, 2, 3, or 4). Refer to wiki for details.
+    mag : float                                   |
+    rake : float                                  |
+    dt : float                                    |
+    vm : Union[float, None]                       |
+    vs : Union[float, None]                       |
+    rho : Union[float, None]                      |
+    centroid_depth : Union[float, None]           | Refer to wiki (see module documentation for link).
+    lon : Union[float, None]                      |
+    lat : Union[float, None]                      |
+    shypo : Union[float, None]                    |
+    dhypo : Union[float, None]                    |
+    mwsr : Union[MagnitudeScalingRelations, None] |
+    tect_type : Union[str, None]                  |
+    dip_dir : Union[str, None]                    |
+    file_name : Union[str, None]
+        File path to save metadata.
+    logger : Logger
+        Optional alternative logger for log output.
     """
     logger.debug("Generating srf info file")
     planes = srf.read_header(srf_file, idx=True)
@@ -241,17 +252,20 @@ def create_ps_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
-    """
-    Generate SRF file (point source modeling).
+    """Generate SRF file (point-source finite-fault modeling).
 
     Parameters
     ----------
-    realisation_file: Path to the realisation (a CSV file). The output files
-    (srf, stoch, etc) are produced relative to this file path.
-    parameter_dictionary: Parameters of the realisation. See module
-    documentation for a description of these parameters.
-    stoch_file: An optional alternative location for the stoch file.
-    logger: optional alternative logger for log output.
+    realisation_file : str
+        Path to the realisation (a CSV file). The output files (srf, stoch, etc) are
+        produced relative to this file path.
+    parameter_dictionary : Dict[str, Any]
+        Parameters of the realisation. See module documentation for the wiki
+        describing these parameters.
+    stoch_file : Union[None, str]
+        An optional alternative location for the stoch file.
+    logger : Logger
+        Optional alternative logger for log output.
     """
     latitude = parameter_dictionary.pop("latitude")
     longitude = parameter_dictionary.pop("longitude")
@@ -382,14 +396,20 @@ def create_ps_ff_srf(
     stoch_file: Union[None, str] = None,
     logger: Logger = qclogging.get_basic_logger,
 ):
-    """Generate SRF file (point source finite fault modeling)
+    """Generate SRF file (point-source finite-fault modeling).
 
     Parameters
     ----------
-    realisation_file: Path to the realisation (a CSV file). The output files (srf, stoch, etc) are produced relative to this file path.
-    parameter_dictionary: Parameters of the realisation. See module documentation for a description of these parameters.
-    stoch_file: An optional alternative location for the stoch file.
-    logger: optional alternative logger for log output.
+    realisation_file : str
+        Path to the realisation (a CSV file). The output files (srf, stoch, etc) are
+        produced relative to this file path.
+    parameter_dictionary : Dict[str, Any]
+        Parameters of the realisation. See module documentation for the wiki
+        describing these parameters.
+    stoch_file : Union[None, str]
+        An optional alternative location for the stoch file.
+    logger : Logger
+        Optional alternative logger for log output.
     """
 
     name = parameter_dictionary.get("name")
@@ -518,12 +538,23 @@ def create_multi_plane_srf(
 
     Parameters
     ----------
-    realisation_file: Path to the realisation (a CSV file). The output files (srf, stoch, etc) are produced relative to this file path.
-    parameter_dictionary: Parameters of the realisation. See module documentation for a description of these parameters.
-    stoch_file: An optional alternative location for the stoch file.
-    logger: optional alternative logger for log output.
-    """
+    realisation_file : str
+        Path to the realisation (a CSV file). The output files (srf, stoch, etc) are
+        produced relative to this file path.
+    parameter_dictionary : Dict[str, Any]
+        Parameters of the realisation. See module documentation for the wiki
+        describing these parameters.
+    stoch_file : Union[None, str]
+        An optional alternative location for the stoch file.
+    logger : Logger
+        Optional alternative logger for log output.
 
+    Raises
+    ------
+    RuntimeError
+        If the genslip version is incorrect for the fault type.
+
+    """
     name = parameter_dictionary.get("name")
     rel_logger = qclogging.get_realisation_logger(logger, name)
     rel_logger.info(f"Generating srf for realisation {name}")
@@ -680,33 +711,34 @@ def create_multi_plane_srf(
 def get_corners(
     lat: float, lon: float, flen: float, fwid: float, dip: float, strike: float
 ) -> np.ndarray:
-    """
-    Get the corners of a finite-fault plane generated from a point-source specified in the WGS84 coordinate system.
+    """Get the corners of a finite-fault plane generated from a point-source specified in the WGS84 coordinate system.
 
     Parameters
-    ---------
-    lat   |
-    lon   |
-    flen  |
-    fwid  | Refer to wiki (see module documentation for link).
-    dip   |
-    strike|
+    ----------
+    lat : float    |
+    lon : float    |
+    flen : float   | Refer to wiki (see module documentation for link).
+    fwid : float   |
+    dip : float    |
+    strike : float |
 
     Returns
     -------
-    A numpy array containing the corners of a fault. The values of the array are
-    (lon, lat) pairs  representing coordinates in the WGS84 coordinate system.
-    The indices 0, 1, 2, 3 correspond to the corners of the fault in the
-    following fashion.
+    np.ndarray
+        A numpy array containing the corners of a fault. The values of the array are
+        (lon, lat) pairs  representing coordinates in the WGS84 coordinate system.
+        The indices 0, 1, 2, 3 correspond to the corners of the fault in the
+        following fashion.
 
-                  flen
-            0 +------------+ 1
-              |            |
-              |            |
-              |            | fwid
-              |            |
-            2 +------------+ 3
+                    flen
+              0 +------------+ 1
+                |            |
+                |            |
+                |            | fwid
+                |            |
+              2 +------------+ 3
     """
+
     lats, lons = pre_processing_common.calculate_corners(
         dip,
         np.array([-flen / 2.0, flen / 2.0]),
@@ -721,8 +753,7 @@ def get_corners(
 
 
 def write_corners(filename: str, hypocentre: np.ndarray, corners: np.ndarray):
-    """
-    Write a corners text file (used to plot faults).
+    """Write a corners text file (used to plot faults).
 
     The format of the corners file given a hypocentre [lonc, latc] and an array
     of corners [[lon0, lat0], ..., [lon3, lat3]] is as follows
@@ -742,9 +773,13 @@ def write_corners(filename: str, hypocentre: np.ndarray, corners: np.ndarray):
 
     Parameters
     ----------
-    filename: The filepath to write the corners to.
-    hypocentre: The hypocentre of the eruption.
-    corners: The bounds of the finite fault (as described in `get_corners`)
+    filename : str
+        The filepath to write corners to.
+    hypocentre : np.ndarray
+        The hypocentre of the eruption.
+    corners : np.ndarray
+        The bounds of the finite fault (as described in `get_corners`).
+
     """
     with open(filename, "w", encoding="utf-8") as cf:
         # lines beginning with '>' are ignored
@@ -778,39 +813,48 @@ def gen_srf(
     xseg: List[float] = [-1],
     logger: Logger = qclogging.get_basic_logger(),
 ):
-    """
-    Wrapper around genslip, which actually generates the SRF files.
+    """Wrapper around genslip, which actually generates the SRF files.
 
-    The arguments to this function are validated and passed to genslip as command
-    line arguments in a subprocess.
+    The arguments to this function are validated and passed to genslip as
+    command line arguments in a subprocess.
 
     Parameters
     ----------
-    srf_file: The output srf file.
-    gsf_file: The input gsf file.
+    srf_file : str
+        The output SRF file
+    gsf_file : str
+        The input gsf file
+    type : int                         |
+    magnitude : float                  |
+    dt : float                         |
+    nx : float                         |
+    ny : float                         |
+    seed : int                         |
+    shypo : float                      |
+    dhypo : float                      | Refer to wiki (see module documentation for link).
+    velocity_model : str               |
+    genslip_version : str              |
+    rvfac : Union[float, None]         |
+    rough : float                      |
+    slip_cov : Union[float, None]      |
+    risetime_coef : Union[float, None] |
+    tect_type : Union[str, None]       |
+    xseg : List[float]                 |
+    fault_planes : int
+        Number of fault planes.
+    asperity_file : Union[str, None]
+        Slip file location.
+    logger : Logger
+        Optional alternative logger for log output.
 
-    type           |
-    magnitude      |
-    dt             |
-    nx             |
-    ny             |
-    seed           |
-    shypo          |
-    dhypo          |
-    velocity_model | Refer to wiki (see module documentation for link).
-    genslip_version|
-    rvfac          |
-    rough          |
-    slip_cov       |
-    risetime_coef  |
-    tect_type      |
+    Raises
+    ------
+    AssertionError
+        If the genslip version is incorrect for the fault type
 
-    fault_planes: Number of fault planes.
-    asperity_file: Slip file location.
-    xseg: Segments for type 4 simulations.
 
-    logger: optional alternative logger for log output.
     """
+
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
     if (
         compare_versions(genslip_version, "5.4.2") < 0
@@ -921,20 +965,22 @@ def gen_gsf(
 
     Parameters
     ----------
-    gsf_handle: File handle for the GSF file. Must come from NamedTemporaryFile
-    because it must have the `name` property.
+    gsf_handle : TextIO
+        File handle for the GSF file. Must come from NamedTemporaryFile because
+        it must have the `name` property.
+    lon : float    |
+    lat : float    |
+    dtop : float   |
+    strike : float |
+    dip : float    | Refer to wiki (see module documentation for link).
+    rake : float   |
+    flen : float   |
+    fwid : float   |
+    nstk : float   |
+    ndip : float   |
+    logger : Logger
+        Optional alternative logger for log output
 
-    lon   |
-    lat   |
-    dtop  |
-    strike|
-    dip   |
-    rake  | Refer to wiki (see module documentation for link).
-    flen  |
-    fwid  |
-    nstk  |
-    ndip  |
-    logger: optional alternative logger for log output.
     """
     logger.debug(f"Saving gsf to {gsf_handle.name}")
     with Popen(
@@ -958,10 +1004,15 @@ def generate_sim_params_yaml(
 
     Parameters
     ----------
-    sim_params_file: The filepath to save the simulation parameters.
-    parameters: The parameters to save.
-    logger: optional alternative logger for log output.
+    sim_params_file : str
+        The filepath to save the simulation parameters.
+    parameters : Dict[str, Any]
+        The parameters to save.
+    logger : Logger
+        optional alternative logger for log output.
+
     """
+
     os.makedirs(os.path.dirname(sim_params_file), exist_ok=True)
 
     logger.debug(f"Raw sim params: {parameters}")
@@ -994,12 +1045,16 @@ def generate_sim_params_yaml(
 
 
 def load_args() -> argparse.Namespace:
-    """Parse command lines arguments.
+    """Parse command line arguments.
 
     Returns
     -------
-    A Namespace object containing the command line arguments (as specified by parse_args).
+    argparse.Namespace
+        A Namespace object containing the command line arguments (as specified
+        by parse_args).
+
     """
+
     parser = argparse.ArgumentParser()
     parser.add_argument("realisation_file", type=str)
     return parser.parse_args()
