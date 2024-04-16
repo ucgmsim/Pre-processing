@@ -8,7 +8,6 @@ The parameters that are read from the CSV file are documented on the
 import argparse
 import os
 import subprocess
-from subprocess import Popen
 from logging import Logger
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, TextIO, Union, Tuple
@@ -982,7 +981,7 @@ def gen_gsf(
 
     """
     logger.debug(f"Saving gsf to {gsf_handle.name}")
-    with Popen(
+    with subprocess.Popen(
         [binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR), "read_slip_vals=0"],
         stdin=subprocess.PIPE,
         stdout=gsf_handle,
