@@ -10,15 +10,14 @@ import os
 import subprocess
 from logging import Logger
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, TextIO, Union, Tuple
+from typing import Any, Dict, List, TextIO, Tuple, Union
 
+import h5py
 import numpy as np
 import yaml
-import h5py
 from qcore import binary_version, geo, qclogging, srf, utils
 from qcore.uncertainties import mag_scaling
 from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
-from qcore.utils import compare_versions
 from srf_generation import pre_processing_common
 from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
@@ -855,13 +854,13 @@ def gen_srf(
 
     genslip_bin = binary_version.get_genslip_bin(genslip_version)
     if (
-        compare_versions(genslip_version, "5.4.2") < 0
+        utils.compare_versions(genslip_version, "5.4.2") < 0
         and tect_type == "SUBDUCTION_INTERFACE"
     ):
         raise AssertionError(
             "Cannot generate subduction srfs with genslip version less than 5.4.2"
         )
-    if compare_versions(genslip_version, "5") > 0:
+    if utils.compare_versions(genslip_version, "5") > 0:
         # Positive so version greater than 5
         logger.debug(
             f"Using genslip version {genslip_version}. Using nstk and ndip and rup_delay (for type 4)"
