@@ -8,7 +8,6 @@ The parameters that are read from the CSV file are documented on the
 import argparse
 import os
 import subprocess
-from subprocess import Popen
 from logging import Logger
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, TextIO, Union, Tuple
@@ -16,10 +15,7 @@ from typing import Any, Dict, List, TextIO, Union, Tuple
 import numpy as np
 import yaml
 import h5py
-from qcore import binary_version, geo, qclogging, srf, utils
-from qcore.uncertainties import mag_scaling
-from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
-from qcore.utils import compare_versions
+import qcore
 from srf_generation import pre_processing_common
 from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
@@ -68,7 +64,7 @@ def create_stoch(
     stoch_file: str,
     srf_file: str,
     single_segment: bool = False,
-    logger: Logger = qclogging.get_basic_logger(),
+    logger: Logger = qcore.qclogging.get_basic_logger(),
 ):
     """Create a stoch file from a SRF file.
 
@@ -88,10 +84,10 @@ def create_stoch(
     out_dir = os.path.dirname(stoch_file)
     os.makedirs(out_dir, exist_ok=True)
     dx, dy = 2.0, 2.0
-    if not srf.is_ff(srf_file):
-        dx, dy = srf.srf_dxy(srf_file)
+    if not qcore.srf.is_ff(srf_file):
+        dx, dy = qcore.srf.srf_dxy(srf_file)
     logger.debug(f"Saving stoch to {stoch_file}")
-    srf2stoch = binary_version.get_unversioned_bin(SRF2STOCH)
+    srf2stoch = qcore.binary_version.get_unversioned_bin(SRF2STOCH)
     if single_segment:
         command = [srf2stoch, f"target_dx={dx}", f"target_dy={dy}"]
     else:
@@ -138,18 +134,18 @@ def get_corners_dbottom(
 
         # projected fault width (along dip direction)
         pwid = p["width"] * np.cos(np.radians(p["dip"]))
-        corners[i, 0] = geo.ll_shift(
+        corners[i, 0] = qcore.geo.ll_shift(
             p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"] + 180
         )[::-1]
-        corners[i, 1] = geo.ll_shift(
+        corners[i, 1] = qcore.geo.ll_shift(
             p["centre"][1], p["centre"][0], p["length"] / 2.0, p["strike"]
         )[::-1]
-        corners[i, 2] = geo.ll_shift(corners[i, 1, 1], corners[i, 1, 0], pwid, dip_deg)[
-            ::-1
-        ]
-        corners[i, 3] = geo.ll_shift(corners[i, 0, 1], corners[i, 0, 0], pwid, dip_deg)[
-            ::-1
-        ]
+        corners[i, 2] = qcore.geo.ll_shift(
+            corners[i, 1, 1], corners[i, 1, 0], pwid, dip_deg
+        )[::-1]
+        corners[i, 3] = qcore.geo.ll_shift(
+            corners[i, 0, 1], corners[i, 0, 0], pwid, dip_deg
+        )[::-1]
         dbottom.append(p["dtop"] + p["width"] * np.sin(np.radians(p["dip"])))
 
     return (corners, dbottom)
