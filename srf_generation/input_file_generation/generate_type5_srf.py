@@ -37,6 +37,10 @@ class FaultSegment:
     def length_km(self):
         return self.length * KM_CONVERSION_FACTOR
 
+    @property
+    def strike_adjusted(self):
+        return self.strike
+
     def segment_coordinates_to_nztm(
         self, segment_coordinates: np.ndarray
     ) -> np.ndarray:
@@ -75,7 +79,7 @@ class FaultSegment:
 
         # segment coordinates are two-dimensional, so we embed them in three space to begin.
 
-        scaling_factor = np.array([self.length_km, self.width_km])
+        scaling_factor = np.array([self.width_km, self.length_km])
         segment_coordinates = (segment_coordinates * scaling_factor).T
         segment_coordinates = np.append(
             segment_coordinates,
@@ -83,7 +87,7 @@ class FaultSegment:
             axis=0,
         )
         dip_rad = np.radians(self.dip)
-        strike_rad = np.radians(self.strike)
+        strike_rad = np.radians(self.strike_adjusted)
 
         #
         #   +------+       |    x------x
@@ -132,7 +136,7 @@ class FaultSegment:
         centre_rel_bottom_left_projected = np.append(
             centre_rel_bottom_left_projected, 0
         )
-        centre = np.array([*WGS2NZTM.transform(self.clat, self.clon), 0])
+        centre = np.array([*reversed(WGS2NZTM.transform(self.clat, self.clon)), 0])
         bottom_left = centre - centre_rel_bottom_left_projected
         return (transformation_matrix @ segment_coordinates).T + bottom_left
 
