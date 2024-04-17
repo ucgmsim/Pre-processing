@@ -152,10 +152,10 @@ def main(
             origin, vm_params_dict["MODEL_ROT"], xlen, ylen
         )
 
-        vm_params_dict[
-            "path_mod"
-        ] = "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
-            c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
+        vm_params_dict["path_mod"] = (
+            "{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n{:.6f}\t{:.6f}\n".format(
+                c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], c4[0], c4[1]
+            )
         )
         vm_params_dict["path"] = vm_params_dict["path_mod"]
         vm_params_dict["adjusted"] = False
