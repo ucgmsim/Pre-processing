@@ -9,9 +9,11 @@ import yaml
 WGS_CODE = 4326
 NZTM_CODE = 2193
 # Convert lat, lon to x, y
-WGS2NZTM = Transformer.from_crs(WGS_CODE, NZTM_CODE)
+WGS2NZTM = pyproj.Transformer.from_crs(WGS_CODE, NZTM_CODE)
 # Convert x, y to lat, lon
-NZTM2WGS = Transformer.from_crs(NZTM_CODE, WGS_CODE)
+NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
+
+KM_CONVERSION_FACTOR = 1000
 
 
 @dataclasses.dataclass
@@ -27,17 +29,59 @@ class FaultSegment:
     clon: float
     clat: float
 
-    def corners(self) -> np.ndarray:
-        # assuming that the bottom-left is the origin, the dip is zero and the
-        # strike is also zero then the bounds of the plane are easily found.
-        corners = np.array(
-            [
-                [0, 0, 0],  # bottom-left
-                [self.width, 0, 0],  # bottom-right
-                [self.width, self.length, 0],  # top-right
-                [0, self.length, 0],  # top-left
-            ]
-        ).T
+    @property
+    def width_km(self):
+        return self.width * KM_CONVERSION_FACTOR
+
+    @property
+    def length_km(self):
+        return self.length * KM_CONVERSION_FACTOR
+
+    def segment_coordinates_to_nztm(
+        self, segment_coordinates: np.ndarray
+    ) -> np.ndarray:
+        """Convert segment coordinates to NZTM global coordinates.
+
+        Parameters
+        ----------
+        segment_coordinates : np.ndarray
+            A (n x 2) matrix of coordinates to convert. Segment coordinates are
+            2D coordinates (x, y) given for a fault segment (a plane), where x
+            represents displacement along the length of the fault, and y
+            displacement along the width of the fault (see diagram below). The
+            origin for segment coordinates is the top-left of the fault.
+
+                                     +x
+                     0,0 -------------------------->
+                        +---------------------------+
+                      | |        < length >         |
+                      | |                           |  ^
+                   +y | |                           | width
+                      | |                           |  v
+                      v |                           |
+                        +---------------------------+
+                                                      1,1
+
+        Returns
+        -------
+        np.ndarray
+            An n x 3 matrix of NZTM transformed coordinates.
+
+        Examples
+        --------
+        FIXME: Add docs.
+
+        """
+
+        # segment coordinates are two-dimensional, so we embed them in three space to begin.
+
+        scaling_factor = np.array([self.length_km, self.width_km])
+        segment_coordinates = (segment_coordinates * scaling_factor).T
+        segment_coordinates = np.append(
+            segment_coordinates,
+            np.zeros_like(segment_coordinates[0]).reshape((1, -1)),
+            axis=0,
+        )
         dip_rad = np.radians(self.dip)
         strike_rad = np.radians(self.strike)
 
@@ -58,9 +102,11 @@ class FaultSegment:
         #                     \
 
         rot_mat_dip_y = np.array(
-            [np.cos(dip_rad), 0, -np.sin(dip_rad)],
-            [0, 1, 0],
-            [np.sin(dip_rad), 0, np.cos(dip_rad)],
+            [
+                [np.cos(dip_rad), 0, -np.sin(dip_rad)],
+                [0, 1, 0],
+                [np.sin(dip_rad), 0, np.cos(dip_rad)],
+            ]
         )
         rot_mat_strike_z = np.array(
             [
@@ -69,12 +115,10 @@ class FaultSegment:
                 [0, 0, 1],
             ]
         )
-
-        # This now contains the corners relative to the bottom left of fault segment.
-        corners_rel_bottom_left = (rot_mat_strike_z @ (rot_mat_dip_y @ corners)).T
+        transformation_matrix = rot_mat_strike_z @ rot_mat_dip_y
 
         centre_rel_bottom_left_projected_axis_aligned = np.array(
-            [self.width * np.cos(dip_rad) / 2, self.length / 2]
+            [self.width_km * np.cos(dip_rad) / 2, self.length_km / 2]
         )
         strike_rot = np.array(
             [
@@ -88,9 +132,49 @@ class FaultSegment:
         centre_rel_bottom_left_projected = np.append(
             centre_rel_bottom_left_projected, 0
         )
-        centre = np.array([*WGS2NZTM.transform(self.clon, self.clat), 0])
+        centre = np.array([*WGS2NZTM.transform(self.clat, self.clon), 0])
         bottom_left = centre - centre_rel_bottom_left_projected
-        return corners_rel_bottom_left + bottom_left
+        return (transformation_matrix @ segment_coordinates).T + bottom_left
+
+    def centroid(self) -> np.ndarray:
+        """Returns the centre of the fault segment.
+
+        Returns
+        -------
+        np.ndarray
+            A 1 x 3 dimensional vector representing the centroid of the fault
+            plane in NZTM coordinates.
+
+        """
+
+        return self.segment_coordinates_to_nztm(np.array([[1 / 2, 1 / 2]]))
+
+    def corners(self) -> np.ndarray:
+        """Get the corners of the fault plan
+
+        Returns
+        -------
+        np.ndarray
+            A 4 x 3 dimensional matrix, where each row is a corner of the fault
+            plane specified in NZTM coordinates. The corners are returned in
+            clockwise orientation starting from the top-left.
+
+        Examples
+        --------
+        FIXME: Add docs.
+
+        """
+        # assuming that the bottom-left is the origin, the dip is zero and the
+        # strike is also zero then the bounds of the plane are easily found.
+        corners = np.array(
+            [
+                [0, 0],  # top-left
+                [1, 0],  # top-right
+                [1, 1],  # bottom-right
+                [0, 1],  # bottom-left
+            ]
+        )
+        return self.segment_coordinates_to_nztm(corners)
 
 
 Fault = List[FaultSegment]
