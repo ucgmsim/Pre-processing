@@ -5,6 +5,7 @@ from typing import Dict, List
 import numpy as np
 import pyproj
 import yaml
+import scipy as sp
 
 WGS_CODE = 4326
 NZTM_CODE = 2193
