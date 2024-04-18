@@ -58,9 +58,9 @@ class FaultSegment:
                                      +x
                      0,0 -------------------------->
                         +---------------------------+
-                      | |        < length >         |
+                      | |        < width >          |
                       | |                           |  ^
-                   +y | |                           | width
+                   +y | |                           | length
                       | |                           |  v
                       v |                           |
                         +---------------------------+
@@ -76,69 +76,33 @@ class FaultSegment:
         FIXME: Add docs.
 
         """
-
         # segment coordinates are two-dimensional, so we embed them in three space to begin.
-
-        scaling_factor = np.array([self.width_km, self.length_km])
-        segment_coordinates = (segment_coordinates * scaling_factor).T
         segment_coordinates = np.append(
             segment_coordinates,
-            np.zeros_like(segment_coordinates[0]).reshape((1, -1)),
-            axis=0,
+            np.zeros((segment_coordinates.shape[0], 1)),
+            axis=1,
         )
-        dip_rad = np.radians(self.dip)
-        strike_rad = np.radians(self.strike_adjusted)
 
-        #
-        #   +------+       |    x------x
-        #   |      |       |   /      /
-        #   |      | --->  |  /      /
-        #   |      |       | /      /
-        #   |      |       |/      /
-        #   +------+       +------+
-        #
-        #
-        #                  |
-        #                  |
-        #   -------- --->  |
-        #                   \
-        #                    \
-        #                     \
-
-        rot_mat_dip_y = np.array(
-            [
-                [np.cos(dip_rad), 0, -np.sin(dip_rad)],
-                [0, 1, 0],
-                [np.sin(dip_rad), 0, np.cos(dip_rad)],
-            ]
+        rotation_dip = sp.spatial.transform.Rotation.from_rotvec(
+            [0, self.dip, 0], degrees=True
         )
-        rot_mat_strike_z = np.array(
-            [
-                [np.cos(strike_rad), np.sin(strike_rad), 0],
-                [-np.sin(strike_rad), np.cos(strike_rad), 0],
-                [0, 0, 1],
-            ]
+        rotation_strike = sp.spatial.transform.Rotation.from_rotvec(
+            [0, 0, self.strike], degrees=True
         )
-        transformation_matrix = rot_mat_strike_z @ rot_mat_dip_y
-
-        centre_rel_bottom_left_projected_axis_aligned = np.array(
-            [self.width_km * np.cos(dip_rad) / 2, self.length_km / 2]
+        centroid_proj = rotation_strike.apply(
+            rotation_dip.apply(np.array([self.width_km / 2, self.length_km / 2, 0]))
         )
-        strike_rot = np.array(
-            [
-                [np.cos(strike_rad), np.sin(strike_rad)],
-                [-np.sin(strike_rad), np.cos(strike_rad)],
-            ]
+        centroid_proj[2] = 0
+        print(centroid_proj)
+        centroid_proj_final = np.array(
+            [*reversed(WGS2NZTM.transform(self.clat, self.clon)), 0]
         )
-        centre_rel_bottom_left_projected = (
-            strike_rot @ centre_rel_bottom_left_projected_axis_aligned
+        print(centroid_proj_final)
+        centroid_displacement = centroid_proj_final - centroid_proj
+        return (
+            rotation_strike.apply(rotation_dip.apply(segment_coordinates))
+            + centroid_displacement
         )
-        centre_rel_bottom_left_projected = np.append(
-            centre_rel_bottom_left_projected, 0
-        )
-        centre = np.array([*reversed(WGS2NZTM.transform(self.clat, self.clon)), 0])
-        bottom_left = centre - centre_rel_bottom_left_projected
-        return (transformation_matrix @ segment_coordinates).T + bottom_left
 
     def centroid(self) -> np.ndarray:
         """Returns the centre of the fault segment.
@@ -151,7 +115,9 @@ class FaultSegment:
 
         """
 
-        return self.segment_coordinates_to_nztm(np.array([[1 / 2, 1 / 2]]))
+        return self.segment_coordinates_to_nztm(
+            np.array([[self.width_km / 2, self.length_km / 2]])
+        )
 
     def corners(self) -> np.ndarray:
         """Get the corners of the fault plan
@@ -173,9 +139,9 @@ class FaultSegment:
         corners = np.array(
             [
                 [0, 0],  # top-left
-                [1, 0],  # top-right
-                [1, 1],  # bottom-right
-                [0, 1],  # bottom-left
+                [0, self.length_km],  # top-right
+                [self.width_km, self.length_km],  # bottom-right
+                [self.width_km, 0],  # bottom-left
             ]
         )
         return self.segment_coordinates_to_nztm(corners)
