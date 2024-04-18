@@ -85,10 +85,10 @@ class FaultSegment:
         )
 
         rotation_dip = sp.spatial.transform.Rotation.from_rotvec(
-            [0, self.dip, 0], degrees=True
+            [0, -self.dip, 0], degrees=True
         )
         rotation_strike = sp.spatial.transform.Rotation.from_rotvec(
-            [0, 0, self.strike], degrees=True
+            [0, 0, -self.strike], degrees=True
         )
         centroid_proj = rotation_strike.apply(
             rotation_dip.apply(np.array([self.width_km / 2, self.length_km / 2, 0]))
