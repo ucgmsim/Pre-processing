@@ -361,3 +361,39 @@ def generate_type4_fault_srfs_parallel(
             ],
         )
 
+
+def build_rupture_causality_tree(realisition: Realisation):
+    corners = [fault.corners() for fault in realisation.faults()]
+    jump_point_map = {
+        fault_u_name: {
+            fault_v_name: qcore.geo.closest_points_between_plane_sequences(
+                fault_u.corners(), fault_v.corners()
+            )
+            for fault_v_name, fault_v in realisation.faults
+        }
+        for fault_u_name, fault_u in realisation.faults
+    }
+
+    distance_graph = {
+        fault_u_name: {
+            fault_v_name: sp.spatial.distance.cdist(u_point, v_point)
+            for fault_v_name, (u_point, v_point) in jump_point_map[fault_u_name]
+        }
+        for fault_u_name in jump_point_map
+    }
+
+    probability_graph = rupture_propogation.probability_graph(distance_graph)
+
+    return rupture_propogation.probabilistic_shortest_path(
+        probability_graph, realisation.initial_fault
+    )
+
+
+if __name__ == "__main__":
+    realisation = read_realisation("/home/jake/src/Pre-processing/test.yaml")
+    generate_type4_fault_srf(
+        realisation,
+        "first_fault",
+        Path("/home/jake/src/Pre-processing/srfs"),
+        np.array([realisation.shypo, realisation.dhypo]),
+    )
