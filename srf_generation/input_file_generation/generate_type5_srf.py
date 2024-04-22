@@ -346,3 +346,18 @@ def generate_type4_fault_srf(
         subprocess.run(
             genslip_cmd, stdout=srf_file_handle, stderr=subprocess.PIPE, check=True
         )
+
+def generate_type4_fault_srfs_parallel(
+    realisation: Realisation,
+    hypocentres: dict[str, (float, float)],
+    output_directory: Path,
+):
+    with multiprocessing.Pool() as worker_pool:
+        worker_pool.starmap(
+            generate_type4_fault_srf,
+            [
+                (realisation, fault_name, output_directory, hypocentres[fault_name])
+                for fault_name in realisation.faults
+            ],
+        )
+
