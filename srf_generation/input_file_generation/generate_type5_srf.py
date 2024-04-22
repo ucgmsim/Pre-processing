@@ -1,7 +1,13 @@
 import dataclasses
 from pathlib import Path
-from typing import Dict, List
+import matplotlib.pyplot as plt
+import multiprocessing
+import rupture_propogation
+import qcore.geo
 
+from srf_generation.source_parameter_generation.common import (
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+)
 import numpy as np
 import pyproj
 import scipy as sp
@@ -14,6 +20,9 @@ WGS_CODE = 4326
 NZTM_CODE = 2193
 # Convert lat, lon to x, y
 WGS2NZTM = pyproj.Transformer.from_crs(WGS_CODE, NZTM_CODE)
+UTM_CRS = pyproj.CRS(proj="utm", zone=11, ellps="WGS84")
+WGS2UTM = pyproj.Transformer.from_crs(WGS_CODE, UTM_CRS)
+TRANSFORMER_MAP = {"nztm": WGS2NZTM, "utm": WGS2UTM}
 # Convert x, y to lat, lon
 NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
 # resolution for geometry in width and length, in kilometers
@@ -49,15 +58,15 @@ class FaultSegment:
         return self.strike
 
     def length_subdivisions(self):
-        return np.round(self.length / SUBDIVISION_RESOLUTION_KM)
+        return int(np.round(self.length / SUBDIVISION_RESOLUTION_KM))
 
     def width_subdivisions(self):
-        return np.round(self.width / SUBDIVISION_RESOLUTION_KM)
+        return int(np.round(self.width / SUBDIVISION_RESOLUTION_KM))
 
-    def segment_coordinates_to_nztm(
-        self, segment_coordinates: np.ndarray
+    def segment_coordinates_to_global_coordinates(
+        self, segment_coordinates: np.ndarray, coordinate_system="nztm"
     ) -> np.ndarray:
-        """Convert segment coordinates to NZTM global coordinates.
+        """Convert segment coordinates to nztm global coordinates.
 
         Parameters
         ----------
@@ -82,7 +91,7 @@ class FaultSegment:
         Returns
         -------
         np.ndarray
-            An n x 3 matrix of NZTM transformed coordinates.
+            An n x 3 matrix of nztm transformed coordinates.
 
         Examples
         --------
@@ -127,8 +136,9 @@ class FaultSegment:
         centroid_proj[2] = 0
         # Now we lookup the projected centroid location from the fault
         # definition and construct the displacement vector.
+        coordinate_transformer = TRANSFORMER_MAP[coordinate_system]
         centroid_proj_final = np.array(
-            [*reversed(WGS2NZTM.transform(self.clat, self.clon)), 0]
+            [*reversed(coordinate_transformer.transform(self.clat, self.clon)), 0]
         )
         centroid_displacement = centroid_proj_final - centroid_proj
         # So the transformed coordinates is
@@ -149,7 +159,7 @@ class FaultSegment:
 
         """
 
-        return self.segment_coordinates_to_nztm(
+        return self.segment_coordinates_to_global_coordinates(
             np.array([[self.width_km / 2, self.length_km / 2]])
         )
 
@@ -178,12 +188,13 @@ class FaultSegment:
                 [self.width_km, 0],  # bottom-left
             ]
         )
-        return self.segment_coordinates_to_nztm(corners)
+        return self.segment_coordinates_to_global_coordinates(corners)
 
 
 @dataclasses.dataclass
 class Fault:
-    segments: List[FaultSegment]
+    tect_type: str
+    segments: list[FaultSegment]
 
     def area(self) -> float:
         return sum(segment.width * segment.length for segment in self.segments)
@@ -200,13 +211,16 @@ class Fault:
     def number_width_subdivisions(self):
         return self.widths() / SUBDIVISION_RESOLUTION_KM
 
+    def corners(self):
+        return np.array([segment.corners()] for segment in self.segments)
+
 
 @dataclasses.dataclass
 class Realisation:
     name: str
     type: int
     magnitude: float
-    moment: float
+    # moment: float
     dt: float
     genslip_seed: int
     genslip_version: str
@@ -215,23 +229,30 @@ class Realisation:
     shypo: float
     dhypo: float
     velocity_model: str
-    faults: Dict[str, Fault]
+    faults: dict[str, Fault]
 
     def rupture_area(self) -> float:
         return sum(fault.area() for fault in self.faults.values())
 
     def fault_magnitude_by_area(self, fault: str) -> float:
-        return self.magnitude * self.faults[fault].area() / self.rupture_area()
+        return self.magnitude * (self.faults[fault].area() / self.rupture_area())
 
 
 def read_realisation(realisation_filepath: Path) -> Realisation:
     with open(realisation_filepath, "r", encoding="utf-8") as realisation_file:
         raw_yaml_data = yaml.safe_load(realisation_file)
         faults = {
-            name: [FaultSegment(**params) for params in subfaults]
-            for name, subfaults in raw_yaml_data.pop("faults").items()
+            name: Fault(
+                tect_type=fault["tect_type"],
+                segments=[FaultSegment(**params) for params in fault["segments"]],
+            )
+            for name, fault in raw_yaml_data.pop("faults").items()
         }
-        return Realisation(**raw_yaml_data, faults=faults)
+        return Realisation(
+            **raw_yaml_data,
+            faults=faults,
+            velocity_model=DEFAULT_1D_VELOCITY_MODEL_PATH,
+        )
 
 
 def type4_fault_gsf(realisation: Realisation, fault: Fault):
@@ -241,10 +262,10 @@ def type4_fault_gsf(realisation: Realisation, fault: Fault):
     ) as input_file, tempfile.NamedTemporaryFile(
         mode="w", delete=False
     ) as gsf_output_file:
-        input_file.write(f"{len(fault.segments)}")
-        for segment in fault.segments():
+        input_file.write(f"{len(fault.segments)}\n")
+        for segment in fault.segments:
             input_file.write(
-                f"{segment.clon:6f} {segment.clat:6f} {segment.dtop:6f} {segment.strike:.4f} {segment.dip:.4f} {segment.rake:.4f} {segment.length:.4f} {segment.width:.4f} {segment.length_subdivisions:d} {segment.width_subdivisions:d}\n"
+                f"{segment.clon:6f} {segment.clat:6f} {segment.dtop:6f} {segment.strike:.4f} {segment.dip:.4f} {segment.rake:.4f} {segment.length:.4f} {segment.width:.4f} {segment.length_subdivisions():d} {segment.width_subdivisions():d}\n"
             )
         input_file.flush()
         fault_seg_command = [
@@ -252,14 +273,14 @@ def type4_fault_gsf(realisation: Realisation, fault: Fault):
             "read_slip_vals=0",
             f"infile={input_file.name}",
             f"outfile={gsf_output_file.name}",
-            f"dip_dir={segment.dip_dir}",
+            f"dipdir={segment.dip_dir}",
         ]
+        print(" ".join(fault_seg_command))
         subprocess.run(fault_seg_command, check=True)
 
     return gsf_output_file.name
 
 
-# generate_type4
 def generate_type4_fault_srf(
     realisation: Realisation,
     fault_name: str,
@@ -272,13 +293,11 @@ def generate_type4_fault_srf(
 
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
     magnitude = realisation.fault_magnitude_by_area(fault_name)
+
     lengths = fault.lengths()
-    nx = np.sum(np.round(lengths / SUBDIVISION_RESOLUTION_KM))
-    ny = np.round(fault.widths()[0] / SUBDIVISION_RESOLUTION_KM)
-    xseg = [-1]
-    if len(fault.segments) > 1:
-        xseg = lengths.cumsum() - lengths / 2
-        xseg = xseg.toarray()
+    nx = int(np.sum(np.round(lengths / SUBDIVISION_RESOLUTION_KM)))
+    ny = int(np.round(fault.widths()[0] / SUBDIVISION_RESOLUTION_KM))
+
     genslip_cmd = [
         genslip_bin,
         "read_erf=0",
@@ -288,7 +307,7 @@ def generate_type4_fault_srf(
         f"infile={gsf_file_path}",
         f"mag={magnitude}",
         f"nstk={nx}",
-        f"ydip={ny}",
+        f"ndip={ny}",
         "ns=1",
         "nh=1",
         f"seed={realisation.genslip_seed}",
@@ -299,15 +318,15 @@ def generate_type4_fault_srf(
         "plane_header=1",
         "srf_version=1.0",
         "seg_delay={0}",
-        f"nseg={len(fault.segments)}",
         "rvfac_seg=-1",
         "gwid=-1",
         "side_taper=0.02",
         "bot_taper=0.02",
         "top_taper=0.0",
         "rup_delay=0",
-        f'xseg={",".join(xseg)}',
+        "alpha_rough=0.0",
     ]
+
     if fault.tect_type == "SUBDUCTION_INTERFACE":
         genslip_cmd.extend(
             [
