@@ -1,20 +1,23 @@
 import dataclasses
-from pathlib import Path
-import matplotlib.pyplot as plt
 import multiprocessing
-import rupture_propogation
-import qcore.geo
-
-from srf_generation.source_parameter_generation.common import (
-    DEFAULT_1D_VELOCITY_MODEL_PATH,
-)
-import numpy as np
+import subprocess
+import tempfile
+from pathlib import Path
+import fault
 import pyproj
+import pdb
+
+import numpy as np
+import qcore.geo
 import scipy as sp
 import yaml
 from qcore import binary_version
-import subprocess
-import tempfile
+from srf_generation.source_parameter_generation.common import (
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+)
+
+import rupture_propogation
+from rupture_propogation import RuptureCausalityTree
 
 WGS_CODE = 4326
 NZTM_CODE = 2193
@@ -25,194 +28,8 @@ WGS2UTM = pyproj.Transformer.from_crs(WGS_CODE, UTM_CRS)
 TRANSFORMER_MAP = {"nztm": WGS2NZTM, "utm": WGS2UTM}
 # Convert x, y to lat, lon
 NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
-# resolution for geometry in width and length, in kilometers
 SUBDIVISION_RESOLUTION_KM = 0.1
-
-KM_TO_M = 1000
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
-
-
-@dataclasses.dataclass
-class FaultSegment:
-    strike: float
-    rake: float
-    dip: float
-    dtop: float
-    dbottom: float
-    length: float
-    width: float
-    dip_dir: float
-    clon: float
-    clat: float
-
-    @property
-    def width_km(self):
-        return self.width * KM_TO_M
-
-    @property
-    def length_km(self):
-        return self.length * KM_TO_M
-
-    @property
-    def strike_adjusted(self):
-        return self.strike
-
-    def length_subdivisions(self):
-        return int(np.round(self.length / SUBDIVISION_RESOLUTION_KM))
-
-    def width_subdivisions(self):
-        return int(np.round(self.width / SUBDIVISION_RESOLUTION_KM))
-
-    def segment_coordinates_to_global_coordinates(
-        self, segment_coordinates: np.ndarray, coordinate_system="nztm"
-    ) -> np.ndarray:
-        """Convert segment coordinates to nztm global coordinates.
-
-        Parameters
-        ----------
-        segment_coordinates : np.ndarray
-            A (n x 2) matrix of coordinates to convert. Segment coordinates are
-            2D coordinates (x, y) given for a fault segment (a plane), where x
-            represents displacement along the length of the fault, and y
-            displacement along the width of the fault (see diagram below). The
-            origin for segment coordinates is the top-left of the fault.
-
-                                     +x
-                     0,0 -------------------------->
-                        +---------------------------+
-                      | |        < width >          |
-                      | |                           |  ^
-                   +y | |                           | length
-                      | |                           |  v
-                      v |                           |
-                        +---------------------------+
-                                                      1,1
-
-        Returns
-        -------
-        np.ndarray
-            An n x 3 matrix of nztm transformed coordinates.
-
-        Examples
-        --------
-        FIXME: Add docs.
-
-        """
-        # The approach to transforming these coordinates is different to the
-        # approach taken in past. We are going to start with the simplest
-        # possible case of a flat fault and then transform the coordinates to
-        # match the fault we
-        # actually want the coordinates of.
-
-        # Suppose that we fault with a strike and dip of exactly 0, a length l
-        # and a width w. Then the segment coordinates (x, y) correspond to the
-        # 3D coordinates (x, y, 0). So here we just add that zero coordinate on.
-        segment_coordinates = np.append(
-            segment_coordinates,
-            np.zeros((segment_coordinates.shape[0], 1)),
-            axis=1,
-        )
-
-        # To transform this flat fault into an arbitrary fault, we simply rotate
-        # first through dip and then strike. The dip is always to the right of
-        # the strike (i.e. clockwise from the y-axis). Rotation vectors by
-        # default rotate anti-clockwise so we need to rotate by -dip.
-        rotation_dip = sp.spatial.transform.Rotation.from_rotvec(
-            [0, -self.dip, 0], degrees=True
-        )
-        # Similarly, strike is a clockwise oriented rotation from the z-axis, so
-        # we need to rotate by -strike.
-        rotation_strike = sp.spatial.transform.Rotation.from_rotvec(
-            [0, 0, -self.strike], degrees=True
-        )
-        # We need to translate the our coordinates to match the position of the
-        # fault. The fault definition gives us the position of the projection of
-        # the centroid onto the earth's surface in lat-lon coordinates. We will
-        # translate the projected centroid to match the centroid given in the
-        # fault definition.
-        centroid_proj = rotation_strike.apply(
-            rotation_dip.apply(np.array([self.width_km / 2, self.length_km / 2, 0]))
-        )
-        centroid_proj[2] = 0
-        # Now we lookup the projected centroid location from the fault
-        # definition and construct the displacement vector.
-        coordinate_transformer = TRANSFORMER_MAP[coordinate_system]
-        centroid_proj_final = np.array(
-            [*reversed(coordinate_transformer.transform(self.clat, self.clon)), 0]
-        )
-        centroid_displacement = centroid_proj_final - centroid_proj
-        # So the transformed coordinates is
-        # rotation * coordinates + centroid displacement.
-        return (
-            rotation_strike.apply(rotation_dip.apply(segment_coordinates))
-            + centroid_displacement
-        )
-
-    def centroid(self) -> np.ndarray:
-        """Returns the centre of the fault segment.
-
-        Returns
-        -------
-        np.ndarray
-            A 1 x 3 dimensional vector representing the centroid of the fault
-            plane in NZTM coordinates.
-
-        """
-
-        return self.segment_coordinates_to_global_coordinates(
-            np.array([[self.width_km / 2, self.length_km / 2]])
-        )
-
-    def corners(self) -> np.ndarray:
-        """Get the corners of the fault plan
-
-        Returns
-        -------
-        np.ndarray
-            A 4 x 3 dimensional matrix, where each row is a corner of the fault
-            plane specified in NZTM coordinates. The corners are returned in
-            clockwise orientation starting from the top-left.
-
-        Examples
-        --------
-        FIXME: Add docs.
-
-        """
-        # assuming that the bottom-left is the origin, the dip is zero and the
-        # strike is also zero then the bounds of the plane are easily found.
-        corners = np.array(
-            [
-                [0, 0],  # top-left
-                [0, self.length_km],  # top-right
-                [self.width_km, self.length_km],  # bottom-right
-                [self.width_km, 0],  # bottom-left
-            ]
-        )
-        return self.segment_coordinates_to_global_coordinates(corners)
-
-
-@dataclasses.dataclass
-class Fault:
-    tect_type: str
-    segments: list[FaultSegment]
-
-    def area(self) -> float:
-        return sum(segment.width * segment.length for segment in self.segments)
-
-    def widths(self) -> np.ndarray:
-        return np.array([seg.width for seg in self.segments])
-
-    def lengths(self) -> np.ndarray:
-        return np.array([seg.length for seg in self.segments])
-
-    def number_length_subdivisions(self):
-        return self.lengths() / SUBDIVISION_RESOLUTION_KM
-
-    def number_width_subdivisions(self):
-        return self.widths() / SUBDIVISION_RESOLUTION_KM
-
-    def corners(self):
-        return np.array([segment.corners()] for segment in self.segments)
 
 
 @dataclasses.dataclass
@@ -229,7 +46,7 @@ class Realisation:
     shypo: float
     dhypo: float
     velocity_model: str
-    faults: dict[str, Fault]
+    faults: dict[str, fault.Fault]
 
     def rupture_area(self) -> float:
         return sum(fault.area() for fault in self.faults.values())
@@ -242,11 +59,14 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
     with open(realisation_filepath, "r", encoding="utf-8") as realisation_file:
         raw_yaml_data = yaml.safe_load(realisation_file)
         faults = {
-            name: Fault(
-                tect_type=fault["tect_type"],
-                segments=[FaultSegment(**params) for params in fault["segments"]],
+            name: fault.Fault(
+                name=name,
+                tect_type=fault_obj["tect_type"],
+                segments=[
+                    fault.FaultSegment(**params) for params in fault_obj["segments"]
+                ],
             )
-            for name, fault in raw_yaml_data.pop("faults").items()
+            for name, fault_obj in raw_yaml_data.pop("faults").items()
         }
         return Realisation(
             **raw_yaml_data,
@@ -255,7 +75,7 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
         )
 
 
-def type4_fault_gsf(realisation: Realisation, fault: Fault):
+def type4_fault_gsf(realisation: Realisation, fault: fault.Fault):
     fault_seg_bin = binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR)
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False
@@ -347,6 +167,7 @@ def generate_type4_fault_srf(
             genslip_cmd, stdout=srf_file_handle, stderr=subprocess.PIPE, check=True
         )
 
+
 def generate_type4_fault_srfs_parallel(
     realisation: Realisation,
     hypocentres: dict[str, (float, float)],
@@ -362,38 +183,53 @@ def generate_type4_fault_srfs_parallel(
         )
 
 
-def build_rupture_causality_tree(realisition: Realisation):
-    corners = [fault.corners() for fault in realisation.faults()]
+def wgsdepth_to_nztm(wgsdepthcoordinates: np.ndarray) -> np.ndarray:
+    nztm_coords = np.array(
+        WGS2NZTM.transform(wgsdepthcoordinates[:, 0], wgsdepthcoordinates[:, 1]),
+    ).T
+    return np.append(nztm_coords, wgsdepthcoordinates[:, 2].reshape((-1, 1)), axis=-1)
+
+
+def closest_points_between_faults(fault_u, fault_v):
+    scaling_factor = np.array([1e3, 1e3, 1])
+    fault_u_corners = (
+        np.array([wgsdepth_to_nztm(corner) for corner in fault_u.corners()])
+        / scaling_factor
+    )
+    fault_v_corners = (
+        np.array([wgsdepth_to_nztm(corner) for corner in fault_v.corners()])
+        / scaling_factor
+    )
+    point_u, point_v = qcore.geo.closest_points_between_plane_sequences(
+        fault_u_corners, fault_v_corners
+    )
+    return point_u * scaling_factor, point_v * scaling_factor
+
+
+def build_rupture_causality_tree(realisition: Realisation) -> RuptureCausalityTree:
     jump_point_map = {
         fault_u_name: {
-            fault_v_name: qcore.geo.closest_points_between_plane_sequences(
-                fault_u.corners(), fault_v.corners()
-            )
-            for fault_v_name, fault_v in realisation.faults
+            fault_v_name: closest_points_between_faults(fault_u, fault_v)
+            for fault_v_name, fault_v in realisation.faults.items()
+            if fault_v_name != fault_u_name
         }
-        for fault_u_name, fault_u in realisation.faults
+        for fault_u_name, fault_u in realisation.faults.items()
     }
-
     distance_graph = {
         fault_u_name: {
-            fault_v_name: sp.spatial.distance.cdist(u_point, v_point)
-            for fault_v_name, (u_point, v_point) in jump_point_map[fault_u_name]
+            fault_v_name: sp.spatial.distance.cdist(
+                u_point.reshape((1, -1)), v_point.reshape((1, -1))
+            )[0, 0]
+            / 1000
+            for fault_v_name, (u_point, v_point) in jump_point_map[fault_u_name].items()
         }
         for fault_u_name in jump_point_map
     }
+    print(distance_graph)
 
+    # pruned = rupture_propogation.prune_distance_graph(distance_graph, 15)
     probability_graph = rupture_propogation.probability_graph(distance_graph)
 
     return rupture_propogation.probabilistic_shortest_path(
         probability_graph, realisation.initial_fault
-    )
-
-
-if __name__ == "__main__":
-    realisation = read_realisation("/home/jake/src/Pre-processing/test.yaml")
-    generate_type4_fault_srf(
-        realisation,
-        "first_fault",
-        Path("/home/jake/src/Pre-processing/srfs"),
-        np.array([realisation.shypo, realisation.dhypo]),
     )
