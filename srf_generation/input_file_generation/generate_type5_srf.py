@@ -4,8 +4,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 import fault
+import collections
 import pyproj
-import pdb
+import itertools
+
 
 import numpy as np
 import qcore.geo
@@ -190,31 +192,62 @@ def wgsdepth_to_nztm(wgsdepthcoordinates: np.ndarray) -> np.ndarray:
     return np.append(nztm_coords, wgsdepthcoordinates[:, 2].reshape((-1, 1)), axis=-1)
 
 
+def nztm_to_wgsdepth(nztmcoordinates: np.ndarray) -> np.ndarray:
+    wgs_coords = np.array(
+        NZTM2WGS.transform(nztmcoordinates[:, 0], nztmcoordinates[:, 1]),
+    ).T
+    return np.append(wgs_coords, nztmcoordinates[:, 2].reshape((-1, 1)), axis=-1)
+
+
 def closest_points_between_faults(fault_u, fault_v):
-    scaling_factor = np.array([1e3, 1e3, 1])
-    fault_u_corners = (
-        np.array([wgsdepth_to_nztm(corner) for corner in fault_u.corners()])
-        / scaling_factor
+    fault_u_corners = np.array(
+        [wgsdepth_to_nztm(corner) for corner in fault_u.corners()]
     )
-    fault_v_corners = (
-        np.array([wgsdepth_to_nztm(corner) for corner in fault_v.corners()])
-        / scaling_factor
+
+    fault_v_corners = np.array(
+        [wgsdepth_to_nztm(corner) for corner in fault_v.corners()]
     )
+
     point_u, point_v = qcore.geo.closest_points_between_plane_sequences(
         fault_u_corners, fault_v_corners
     )
-    return point_u * scaling_factor, point_v * scaling_factor
+    return point_u, point_v
 
 
-def build_rupture_causality_tree(realisition: Realisation) -> RuptureCausalityTree:
-    jump_point_map = {
-        fault_u_name: {
-            fault_v_name: closest_points_between_faults(fault_u, fault_v)
-            for fault_v_name, fault_v in realisation.faults.items()
-            if fault_v_name != fault_u_name
-        }
-        for fault_u_name, fault_u in realisation.faults.items()
-    }
+def test_fault_segment_vialibility(
+    fault1: fault.FaultSegment, fault2: fault.FaultSegment, cutoff: float
+) -> bool:
+    fault1_centroid = wgsdepth_to_nztm(fault1.centroid().reshape((1, -1))).ravel()
+    fault2_centroid = wgsdepth_to_nztm(fault2.centroid().reshape((1, -1))).ravel()
+    fault1_radius = max(fault1.width_m, fault1.length_m) + cutoff
+    fault2_radius = max(fault2.width_m, fault2.length_m) + cutoff
+    return qcore.geo.spheres_intersect(
+        fault1_centroid, fault1_radius, fault2_centroid, fault2_radius
+    )
+
+
+def test_fault_viability(
+    fault1: fault.Fault, fault2: fault.Fault, cutoff: float
+) -> bool:
+    return any(
+        test_fault_segment_vialibility(seg1, seg2, cutoff)
+        for (seg1, seg2) in itertools.product(fault1.segments, fault2.segments)
+    )
+
+
+def build_rupture_causality_tree(realisation: Realisation) -> RuptureCausalityTree:
+    jump_point_map = collections.defaultdict(dict)
+    cutoff = 15000
+    for fault_u_name, fault_u in realisation.faults.items():
+        for fault_v_name, fault_v in realisation.faults.items():
+            if fault_u_name == fault_v_name:
+                continue
+            if test_fault_viability(fault_u, fault_v, cutoff):
+                breakpoint()
+                jump_point_map[fault_u_name][fault_v_name] = (
+                    closest_points_between_faults(fault_u, fault_v)
+                )
+
     distance_graph = {
         fault_u_name: {
             fault_v_name: sp.spatial.distance.cdist(
@@ -225,11 +258,13 @@ def build_rupture_causality_tree(realisition: Realisation) -> RuptureCausalityTr
         }
         for fault_u_name in jump_point_map
     }
-    print(distance_graph)
+    print("Distance:", distance_graph)
 
-    # pruned = rupture_propogation.prune_distance_graph(distance_graph, 15)
-    probability_graph = rupture_propogation.probability_graph(distance_graph)
+    pruned = rupture_propogation.prune_distance_graph(distance_graph, 15000)
+    print("Pruned:", pruned)
+    probability_graph = rupture_propogation.probability_graph(pruned)
 
-    return rupture_propogation.probabilistic_shortest_path(
+    return rupture_propogation.probabilistic_minimum_spanning_tree(
         probability_graph, realisation.initial_fault
     )
+

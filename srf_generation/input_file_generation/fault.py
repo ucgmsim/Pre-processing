@@ -11,6 +11,12 @@ import qcore.geo
 KM_TO_M = 1000
 SUBDIVISION_RESOLUTION_KM = 0.1
 
+WGS_CODE = 4326
+NZTM_CODE = 2193
+# Convert lat, lon to x, y
+WGS2NZTM = pyproj.Transformer.from_crs(WGS_CODE, NZTM_CODE)
+NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
+
 
 @dataclasses.dataclass
 class FaultSegment:
@@ -33,11 +39,32 @@ class FaultSegment:
     def length_m(self):
         return self.length * KM_TO_M
 
+    @property
+    def depth_m(self):
+        return self.length * KM_TO_M
+
     def length_subdivisions(self):
         return int(np.round(self.length / SUBDIVISION_RESOLUTION_KM))
 
     def width_subdivisions(self):
         return int(np.round(self.width / SUBDIVISION_RESOLUTION_KM))
+
+    def frame(self):
+        strike_direction = np.array(
+            [np.sin(np.radians(self.strike)), np.cos(np.radians(self.strike)), 0]
+        )
+        dip_direction = np.array(
+            [
+                np.sin(np.radians(self.dip_dir)),
+                np.cos(np.radians(self.dip_dir)),
+                0,
+            ]
+        )
+        dip_rotation = sp.spatial.transform.Rotation.from_rotvec(
+            np.radians(self.dip) * np.cross(np.array([0, 0, 1]), dip_direction)
+        )
+        dip_direction_3d = dip_rotation.apply(dip_direction)
+        return np.array([dip_direction_3d, strike_direction])
 
     def segment_coordinates_to_global_coordinates(
         self, segment_coordinates: np.ndarray
@@ -74,6 +101,11 @@ class FaultSegment:
         FIXME: Add docs.
 
         """
+        depth = (
+            (segment_coordinates[0] + 1 / 2)
+            * self.width_m
+            * -np.sin(np.radians(self.dip))
+        )
         projected_width = self.width * np.cos(np.radians(self.dip))
         dip_coord_dir = (
             self.dip_dir if segment_coordinates[0] > 0 else 180 + self.dip_dir
@@ -93,12 +125,55 @@ class FaultSegment:
             self.length * np.abs(segment_coordinates[1]),
             strike_coord_dir,
         )
-        depth = (
-            (segment_coordinates[0] + 1 / 2)
-            * self.width
-            * -np.sin(np.radians(self.dip))
-        )
         return np.array([length_shift_lat, length_shift_lon, depth])
+
+    def global_coordinates_to_segment_coordinates(
+        self,
+        global_coordinates: np.ndarray,
+    ) -> np.ndarray:
+        """Convert coordinates (lat, lon, depth) to segment coordinates (x, y).
+
+        See segment_coordinates_to_global_coordinates for a synopsis on segment
+        coordinates.
+
+        Parameters
+        ----------
+        global_coordinates : np.ndarray
+            Global coordinates to convert.
+
+        Returns
+        -------
+        np.ndarray
+            The segment coordinates (x, y) representing the position of
+            global_coordinates on the fault segment.
+
+        Examples
+        --------
+        FIXME: Add docs.
+
+        """
+        top_middle = self.segment_coordinates_to_global_coordinates(
+            np.array([-1 / 2, 0])
+        )
+        top_middle_lat, top_middle_lon = top_middle[:2]
+        coord_lat, coord_lon = global_coordinates[:2]
+        dip_distance = qcore.geo.ll_dist(
+            top_middle_lon, top_middle_lat, coord_lon, coord_lat
+        )
+        left_middle = self.segment_coordinates_to_global_coordinates(
+            np.array([0, -1 / 2])
+        )
+        left_middle_lat, left_middle_lon = left_middle[:2]
+        strike_distance = qcore.geo.ll_dist(
+            left_middle_lon, left_middle_lat, coord_lon, coord_lat
+        )
+        projected_width = self.width * np.cos(np.radians(self.dip))
+        return np.array(
+            [
+                dip_distance / projected_width - 1 / 2,
+                strike_distance / self.length - 1 / 2,
+            ]
+        )
 
     def centroid(self) -> np.ndarray:
         """Returns the centre of the fault segment.
@@ -138,12 +213,9 @@ class FaultSegment:
                 [1 / 2, -1 / 2],  # bottom-left
             ]
         )
-        return np.array(
-            [
-                self.segment_coordinates_to_global_coordinates(corner)
-                for corner in corners
-            ]
-        )
+        return [
+            self.segment_coordinates_to_global_coordinates(corner) for corner in corners
+        ]
 
 
 @dataclasses.dataclass
