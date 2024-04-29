@@ -51,20 +51,15 @@ class FaultSegment:
 
     def frame(self):
         strike_direction = np.array(
-            [np.sin(np.radians(self.strike)), np.cos(np.radians(self.strike)), 0]
+            [np.cos(np.radians(self.strike)), np.sin(np.radians(self.strike))]
         )
         dip_direction = np.array(
             [
-                np.sin(np.radians(self.dip_dir)),
                 np.cos(np.radians(self.dip_dir)),
-                0,
+                np.sin(np.radians(self.dip_dir)),
             ]
         )
-        dip_rotation = sp.spatial.transform.Rotation.from_rotvec(
-            np.radians(self.dip) * np.cross(np.array([0, 0, 1]), dip_direction)
-        )
-        dip_direction_3d = dip_rotation.apply(dip_direction)
-        return np.array([dip_direction_3d, strike_direction])
+        return np.array([strike_direction, dip_direction])
 
     def segment_coordinates_to_global_coordinates(
         self, segment_coordinates: np.ndarray
@@ -106,10 +101,10 @@ class FaultSegment:
             * self.width_m
             * -np.sin(np.radians(self.dip))
         )
-        projected_width = self.width * np.cos(np.radians(self.dip))
         dip_coord_dir = (
             self.dip_dir if segment_coordinates[0] > 0 else 180 + self.dip_dir
         )
+        projected_width = self.width * np.cos(np.radians(self.dip))
         width_shift_lat, width_shift_lon = qcore.geo.ll_shift(
             self.clat,
             self.clon,
@@ -133,7 +128,7 @@ class FaultSegment:
     ) -> np.ndarray:
         """Convert coordinates (lat, lon, depth) to segment coordinates (x, y).
 
-        See segment_coordinates_to_global_coordinates for a synopsis on segment
+        See segment_coordinates_to_global_coordinates for a description of segment
         coordinates.
 
         Parameters
@@ -152,27 +147,25 @@ class FaultSegment:
         FIXME: Add docs.
 
         """
-        top_middle = self.segment_coordinates_to_global_coordinates(
-            np.array([-1 / 2, 0])
+        # Ok how about the stupidest solution ever...
+
+        def f(x):
+            return (
+                self.segment_coordinates_to_global_coordinates(x[:2])
+                - global_coordinates
+            )
+
+        return sp.optimize.root(f, np.array([0, 0, 0])).x[:2]
+
+    def coordinate_in_segment(self, global_coordinates: np.ndarray):
+        segment_coordinates = self.global_coordinates_to_segment_coordinates(
+            global_coordinates
         )
-        top_middle_lat, top_middle_lon = top_middle[:2]
-        coord_lat, coord_lon = global_coordinates[:2]
-        dip_distance = qcore.geo.ll_dist(
-            top_middle_lon, top_middle_lat, coord_lon, coord_lat
-        )
-        left_middle = self.segment_coordinates_to_global_coordinates(
-            np.array([0, -1 / 2])
-        )
-        left_middle_lat, left_middle_lon = left_middle[:2]
-        strike_distance = qcore.geo.ll_dist(
-            left_middle_lon, left_middle_lat, coord_lon, coord_lat
-        )
-        projected_width = self.width * np.cos(np.radians(self.dip))
-        return np.array(
-            [
-                dip_distance / projected_width - 1 / 2,
-                strike_distance / self.length - 1 / 2,
-            ]
+        return np.all(
+            np.logical_or(
+                np.abs(segment_coordinates) < 1 / 2,
+                np.isclose(np.abs(segment_coordinates), 1 / 2),
+            )
         )
 
     def centroid(self) -> np.ndarray:
@@ -241,3 +234,20 @@ class Fault:
 
     def corners(self):
         return np.array([segment.corners() for segment in self.segments])
+
+    def hypocentre_wgs_to_fault_coordinates(self, global_coordinates: np.ndarray):
+        running_length = 0
+        midpoint = np.sum(self.lengths()) / 2
+        for segment in self.segments:
+            if segment.coordinate_in_segment(global_coordinates):
+                segment_coordinates = segment.global_coordinates_to_segment_coordinates(
+                    global_coordinates
+                )
+                strike_length = segment_coordinates[0] + 1 / 2
+                dip_length = segment_coordinates[1] + 1 / 2
+                return (
+                    running_length + strike_length * segment.length - midpoint,
+                    max(dip_length * segment.width, 0),
+                )
+            running_length += segment.length
+        raise ValueError("Specified coordinates not contained on fault.")
