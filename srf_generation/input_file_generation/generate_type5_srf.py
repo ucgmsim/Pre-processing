@@ -268,3 +268,34 @@ def build_rupture_causality_tree(realisation: Realisation) -> RuptureCausalityTr
         probability_graph, realisation.initial_fault
     )
 
+
+def compute_jump_point_hypocentre_fault_coordinates(
+    from_fault: fault.Fault, to_fault: fault.Fault
+) -> (float, float):
+    _, to_fault_point_nztm = closest_points_between_faults(from_fault, to_fault)
+    return to_fault.hypocentre_wgs_to_fault_coordinates(
+        nztm_to_wgsdepth(to_fault_point_nztm.reshape((1, -1))).ravel()
+    )
+
+
+def compute_hypocentres(
+    realisation: Realisation, rupture_causality_tree: RuptureCausalityTree
+):
+    hypocentres = {}
+    for fault_name, to_fault in realisation.faults.items():
+        if rupture_causality_tree[fault_name] is None:
+            hypocentres[fault_name] = (realisation.shypo, realisation.dhypo)
+        else:
+            from_fault = realisation.faults[rupture_causality_tree[fault_name]]
+            hypocentres[fault_name] = compute_jump_point_hypocentre_fault_coordinates(
+                from_fault, to_fault
+            )
+    return hypocentres
+
+
+if __name__ == "__main__":
+    realisation_filepath = "/home/jake/Downloads/good_rupture.yaml"
+    realisation = read_realisation(realisation_filepath)
+    rupture_causality_tree = build_rupture_causality_tree(realisation)
+    hypocentres = compute_hypocentres(realisation, rupture_causality_tree)
+    print(hypocentres)
