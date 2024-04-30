@@ -13,6 +13,7 @@ import numpy as np
 import qcore.geo
 import scipy as sp
 import yaml
+import srf
 from qcore import binary_version
 from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
@@ -35,6 +36,13 @@ FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 
 @dataclasses.dataclass
+class FaultJump:
+    parent: fault.Fault
+    jump_location_lat: float
+    jump_location_lon: float
+
+
+@dataclasses.dataclass
 class Realisation:
     name: str
     type: int
@@ -45,10 +53,9 @@ class Realisation:
     genslip_version: str
     srfgen_seed: int
     initial_fault: str
-    shypo: float
-    dhypo: float
     velocity_model: str
     faults: dict[str, fault.Fault]
+    causality_map: dict[str, FaultJump]
 
     def rupture_area(self) -> float:
         return sum(fault.area() for fault in self.faults.values())
@@ -67,13 +74,31 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
                 segments=[
                     fault.FaultSegment(**params) for params in fault_obj["segments"]
                 ],
+                shyp=fault_obj["shyp"],
+                dhyp=fault_obj["dhyp"],
             )
             for name, fault_obj in raw_yaml_data.pop("faults").items()
         }
+
+        causality_map = {}
+        for fault_name, jump_obj in raw_yaml_data["causality_map"].items():
+            if jump_obj["parent"] is None:
+                causality_map[fault_name] = None
+            else:
+                causality_map[fault_name] = FaultJump(**jump_obj)
+
         return Realisation(
-            **raw_yaml_data,
+            name=raw_yaml_data["name"],
+            type=raw_yaml_data["type"],
+            dt=raw_yaml_data["dt"],
+            genslip_seed=raw_yaml_data["genslip_seed"],
+            srfgen_seed=raw_yaml_data["srfgen_seed"],
+            initial_fault=raw_yaml_data["initial_fault"],
+            genslip_version=raw_yaml_data["genslip_version"],
+            magnitude=raw_yaml_data["magnitude"],
             faults=faults,
             velocity_model=DEFAULT_1D_VELOCITY_MODEL_PATH,
+            causality_map=causality_map,
         )
 
 
@@ -97,17 +122,19 @@ def type4_fault_gsf(realisation: Realisation, fault: fault.Fault):
             f"outfile={gsf_output_file.name}",
             f"dipdir={segment.dip_dir}",
         ]
-        print(" ".join(fault_seg_command))
         subprocess.run(fault_seg_command, check=True)
 
     return gsf_output_file.name
+
+
+def srf_file_by_name(output_directory: Path, fault_name: str) -> Path:
+    return output_directory / (fault_name + ".srf")
 
 
 def generate_type4_fault_srf(
     realisation: Realisation,
     fault_name: str,
     output_directory: Path,
-    hypocentre: np.ndarray,
 ):
     fault = realisation.faults[fault_name]
 
@@ -115,6 +142,7 @@ def generate_type4_fault_srf(
 
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
     magnitude = realisation.fault_magnitude_by_area(fault_name)
+    print(f"{fault.name}: {magnitude}")
 
     lengths = fault.lengths()
     nx = int(np.sum(np.round(lengths / SUBDIVISION_RESOLUTION_KM)))
@@ -127,15 +155,15 @@ def generate_type4_fault_srf(
         "read_gsf=1",
         "write_gsf=0",
         f"infile={gsf_file_path}",
-        f"mag={magnitude}",
+        f"mag={realisation.magnitude}",
         f"nstk={nx}",
         f"ndip={ny}",
         "ns=1",
         "nh=1",
         f"seed={realisation.genslip_seed}",
         f"velfile={realisation.velocity_model}",
-        f"shypo={hypocentre[0]}",
-        f"dhypo={hypocentre[1]}",
+        f"shypo={fault.shyp}",
+        f"dhypo={fault.dhyp}",
         f"dt={realisation.dt}",
         "plane_header=1",
         "srf_version=1.0",
@@ -162,24 +190,69 @@ def generate_type4_fault_srf(
                 "risetime_coef=1.95",
             ]
         )
-
-    srf_file_path = output_directory / (fault_name + ".srf")
+    srf_file_path = srf_file_by_name(output_directory, fault.name)
     with open(srf_file_path, "w", encoding="utf-8") as srf_file_handle:
         subprocess.run(
             genslip_cmd, stdout=srf_file_handle, stderr=subprocess.PIPE, check=True
         )
 
 
+def stitch_srf_files(realisation: Realisation, output_directory: Path):
+    srf_output_filepath = srf_file_by_name(output_directory, realisation.name)
+    with open(srf_output_filepath, "w") as srf_file_output:
+        fault_srfs = {}
+        fault_points = {}
+        header = []
+
+        srf.write_version(srf_file_output)
+
+        for fault_name in realisation.faults:
+            fault_srf_file = open(srf_file_by_name(output_directory, fault_name), "r")
+            fault_srfs[fault_name] = fault_srf_file
+            srf.read_version(fault_srf_file)
+            fault_header = srf.read_srf_headers(fault_srf_file)
+            if fault_name != realisation.initial_fault:
+                for segment in fault_header:
+                    segment.shyp = -999
+                    segment.dhyp = -999
+            header.extend(fault_header)
+            point_count = srf.read_points_count(fault_srf_file)
+            fault_points[fault_name] = srf.read_srf_n_points(
+                point_count, fault_srf_file
+            )
+
+        srf.write_srf_header(srf_file_output, header)
+        srf.write_point_count(
+            srf_file_output, sum(len(points) for points in fault_points.values())
+        )
+
+        for fault_name, fault_points in fault_points.items():
+            t_delay = 0
+            if fault_name != realisation.initial_fault:
+                # find closest grid point to the jump location
+                # compute the time delay as equal to the tinit of this point (for now)
+                pass
+            for point in fault_points:
+                point.tinit += t_delay
+                srf.write_srf_point(srf_file_output, point)
+
+        for fault_srf_file in fault_srfs.values():
+            fault_srf_file.close()
+
+
 def generate_type4_fault_srfs_parallel(
     realisation: Realisation,
-    hypocentres: dict[str, (float, float)],
     output_directory: Path,
 ):
     with multiprocessing.Pool() as worker_pool:
         worker_pool.starmap(
             generate_type4_fault_srf,
             [
-                (realisation, fault_name, output_directory, hypocentres[fault_name])
+                (
+                    realisation,
+                    fault_name,
+                    output_directory,
+                )
                 for fault_name in realisation.faults
             ],
         )
@@ -243,7 +316,6 @@ def build_rupture_causality_tree(realisation: Realisation) -> RuptureCausalityTr
             if fault_u_name == fault_v_name:
                 continue
             if test_fault_viability(fault_u, fault_v, cutoff):
-                breakpoint()
                 jump_point_map[fault_u_name][fault_v_name] = (
                     closest_points_between_faults(fault_u, fault_v)
                 )
@@ -258,10 +330,8 @@ def build_rupture_causality_tree(realisation: Realisation) -> RuptureCausalityTr
         }
         for fault_u_name in jump_point_map
     }
-    print("Distance:", distance_graph)
 
     pruned = rupture_propogation.prune_distance_graph(distance_graph, 15000)
-    print("Pruned:", pruned)
     probability_graph = rupture_propogation.probability_graph(pruned)
 
     return rupture_propogation.probabilistic_minimum_spanning_tree(

@@ -216,6 +216,8 @@ class Fault:
     name: str
     tect_type: str
     segments: list[FaultSegment]
+    shyp: float
+    dhyp: float
 
     def area(self) -> float:
         return sum(segment.width * segment.length for segment in self.segments)
