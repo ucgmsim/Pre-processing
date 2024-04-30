@@ -47,7 +47,6 @@ class Realisation:
     name: str
     type: int
     magnitude: float
-    # moment: float
     dt: float
     genslip_seed: int
     genslip_version: str
@@ -197,6 +196,10 @@ def generate_type4_fault_srf(
         )
 
 
+def closest_gridpoint(grid: np.ndarray, point: np.ndarray) -> np.ndarray:
+    return np.argmin(np.sum(np.square(grid - point), axis=1))
+
+
 def stitch_srf_files(realisation: Realisation, output_directory: Path):
     srf_output_filepath = srf_file_by_name(output_directory, realisation.name)
     with open(srf_output_filepath, "w") as srf_file_output:
@@ -231,7 +234,18 @@ def stitch_srf_files(realisation: Realisation, output_directory: Path):
             if fault_name != realisation.initial_fault:
                 # find closest grid point to the jump location
                 # compute the time delay as equal to the tinit of this point (for now)
-                pass
+                fault_jump = realisation.causality_map[fault_name]
+                grid_points = wgsdepth_to_nztm(
+                    np.array(
+                        [point.lat, point.lon, point.depth] for point in fault_points
+                    )
+                )
+                jump_index = closest_gridpoint(
+                    grid_points,
+                    np.array([fault_jump.lat, fault_jump.lon, fault_jump.depth]),
+                )
+                t_delay = fault_points[jump_index].tinit
+
             for point in fault_points:
                 point.tinit += t_delay
                 srf.write_srf_point(srf_file_output, point)
