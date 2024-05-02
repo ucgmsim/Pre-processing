@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Generate GeoJSON objects for visualizing type-5 rupture realizations.
+Generate GeoJSON objects for visualising type-5 rupture realisations.
 
-This script converts rupture realizations into GeoJSON format for visualization.
+This script converts rupture realisations into GeoJSON format for visualisation.
 
 Usage:
     visualise_realisation.py REALISATION_FILE
