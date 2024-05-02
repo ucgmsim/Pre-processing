@@ -34,7 +34,6 @@ def probability_graph(
         }
         for fault_u, neighbours_fault_u in distances.items()
     }
-    print(probabilities_raw)
 
     probabilities_log = defaultdict(lambda: dict())
     for fault_u, neighbours_fault_u in probabilities_raw.items():

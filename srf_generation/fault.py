@@ -2,6 +2,7 @@
 import numpy as np
 import scipy as sp
 import dataclasses
+from typing import Any
 import pyproj
 import qcore.geo
 
@@ -164,7 +165,7 @@ class FaultSegment:
         return np.all(
             np.logical_or(
                 np.abs(segment_coordinates) < 1 / 2,
-                np.isclose(np.abs(segment_coordinates), 1 / 2),
+                np.isclose(np.abs(segment_coordinates), 1 / 2, atol=1e-4),
             )
         )
 
@@ -218,6 +219,9 @@ class Fault:
     segments: list[FaultSegment]
     shyp: float
     dhyp: float
+    parent_jump_coords: (float, float, float) = None
+    magnitude: float = None
+    parent: Any = None
 
     def area(self) -> float:
         return sum(segment.width * segment.length for segment in self.segments)
@@ -253,3 +257,17 @@ class Fault:
                 )
             running_length += segment.length
         raise ValueError("Specified coordinates not contained on fault.")
+
+    def fault_coordinates_to_wgsdepth_coordinates(
+        self, fault_coordinates: np.ndarray
+    ) -> np.ndarray:
+        midpoint = np.sum(self.lengths()) / 2
+        remaining_length = fault_coordinates[0] + midpoint
+        for segment in self.segments:
+            if remaining_length < segment.length:
+                return segment.segment_coordinates_to_global_coordinates(
+                    np.array([remaining_length / segment.length - 1 / 2,
+                    fault_coordinates[1] / segment.width - 1 / 2]),
+                )
+            remaining_length -= segment.length
+        raise ValueError("Specified fault coordinates out of bounds.")
