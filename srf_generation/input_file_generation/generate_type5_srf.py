@@ -1,26 +1,14 @@
-import dataclasses
 import multiprocessing
 import subprocess
 import tempfile
 from pathlib import Path
-import fault
-import collections
-import pyproj
-import itertools
-
 
 import numpy as np
-import qcore.geo
-import scipy as sp
-import yaml
-import srf
+import pyproj
 from qcore import binary_version
-from srf_generation.source_parameter_generation.common import (
-    DEFAULT_1D_VELOCITY_MODEL_PATH,
-)
+from srf_generation import fault, realisation
 
-import rupture_propogation
-from rupture_propogation import RuptureCausalityTree
+import srf
 
 WGS_CODE = 4326
 NZTM_CODE = 2193
@@ -35,72 +23,7 @@ SUBDIVISION_RESOLUTION_KM = 0.1
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 
-@dataclasses.dataclass
-class FaultJump:
-    parent: fault.Fault
-    jump_location_lat: float
-    jump_location_lon: float
-
-
-@dataclasses.dataclass
-class Realisation:
-    name: str
-    type: int
-    dt: float
-    genslip_seed: int
-    genslip_version: str
-    srfgen_seed: int
-    initial_fault: str
-    velocity_model: str
-    faults: dict[str, fault.Fault]
-    causality_map: dict[str, FaultJump]
-
-    def rupture_area(self) -> float:
-        return sum(fault.area() for fault in self.faults.values())
-
-    def fault_magnitude_by_area(self, fault: str) -> float:
-        return self.magnitude * (self.faults[fault].area() / self.rupture_area())
-
-
-def read_realisation(realisation_filepath: Path) -> Realisation:
-    with open(realisation_filepath, "r", encoding="utf-8") as realisation_file:
-        raw_yaml_data = yaml.safe_load(realisation_file)
-        faults = {
-            name: fault.Fault(
-                name=name,
-                tect_type=fault_obj["tect_type"],
-                segments=[
-                    fault.FaultSegment(**params) for params in fault_obj["segments"]
-                ],
-                shyp=fault_obj["shyp"],
-                dhyp=fault_obj["dhyp"],
-            )
-            for name, fault_obj in raw_yaml_data.pop("faults").items()
-        }
-
-        causality_map = {}
-        for fault_name, jump_obj in raw_yaml_data["causality_map"].items():
-            if jump_obj["parent"] is None:
-                causality_map[fault_name] = None
-            else:
-                causality_map[fault_name] = FaultJump(**jump_obj)
-
-        return Realisation(
-            name=raw_yaml_data["name"],
-            type=raw_yaml_data["type"],
-            dt=raw_yaml_data["dt"],
-            genslip_seed=raw_yaml_data["genslip_seed"],
-            srfgen_seed=raw_yaml_data["srfgen_seed"],
-            initial_fault=raw_yaml_data["initial_fault"],
-            genslip_version=raw_yaml_data["genslip_version"],
-            magnitude=raw_yaml_data["magnitude"],
-            faults=faults,
-            velocity_model=DEFAULT_1D_VELOCITY_MODEL_PATH,
-            causality_map=causality_map,
-        )
-
-
-def type4_fault_gsf(realisation: Realisation, fault: fault.Fault):
+def type4_fault_gsf(realisation: realisation.Realisation, fault: fault.Fault):
     fault_seg_bin = binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR)
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False
@@ -130,7 +53,7 @@ def srf_file_by_name(output_directory: Path, fault_name: str) -> Path:
 
 
 def generate_type4_fault_srf(
-    realisation: Realisation,
+    realisation: realisation.Realisation,
     fault_name: str,
     output_directory: Path,
 ):
@@ -199,7 +122,7 @@ def closest_gridpoint(grid: np.ndarray, point: np.ndarray) -> np.ndarray:
     return np.argmin(np.sum(np.square(grid - point), axis=1))
 
 
-def stitch_srf_files(realisation: Realisation, output_directory: Path):
+def stitch_srf_files(realisation: realisation.Realisation, output_directory: Path):
     srf_output_filepath = srf_file_by_name(output_directory, realisation.name)
     with open(srf_output_filepath, "w") as srf_file_output:
         fault_srfs = {}
@@ -254,7 +177,7 @@ def stitch_srf_files(realisation: Realisation, output_directory: Path):
 
 
 def generate_type4_fault_srfs_parallel(
-    realisation: Realisation,
+    realisation: realisation.Realisation,
     output_directory: Path,
 ):
     with multiprocessing.Pool() as worker_pool:
@@ -280,7 +203,5 @@ def wgsdepth_to_nztm(wgsdepthcoordinates: np.ndarray) -> np.ndarray:
 
 if __name__ == "__main__":
     realisation_filepath = "/home/jake/Downloads/good_rupture.yaml"
-    realisation = read_realisation(realisation_filepath)
-    rupture_causality_tree = build_rupture_causality_tree(realisation)
-    hypocentres = compute_hypocentres(realisation, rupture_causality_tree)
+    realisation = realisation.read_realisation(realisation_filepath)
     print(hypocentres)
