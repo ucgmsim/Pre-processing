@@ -1,4 +1,30 @@
 #!/usr/bin/env python3
+"""
+Generate realisation stub files from ruptures in the NSHM 2022 database.
+
+This script generates YAML realisation stub files from ruptures in the NSHM 2022
+database. It extracts fault geometry computes causality information from the database
+and incorporates default parameter values to generate the realisation.
+
+Usage:
+    nshm2022_to_realisation.py RUPTURE_ID YAML_FILE [-d NSHM_DB_FILE] [--dt DT] [--genslip-seed GENSLIP_SEED] [--srfgen-seed SRFGEN_SEED]
+
+Arguments:
+    RUPTURE_ID   The ID of the rupture to generate the realisation stub for
+                 (find this using the NSHM Rupture Explorer).
+    YAML_FILE    Location to write out the YAML realisation value.
+
+Options:
+    -h, --help                  Show this help message and exit.
+    -d NSHM_DB_FILE             The NSHM sqlite database containing rupture
+                                information and fault geometry.
+    --dt DT                     Time resolution for source modelling (default:
+                                0.0500s).
+    --genslip-seed GENSLIP_SEED Seed for genslip, used to initialise slip
+                                distribution on fault (default: 1).
+    --srfgen-seed SRFGEN_SEED   Seed for srfgen, used to initialise slip
+                                distribution on fault (default: 1).
+"""
 import argparse
 import collections
 import itertools
