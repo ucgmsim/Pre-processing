@@ -17,12 +17,13 @@ Examples:
     visualise_realisation.py my_realisation.yaml
 """
 
-from srf_generation import fault, realisation
-import numpy as np
-import json
 import argparse
-from typing import Any
+import json
 from pathlib import Path
+from typing import Any
+
+import numpy as np
+from srf_generation import fault, realisation
 
 
 def count_prior_triggered_faults(fault: fault.Fault) -> int:
