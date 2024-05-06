@@ -200,7 +200,6 @@ def write_srf_header(srf_file: TextIO, header: list[SrfSegment]):
         srf_file.write(
             f"{segment.stk:g} {segment.dip:g} {segment.dtop:.4f} {segment.shyp:.4f} {segment.dhyp:.4f}\n"
         )
-    # breakpoint()
 
 
 def write_point_count(srf_file: TextIO, point_count: int):
