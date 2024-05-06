@@ -74,7 +74,7 @@ def get_faults_for_rupture(
         JOIN rupture_faults rf ON fs.fault_id = rf.fault_id
         JOIN fault f ON fs.fault_id = f.fault_id
         JOIN parent_fault p ON f.parent_id = p.parent_id
-        WHERE rf.rupture_id = ?
+        WHERE rf.rupture_id = ? AND fs.length >= 0.1
         ORDER BY f.parent_id""",
         (rupture_id,),
     )
