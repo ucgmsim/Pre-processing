@@ -41,6 +41,14 @@ class FaultSegment:
         return self.length * KM_TO_M
 
     @property
+    def projected_width(self):
+        return self.length * np.cos(np.radians(self.dip))
+
+    @property
+    def projected_width_m(self):
+        return self.projected_width * KM_TO_M
+
+    @property
     def depth_m(self):
         return self.length * KM_TO_M
 

@@ -12,6 +12,7 @@ import pyproj
 from qcore import binary_version
 from srf_generation import realisation
 
+import generate_gsf
 import srf
 
 WGS_CODE = 4326
@@ -28,27 +29,12 @@ FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 
 def type4_fault_gsf(fault: Fault):
-    fault_seg_bin = binary_version.get_unversioned_bin(FAULTSEG2GSFDIPDIR)
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False
-    ) as input_file, tempfile.NamedTemporaryFile(
-        mode="w", delete=False
     ) as gsf_output_file:
-        input_file.write(f"{len(fault.segments)}\n")
-        for segment in fault.segments:
-            input_file.write(
-                f"{segment.clon:6f} {segment.clat:6f} {segment.dtop:6f} {segment.strike:.4f} {segment.dip:.4f} {segment.rake:.4f} {segment.length:.4f} {segment.width:.4f} {segment.length_subdivisions():d} {segment.width_subdivisions():d}\n"
-            )
-        segment = fault.segments[0]
-        input_file.flush()
-        fault_seg_command = [
-            fault_seg_bin,
-            "read_slip_vals=0",
-            f"infile={input_file.name}",
-            f"outfile={gsf_output_file.name}",
-            f"dipdir={segment.dip_dir}",
-        ]
-        subprocess.run(fault_seg_command, check=True)
+        generate_gsf.write_fault_to_gsf_file(gsf_output_file, fault)
+       
+    return gsf_output_file.name
 
     return gsf_output_file.name
 
@@ -66,9 +52,9 @@ def generate_type4_fault_srf(
 
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
 
-    lengths = fault.lengths()
-    nx = int(np.sum(np.round(lengths / SUBDIVISION_RESOLUTION_KM)))
-    ny = int(np.round(fault.widths()[0] / SUBDIVISION_RESOLUTION_KM))
+    resolution = 100
+    nx = sum(generate_gsf.gridpoints_along_direction(segment.length_m, resolution) for segment in fault.segments)
+    ny = generate_gsf.gridpoints_along_direction(fault.segments[0].width_m, resolution)
     genslip_cmd = [
         genslip_bin,
         "read_erf=0",
@@ -188,7 +174,6 @@ def stitch_srf_files(realisation: realisation.Realisation, output_directory: Pat
                         ]
                     )
                 )
-                breakpoint()
                 jump_index = closest_gridpoint(
                     grid_points,
                     parent_coords,
