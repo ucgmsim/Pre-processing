@@ -36,9 +36,6 @@ def type4_fault_gsf(fault: Fault):
        
     return gsf_output_file.name
 
-    return gsf_output_file.name
-
-
 def srf_file_for_fault(output_directory: Path, fault: Fault) -> Path:
     return output_directory / (fault.name + ".srf")
 
