@@ -7,23 +7,32 @@ database. It extracts fault geometry computes causality information from the dat
 and incorporates default parameter values to generate the realisation.
 
 Usage:
-    nshm2022_to_realisation.py RUPTURE_ID YAML_FILE [-d NSHM_DB_FILE] [--dt DT] [--genslip-seed GENSLIP_SEED] [--srfgen-seed SRFGEN_SEED]
+    nshm2022_to_realisation.py NSHM_DB_FILE RUPTURE_ID YAML_FILE [--dt DT] [--genslip-seed GENSLIP_SEED] [--srfgen-seed SRFGEN_SEED]
 
 Arguments:
-    RUPTURE_ID   The ID of the rupture to generate the realisation stub for
-                 (find this using the NSHM Rupture Explorer).
-    YAML_FILE    Location to write out the YAML realisation value.
+    RUPTURE_ID      The ID of the rupture to generate the realisation stub for
+                    (find this using the NSHM Rupture Explorer).
+    YAML_FILE       Location to write out the YAML realisation value.
+    NSHM_DB_FILE    The NSHM sqlite database containing rupture
+                    information and fault geometry.
 
 Options:
-    -h, --help                  Show this help message and exit.
-    -d NSHM_DB_FILE             The NSHM sqlite database containing rupture
-                                information and fault geometry.
+    --help                      Show help message and exit.
     --dt DT                     Time resolution for source modelling (default:
                                 0.0500s).
     --genslip-seed GENSLIP_SEED Seed for genslip, used to initialise slip
                                 distribution on fault (default: 1).
     --srfgen-seed SRFGEN_SEED   Seed for srfgen, used to initialise slip
                                 distribution on fault (default: 1).
+
+Depends On:
+- python >= 3.11
+- numpy
+- pyproj
+- qcore
+- scipy
+- typer
+- PyYAML
 """
 import argparse
 import collections
@@ -31,13 +40,15 @@ import itertools
 import re
 import sqlite3
 from pathlib import Path
-from typing import Any, TextIO
+from sqlite3 import Connection
+from typing import Any, TextIO, Annotated
 
 import numpy as np
 import pyproj
 import qcore.geo
 import qcore.uncertainties.mag_scaling
 import scipy as sp
+import typer
 import yaml
 from srf_generation import fault
 
@@ -48,6 +59,8 @@ WGS_CODE = 4326
 NZTM_CODE = 2193
 WGS2NZTM = pyproj.Transformer.from_crs(WGS_CODE, NZTM_CODE)
 NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
+
+app = typer.Typer()
 
 
 def get_faults_for_rupture(
@@ -523,74 +536,66 @@ def write_yaml_realisation_stub_file(
     yaml.dump(realisation_object, yaml_realisation_file)
 
 
-DEFAULT_PARAMETER_VALUES = {
-    "name": None,
-    "type": 5,
-    "dt": 0.05,
-    "genslip_seed": 1,
-    "genslip_version": "5.4.2",
-    "srfgen_seed": 1,
-}
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="nshm2022_to_realisation",
-        description="Generate realisation stub files from ruptures in the NSHM 2022 database.",
-    )
-    parser.add_argument(
-        "rupture",
-        type=int,
-        metavar="RUPTURE_ID",
-        help="The ID of the rupture to generate the realisation stub for (find this using the NSHM Rupture Explorer).",
-    )
-    parser.add_argument(
-        "yaml_file",
-        type=Path,
-        metavar="YAML_FILE",
-        help="Location to write out the YAML realisation value.",
-    )
-    parser.add_argument(
-        "-d",
-        "--database",
-        dest="nshm_db_file",
-        help="The NSHM sqlite database containing rupture information and fault geometry.",
-    )
-    parser.add_argument(
-        "--dt",
-        dest="dt",
-        default=DEFAULT_PARAMETER_VALUES["dt"],
-        type=float,
-        help=f"Time resolution for source modelling (default: {DEFAULT_PARAMETER_VALUES['dt']:.4f}s).",
-    )
-    parser.add_argument(
-        "--genslip-seed",
-        dest="genslip_seed",
-        type=int,
-        default=DEFAULT_PARAMETER_VALUES["genslip_seed"],
-        help=f"Seed for genslip, used to initialise slip distribution on fault (default: {DEFAULT_PARAMETER_VALUES['genslip_seed']}).",
-    )
-    parser.add_argument(
-        "--srfgen-seed",
-        dest="srfgen_seed",
-        default=DEFAULT_PARAMETER_VALUES["srfgen_seed"],
-        help=f"Seed for srfgen, used to initialise slip distribution on fault (default: {DEFAULT_PARAMETER_VALUES['srfgen_seed']}).",
-    )
-    args = parser.parse_args()
-    rupture_id = args.rupture
-    nshm_db_file = args.nshm_db_file
+@app.command(
+    help="Generate realisation stub files from ruptures in the NSHM 2022 database."
+)
+def main(
+    nshm_db_file: Annotated[
+        Path,
+        typer.Argument(
+            help="The NSHM sqlite database containing rupture information and fault geometry.",
+            readable=True,
+            exists=True,
+        ),
+    ],
+    rupture_id: Annotated[
+        int,
+        typer.Argument(
+            help="The ID of the rupture to generate the realisation stub for (find this using the NSHM Rupture Explorer)."
+        ),
+    ],
+    yaml_file: Annotated[
+        Path,
+        typer.Argument(
+            help="Location to write out the YAML realisation value.", writable=True
+        ),
+    ],
+    dt: Annotated[
+        float, typer.Option(help="Time resolution for source modelling.", min=0)
+    ] = 0.05,
+    genslip_seed: Annotated[
+        int,
+        typer.Option(
+            help="Seed for genslip, used to initialise slip distribution on fault."
+        ),
+    ] = 1,
+    srfgen_seed: Annotated[
+        int,
+        typer.Option(
+            help="Seed for srfgen, used to initialise slip distribution on fault."
+        ),
+    ] = 1,
+):
     with sqlite3.connect(nshm_db_file) as conn:
         faults = get_faults_for_rupture(conn, rupture_id)
+    set_magnitudes(faults)
     initial_fault = faults[0]
     rupture_causality_tree = build_rupture_causality_tree(initial_fault, faults)
     link_hypocentres(rupture_causality_tree, faults)
-    set_magnitudes(faults)
-    yaml_realisation_file = args.yaml_file
-    default_parameter_values_with_args = DEFAULT_PARAMETER_VALUES | {
-        "srfgen_seed": args.srfgen_seed,
-        "genslip_seed": args.genslip_seed,
-        "dt": args.dt,
+    yaml_realisation_file = yaml_file
+    default_parameter_values_with_args = {
+        "name": None,
+        "type": 5,
+        "genslip_version": "5.4.2",
+        "srfgen_seed": srfgen_seed,
+        "genslip_seed": genslip_seed,
+        "dt": dt,
     }
-    with open(yaml_realisation_file, "w") as yaml_out:
+    with open(yaml_realisation_file, "w", encoding="utf-8") as yaml_out:
         write_yaml_realisation_stub_file(
             yaml_out, default_parameter_values_with_args, faults
         )
+
+
+if __name__ == "__main__":
+    app()
