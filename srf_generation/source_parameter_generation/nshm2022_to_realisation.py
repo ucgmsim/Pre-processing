@@ -421,6 +421,54 @@ def set_magnitudes(faults: fault.Fault):
         fault.magnitude = magnitude_for_fault(fault, total_area)
 
 
+def get_mfds_for_rupture(
+    conn: Connection, rupture: int
+) -> dict[str, np.ndarray[float, float]]:
+    cursor = conn.cursor()
+    rupture_rows = cursor.execute(
+        """SELECT f.name
+                                     AS fault_name, mfd.magnitude, mfd.probability
+                                     FROM fault AS f
+                                     JOIN rupture_faults AS rf
+                                     ON f.fault_id = rf.fault_id
+                                     JOIN magnitude_frequency_distribution
+                                     AS mfd ON f.fault_id = mfd.fault_id
+                                     WHERE rf.rupture_id = ? AND mfd.probability > 0""",
+        (rupture,),
+    )
+    rupture_mfds = {}
+    for fault_name, magnitude, probability in rupture_rows:
+        if fault_name not in rupture_mfds:
+            rupture_mfds[fault_name] = {}
+        rupture_mfds[fault_name].append([magnitude, probability])
+    return {fault_name: np.array(mfds) for fault_name, mfds in rupture_mfds.items()}
+
+
+def estimate_log_rupture_rate_for_magnitude(
+    rupture_mfds: np.ndarray, magnitude: float
+) -> float:
+
+    def log_model(m, a, b):
+        return a - b * m
+
+    popt, _ = sp.optimize.curve_fit(
+        log_model, rupture_mfds[:, 0], np.log(rupture_mfds[:, 1])
+    )
+    return log_model(magnitude, *popt)
+
+
+def most_likely_fault_for_rupture(
+    conn: Connection, magnitude_table: dict[str, float], rupture: int
+) -> str:
+    rupture_mfds = get_mfds_for_rupture(conn, rupture)
+    return max(
+        rupture_mfds,
+        key=lambda fault_name: estimate_log_rupture_rate_for_magnitude(
+            rupture_mfds[fault_name], magnitude_table[fault_name]
+        ),
+    )
+
+
 def write_yaml_realisation_stub_file(
     yaml_realisation_file: TextIO,
     default_parameter_values: dict[str, Any],
