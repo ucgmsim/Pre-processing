@@ -283,7 +283,22 @@ class Fault:
 
     def random_fault_coordinates(self) -> (float, float):
         weibull_scale = 0.612
-        dhyp = sp.stats.weibull_min(c=3.353, a=0, b=self.widths()[
-                                    0] / weibull_scale, scale=weibull_scale)
+        dhyp = self.widths()[0] * sp.stats.weibull_min(
+            3.353,
+            0,
+            1,
+            scale=weibull_scale
+        ).rvs(1)[0]
         shyp = distributions.rand_shyp() * np.sum(self.lengths())
+        return (shyp, dhyp)
+
+    def expected_fault_coordinates(self) -> (float, float):
+        weibull_scale = 0.612
+        dhyp = self.widths()[0] * sp.stats.weibull_min(
+            3.353,
+            0,
+            1,
+            scale=weibull_scale
+        ).expect()
+        shyp = 0
         return (shyp, dhyp)

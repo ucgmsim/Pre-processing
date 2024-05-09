@@ -41,19 +41,19 @@ import re
 import sqlite3
 from pathlib import Path
 from sqlite3 import Connection
-from typing import Any, TextIO, Annotated
+from typing import Annotated, Any, TextIO
 
 import numpy as np
 import pyproj
 import qcore.geo
 import qcore.uncertainties.mag_scaling
+import rupture_propogation
 import scipy as sp
 import typer
 import yaml
-from srf_generation import fault
-
-import rupture_propogation
 from rupture_propogation import RuptureCausalityTree
+
+from srf_generation import fault
 
 WGS_CODE = 4326
 NZTM_CODE = 2193
@@ -143,7 +143,8 @@ def wgsdepth_to_nztm(wgsdepthcoordinates: np.ndarray) -> np.ndarray:
         coordinates in the NZTM coordinate system.
     """
     nztm_coords = np.array(
-        WGS2NZTM.transform(wgsdepthcoordinates[:, 0], wgsdepthcoordinates[:, 1]),
+        WGS2NZTM.transform(
+            wgsdepthcoordinates[:, 0], wgsdepthcoordinates[:, 1]),
     ).T
     return np.append(nztm_coords, wgsdepthcoordinates[:, 2].reshape((-1, 1)), axis=-1)
 
@@ -223,8 +224,10 @@ def test_fault_segment_vialibility(
         Returns True if it is possible that the fault segments fault1 and fault2
         could be within cutoff metres from each other at their closest distance.
     """
-    fault1_centroid = wgsdepth_to_nztm(fault1.centroid().reshape((1, -1))).ravel()
-    fault2_centroid = wgsdepth_to_nztm(fault2.centroid().reshape((1, -1))).ravel()
+    fault1_centroid = wgsdepth_to_nztm(
+        fault1.centroid().reshape((1, -1))).ravel()
+    fault2_centroid = wgsdepth_to_nztm(
+        fault2.centroid().reshape((1, -1))).ravel()
     fault1_radius = max(fault1.width_m, fault1.length_m) + cutoff
     fault2_radius = max(fault2.width_m, fault2.length_m) + cutoff
     return qcore.geo.spheres_intersect(
@@ -363,11 +366,13 @@ def link_hypocentres(
     for to_fault in faults:
         fault_name = to_fault.name
         if rupture_causality_tree[fault_name] is None:
-            continue
+            shyp, dhyp = to_fault.expected_fault_coordinates()
+            to_fault.shyp = shyp, dhyp
         else:
             from_fault = fault_name_map[rupture_causality_tree[fault_name]]
             from_fault_point, to_fault_point = (
-                compute_jump_point_hypocentre_fault_coordinates(from_fault, to_fault)
+                compute_jump_point_hypocentre_fault_coordinates(
+                    from_fault, to_fault)
             )
             to_shyp, to_dhyp = to_fault.hypocentre_wgs_to_fault_coordinates(
                 to_fault_point
@@ -375,7 +380,8 @@ def link_hypocentres(
             to_fault.parent = from_fault
             to_fault.shyp = float(to_shyp)
             to_fault.dhyp = float(to_dhyp)
-            to_fault.parent_jump_coords = tuple(float(x) for x in from_fault_point)
+            to_fault.parent_jump_coords = tuple(
+                float(x) for x in from_fault_point)
 
 
 def normalise_name(name: str) -> str:
@@ -432,6 +438,7 @@ def set_magnitudes(faults: fault.Fault):
     total_area = sum(fault.area() for fault in faults)
     for fault in faults:
         fault.magnitude = magnitude_for_fault(fault, total_area)
+
 
 def write_yaml_realisation_stub_file(
     yaml_realisation_file: TextIO,
@@ -512,7 +519,8 @@ def main(
         ),
     ],
     dt: Annotated[
-        float, typer.Option(help="Time resolution for source modelling.", min=0)
+        float, typer.Option(
+            help="Time resolution for source modelling.", min=0)
     ] = 0.05,
     genslip_seed: Annotated[
         int,
@@ -531,7 +539,8 @@ def main(
         faults = get_faults_for_rupture(conn, rupture_id)
     set_magnitudes(faults)
     initial_fault = faults[0]
-    rupture_causality_tree = build_rupture_causality_tree(initial_fault, faults)
+    rupture_causality_tree = build_rupture_causality_tree(
+        initial_fault, faults)
     link_hypocentres(rupture_causality_tree, faults)
     yaml_realisation_file = yaml_file
     default_parameter_values_with_args = {
