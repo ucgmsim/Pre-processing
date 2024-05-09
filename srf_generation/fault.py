@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-import numpy as np
-import scipy as sp
 import dataclasses
 from typing import Any
+
+import numpy as np
 import pyproj
 import qcore.geo
-
+import scipy as sp
+from qcore.uncertainties import distributions
 
 # resolution for geometry in width and length, in kilometers
 
@@ -275,7 +276,14 @@ class Fault:
             if remaining_length < segment.length:
                 return segment.segment_coordinates_to_global_coordinates(
                     np.array([remaining_length / segment.length - 1 / 2,
-                    fault_coordinates[1] / segment.width - 1 / 2]),
+                              fault_coordinates[1] / segment.width - 1 / 2]),
                 )
             remaining_length -= segment.length
         raise ValueError("Specified fault coordinates out of bounds.")
+
+    def random_fault_coordinates(self) -> (float, float):
+        weibull_scale = 0.612
+        dhyp = sp.stats.weibull_min(c=3.353, a=0, b=self.widths()[
+                                    0] / weibull_scale, scale=weibull_scale)
+        shyp = distributions.rand_shyp() * np.sum(self.lengths())
+        return (shyp, dhyp)
