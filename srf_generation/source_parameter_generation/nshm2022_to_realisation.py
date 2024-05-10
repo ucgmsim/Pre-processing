@@ -47,13 +47,13 @@ import numpy as np
 import pyproj
 import qcore.geo
 import qcore.uncertainties.mag_scaling
-import rupture_propogation
 import scipy as sp
 import typer
 import yaml
-from rupture_propogation import RuptureCausalityTree
-
 from srf_generation import fault
+
+import rupture_propogation
+from rupture_propogation import RuptureCausalityTree
 
 WGS_CODE = 4326
 NZTM_CODE = 2193
@@ -143,8 +143,7 @@ def wgsdepth_to_nztm(wgsdepthcoordinates: np.ndarray) -> np.ndarray:
         coordinates in the NZTM coordinate system.
     """
     nztm_coords = np.array(
-        WGS2NZTM.transform(
-            wgsdepthcoordinates[:, 0], wgsdepthcoordinates[:, 1]),
+        WGS2NZTM.transform(wgsdepthcoordinates[:, 0], wgsdepthcoordinates[:, 1]),
     ).T
     return np.append(nztm_coords, wgsdepthcoordinates[:, 2].reshape((-1, 1)), axis=-1)
 
@@ -224,10 +223,8 @@ def test_fault_segment_vialibility(
         Returns True if it is possible that the fault segments fault1 and fault2
         could be within cutoff metres from each other at their closest distance.
     """
-    fault1_centroid = wgsdepth_to_nztm(
-        fault1.centroid().reshape((1, -1))).ravel()
-    fault2_centroid = wgsdepth_to_nztm(
-        fault2.centroid().reshape((1, -1))).ravel()
+    fault1_centroid = wgsdepth_to_nztm(fault1.centroid().reshape((1, -1))).ravel()
+    fault2_centroid = wgsdepth_to_nztm(fault2.centroid().reshape((1, -1))).ravel()
     fault1_radius = max(fault1.width_m, fault1.length_m) + cutoff
     fault2_radius = max(fault2.width_m, fault2.length_m) + cutoff
     return qcore.geo.spheres_intersect(
@@ -367,12 +364,12 @@ def link_hypocentres(
         fault_name = to_fault.name
         if rupture_causality_tree[fault_name] is None:
             shyp, dhyp = to_fault.expected_fault_coordinates()
-            to_fault.shyp = shyp, dhyp
+            to_fault.shyp = shyp
+            to_fault.dhyp = dhyp
         else:
             from_fault = fault_name_map[rupture_causality_tree[fault_name]]
             from_fault_point, to_fault_point = (
-                compute_jump_point_hypocentre_fault_coordinates(
-                    from_fault, to_fault)
+                compute_jump_point_hypocentre_fault_coordinates(from_fault, to_fault)
             )
             to_shyp, to_dhyp = to_fault.hypocentre_wgs_to_fault_coordinates(
                 to_fault_point

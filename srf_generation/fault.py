@@ -275,30 +275,30 @@ class Fault:
         for segment in self.segments:
             if remaining_length < segment.length:
                 return segment.segment_coordinates_to_global_coordinates(
-                    np.array([remaining_length / segment.length - 1 / 2,
-                              fault_coordinates[1] / segment.width - 1 / 2]),
+                    np.array(
+                        [
+                            remaining_length / segment.length - 1 / 2,
+                            fault_coordinates[1] / segment.width - 1 / 2,
+                        ]
+                    ),
                 )
             remaining_length -= segment.length
         raise ValueError("Specified fault coordinates out of bounds.")
 
     def random_fault_coordinates(self) -> (float, float):
         weibull_scale = 0.612
-        dhyp = self.widths()[0] * sp.stats.weibull_min(
-            3.353,
-            0,
-            1,
-            scale=weibull_scale
-        ).rvs(1)[0]
+        dhyp = (
+            self.widths()[0]
+            * sp.stats.weibull_min(3.353, 0, 1, scale=weibull_scale).rvs(1)[0]
+        )
         shyp = distributions.rand_shyp() * np.sum(self.lengths())
         return (shyp, dhyp)
 
     def expected_fault_coordinates(self) -> (float, float):
         weibull_scale = 0.612
-        dhyp = self.widths()[0] * sp.stats.weibull_min(
-            3.353,
-            0,
-            1,
-            scale=weibull_scale
-        ).expect()
+        dhyp = (
+            self.widths()[0]
+            * sp.stats.truncweibull_min(3.353, 0, 1, scale=weibull_scale).expect()
+        )
         shyp = 0
-        return (shyp, dhyp)
+        return (shyp, float(dhyp))
