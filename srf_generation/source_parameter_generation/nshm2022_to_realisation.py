@@ -380,8 +380,7 @@ def link_hypocentres(
             to_fault.parent = from_fault
             to_fault.shyp = float(to_shyp)
             to_fault.dhyp = float(to_dhyp)
-            to_fault.parent_jump_coords = tuple(
-                float(x) for x in from_fault_point)
+            to_fault.parent_jump_coords = tuple(float(x) for x in from_fault_point)
 
 
 def normalise_name(name: str) -> str:
@@ -519,8 +518,7 @@ def main(
         ),
     ],
     dt: Annotated[
-        float, typer.Option(
-            help="Time resolution for source modelling.", min=0)
+        float, typer.Option(help="Time resolution for source modelling.", min=0)
     ] = 0.05,
     genslip_seed: Annotated[
         int,
