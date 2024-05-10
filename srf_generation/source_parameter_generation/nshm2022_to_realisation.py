@@ -539,12 +539,11 @@ def main(
         faults = get_faults_for_rupture(conn, rupture_id)
     set_magnitudes(faults)
     initial_fault = faults[0]
-    rupture_causality_tree = build_rupture_causality_tree(
-        initial_fault, faults)
+    rupture_causality_tree = build_rupture_causality_tree(initial_fault, faults)
     link_hypocentres(rupture_causality_tree, faults)
     yaml_realisation_file = yaml_file
     default_parameter_values_with_args = {
-        "name": None,
+        "name": f"Rupture {rupture_id}",
         "type": 5,
         "genslip_version": "5.4.2",
         "srfgen_seed": srfgen_seed,
