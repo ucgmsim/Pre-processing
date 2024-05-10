@@ -235,6 +235,7 @@ if __name__ == "__main__":
         features.append(fault_to_geojson_object(fault, colours[level]))
         if fault.shyp is not None and fault.dhyp is not None:
             features.append(fault_hypocentre_geojson(fault))
-            features.append(fault_jump_point_geojson(fault))
+            if fault.parent:
+                features.append(fault_jump_point_geojson(fault))
 
     print(json.dumps(geojson_object))
