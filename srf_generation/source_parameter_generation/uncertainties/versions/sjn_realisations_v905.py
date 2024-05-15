@@ -22,40 +22,19 @@
 
 """
 
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union  # new line
 
 import numpy as np
-from matplotlib import pyplot as plt
 import pandas as pd
-import csv
-import math
-import matplotlib.lines as mlines
-from numpy.random import randn
-import os
-from scipy.stats import norm
-from scipy.stats import rv_continuous
-from scipy.stats import kstest
-import matplotlib.style
-import matplotlib as mpl
-from time import time
-from pandas import DataFrame
-import qcore
-from qcore.uncertainties import distributions
-from qcore import geo
-from typing import Any, Dict, Union  # new line
 from geographiclib.geodesic import Geodesic
 
-from srf_generation.Fault import fault_factory, Type1
-
-from srf_generation.source_parameter_generation.common import get_depth_property
-from srf_generation.source_parameter_generation.uncertainties.common import (
-    verify_realisation_params,
-    GCMT_Source,
-)
+from qcore import geo
+from qcore.uncertainties import distributions
 from qcore.uncertainties.mag_scaling import (
-    lw_to_mw_sigma_scaling_relation,
-    MagnitudeScalingRelations,
     mag2mom,
+)
+from srf_generation.source_parameter_generation.uncertainties.common import (
+    GCMT_Source,
 )
 
 
@@ -109,7 +88,7 @@ def generate_source_params(
 
     # HF 1d profile
     HF_onedprofile_ori = pd.read_csv(
-        "/nesi/project/nesi00213/VelocityModel/Mod-1D/Cant1D_v3-midQ_OneRay.1d",
+        "/home/seb56/QC/work/Empirical/Cant1D_v3-midQ_OneRay.1d",
         delim_whitespace=True,
         names=["depth", "vp", "vs", "rho", "qp", "qs"],
         skiprows=1,
