@@ -263,10 +263,13 @@ def verify_realisation_params(params: Dict[str, Any], throw_exception=True):
         ]
     else:
         _raise_value_error(
-            f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."
-        , throw_exception=throw_exception)
+            f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}.",
+            throw_exception=throw_exception,
+        )
     if mismatch:
-        _raise_value_error(f"Unexpected parameters found: {mismatch}", throw_exception=throw_exception)
+        _raise_value_error(
+            f"Unexpected parameters found: {mismatch}", throw_exception=throw_exception
+        )
 
     return mismatch
 
