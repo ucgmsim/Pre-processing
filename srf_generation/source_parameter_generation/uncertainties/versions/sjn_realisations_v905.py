@@ -88,7 +88,7 @@ def generate_source_params(
 
     # HF 1d profile
     HF_onedprofile_ori = pd.read_csv(
-        "/home/seb56/QC/work/Empirical/Cant1D_v3-midQ_OneRay.1d",
+        "/nesi/project/nesi00213/VelocityModel/Mod-1D/Cant1D_v3-midQ_OneRay.1d",
         delim_whitespace=True,
         names=["depth", "vp", "vs", "rho", "qp", "qs"],
         skiprows=1,
