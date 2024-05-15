@@ -131,7 +131,7 @@ def generate_fault_realisations(
         unperturbed_function,
         data,
         additional_source_parameters,
-        aggregate_file,
+        None,
         vel_mod_1d,
         get_realisation_VM_dir(cybershake_root, fault_name),
         None,
@@ -299,11 +299,14 @@ def main():
         worker_pool.starmap(generate_fault_realisations, messages)
 
     if args.aggregate_file is not None:
-        ordered_rels = [
-            get_realisation_name(pid, i + 1) if faults[pid] > 1 else pid
-            for pid in pids
-            for i in range(faults[pid])
-        ]
+        ordered_rels = []
+        for pid in pids:
+            if faults[pid] == 0:
+                ordered_rels.append(pid)
+            else:
+                ordered_rels.extend(
+                    [get_realisation_name(pid, i + 1) for i in range(faults[pid])]
+                )
 
         agg = pd.read_csv(args.aggregate_file)
         agg.sort_values(

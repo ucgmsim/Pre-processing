@@ -1,4 +1,5 @@
 """A basic perturbator as an example and starting point"""
+
 import pandas as pd
 from typing import Any, Dict
 
@@ -16,7 +17,7 @@ def generate_source_params(
     additional_source_parameters: Dict[str, Any],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame = None,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
     - source_data.pid: name of the event
@@ -45,6 +46,8 @@ def generate_source_params(
     realisation = kwargs
 
     realisation["params"] = params
+
+    verify_realisation_params(realisation["params"])
     realisation["params"].update(additional_source_parameters)
 
     if vs30_data is not None:
