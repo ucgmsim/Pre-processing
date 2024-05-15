@@ -231,7 +231,7 @@ def generate_from_gcmt(
 
     ### the following parameters feed into the sim_params.yaml
 
-    sdrop = distributions.truncated_log_normal(50, 0.3, 2)
+    sdrop = distributions.truncated_log_normal(50, 0.5, 4)
     rvfac = uniform_dist(0.8, 0.075)  # rupture velocity factor
     # kappa = distributions.truncated_log_normal(0.045, 0.3, 2)
     kappa = 0.045
