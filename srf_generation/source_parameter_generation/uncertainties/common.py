@@ -1,12 +1,12 @@
 from collections import namedtuple
 from typing import Any, Dict
-from pandas import DataFrame
+
 import numpy as np
+from pandas import DataFrame
 from scipy.stats import randint
 
 from qcore.uncertainties.mag_scaling import mw_to_lw_scaling_relation
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
-
 
 GCMT_PARAM_NAMES = [
     "pid",  # str
@@ -227,12 +227,30 @@ def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
     return params
 
 
-def verify_realisation_params(params: Dict[str, Any], throw_exception=True):
-    def _raise_value_error(msg, throw_exception=True):
-        if throw_exception:
-            raise ValueError(msg)
+class ParamCheckException(Exception):
+    def __init__(self, message, throw_exception=True):
+        self.message = message
+        self.throw_exception = throw_exception
+        super().__init__(self.message)
+
+        if self.throw_exception:
+            raise ValueError(self.message)
         else:
-            print(f"WARNING: {msg}")
+            print(f"WARNING: {self.message}")
+
+
+def verify_realisation_params(params: Dict[str, Any], throw_exception=True):
+    """
+    Verifies that the parameters in the given dictionary are valid for the given type of fault.
+    If the parameters are not valid, a ValueError is raised with the offending parameters listed.
+
+    Parameters
+    ----------
+    params: dict
+        The dictionary of parameters to verify.
+    throw_exception: bool
+        If True, a ValueError will be raised if any parameters are invalid. If False, a warning will be printed instead.
+    """
 
     if params["type"] == 1:
         mismatch = [
@@ -262,12 +280,12 @@ def verify_realisation_params(params: Dict[str, Any], throw_exception=True):
             + SUBPLANE_PARAMS
         ]
     else:
-        _raise_value_error(
+        raise ParamCheckException(
             f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}.",
             throw_exception=throw_exception,
         )
     if mismatch:
-        _raise_value_error(
+        raise ParamCheckException(
             f"Unexpected parameters found: {mismatch}", throw_exception=throw_exception
         )
 
