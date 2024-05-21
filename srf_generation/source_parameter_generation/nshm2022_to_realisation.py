@@ -28,155 +28,45 @@ Options:
 Depends On:
 - python >= 3.11
 - numpy
+- nshmdb
 - pyproj
 - qcore
 - scipy
 - typer
 - PyYAML
 """
-import argparse
 import collections
 import itertools
 import re
-import sqlite3
 from pathlib import Path
-from sqlite3 import Connection
-from typing import Any, TextIO, Annotated
+from typing import Annotated, Any, TextIO
 
 import numpy as np
-import pyproj
+import qcore.coordinates
 import qcore.geo
 import qcore.uncertainties.mag_scaling
+import rupture_propogation
 import scipy as sp
 import typer
 import yaml
-from srf_generation import fault
-
-import rupture_propogation
+from nshmdb import nshmdb
+from nshmdb.fault import FaultPlane
 from rupture_propogation import RuptureCausalityTree
-
-WGS_CODE = 4326
-NZTM_CODE = 2193
-WGS2NZTM = pyproj.Transformer.from_crs(WGS_CODE, NZTM_CODE)
-NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
+from srf_generation.realisation import RealisationFault
 
 app = typer.Typer()
 
 
-def get_faults_for_rupture(
-    connection: sqlite3.Connection, rupture_id: int
-) -> list[fault.Fault]:
-    """Get all fault sections that participate in a given rupture.
-
-    Parameters
-    ----------
-    connection : sqlite3.Connection
-        The SQLite connection of the NSHM DB.
-    rupture_id : int
-        The rupture to query for.
-
-    Returns
-    -------
-    list[fault.Fault]
-        The list of faults involved in the rupture.
-    """
-    cursor = connection.cursor()
-    cursor.execute(
-        """SELECT fs.*, p.parent_id, p.name
-        FROM fault_segment fs
-        JOIN rupture_faults rf ON fs.fault_id = rf.fault_id
-        JOIN fault f ON fs.fault_id = f.fault_id
-        JOIN parent_fault p ON f.parent_id = p.parent_id
-        WHERE rf.rupture_id = ? AND fs.length >= 0.1
-        ORDER BY f.parent_id""",
-        (rupture_id,),
-    )
-
-    fault_segments = cursor.fetchall()
-    cur_parent_id = None
-    faults = []
-    for (
-        _,
-        strike,
-        rake,
-        dip,
-        dtop,
-        dbottom,
-        length,
-        width,
-        dip_dir,
-        clon,
-        clat,
-        _,
-        parent_id,
-        parent_name,
-    ) in fault_segments:
-        if parent_id != cur_parent_id:
-            # NOTE: The location of the hypocentre for this fault in fault
-            # coordinates (that is: shyp and dhyp) are determined dynamically
-            # based on the rupture causality tree.
-            faults.append(
-                fault.Fault(
-                    name=parent_name, tect_type=None, segments=[], dhyp=None, shyp=None
-                )
-            )
-            cur_parent_id = parent_id
-        segment = fault.FaultSegment(
-            strike, rake, dip, dtop, dbottom, length, width, dip_dir, clon, clat
-        )
-        faults[-1].segments.append(segment)
-    return faults
-
-
-def wgsdepth_to_nztm(wgsdepthcoordinates: np.ndarray) -> np.ndarray:
-    """Convert (lat, lon, depth) coordinates to NZTM coordinates.
-
-    Parameters
-    ----------
-    wgsdepthcoordinates : np.ndarray
-        An (n x 3) array of (lat, lon, depth) coordinates.
-
-    Returns
-    -------
-    np.ndarray
-        An (n x 3) array of (x, y, depth) coordinates, where x and y specify
-        coordinates in the NZTM coordinate system.
-    """
-    nztm_coords = np.array(
-        WGS2NZTM.transform(wgsdepthcoordinates[:, 0], wgsdepthcoordinates[:, 1]),
-    ).T
-    return np.append(nztm_coords, wgsdepthcoordinates[:, 2].reshape((-1, 1)), axis=-1)
-
-
-def nztm_to_wgsdepth(nztmcoordinates: np.ndarray) -> np.ndarray:
-    """Convert NZTM coordinates to WGS84+depth coordinates
-
-    Parameters
-    ----------
-    nztmcoordinates : np.ndarray
-        An (n x 3) array of NZTM coordinates (x, y, depth).
-
-    Returns
-    -------
-    np.ndarray
-        An (n x 3) array of WGS84 coordinates (lat, lon, depth).
-    """
-    wgs_coords = np.array(
-        NZTM2WGS.transform(nztmcoordinates[:, 0], nztmcoordinates[:, 1]),
-    ).T
-    return np.append(wgs_coords, nztmcoordinates[:, 2].reshape((-1, 1)), axis=-1)
-
-
 def closest_points_between_faults(
-    fault_u: fault.Fault, fault_v: fault.Fault
+    fault_u: RealisationFault, fault_v: RealisationFault
 ) -> (np.ndarray, np.ndarray):
     """Given two faults u and v, return the closest pair of points on the faults.
 
     Parameters
     ----------
-    fault_u : fault.Fault
+    fault_u : RealisationFault
         The fault u.
-    fault_v : fault.Fault
+    fault_v : RealisationFault
         The fault v.
 
     Returns
@@ -186,33 +76,32 @@ def closest_points_between_faults(
         distance (in 3 dimensions) between x and y is minimised. The points x
         and y are given in the WGS84 coordinate system.
     """
-    fault_u_corners = np.array(
-        [wgsdepth_to_nztm(corner) for corner in fault_u.corners()]
+    fault_u_corners = qcore.coordinates.wgs_depth_to_nztm(fault_u.corners()).reshape(
+        (-1, 4, 3)
     )
 
-    fault_v_corners = np.array(
-        [wgsdepth_to_nztm(corner) for corner in fault_v.corners()]
+    fault_v_corners = qcore.coordinates.wgs_depth_to_nztm(fault_v.corners()).reshape(
+        (-1, 4, 3)
     )
-
     point_u, point_v = qcore.geo.closest_points_between_plane_sequences(
         fault_u_corners, fault_v_corners
     )
     return point_u, point_v
 
 
-def test_fault_segment_vialibility(
-    fault1: fault.FaultSegment, fault2: fault.FaultSegment, cutoff: float
+def test_fault_plane_vialibility(
+    fault1: FaultPlane, fault2: FaultPlane, cutoff: float
 ) -> bool:
-    """Given two fault segments, establish if the faults could possibly be closer than cutoff distance from each other.
+    """Given two fault planes, establish if the faults could possibly be closer than cutoff distance from each other.
 
-    This function is used to filter out far away fault segments, because
+    This function is used to filter out far away fault planes, because
     computing the exact closest distance is slow.
 
     Parameters
     ----------
-    fault1 : fault.FaultSegment
+    fault1 : FaultPlane
         The fault u.
-    fault2 : fault.FaultSegment
+    fault2 : FaultPlane
         The fault v.
     cutoff : float
         The cutoff distance (in metres).
@@ -220,11 +109,15 @@ def test_fault_segment_vialibility(
     Returns
     -------
     bool
-        Returns True if it is possible that the fault segments fault1 and fault2
+        Returns True if it is possible that the fault planes fault1 and fault2
         could be within cutoff metres from each other at their closest distance.
     """
-    fault1_centroid = wgsdepth_to_nztm(fault1.centroid().reshape((1, -1))).ravel()
-    fault2_centroid = wgsdepth_to_nztm(fault2.centroid().reshape((1, -1))).ravel()
+    fault1_centroid = qcore.coordinates.wgs_depth_to_nztm(
+        fault1.centroid().reshape((1, -1))
+    ).ravel()
+    fault2_centroid = qcore.coordinates.wgs_depth_to_nztm(
+        fault2.centroid().reshape((1, -1))
+    ).ravel()
     fault1_radius = max(fault1.width_m, fault1.length_m) + cutoff
     fault2_radius = max(fault2.width_m, fault2.length_m) + cutoff
     return qcore.geo.spheres_intersect(
@@ -233,18 +126,18 @@ def test_fault_segment_vialibility(
 
 
 def test_fault_viability(
-    fault1: fault.Fault, fault2: fault.Fault, cutoff: float
+    fault1: RealisationFault, fault2: RealisationFault, cutoff: float
 ) -> bool:
-    """Given two faults, establish if any fault segments could be closer than cutoff distance from each other.
+    """Given two faults, establish if any fault planes could be closer than cutoff distance from each other.
 
     This function is used to filter out far apart faults, because computing the
     exact closest distance is slow.
 
     Parameters
     ----------
-    fault1 : fault.Fault
+    fault1 : Fault
         The fault u.
-    fault2 : fault.Fault
+    fault2 : Fault
         The fault v.
     cutoff : float
         The cutoff distance (in metres).
@@ -252,25 +145,25 @@ def test_fault_viability(
     Returns
     -------
     bool
-        Return True if any pair of fault segments from u and v could be closer
+        Return True if any pair of fault planes from u and v could be closer
         than cutoff metres from each other.
     """
     return any(
-        test_fault_segment_vialibility(seg1, seg2, cutoff)
-        for (seg1, seg2) in itertools.product(fault1.segments, fault2.segments)
+        test_fault_plane_vialibility(seg1, seg2, cutoff)
+        for (seg1, seg2) in itertools.product(fault1.planes, fault2.planes)
     )
 
 
 def build_rupture_causality_tree(
-    initial_fault: fault.Fault, faults: list[fault.Fault]
+    initial_fault: RealisationFault, faults: list[RealisationFault]
 ) -> RuptureCausalityTree:
     """Compute the rupture causality tree for a given series of faults, rupturing from a given initial fault.
 
     Parameters
     ----------
-    initial_fault : fault.Fault
+    initial_fault : RealisationFault
         The initial fault to rupture from.
-    faults : list[fault.Fault]
+    faults : list[RealisationFault]
         The list of faults that must rupture, possible including the initial
         fault.
 
@@ -313,15 +206,15 @@ def build_rupture_causality_tree(
 
 
 def compute_jump_point_hypocentre_fault_coordinates(
-    from_fault: fault.Fault, to_fault: fault.Fault
+    from_fault: RealisationFault, to_fault: RealisationFault
 ) -> (np.ndarray, np.ndarray):
     """Compute the closest two points between two faults.
 
     Parameters
     ----------
-    from_fault : fault.Fault
+    from_fault : RealisationFault
         The fault to jump from.
-    to_fault : fault.Fault
+    to_fault : RealisationFault
         The fault to jump to.
 
     Returns
@@ -334,17 +227,17 @@ def compute_jump_point_hypocentre_fault_coordinates(
     from_fault_point_nztm, to_fault_point_nztm = closest_points_between_faults(
         from_fault, to_fault
     )
-    from_fault_point_wgsdepth = nztm_to_wgsdepth(
+    from_fault_point_wgsdepth = qcore.coordinates.nztm_to_wgs_depth(
         from_fault_point_nztm.reshape((1, -1))
     ).ravel()
-    to_fault_point_wgsdepth = nztm_to_wgsdepth(
+    to_fault_point_wgsdepth = qcore.coordinates.nztm_to_wgs_depth(
         to_fault_point_nztm.reshape((1, -1))
     ).ravel()
     return from_fault_point_wgsdepth, to_fault_point_wgsdepth
 
 
 def link_hypocentres(
-    rupture_causality_tree: RuptureCausalityTree, faults: list[fault.Fault]
+    rupture_causality_tree: RuptureCausalityTree, faults: list[RealisationFault]
 ):
     """Set the jumping points across faults.
 
@@ -356,7 +249,7 @@ def link_hypocentres(
     ----------
     rupture_causality_tree : RuptureCausalityTree
         The rupture causality tree that specifies how the faults jump.
-    faults : list[fault.Fault]
+    faults : list[RealisationFault]
         The list of faults to link.
     """
     fault_name_map = {fault.name: fault for fault in faults}
@@ -369,9 +262,12 @@ def link_hypocentres(
             from_fault_point, to_fault_point = (
                 compute_jump_point_hypocentre_fault_coordinates(from_fault, to_fault)
             )
-            to_shyp, to_dhyp = to_fault.hypocentre_wgs_to_fault_coordinates(
-                to_fault_point
-            )
+            try:
+                to_shyp, to_dhyp = to_fault.global_coordinates_to_fault_coordinates(
+                    to_fault_point
+                )
+            except ValueError:
+                breakpoint()
             to_fault.parent = from_fault
             to_fault.shyp = float(to_shyp)
             to_fault.dhyp = float(to_dhyp)
@@ -395,7 +291,7 @@ def normalise_name(name: str) -> str:
     return fault_no_illegal_characters.lower()
 
 
-def magnitude_for_fault(target_fault: fault.Fault, total_area: float) -> float:
+def magnitude_for_fault(target_fault: RealisationFault, total_area: float) -> float:
     """Calculate the target fault's contribution to the total magnitude of a given rupture.
 
     Given a target fault, and the total area of a rupture the fault participates
@@ -404,7 +300,7 @@ def magnitude_for_fault(target_fault: fault.Fault, total_area: float) -> float:
 
     Parameters
     ----------
-    target_fault : fault.Fault
+    target_fault : RealisationFault
         The fault to compute the target magnitude for.
     total_area : float
         The total area of the rupture the target fault participates in.
@@ -421,40 +317,17 @@ def magnitude_for_fault(target_fault: fault.Fault, total_area: float) -> float:
     return float(np.log10(target_fault.area()) + total_magnitude - log_area)
 
 
-def set_magnitudes(faults: fault.Fault):
+def set_magnitudes(faults: list[RealisationFault]):
     """Set the magnitude for each participating fault. Modifies the faults array.
 
     Parameters
     ----------
-    faults : fault.Fault
+    faults : list[RealisationFault]
         The faults participating in the rupture.
     """
-    total_area = sum(fault.area() for fault in faults)
-    for fault in faults:
-        fault.magnitude = magnitude_for_fault(fault, total_area)
-
-
-def get_mfds_for_rupture(
-    conn: Connection, rupture: int
-) -> dict[str, np.ndarray[float, float]]:
-    cursor = conn.cursor()
-    rupture_rows = cursor.execute(
-        """SELECT f.name
-                                     AS fault_name, mfd.magnitude, mfd.probability
-                                     FROM fault AS f
-                                     JOIN rupture_faults AS rf
-                                     ON f.fault_id = rf.fault_id
-                                     JOIN magnitude_frequency_distribution
-                                     AS mfd ON f.fault_id = mfd.fault_id
-                                     WHERE rf.rupture_id = ? AND mfd.probability > 0""",
-        (rupture,),
-    )
-    rupture_mfds = {}
-    for fault_name, magnitude, probability in rupture_rows:
-        if fault_name not in rupture_mfds:
-            rupture_mfds[fault_name] = {}
-        rupture_mfds[fault_name].append([magnitude, probability])
-    return {fault_name: np.array(mfds) for fault_name, mfds in rupture_mfds.items()}
+    total_area = sum(realisation_fault.area() for realisation_fault in faults)
+    for realisation_fault in faults:
+        realisation_fault.magnitude = magnitude_for_fault(realisation_fault, total_area)
 
 
 def estimate_log_rupture_rate_for_magnitude(
@@ -470,22 +343,10 @@ def estimate_log_rupture_rate_for_magnitude(
     return log_model(magnitude, *popt)
 
 
-def most_likely_fault_for_rupture(
-    conn: Connection, magnitude_table: dict[str, float], rupture: int
-) -> str:
-    rupture_mfds = get_mfds_for_rupture(conn, rupture)
-    return max(
-        rupture_mfds,
-        key=lambda fault_name: estimate_log_rupture_rate_for_magnitude(
-            rupture_mfds[fault_name], magnitude_table[fault_name]
-        ),
-    )
-
-
 def write_yaml_realisation_stub_file(
     yaml_realisation_file: TextIO,
     default_parameter_values: dict[str, Any],
-    faults: list[fault.Fault],
+    faults: list[RealisationFault],
 ):
     """Write yaml realisation stub file.
 
@@ -498,27 +359,16 @@ def write_yaml_realisation_stub_file(
         The file object to write the yaml to.
     default_parameter_values : dict[str, Any]
         Default parameter values for the realisation.
-    faults : list[fault.Fault]
+    faults : list[RealisationFault]
         The list of faults contaning both geoemetry and causality information.
     """
     realisation_object = {}
     realisation_object |= default_parameter_values
     fault_object = {}
     for fault in faults:
-        segments = [
-            {
-                "strike": segment.strike,
-                "rake": segment.rake,
-                "dip": segment.dip,
-                "dtop": segment.dtop,
-                "dbottom": segment.dbottom,
-                "length": segment.length,
-                "width": segment.width,
-                "dip_dir": segment.dip_dir,
-                "clon": segment.clon,
-                "clat": segment.clat,
-            }
-            for segment in fault.segments
+        planes = [
+            {"corners": plane.corners.tolist(), "rake": plane.rake}
+            for plane in fault.planes
         ]
         fault_object[normalise_name(fault.name)] = {
             "name": fault.name,
@@ -530,7 +380,7 @@ def write_yaml_realisation_stub_file(
             "parent_jump_coords": (
                 list(fault.parent_jump_coords) if fault.parent else None
             ),
-            "segments": segments,
+            "planes": planes,
         }
     realisation_object["faults"] = fault_object
     yaml.dump(realisation_object, yaml_realisation_file)
@@ -576,13 +426,17 @@ def main(
         ),
     ] = 1,
 ):
-    with sqlite3.connect(nshm_db_file) as conn:
-        faults = get_faults_for_rupture(conn, rupture_id)
+    db = nshmdb.NSHMDB(nshm_db_file)
+    faults = [
+        RealisationFault(
+            name=fault.name, tect_type=fault.tect_type, planes=fault.planes
+        )
+        for fault in db.get_rupture_faults(rupture_id)
+    ]
     set_magnitudes(faults)
     initial_fault = faults[0]
     rupture_causality_tree = build_rupture_causality_tree(initial_fault, faults)
     link_hypocentres(rupture_causality_tree, faults)
-    yaml_realisation_file = yaml_file
     default_parameter_values_with_args = {
         "name": None,
         "type": 5,
@@ -591,7 +445,7 @@ def main(
         "genslip_seed": genslip_seed,
         "dt": dt,
     }
-    with open(yaml_realisation_file, "w", encoding="utf-8") as yaml_out:
+    with open(yaml_file, "w", encoding="utf-8") as yaml_out:
         write_yaml_realisation_stub_file(
             yaml_out, default_parameter_values_with_args, faults
         )

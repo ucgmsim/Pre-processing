@@ -1,6 +1,5 @@
 import numpy as np
 from collections import defaultdict
-import random
 
 
 DistanceGraph = dict[str, dict[str, int]]
