@@ -256,7 +256,9 @@ def link_hypocentres(
     for to_fault in faults:
         fault_name = to_fault.name
         if rupture_causality_tree[fault_name] is None:
-            continue
+            shyp, dhyp = to_fault.expected_fault_coordinates()
+            to_fault.shyp = shyp
+            to_fault.dhyp = dhyp
         else:
             from_fault = fault_name_map[rupture_causality_tree[fault_name]]
             from_fault_point, to_fault_point = (
@@ -438,7 +440,7 @@ def main(
     rupture_causality_tree = build_rupture_causality_tree(initial_fault, faults)
     link_hypocentres(rupture_causality_tree, faults)
     default_parameter_values_with_args = {
-        "name": None,
+        "name": f"Rupture {rupture_id}",
         "type": 5,
         "genslip_version": "5.4.2",
         "srfgen_seed": srfgen_seed,

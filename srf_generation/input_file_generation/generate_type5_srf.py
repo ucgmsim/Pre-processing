@@ -4,12 +4,13 @@ import multiprocessing
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Generator
+from typing import Annotated, Generator
 
 import numpy as np
 import pandas as pd
 import pyproj
-from qcore import binary_version, gsf
+import typer
+from qcore import binary_version
 from srf_generation import realisation
 from srf_generation.realisation import RealisationFault
 
@@ -26,6 +27,7 @@ TRANSFORMER_MAP = {"nztm": WGS2NZTM, "utm": WGS2UTM}
 NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
 SUBDIVISION_RESOLUTION_KM = 0.1
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
+SRF2STOCH = "srf2stoch"
 
 
 def type4_fault_gsf(fault: RealisationFault):
@@ -58,6 +60,35 @@ def type4_fault_gsf(fault: RealisationFault):
 
 def srf_file_for_fault(output_directory: Path, fault: RealisationFault) -> Path:
     return output_directory / (fault.name + ".srf")
+
+
+def create_stoch(
+    stoch_file: str,
+    srf_file: str,
+):
+    """Create a stoch file from a SRF file.
+
+    Parameters
+    ----------
+    stoch_file : str
+        The filepath to output the stoch file to.
+    srf_file : str
+        The filepath of the SRF file.
+    single_segment : bool
+        True if the stoch file is a single segment.
+    """
+
+    dx = 2.0
+    dy = 2.0
+    srf2stoch = binary_version.get_unversioned_bin(SRF2STOCH)
+    command = [
+        srf2stoch,
+        f"dx={dx}",
+        f"dy={dy}",
+        f"infile={srf_file}",
+        f"outfile={stoch_file}",
+    ]
+    subprocess.run(command, stderr=subprocess.PIPE, check=True)
 
 
 def generate_type4_fault_srf(
@@ -248,24 +279,31 @@ def nztm_to_wgsdepth(nztmcoordinates: np.ndarray) -> np.ndarray:
     return np.append(wgs_coords, nztmcoordinates[:, 2].reshape((-1, 1)), axis=-1)
 
 
+def main(
+    realisation_filepath: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            readable=True,
+            help="The filepath of the YAML file containing the realisation data.",
+            dir_okay=False,
+        ),
+    ],
+    output_directory: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            writable=True,
+            file_okay=False,
+            help="The output directory path for SRF files.",
+        ),
+    ],
+):
+    """Generate a type-5 SRF file from a given realisation specification."""
+    realisation_parameters = realisation.read_realisation(realisation_filepath)
+    generate_type4_fault_srfs_parallel(realisation_parameters, output_directory)
+    stitch_srf_files(realisation, output_directory)
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="generate_type5_srf",
-        description="Generate a type-5 SRF file from a given realisation specification.",
-    )
-    parser.add_argument(
-        "realisation_filepath",
-        metavar="REALISATION_YAML_FILE",
-        type=Path,
-        help="The filepath of the YAML file containing the realisation data.",
-    )
-    parser.add_argument(
-        "output_directory",
-        metavar="SRF_FILE_OUTPUT",
-        type=Path,
-        help="The output directory path for SRF files.",
-    )
-    args = parser.parse_args()
-    realisation = realisation.read_realisation(args.realisation_filepath)
-    generate_type4_fault_srfs_parallel(realisation, args.output_directory)
-    stitch_srf_files(realisation, args.output_directory)
+    typer.run(main)
