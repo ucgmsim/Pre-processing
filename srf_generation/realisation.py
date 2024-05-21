@@ -2,6 +2,7 @@
 import dataclasses
 from pathlib import Path
 from typing import Tuple
+import numpy as np
 
 import yaml
 from nshmdb import fault
@@ -55,7 +56,12 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
                     if fault_obj["parent_jump_coords"]
                     else None
                 ),
-                planes=[fault.FaultPlane(**params) for params in fault_obj["planes"]],
+                planes=[
+                    fault.FaultPlane(
+                        corners=np.array(params["corners"]), rake=params["rake"]
+                    )
+                    for params in fault_obj["planes"]
+                ],
             )
             for name, fault_obj in faults_object.items()
         }

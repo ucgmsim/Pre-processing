@@ -6,13 +6,13 @@ import tempfile
 from pathlib import Path
 from typing import Generator
 
-from srf_generation.fault import Fault
 import numpy as np
+import pandas as pd
 import pyproj
-from qcore import binary_version
+from qcore import binary_version, gsf
 from srf_generation import realisation
+from srf_generation.realisation import RealisationFault
 
-import generate_gsf
 import srf
 
 WGS_CODE = 4326
@@ -28,21 +28,41 @@ SUBDIVISION_RESOLUTION_KM = 0.1
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 
-def type4_fault_gsf(fault: Fault):
-    with tempfile.NamedTemporaryFile(
-        mode="w", delete=False
-    ) as gsf_output_file:
-        generate_gsf.write_fault_to_gsf_file(gsf_output_file, fault)
-       
+def type4_fault_gsf(fault: RealisationFault):
+    with tempfile.NamedTemporaryFile(mode="w", delete=False) as gsf_output_file:
+        gsf_df = pd.DataFrame(
+            [
+                {
+                    "strike": plane.strike,
+                    "dip": plane.dip,
+                    "length": plane.length,
+                    "width": plane.width,
+                    "rake": plane.rake,
+                    "meshgrid": gsf.coordinate_meshgrid(
+                        plane.corners[0],
+                        plane.corners[1],
+                        plane.corners[-1],
+                        SUBDIVISION_RESOLUTION_KM * 1000,
+                    ),
+                }
+                for plane in fault.planes
+            ]
+        )
+        gsf.write_fault_to_gsf_file(
+            gsf_output_file.name, gsf_df, SUBDIVISION_RESOLUTION_KM * 1000
+        )
+        print(gsf_output_file.name)
+
     return gsf_output_file.name
 
-def srf_file_for_fault(output_directory: Path, fault: Fault) -> Path:
+
+def srf_file_for_fault(output_directory: Path, fault: RealisationFault) -> Path:
     return output_directory / (fault.name + ".srf")
 
 
 def generate_type4_fault_srf(
     realisation: realisation.Realisation,
-    fault: Fault,
+    fault: RealisationFault,
     output_directory: Path,
 ):
     gsf_file_path = type4_fault_gsf(fault)
@@ -50,8 +70,11 @@ def generate_type4_fault_srf(
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
 
     resolution = 100
-    nx = sum(generate_gsf.gridpoints_along_direction(segment.length_m, resolution) for segment in fault.segments)
-    ny = generate_gsf.gridpoints_along_direction(fault.segments[0].width_m, resolution)
+    nx = sum(
+        gsf.gridpoints_along_direction(plane.length_m, resolution)
+        for plane in fault.planes
+    )
+    ny = gsf.gridpoints_along_direction(fault.planes[0].width_m, resolution)
     genslip_cmd = [
         genslip_bin,
         "read_erf=0",
@@ -94,7 +117,7 @@ def generate_type4_fault_srf(
                 "risetime_coef=1.95",
             ]
         )
-    print(' '.join(genslip_cmd))
+    print(" ".join(genslip_cmd))
     srf_file_path = srf_file_for_fault(output_directory, fault)
     with open(srf_file_path, "w", encoding="utf-8") as srf_file_handle:
         subprocess.run(
@@ -107,16 +130,16 @@ def closest_gridpoint(grid: np.ndarray, point: np.ndarray) -> int:
 
 
 def topologically_sorted_faults(
-    faults: list[Fault],
-) -> Generator[Fault, None, None]:
+    faults: list[RealisationFault],
+) -> Generator[RealisationFault, None, None]:
     fault_children_map = collections.defaultdict(list)
     for fault in faults:
         if fault.parent:
             fault_children_map[fault.parent.name].append(fault)
 
     def bfs_traverse_fault_map(
-        fault: Fault,
-    ) -> Generator[Fault, None, None]:
+        fault: RealisationFault,
+    ) -> Generator[RealisationFault, None, None]:
         yield fault
         for child in fault_children_map[fault.name]:
             yield from bfs_traverse_fault_map(child)
@@ -140,9 +163,9 @@ def stitch_srf_files(realisation: realisation.Realisation, output_directory: Pat
             srf.read_version(fault_srf_file)
             fault_header = srf.read_srf_headers(fault_srf_file)
             if fault.parent:
-                for segment in fault_header:
-                    segment.shyp = -999
-                    segment.dhyp = -999
+                for plane in fault_header:
+                    plane.shyp = -999
+                    plane.dhyp = -999
             header.extend(fault_header)
             point_count = srf.read_points_count(fault_srf_file)
             fault_points[fault.name] = srf.read_srf_n_points(
