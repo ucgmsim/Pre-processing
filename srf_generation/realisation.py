@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
+import collections
 import dataclasses
 from pathlib import Path
-from typing import Tuple
-import numpy as np
+from typing import Generator, Tuple
 
+import numpy as np
+import qcore.coordinates
+import scipy as sp
 import yaml
 from nshmdb import fault
 from nshmdb.fault import Fault
 
-from srf_generation.source_parameter_generation.common import (
-    DEFAULT_1D_VELOCITY_MODEL_PATH,
-)
+from srf_generation.source_parameter_generation.common import \
+    DEFAULT_1D_VELOCITY_MODEL_PATH
 
 
 @dataclasses.dataclass
@@ -26,6 +28,24 @@ class RealisationFault(Fault):
     parent_jump_coords: Tuple[float, float] | None = None
     shyp: float = None
     dhyp: float = None
+
+    def random_fault_coordinates(self) -> (float, float):
+        weibull_scale = 0.612
+        dhyp = (
+            self.widths()[0]
+            * sp.stats.weibull_min(3.353, 0, 1, scale=weibull_scale).rvs(1)[0]
+        )
+        shyp = distributions.rand_shyp() * np.sum(self.lengths())
+        return (shyp, dhyp)
+
+    def expected_fault_coordinates(self) -> (float, float):
+        weibull_scale = 0.612
+        dhyp = (
+            self.widths()[0]
+            * sp.stats.truncweibull_min(3.353, 0, 1, scale=weibull_scale).expect()
+        )
+        shyp = 0
+        return (shyp, float(dhyp))
 
 
 @dataclasses.dataclass
@@ -58,7 +78,10 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
                 ),
                 planes=[
                     fault.FaultPlane(
-                        corners=np.array(params["corners"]), rake=params["rake"]
+                        qcore.coordinates.wgs_depth_to_nztm(
+                            np.array(params["corners"])
+                        ),
+                        params["rake"],
                     )
                     for params in fault_obj["planes"]
                 ],
@@ -80,3 +103,22 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
             faults=faults,
             velocity_model=DEFAULT_1D_VELOCITY_MODEL_PATH,
         )
+
+
+def topologically_sorted_faults(
+    faults: list[RealisationFault],
+) -> Generator[RealisationFault, None, None]:
+    fault_children_map = collections.defaultdict(list)
+    for fault in faults:
+        if fault.parent:
+            fault_children_map[fault.parent.name].append(fault)
+
+    def bfs_traverse_fault_map(
+        fault: RealisationFault,
+    ) -> Generator[RealisationFault, None, None]:
+        yield fault
+        for child in fault_children_map[fault.name]:
+            yield from bfs_traverse_fault_map(child)
+
+    initial_fault = next(fault for fault in faults if not fault.parent)
+    yield from bfs_traverse_fault_map(initial_fault)
