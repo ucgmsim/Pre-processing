@@ -1,16 +1,15 @@
-import argparse
-import collections
 import multiprocessing
+import re
+import shlex
 import subprocess
-import tempfile
 from pathlib import Path
-from typing import Annotated, Generator
+from typing import Annotated
 
 import numpy as np
 import pandas as pd
 import pyproj
 import typer
-from qcore import binary_version
+from qcore import binary_version, gsf
 from srf_generation import realisation
 from srf_generation.realisation import RealisationFault
 
@@ -30,32 +29,48 @@ FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
 
 
-def type4_fault_gsf(fault: RealisationFault):
-    with tempfile.NamedTemporaryFile(mode="w", delete=False) as gsf_output_file:
-        gsf_df = pd.DataFrame(
-            [
-                {
-                    "strike": plane.strike,
-                    "dip": plane.dip,
-                    "length": plane.length,
-                    "width": plane.width,
-                    "rake": plane.rake,
-                    "meshgrid": gsf.coordinate_meshgrid(
-                        plane.corners[0],
-                        plane.corners[1],
-                        plane.corners[-1],
-                        SUBDIVISION_RESOLUTION_KM * 1000,
-                    ),
-                }
-                for plane in fault.planes
-            ]
-        )
-        gsf.write_fault_to_gsf_file(
-            gsf_output_file.name, gsf_df, SUBDIVISION_RESOLUTION_KM * 1000
-        )
-        print(gsf_output_file.name)
+def normalise_name(name: str) -> str:
+    """Normalise a fault name for yaml file output.
 
-    return gsf_output_file.name
+    Parameters
+    ----------
+    name : str
+        The name to normalise.
+
+    Returns
+    -------
+    str
+        The normalised version of the name.
+    """
+    fault_no_illegal_characters = re.sub(r" |,|:", "_", name)
+    return fault_no_illegal_characters.lower()
+
+
+def generate_fault_gsf(gsf_output_directory: Path, fault: RealisationFault):
+    gsf_output_filepath = gsf_output_directory / f"{normalise_name(fault.name)}.gsf"
+    gsf_df = pd.DataFrame(
+        [
+            {
+                "strike": plane.strike,
+                "dip": plane.dip,
+                "length": plane.length,
+                "width": plane.width,
+                "rake": plane.rake,
+                "meshgrid": gsf.coordinate_meshgrid(
+                    plane.corners[0],
+                    plane.corners[1],
+                    plane.corners[-1],
+                    SUBDIVISION_RESOLUTION_KM * 1000,
+                ),
+            }
+            for plane in fault.planes
+        ]
+    )
+    gsf.write_fault_to_gsf_file(
+        gsf_output_filepath, gsf_df, SUBDIVISION_RESOLUTION_KM * 1000
+    )
+
+    return gsf_output_filepath
 
 
 def srf_file_for_fault(output_directory: Path, fault: RealisationFault) -> Path:
@@ -96,16 +111,19 @@ def generate_type4_fault_srf(
     fault: RealisationFault,
     output_directory: Path,
 ):
-    gsf_file_path = type4_fault_gsf(fault)
+    gsf_output_directory = output_directory / "gsf"
+    if not gsf_output_directory.exists():
+        gsf_output_directory.mkdir()
+    gsf_file_path = generate_fault_gsf(gsf_output_directory, fault)
 
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
 
     resolution = 100
     nx = sum(
-        gsf.gridpoints_along_direction(plane.length_m, resolution)
+        gsf.gridpoint_count_in_length(plane.length_m, resolution)
         for plane in fault.planes
     )
-    ny = gsf.gridpoints_along_direction(fault.planes[0].width_m, resolution)
+    ny = gsf.gridpoint_count_in_length(fault.planes[0].width_m, resolution)
     genslip_cmd = [
         genslip_bin,
         "read_erf=0",
@@ -160,27 +178,8 @@ def closest_gridpoint(grid: np.ndarray, point: np.ndarray) -> int:
     return int(np.argmin(np.sum(np.square(grid - point), axis=1)))
 
 
-def topologically_sorted_faults(
-    faults: list[RealisationFault],
-) -> Generator[RealisationFault, None, None]:
-    fault_children_map = collections.defaultdict(list)
-    for fault in faults:
-        if fault.parent:
-            fault_children_map[fault.parent.name].append(fault)
-
-    def bfs_traverse_fault_map(
-        fault: RealisationFault,
-    ) -> Generator[RealisationFault, None, None]:
-        yield fault
-        for child in fault_children_map[fault.name]:
-            yield from bfs_traverse_fault_map(child)
-
-    initial_fault = next(fault for fault in faults if not fault.parent)
-    yield from bfs_traverse_fault_map(initial_fault)
-
-
-def stitch_srf_files(realisation: realisation.Realisation, output_directory: Path):
-    srf_output_filepath = output_directory / f"{realisation.name}.srf"
+def stitch_srf_files(realisation_obj: realisation.Realisation, output_directory: Path):
+    srf_output_filepath = output_directory / f"{realisation_obj.name}.srf"
     with open(srf_output_filepath, "w") as srf_file_output:
         fault_srfs = {}
         fault_points = {}
@@ -188,7 +187,9 @@ def stitch_srf_files(realisation: realisation.Realisation, output_directory: Pat
 
         srf.write_version(srf_file_output)
 
-        for fault in topologically_sorted_faults(realisation.faults.values()):
+        for fault in realisation.topologically_sorted_faults(
+            realisation_obj.faults.values()
+        ):
             fault_srf_file = open(srf_file_for_fault(output_directory, fault), "r")
             fault_srfs[fault.name] = fault_srf_file
             srf.read_version(fault_srf_file)
@@ -207,7 +208,9 @@ def stitch_srf_files(realisation: realisation.Realisation, output_directory: Pat
         srf.write_point_count(
             srf_file_output, sum(len(points) for points in fault_points.values())
         )
-        for fault in topologically_sorted_faults(realisation.faults.values()):
+        for fault in realisation.topologically_sorted_faults(
+            realisation_obj.faults.values()
+        ):
             t_delay = 0
             if fault.parent:
                 # find closest grid point to the jump location
@@ -251,6 +254,8 @@ def generate_type4_fault_srfs_parallel(
     realisation: realisation.Realisation,
     output_directory: Path,
 ):
+    # for fault in realisation.faults.values():
+    #     generate_type4_fault_srf(realisation, fault, output_directory)
     with multiprocessing.Pool() as worker_pool:
         worker_pool.starmap(
             generate_type4_fault_srf,
@@ -302,7 +307,7 @@ def main(
     """Generate a type-5 SRF file from a given realisation specification."""
     realisation_parameters = realisation.read_realisation(realisation_filepath)
     generate_type4_fault_srfs_parallel(realisation_parameters, output_directory)
-    stitch_srf_files(realisation, output_directory)
+    stitch_srf_files(realisation_parameters, output_directory)
 
 
 if __name__ == "__main__":
