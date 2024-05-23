@@ -254,8 +254,6 @@ def generate_type4_fault_srfs_parallel(
     realisation: realisation.Realisation,
     output_directory: Path,
 ):
-    # for fault in realisation.faults.values():
-    #     generate_type4_fault_srf(realisation, fault, output_directory)
     with multiprocessing.Pool() as worker_pool:
         worker_pool.starmap(
             generate_type4_fault_srf,
