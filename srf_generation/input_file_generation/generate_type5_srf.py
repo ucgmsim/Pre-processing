@@ -112,8 +112,6 @@ def generate_type4_fault_srf(
     output_directory: Path,
 ):
     gsf_output_directory = output_directory / "gsf"
-    if not gsf_output_directory.exists():
-        gsf_output_directory.mkdir()
     gsf_file_path = generate_fault_gsf(gsf_output_directory, fault)
 
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
@@ -254,6 +252,10 @@ def generate_type4_fault_srfs_parallel(
     realisation: realisation.Realisation,
     output_directory: Path,
 ):
+    # need to do this before multiprocessing because of race conditions
+    gsf_directory = output_directory / "gsf"
+    if not gsf_directory.exists():
+        gsf_directory.mkdir()
     with multiprocessing.Pool() as worker_pool:
         worker_pool.starmap(
             generate_type4_fault_srf,
