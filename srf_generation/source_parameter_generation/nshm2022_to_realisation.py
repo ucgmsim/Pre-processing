@@ -45,14 +45,15 @@ import numpy as np
 import qcore.coordinates
 import qcore.geo
 import qcore.uncertainties.mag_scaling
-import rupture_propogation
 import scipy as sp
 import typer
 import yaml
 from nshmdb import nshmdb
 from nshmdb.fault import FaultPlane
-from rupture_propogation import RuptureCausalityTree
 from srf_generation.realisation import RealisationFault
+
+import rupture_propogation
+from rupture_propogation import RuptureCausalityTree
 
 app = typer.Typer()
 
@@ -328,8 +329,12 @@ def set_magnitudes(faults: list[RealisationFault]):
         The faults participating in the rupture.
     """
     total_area = sum(realisation_fault.area() for realisation_fault in faults)
+    total_magnitude = qcore.uncertainties.mag_scaling.a_to_mw_leonard(
+        total_area, 4.00, 3.99, 0
+    )
     for realisation_fault in faults:
         realisation_fault.magnitude = magnitude_for_fault(realisation_fault, total_area)
+    return total_magnitude
 
 
 def estimate_log_rupture_rate_for_magnitude(
@@ -435,7 +440,7 @@ def main(
         )
         for fault in db.get_rupture_faults(rupture_id)
     ]
-    set_magnitudes(faults)
+    total_magnitude = set_magnitudes(faults)
     initial_fault = faults[0]
     rupture_causality_tree = build_rupture_causality_tree(initial_fault, faults)
     link_hypocentres(rupture_causality_tree, faults)
@@ -445,6 +450,7 @@ def main(
         "genslip_version": "5.4.2",
         "srfgen_seed": srfgen_seed,
         "genslip_seed": genslip_seed,
+        "magnitude": float(total_magnitude),
         "dt": dt,
     }
     with open(yaml_file, "w", encoding="utf-8") as yaml_out:
