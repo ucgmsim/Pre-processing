@@ -53,11 +53,15 @@ class Realisation:
     name: str
     type: int
     dt: float
+    magnitude: float
     genslip_seed: int
     genslip_version: str
     srfgen_seed: int
     velocity_model: str
     faults: dict[str, RealisationFault]
+
+    def initial_fault(self) -> RealisationFault:
+        return next(fault for fault in self.faults.values() if not fault.parent)
 
 
 def read_realisation(realisation_filepath: Path) -> Realisation:
