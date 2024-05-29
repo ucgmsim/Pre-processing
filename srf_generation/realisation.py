@@ -100,6 +100,7 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
         return Realisation(
             name=raw_yaml_data["name"],
             type=raw_yaml_data["type"],
+            magnitude=fault_obj["magnitude"],
             dt=raw_yaml_data["dt"],
             genslip_seed=raw_yaml_data["genslip_seed"],
             srfgen_seed=raw_yaml_data["srfgen_seed"],
