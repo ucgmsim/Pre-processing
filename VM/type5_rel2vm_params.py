@@ -1,38 +1,6 @@
 #!/usr/bin/env python3
 
 
-# Initial screening:
-# Need at least min_points_above_thresh points in the interval
-# initial_screening_min_freq_Hz to initial_screening_max_freq_Hz with
-# SNR > initial_screening_snr_thresh_ver for the ver component and
-# SNR > initial_screening_snr_thresh_horiz for the 000 and 090 components
-#
-#
-#
-def find_fmax(
-    filename: Path, metadata: pd.DataFrame
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """some short description.
-
-    Parameters
-    ----------
-    filename : Path
-        Path to the ___snr_fas.csv file.
-    metadata : pd.DataFrame
-        Contains the SNR meta data.
-
-    Returns
-    -------
-    fmax_record : dict[str, Any] or None
-        Dictionary with keys record_id, fmax_000, fmax_090, fmax_ver. This value
-        will be None when a record is skipped or not recorded.
-    skipped_record : dict[str, Any] or None
-        Records a skipped record in a dictionary with keys record_id and reason,
-        if a skipped record exists.
-    """
-    pass
-
-
 import dataclasses
 from pathlib import Path
 from typing import Annotated, Tuple
@@ -41,32 +9,38 @@ import numpy as np
 import scipy as sp
 import typer
 import yaml
-from qcore import coordinates, geo
-from srf_generation import realisation
-
 from models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from models.classdef import Fault, FaultStyle, Site, TectType, estimate_z1p0
+from qcore import coordinates, geo
+
+from srf_generation import realisation
 from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
 
 
 @dataclasses.dataclass
 class BoundingBox:
+    """BoundingBox."""
+
     corners: np.ndarray
 
     @property
     def origin(self):
+        """origin."""
         return np.mean(self.corners, axis=0)
 
     @property
     def extent_x(self):
+        """extent_x."""
         return np.linalg.norm(np.linalg.norm(self.corners[2] - self.corners[1]) / 1000)
 
     @property
     def extent_y(self):
+        """extent_y."""
         return np.linalg.norm(np.linalg.norm(self.corners[1] - self.corners[0]) / 1000)
 
     @property
     def bearing(self):
+        """bearing."""
 
         north_direction = np.array([1, 0, 0])
         up_direction = np.array([0, 0, 1])
@@ -77,17 +51,55 @@ class BoundingBox:
 
 
 def axis_aligned_bounding_box(points: np.ndarray) -> np.ndarray:
+    """Return an axis-aligned bounding box containing points.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        The points to bound.
+
+    Returns
+    -------
+    np.ndarray
+        A numpy array of shape (4, 2) containing defining the corners of
+        the bounding box. The order of points is bottom-left, bottom-right,
+        top-right, top-left.
+    """
     min_x, min_y = np.min(points, axis=0)
     max_x, max_y = np.max(points, axis=0)
     return np.array([[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]])
 
 
 def rotation_matrix(angle: float) -> np.ndarray:
+    """Return the 2D rotation matrix for a given angle.
+
+    Parameters
+    ----------
+    angle : float
+        The angle to rotate by in radians.
+
+    Returns
+    -------
+    np.ndarray
+        The 2x2 matrix rotating points by angle radians counter-clockwise.
+    """
     return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
 
 def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Find the minimum area bounding rectangle surrounding the points."""
+    """Return the smallest rectangle bounding points. The rectangle may
+    be rotated.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        The points to bound.
+
+    Returns
+    -------
+    BoundingBox
+        The bounding box.
+    """
     convex_hull = sp.spatial.ConvexHull(points).points
     segments = np.array(
         [
@@ -110,27 +122,22 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
     return BoundingBox(minimum_bounding_box @ rotation_matrix(-rotation_angle).T)
 
 
-def realisation_bounding_box(type5_realisation: realisation.Realisation) -> BoundingBox:
-    fault_corners = np.vstack(
-        [fault.corners_nztm() for fault in type5_realisation.faults.values()]
-    )[:, :2]
-    return minimum_area_bounding_box(fault_corners)
-
-
-def mag2pgv(mag: float):
+def pgv_estimate_from_magnitude(magnitude: float):
     """
-    Return PGV for a given magnitude based on default scaling relationship
+    Return PGV for a given magnitude based on default scaling relationship.
+
     Parameters
     ----------
-    mag : magnitude
+    magnitude : float
+        The magnitude of the rupture.
 
     Returns
     -------
-    Interpolated pgv
-
+    float
+        An estimate of PGV for the rupture.
     """
     return np.interp(
-        mag,
+        magnitude,
         [3.5, 4.1, 4.7, 5.2, 5.5, 5.8, 6.2, 6.5, 6.8, 7.0, 7.4, 7.7, 8.0],
         [0.015, 0.0375, 0.075, 0.15, 0.25, 0.4, 0.7, 1.0, 1.35, 1.65, 2.1, 2.5, 3.0],
     )
@@ -146,12 +153,14 @@ def find_rrup(magnitude: float) -> Tuple[float, float]:
 
     Returns
     -------
-
+    Tuple[float, float]
+        The (rrup, pgv) pair.
     """
 
-    pgv_target = mag2pgv(magnitude)
+    pgv_target = pgv_estimate_from_magnitude(magnitude)
 
     def pgv_delta_from_rrup(rrup: float):
+        # stolen from rel2vm_params
         siteprop = Site()
         siteprop.vs30 = 500
         siteprop.Rtvz = 0
@@ -190,10 +199,9 @@ def grow_bounding_box(bounding_box: BoundingBox, radius: float):
     scale_x = radius / (np.linalg.norm(centre_x) / 1000)
     scale_y = radius / (np.linalg.norm(centre_y) / 1000)
 
-    scale = min(scale_x, scale_y)
     basis = np.array([centre_x, centre_y])
     return BoundingBox(
-        scale
+        np.array([scale_x, scale_y])
         * np.array(
             [
                 [-1, -1],
@@ -212,7 +220,26 @@ def guess_simulation_duration(
     type5_realisation: realisation.Realisation,
     ds_multiplier: float,
 ) -> float:
-    """Guess how long a simulation should go based on bounding box of the domain and the location of the faults."""
+    """Guess the simulation duration for a realisation simulated in a given domain.
+
+    The simulation duration is calculated as the time for the s-waves of
+    a rupture to propogate from the centre of the domain to the edge of
+    the domain.
+
+    Parameters
+    ----------
+    bounding_box : BoundingBox
+        The simulation domain.
+    type5_realisation : realisation.Realisation
+        The realisation.
+    ds_multiplier : float
+        A multiplier for the wavelength of the s-wave.
+
+    Returns
+    -------
+    float
+        An estimated simulation duration time.
+    """
     fault_corners = np.vstack(
         [fault.corners_nztm() for fault in type5_realisation.faults.values()]
     )
@@ -252,37 +279,35 @@ def guess_simulation_duration(
     return s_wave_arrival_time + ds_multiplier * ds
 
 
-def get_max_depth(mag: float, depth: float):
+def get_max_depth(magnitude: float, hypocentre_depth: float):
     """
-    Maximum depth (ie. z extent) based on magnitude, hypocentre depth.
+    Estimate the maximum depth to simulate for a rupture at a given depth
+    with a given magnitude.
 
     Parameters
     ----------
-    mag : magnitude
-    depth : hypocentre depth
+    magnitude : float
+        The magnitude of the rupture.
+    hypocentre_depth : float
+        hypocentre depth.
+
 
     Returns
     -------
-    maximum depth
+    float
+        The "interesting" simulation depth.
     """
     return round(
         10
-        + depth
-        + (10 * np.power((0.5 * np.power(10, (0.55 * mag - 1.2)) / depth), 0.3)),
+        + hypocentre_depth
+        + (
+            10
+            * np.power(
+                (0.5 * np.power(10, (0.55 * magnitude - 1.2)) / hypocentre_depth), 0.3
+            )
+        ),
         0,
     )
-
-
-def get_rupture_corners(db, rupture_id: int) -> np.ndarray:
-    return np.vstack(
-        [fault.corners_nztm() for fault in db.get_rupture_faults(rupture_id)]
-    )[:, :2]
-
-
-def rupture_area(db, rupture_id: int) -> float:
-    bounding_box = minimum_area_bounding_box(get_rupture_corners(db, rupture_id))
-
-    return max(bounding_box.extent_x, bounding_box.extent_y)
 
 
 def main(
@@ -298,10 +323,25 @@ def main(
     resolution: Annotated[
         float, typer.Option(help="The resolution of the simulation in kilometres.")
     ] = 0.1,
+    min_vs: Annotated[
+        float,
+        typer.Option(
+            help="Minimum velocity (in km/s),"
+            "used to determine the boundary between LF and HF calculation."
+        ),
+    ] = 0.5,
+    vm_version: Annotated[str, typer.Option(help="Velocity model version.")] = "2.06",
+    vm_topo_type: Annotated[
+        str, typer.Option(help="VM topology type")
+    ] = "SQUASHED_TAPERED",
 ):
     "Generate velocity model parameters for a Type-5 realisation."
     type5_realisation = realisation.read_realisation(realisation_filepath)
-    bounding_box = realisation_bounding_box(type5_realisation)
+    bounding_box = minimum_area_bounding_box(
+        np.vstack(
+            [fault.corners_nztm() for fault in type5_realisation.faults.values()]
+        )[:, :2]
+    )
     min_depth = 0
     initial_fault = type5_realisation.initial_fault()
     magnitude = type5_realisation.magnitude
@@ -319,6 +359,7 @@ def main(
     (rrup, _) = find_rrup(type5_realisation.magnitude)
     bounding_box = grow_bounding_box(bounding_box, rrup)
     box_origin_coords = coordinates.nztm_to_wgs_depth(np.append(bounding_box.origin, 0))
+    normalised_realisation = realisation.normalise_name(type5_realisation.name)
     vm_params = {
         "mag": magnitude,
         "MODEL_LAT": float(box_origin_coords[0]),
@@ -333,8 +374,13 @@ def main(
         "nx": nx,
         "ny": ny,
         "nz": nz,
+        "min_vs": min_vs,
+        "flo": min_vs / (5.0 * resolution),
+        "sufx": f"_{normalised_realisation}01-h{resolution:.3f}",
+        "model_version": vm_version,
+        "topo_type": vm_topo_type,
     }
-    with open(output_path, "w") as output_file_handle:
+    with open(output_path, "w", encoding="utf-8") as output_file_handle:
         yaml.dump(vm_params, output_file_handle)
 
 

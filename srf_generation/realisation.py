@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import collections
 import dataclasses
+import re
 from pathlib import Path
 from typing import Generator, Tuple
 
@@ -127,3 +128,21 @@ def topologically_sorted_faults(
 
     initial_fault = next(fault for fault in faults if not fault.parent)
     yield from bfs_traverse_fault_map(initial_fault)
+
+
+def normalise_name(name: str) -> str:
+    """Normalise a name (fault name, realisation name), as a filename or
+    YAML key.
+
+    Parameters
+    ----------
+    name : str
+        The name to normalise
+
+    Returns
+    -------
+    str
+        The normalised equivalent of this name. Normalised names are entirely
+        lower case, and all non-alphanumeric characters are replaced with "_".
+    """
+    return re.sub(r"[^A-z0-9]", "_", name.lower())
