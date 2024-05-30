@@ -8,12 +8,12 @@ from typing import Annotated
 import numpy as np
 import pandas as pd
 import pyproj
+import srf
 import typer
 from qcore import binary_version, gsf
+
 from srf_generation import realisation
 from srf_generation.realisation import RealisationFault
-
-import srf
 
 WGS_CODE = 4326
 NZTM_CODE = 2193
@@ -178,8 +178,7 @@ def closest_gridpoint(grid: np.ndarray, point: np.ndarray) -> int:
 
 def stitch_srf_files(realisation_obj: realisation.Realisation, output_directory: Path):
     srf_output_filepath = output_directory / f"{realisation_obj.name}.srf"
-    with open(srf_output_filepath, "w") as srf_file_output:
-        fault_srfs = {}
+    with open(srf_output_filepath, "w", encoding="utf-8") as srf_file_output:
         fault_points = {}
         header = []
 
@@ -188,26 +187,27 @@ def stitch_srf_files(realisation_obj: realisation.Realisation, output_directory:
         for fault in realisation.topologically_sorted_faults(
             realisation_obj.faults.values()
         ):
-            fault_srf_file = open(srf_file_for_fault(output_directory, fault), "r")
-            fault_srfs[fault.name] = fault_srf_file
-            srf.read_version(fault_srf_file)
-            fault_header = srf.read_srf_headers(fault_srf_file)
-            if fault.parent:
-                for plane in fault_header:
-                    plane.shyp = -999
-                    plane.dhyp = -999
-            header.extend(fault_header)
-            point_count = srf.read_points_count(fault_srf_file)
-            fault_points[fault.name] = srf.read_srf_n_points(
-                point_count, fault_srf_file
-            )
+            with open(
+                srf_file_for_fault(output_directory, fault), "r", encoding="utf-8"
+            ) as fault_srf_file:
+                srf.read_version(fault_srf_file)
+                fault_header = srf.read_srf_headers(fault_srf_file)
+                if fault.parent:
+                    for plane in fault_header:
+                        plane.shyp = -999
+                        plane.dhyp = -999
+                header.extend(fault_header)
+                point_count = srf.read_points_count(fault_srf_file)
+                fault_points[fault.name] = srf.read_srf_n_points(
+                    point_count, fault_srf_file
+                )
 
         srf.write_srf_header(srf_file_output, header)
         srf.write_point_count(
             srf_file_output, sum(len(points) for points in fault_points.values())
         )
         for fault in realisation.topologically_sorted_faults(
-            realisation_obj.faults.values()
+            list(realisation_obj.faults.values())
         ):
             t_delay = 0
             if fault.parent:
@@ -230,22 +230,13 @@ def stitch_srf_files(realisation_obj: realisation.Realisation, output_directory:
                     grid_points,
                     parent_coords,
                 )
-                print(
-                    f"Parent point lat/lon",
-                    nztm_to_wgsdepth(parent_coords.reshape((1, -1))),
-                )
-                print(
-                    f"Closest parent gridpoint: {nztm_to_wgsdepth(grid_points[jump_index].reshape((1, -1)))}"
-                )
                 t_delay = parent_fault_points[jump_index].tinit
-                print(f"Fault {fault.name} will have a delay of {t_delay}")
             cur_fault_points = fault_points[fault.name]
             for point in cur_fault_points:
                 point.tinit += t_delay
                 srf.write_srf_point(srf_file_output, point)
 
-        for fault_srf_file in fault_srfs.values():
-            fault_srf_file.close()
+        return srf_output_filepath
 
 
 def generate_type4_fault_srfs_parallel(
