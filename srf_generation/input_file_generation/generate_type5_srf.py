@@ -35,7 +35,11 @@ def normalise_name(name: str) -> str:
     return fault_no_illegal_characters.lower()
 
 
-def generate_fault_gsf(gsf_output_directory: Path, fault: RealisationFault):
+def generate_fault_gsf(
+    fault: RealisationFault,
+    gsf_output_directory: Path,
+    subdivision_resolution: float,
+):
     gsf_output_filepath = gsf_output_directory / f"{normalise_name(fault.name)}.gsf"
     gsf_df = pd.DataFrame(
         [
@@ -49,14 +53,14 @@ def generate_fault_gsf(gsf_output_directory: Path, fault: RealisationFault):
                     plane.corners[0],
                     plane.corners[1],
                     plane.corners[-1],
-                    SUBDIVISION_RESOLUTION_KM * 1000,
+                    subdivision_resolution * 1000,
                 ),
             }
             for plane in fault.planes
         ]
     )
     gsf.write_fault_to_gsf_file(
-        gsf_output_filepath, gsf_df, SUBDIVISION_RESOLUTION_KM * 1000
+        gsf_output_filepath, gsf_df, subdivision_resolution * 1000
     )
 
     return gsf_output_filepath
@@ -93,13 +97,16 @@ def create_stoch(
     subprocess.run(command, stderr=subprocess.PIPE, check=True)
 
 
-def generate_type4_fault_srf(
-    realisation: realisation.Realisation,
+def generate_fault_srf(
     fault: RealisationFault,
+    realisation: realisation.Realisation,
     output_directory: Path,
+    subdivision_resolution: float,
 ):
     gsf_output_directory = output_directory / "gsf"
-    gsf_file_path = generate_fault_gsf(gsf_output_directory, fault)
+    gsf_file_path = generate_fault_gsf(
+        fault, gsf_output_directory, subdivision_resolution
+    )
 
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
 
@@ -174,7 +181,7 @@ def stitch_srf_files(
         srf.write_version(srf_file_output)
 
         for fault in realisation.topologically_sorted_faults(
-            realisation_obj.faults.values()
+            list(realisation_obj.faults.values())
         ):
             with open(
                 srf_file_for_fault(output_directory, fault), "r", encoding="utf-8"
@@ -228,25 +235,24 @@ def stitch_srf_files(
         return srf_output_filepath
 
 
-def generate_type4_fault_srfs_parallel(
+def generate_fault_srfs_parallel(
     realisation: realisation.Realisation,
     output_directory: Path,
+    subdivision_resolution: float,
 ):
     # need to do this before multiprocessing because of race conditions
     gsf_directory = output_directory / "gsf"
     if not gsf_directory.exists():
         gsf_directory.mkdir()
     with multiprocessing.Pool() as worker_pool:
-        worker_pool.starmap(
-            generate_type4_fault_srf,
-            [
-                (
-                    realisation,
-                    fault,
-                    output_directory,
-                )
-                for fault in realisation.faults.values()
-            ],
+        worker_pool.map(
+            functools.partial(
+                generate_fault_srf,
+                output_directory=output_directory,
+                realisation=realisation,
+                subdivision_resolution=subdivision_resolution,
+            ),
+            realisation.faults.values(),
         )
 
 
@@ -269,10 +275,15 @@ def main(
             help="The output directory path for SRF files.",
         ),
     ],
+    subdivision_resolution: Annotated[
+        float, typer.Option(help="Geometry resolution (in km)", min=0)
+    ] = 0.1,
 ):
     """Generate a type-5 SRF file from a given realisation specification."""
     realisation_parameters = realisation.read_realisation(realisation_filepath)
-    generate_type4_fault_srfs_parallel(realisation_parameters, output_directory)
+    generate_fault_srfs_parallel(
+        realisation_parameters, output_directory, subdivision_resolution
+    )
     srf_output_filepath = stitch_srf_files(realisation_parameters, output_directory)
     create_stoch(
         srf_output_filepath, output_directory / f"{realisation_parameters.name}.stoch"
