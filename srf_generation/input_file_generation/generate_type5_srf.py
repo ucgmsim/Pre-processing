@@ -1,30 +1,19 @@
+import functools
 import multiprocessing
 import re
-import shlex
 import subprocess
 from pathlib import Path
 from typing import Annotated
 
 import numpy as np
 import pandas as pd
-import pyproj
 import srf
 import typer
-from qcore import binary_version, gsf
+from qcore import binary_version, coordinates, gsf
 
 from srf_generation import realisation
 from srf_generation.realisation import RealisationFault
 
-WGS_CODE = 4326
-NZTM_CODE = 2193
-# Convert lat, lon to x, y
-WGS2NZTM = pyproj.Transformer.from_crs(WGS_CODE, NZTM_CODE)
-UTM_CRS = pyproj.CRS(proj="utm", zone=11, ellps="WGS84")
-WGS2UTM = pyproj.Transformer.from_crs(WGS_CODE, UTM_CRS)
-TRANSFORMER_MAP = {"nztm": WGS2NZTM, "utm": WGS2UTM}
-# Convert x, y to lat, lon
-NZTM2WGS = pyproj.Transformer.from_crs(NZTM_CODE, WGS_CODE)
-SUBDIVISION_RESOLUTION_KM = 0.1
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
 
