@@ -214,11 +214,11 @@ def stitch_srf_files(
                 # find closest grid point to the jump location
                 # compute the time delay as equal to the tinit of this point (for now)
                 parent = fault.parent
-                parent_coords = wgsdepth_to_nztm(
-                    np.array(fault.parent_jump_coords).reshape((1, -1))
-                ).ravel()
+                parent_coords = coordinates.wgs_depth_to_nztm(
+                    np.array(fault.parent_jump_coords)
+                )
                 parent_fault_points = fault_points[parent.name]
-                grid_points = wgsdepth_to_nztm(
+                grid_points = coordinates.wgs_depth_to_nztm(
                     np.array(
                         [
                             [point.lat, point.lon, point.dep * 1000]
