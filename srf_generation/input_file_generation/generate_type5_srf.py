@@ -261,20 +261,6 @@ def generate_type4_fault_srfs_parallel(
         )
 
 
-def wgsdepth_to_nztm(wgsdepthcoordinates: np.ndarray) -> np.ndarray:
-    nztm_coords = np.array(
-        WGS2NZTM.transform(wgsdepthcoordinates[:, 0], wgsdepthcoordinates[:, 1]),
-    ).T
-    return np.append(nztm_coords, wgsdepthcoordinates[:, 2].reshape((-1, 1)), axis=-1)
-
-
-def nztm_to_wgsdepth(nztmcoordinates: np.ndarray) -> np.ndarray:
-    wgs_coords = np.array(
-        NZTM2WGS.transform(nztmcoordinates[:, 0], nztmcoordinates[:, 1]),
-    ).T
-    return np.append(wgs_coords, nztmcoordinates[:, 2].reshape((-1, 1)), axis=-1)
-
-
 def main(
     realisation_filepath: Annotated[
         Path,
