@@ -78,19 +78,17 @@ def srf_file_for_fault(output_directory: Path, fault: RealisationFault) -> Path:
 
 
 def create_stoch(
-    stoch_file: str,
-    srf_file: str,
+    srf_file: Path,
+    stoch_file: Path,
 ):
     """Create a stoch file from a SRF file.
 
     Parameters
     ----------
-    stoch_file : str
-        The filepath to output the stoch file to.
-    srf_file : str
+    srf_file : Path
         The filepath of the SRF file.
-    single_segment : bool
-        True if the stoch file is a single segment.
+    stoch_file : Path
+        The filepath to output the stoch file to.
     """
 
     dx = 2.0
@@ -100,8 +98,8 @@ def create_stoch(
         srf2stoch,
         f"dx={dx}",
         f"dy={dy}",
-        f"infile={srf_file}",
-        f"outfile={stoch_file}",
+        f"infile={str(srf_file)}",
+        f"outfile={str(stoch_file)}",
     ]
     subprocess.run(command, stderr=subprocess.PIPE, check=True)
 
@@ -176,7 +174,9 @@ def closest_gridpoint(grid: np.ndarray, point: np.ndarray) -> int:
     return int(np.argmin(np.sum(np.square(grid - point), axis=1)))
 
 
-def stitch_srf_files(realisation_obj: realisation.Realisation, output_directory: Path):
+def stitch_srf_files(
+    realisation_obj: realisation.Realisation, output_directory: Path
+) -> Path:
     srf_output_filepath = output_directory / f"{realisation_obj.name}.srf"
     with open(srf_output_filepath, "w", encoding="utf-8") as srf_file_output:
         fault_points = {}
@@ -298,7 +298,10 @@ def main(
     """Generate a type-5 SRF file from a given realisation specification."""
     realisation_parameters = realisation.read_realisation(realisation_filepath)
     generate_type4_fault_srfs_parallel(realisation_parameters, output_directory)
-    stitch_srf_files(realisation_parameters, output_directory)
+    srf_output_filepath = stitch_srf_files(realisation_parameters, output_directory)
+    create_stoch(
+        srf_output_filepath, output_directory / f"{realisation_parameters.name}.stoch"
+    )
 
 
 if __name__ == "__main__":
