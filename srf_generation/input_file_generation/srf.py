@@ -33,7 +33,7 @@ Functions:
 import dataclasses
 import re
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, Optional
 
 
 @dataclasses.dataclass
@@ -242,7 +242,7 @@ def read_srf_headers(srf_file: TextIO) -> list[SrfSegment]:
 POINT_COUNT_RE = r"POINTS (\d+)"
 
 
-def read_float(srf_file: TextIO, label: str | None = None) -> float:
+def read_float(srf_file: TextIO, label: Optional[str] = None) -> float:
     """Read a float from an SRF file.
 
     Parameters
@@ -276,7 +276,7 @@ def read_float(srf_file: TextIO, label: str | None = None) -> float:
             raise SrfParseError(f'Expecting float, got: "{float_str}"')
 
 
-def read_int(srf_file: TextIO, label: str | None = None) -> int:
+def read_int(srf_file: TextIO, label: Optional[str] = None) -> int:
     """Read a int from an SRF file.
 
     Parameters
