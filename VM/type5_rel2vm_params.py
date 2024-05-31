@@ -330,6 +330,7 @@ def main(
             "used to determine the boundary between LF and HF calculation."
         ),
     ] = 0.5,
+    ds_multiplier: Annotated[float, typer.Option(help='Ds multiplier')] = 1.2,
     vm_version: Annotated[str, typer.Option(help="Velocity model version.")] = "2.06",
     vm_topo_type: Annotated[
         str, typer.Option(help="VM topology type")
@@ -355,7 +356,7 @@ def main(
     nx = int(np.ceil(bounding_box.extent_x / resolution))
     ny = int(np.ceil(bounding_box.extent_y / resolution))
     nz = int(np.ceil((max_depth - min_depth) / (resolution)))
-    sim_duration = guess_simulation_duration(bounding_box, type5_realisation, 1.2)
+    sim_duration = guess_simulation_duration(bounding_box, type5_realisation, ds_multiplier)
     (rrup, _) = find_rrup(type5_realisation.magnitude)
     bounding_box = grow_bounding_box(bounding_box, rrup)
     box_origin_coords = coordinates.nztm_to_wgs_depth(np.append(bounding_box.origin, 0))
