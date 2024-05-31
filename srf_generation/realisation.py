@@ -3,7 +3,7 @@ import collections
 import dataclasses
 import re
 from pathlib import Path
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Optional
 
 import numpy as np
 import qcore.coordinates
@@ -26,7 +26,7 @@ class FaultJump:
 class RealisationFault(Fault):
     magnitude: float = None
     parent: "RealisationFault" = None
-    parent_jump_coords: Tuple[float, float] | None = None
+    parent_jump_coords: Optional[Tuple[float, float]] = None
     shyp: float = None
     dhyp: float = None
 
