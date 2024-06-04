@@ -7,14 +7,31 @@ from typing import Annotated, Tuple
 
 import numpy as np
 import scipy as sp
+import shapely
 import typer
 import yaml
 from models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 from models.classdef import Fault, FaultStyle, Site, TectType, estimate_z1p0
 from qcore import coordinates, geo
+from shapely import Polygon
 
 from srf_generation import realisation
 from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
+
+script_dir = Path(__file__).resolve().parent
+NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
+
+
+def get_land_polygon():
+    polygon_coordinates = np.loadtxt(NZ_LAND_OUTLINE)
+    polygon_coordinates = polygon_coordinates[:, ::-1]
+    polygon_coordinates = np.append(
+        polygon_coordinates,
+        np.zeros_like(polygon_coordinates[:, 0]).reshape((-1, 1)),
+        axis=1,
+    )
+    polygon_coordinates = coordinates.wgs_depth_to_nztm(polygon_coordinates)[:, :2]
+    return shapely.Polygon(polygon_coordinates)
 
 
 @dataclasses.dataclass
@@ -49,8 +66,20 @@ class BoundingBox:
             north_direction, horizontal_direction, up_direction
         )
 
+    @property
+    def area(self):
+        """Return the box area (km^2)"""
+        return self.extent_x * self.extent_y
 
-def axis_aligned_bounding_box(points: np.ndarray) -> np.ndarray:
+    @property
+    def polygon(self):
+        """Return a shapely geometry for the bounding box."""
+        return shapely.Polygon(
+            np.append(self.corners, np.atleast_2d(self.corners[0]), axis=0)
+        )
+
+
+def axis_aligned_bounding_box(points: np.ndarray) -> BoundingBox:
     """Return an axis-aligned bounding box containing points.
 
     Parameters
@@ -67,7 +96,8 @@ def axis_aligned_bounding_box(points: np.ndarray) -> np.ndarray:
     """
     min_x, min_y = np.min(points, axis=0)
     max_x, max_y = np.max(points, axis=0)
-    return np.array([[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]])
+    corners = np.array([[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]])
+    return BoundingBox(corners)
 
 
 def rotation_matrix(angle: float) -> np.ndarray:
@@ -115,11 +145,11 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
     ]
 
     rotation_angle, minimum_bounding_box = min(
-        zip(rotation_angles, bounding_boxes),
-        key=lambda box: np.linalg.norm(box[1][1] - box[1][0])
-        * np.linalg.norm(box[1][2] - box[1][1]),
+        zip(rotation_angles, bounding_boxes), key=lambda rot_box: rot_box[1].area
     )
-    return BoundingBox(minimum_bounding_box @ rotation_matrix(-rotation_angle).T)
+    return BoundingBox(
+        minimum_bounding_box.corners @ rotation_matrix(-rotation_angle).T
+    )
 
 
 def pgv_estimate_from_magnitude(magnitude: float):
@@ -190,15 +220,14 @@ def find_rrup(magnitude: float) -> Tuple[float, float]:
 
 def grow_bounding_box(bounding_box: BoundingBox, radius: float):
     """Grow a realisation bounding box so that bounding box contains a circle of
-    given radius centred on the origin."""
+    given radius from the box centroid."""
     centroid = bounding_box.origin
     # basically just guessing at this point
     corners_centred = bounding_box.corners - centroid
     centre_x = (corners_centred[2] - corners_centred[1]) / 2
     centre_y = (corners_centred[1] - corners_centred[0]) / 2
-    scale_x = radius / (np.linalg.norm(centre_x) / 1000)
-    scale_y = radius / (np.linalg.norm(centre_y) / 1000)
-
+    scale_x = max(1, radius / (np.linalg.norm(centre_x) / 1000))
+    scale_y = max(1, radius / (np.linalg.norm(centre_y) / 1000))
     basis = np.array([centre_x, centre_y])
     return BoundingBox(
         np.array([scale_x, scale_y])
@@ -212,6 +241,18 @@ def grow_bounding_box(bounding_box: BoundingBox, radius: float):
         )
         @ basis
         + centroid
+    )
+
+
+def minimum_area_bounding_box_for_polygons_masked(
+    polygons: list[Polygon], mask: Polygon
+) -> BoundingBox:
+    polygon_union = shapely.normalize(shapely.union_all(polygons))
+    bounding_polygon = shapely.normalize(shapely.intersection(polygon_union, mask))
+    if isinstance(bounding_polygon, shapely.Polygon):
+        return minimum_area_bounding_box(np.array(bounding_polygon.exterior.coords))
+    return minimum_area_bounding_box(
+        np.vstack([np.array(geom.exterior.coords) for geom in bounding_polygon.geoms])
     )
 
 
@@ -330,7 +371,7 @@ def main(
             "used to determine the boundary between LF and HF calculation."
         ),
     ] = 0.5,
-    ds_multiplier: Annotated[float, typer.Option(help='Ds multiplier')] = 1.2,
+    ds_multiplier: Annotated[float, typer.Option(help="Ds multiplier")] = 1.2,
     vm_version: Annotated[str, typer.Option(help="Velocity model version.")] = "2.06",
     vm_topo_type: Annotated[
         str, typer.Option(help="VM topology type")
@@ -338,7 +379,7 @@ def main(
 ):
     "Generate velocity model parameters for a Type-5 realisation."
     type5_realisation = realisation.read_realisation(realisation_filepath)
-    bounding_box = minimum_area_bounding_box(
+    minimum_bounding_box = minimum_area_bounding_box(
         np.vstack(
             [fault.corners_nztm() for fault in type5_realisation.faults.values()]
         )[:, :2]
@@ -353,12 +394,19 @@ def main(
         )[2]
         / 1000,
     )
+    (rrup, _) = find_rrup(type5_realisation.magnitude)
+    site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
+        rrup * 1000
+    )
+    bounding_box = minimum_area_bounding_box_for_polygons_masked(
+        [minimum_bounding_box.polygon, site_inclusion_polygon], get_land_polygon()
+    )
     nx = int(np.ceil(bounding_box.extent_x / resolution))
     ny = int(np.ceil(bounding_box.extent_y / resolution))
     nz = int(np.ceil((max_depth - min_depth) / (resolution)))
-    sim_duration = guess_simulation_duration(bounding_box, type5_realisation, ds_multiplier)
-    (rrup, _) = find_rrup(type5_realisation.magnitude)
-    bounding_box = grow_bounding_box(bounding_box, rrup)
+    sim_duration = guess_simulation_duration(
+        bounding_box, type5_realisation, ds_multiplier
+    )
     box_origin_coords = coordinates.nztm_to_wgs_depth(np.append(bounding_box.origin, 0))
     normalised_realisation = realisation.normalise_name(type5_realisation.name)
     vm_params = {
