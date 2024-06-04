@@ -173,7 +173,7 @@ def pgv_estimate_from_magnitude(magnitude: float):
     )
 
 
-def find_rrup(magnitude: float) -> Tuple[float, float]:
+def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float, float]:
     """
     Find rrup at which pgv estimated from magnitude is close to target.
 
@@ -197,8 +197,8 @@ def find_rrup(magnitude: float) -> Tuple[float, float]:
         siteprop.vs30measured = False
         siteprop.z1p0 = estimate_z1p0(siteprop.vs30)
         faultprop = Fault()
-        faultprop.dip = 0
-        faultprop.rake = 0
+        faultprop.dip = avg_dip
+        faultprop.rake = avg_rake
         faultprop.Mw = magnitude
         faultprop.ztor = (
             0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
@@ -394,7 +394,11 @@ def main(
         )[2]
         / 1000,
     )
-    (rrup, _) = find_rrup(type5_realisation.magnitude)
+    (rrup, _) = find_rrup(
+        type5_realisation.magnitude,
+        np.mean([fault.planes[0].dip for fault in type5_realisation.faults.values()]),
+        np.mean([fault.planes[0].rake for fault in type5_realisation.faults.values()]),
+    )
     site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
         rrup * 1000
     )
