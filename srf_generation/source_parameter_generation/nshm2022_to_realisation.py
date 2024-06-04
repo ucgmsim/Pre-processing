@@ -257,7 +257,7 @@ def link_hypocentres(
     for to_fault in faults:
         fault_name = to_fault.name
         if rupture_causality_tree[fault_name] is None:
-            shyp, dhyp = to_fault.expected_fault_coordinates()
+            shyp, dhyp = to_fault.expected_fault_hypocentre_coordinates()
             to_fault.shyp = shyp
             to_fault.dhyp = dhyp
         else:
