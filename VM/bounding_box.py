@@ -18,6 +18,8 @@ Functions:
 import dataclasses
 
 import numpy as np
+import scipy as sp
+import shapely
 from qcore import geo
 
 
