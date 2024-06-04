@@ -215,6 +215,8 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
     )
     rrup = rrup_optimise_result.x
     pgv_delta = rrup_optimise_result.fun
+    if pgv_delta > 1e-4:
+        raise ValueError(f"Failed to converge on rrup optimisation.")
     return rrup, pgv_target + pgv_delta
 
 
