@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
+"""
+VM Parameters Generation
 
-import dataclasses
+This script generates the velocity model parameters used to generate the velocity model.
+
+Example
+-------
+To generate VM parameters for a Type-5 realisation:
+
+```
+$ python vm_params_generation.py path/to/realisation.yaml output/vm_params.yaml
+```
+"""
+
+
 from pathlib import Path
 from typing import Annotated, Tuple
 
@@ -9,9 +22,8 @@ import scipy as sp
 import shapely
 import typer
 import yaml
-from models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
-from models.classdef import Fault, FaultStyle, Site, TectType, estimate_z1p0
-from qcore import coordinates, geo
+from models import AfshariStewart_2016_Ds, classdef
+from qcore import coordinates
 from shapely import Polygon
 
 from srf_generation import realisation
@@ -23,7 +35,13 @@ script_dir = Path(__file__).resolve().parent
 NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
 
 
-def get_land_polygon():
+def get_nz_outline_polygon():
+    """
+    Get the outline polygon of New Zealand.
+
+    Returns:
+        Polygon: The outline polygon of New Zealand.
+    """
     polygon_coordinates = np.loadtxt(NZ_LAND_OUTLINE)
     polygon_coordinates = polygon_coordinates[:, ::-1]
     polygon_coordinates = np.append(
@@ -62,7 +80,12 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
 
     Parameters
     ----------
-    pgv_target : pgv that we wish to come close to
+    magnitude : float
+        The magnitude of the rupture.
+    avg_dip : float
+        The average dip of the faults involved.
+    avg_rake : float
+        The average rake of the faults involved.
 
     Returns
     -------
@@ -74,20 +97,20 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
 
     def pgv_delta_from_rrup(rrup: float):
         # stolen from rel2vm_params
-        siteprop = Site()
+        siteprop = classdef.Site()
         siteprop.vs30 = 500
         siteprop.Rtvz = 0
         siteprop.vs30measured = False
-        siteprop.z1p0 = estimate_z1p0(siteprop.vs30)
-        faultprop = Fault()
+        siteprop.z1p0 = classdef.estimate_z1p0(siteprop.vs30)
+        faultprop = classdef.Fault()
         faultprop.dip = avg_dip
         faultprop.rake = avg_rake
         faultprop.Mw = magnitude
         faultprop.ztor = (
             0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
         )
-        faultprop.tect_type = TectType.ACTIVE_SHALLOW
-        faultprop.faultstyle = FaultStyle.UNKNOWN
+        faultprop.tect_type = classdef.TectType.ACTIVE_SHALLOW
+        faultprop.faultstyle = classdef.FaultStyle.UNKNOWN
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
@@ -106,6 +129,27 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
 def minimum_area_bounding_box_for_polygons_masked(
     polygons: list[Polygon], mask: Polygon
 ) -> BoundingBox:
+    """
+    Return the minimum area bounding box for a list of polygons masked by
+    another polygon.
+
+
+    This function returns
+
+
+    Parameters
+    ----------
+    polygons : list[Polygon]
+        List of polygons to bound.
+    mask : Polygon
+        The masking polygon.
+
+    Returns
+    -------
+    BoundingBox
+        The smallest box containing all the points of the
+        given polygons that lie within the bounds of the given mask.
+    """
     polygon_union = shapely.normalize(shapely.union_all(polygons))
     bounding_polygon = shapely.normalize(shapely.intersection(polygon_union, mask))
     if isinstance(bounding_polygon, shapely.Polygon):
@@ -162,21 +206,21 @@ def guess_simulation_duration(
     largest_corner_distance = np.max(np.min(pairwise_distance, axis=1)) / 1000
 
     # taken from rel2vm_params.py
-    siteprop = Site()
+    siteprop = classdef.Site()
     siteprop.vs30 = 500
     siteprop.Rtvz = 0
     siteprop.vs30measured = False
-    siteprop.z1p0 = estimate_z1p0(siteprop.vs30)
+    siteprop.z1p0 = classdef.estimate_z1p0(siteprop.vs30)
     siteprop.Rrup = largest_corner_distance
-    faultprop = Fault()
+    faultprop = classdef.Fault()
     faultprop.ztor = (
         0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
     )
-    faultprop.tect_type = TectType.ACTIVE_SHALLOW
-    faultprop.faultstyle = FaultStyle.UNKNOWN
+    faultprop.tect_type = classdef.TectType.ACTIVE_SHALLOW
+    faultprop.faultstyle = classdef.FaultStyle.UNKNOWN
     faultprop.Mw = type5_realisation.magnitude
 
-    ds = Afshari_Stewart_2016_Ds(siteprop, faultprop, "Ds595")[0]
+    ds = AfshariStewart_2016_Ds.Afshari_Stewart_2016_Ds(siteprop, faultprop, "Ds595")[0]
 
     return s_wave_arrival_time + ds_multiplier * ds
 
@@ -264,7 +308,7 @@ def main(
         rrup * 1000
     )
     optimal_bounding_box = minimum_area_bounding_box_for_polygons_masked(
-        [minimum_bounding_box.polygon, site_inclusion_polygon], get_land_polygon()
+        [minimum_bounding_box.polygon, site_inclusion_polygon], get_nz_outline_polygon()
     )
     nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
     ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
