@@ -3,7 +3,7 @@ import collections
 import dataclasses
 import re
 from pathlib import Path
-from typing import Generator, Tuple, Optional
+from typing import Generator, Optional, Tuple
 
 import numpy as np
 import qcore.coordinates
@@ -101,7 +101,7 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
         return Realisation(
             name=raw_yaml_data["name"],
             type=raw_yaml_data["type"],
-            magnitude=fault_obj["magnitude"],
+            magnitude=raw_yaml_data["magnitude"],
             dt=raw_yaml_data["dt"],
             genslip_seed=raw_yaml_data["genslip_seed"],
             srfgen_seed=raw_yaml_data["srfgen_seed"],
