@@ -1,3 +1,20 @@
+"""
+Module for handling bounding boxes in 2D space.
+
+This module provides classes and functions for working with bounding boxes in
+2D space, including calculating axis-aligned and minimum area bounding boxes,
+and computing various properties such as area and bearing. The bounding box
+dimensions are in metres except where otherwise mentioned.
+
+Classes:
+    - BoundingBox: Represents a 2D bounding box with properties and methods for calculations.
+
+Functions:
+    - axis_aligned_bounding_box: Returns an axis-aligned bounding box containing points.
+    - rotation_matrix: Returns the 2D rotation matrix for a given angle.
+    - minimum_area_bounding_box: Returns the smallest rectangle bounding points.
+"""
+
 import dataclasses
 
 import numpy as np
@@ -6,29 +23,34 @@ from qcore import geo
 
 @dataclasses.dataclass
 class BoundingBox:
-    """BoundingBox."""
+    """Represents a 2D bounding box with properties and methods for calculations.
+
+    Attributes
+    ----------
+        corners : np.ndarray
+            The corners of the bounding box.
+    """
 
     corners: np.ndarray
 
     @property
     def origin(self):
-        """origin."""
+        """Returns the origin of the bounding box."""
         return np.mean(self.corners, axis=0)
 
     @property
     def extent_x(self):
-        """extent_x."""
+        """Returns the extent along the x-axis of the bounding box (in km)."""
         return np.linalg.norm(np.linalg.norm(self.corners[2] - self.corners[1]) / 1000)
 
     @property
     def extent_y(self):
-        """extent_y."""
+        """Returns the extent along the y-axis of the bounding box (in km)."""
         return np.linalg.norm(np.linalg.norm(self.corners[1] - self.corners[0]) / 1000)
 
     @property
     def bearing(self):
-        """bearing."""
-
+        """Returns the bearing of the bounding box."""
         north_direction = np.array([1, 0, 0])
         up_direction = np.array([0, 0, 1])
         horizontal_direction = np.append(self.corners[1] - self.corners[0], 0)
@@ -38,31 +60,27 @@ class BoundingBox:
 
     @property
     def area(self):
-        """Return the box area (km^2)"""
+        """Returns the area of the bounding box."""
         return self.extent_x * self.extent_y
 
     @property
     def polygon(self):
-        """Return a shapely geometry for the bounding box."""
+        """Returns a shapely geometry for the bounding box."""
         return shapely.Polygon(
             np.append(self.corners, np.atleast_2d(self.corners[0]), axis=0)
         )
 
 
 def axis_aligned_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Return an axis-aligned bounding box containing points.
+    """Returns an axis-aligned bounding box containing points.
 
     Parameters
     ----------
     points : np.ndarray
         The points to bound.
 
-    Returns
-    -------
-    np.ndarray
-        A numpy array of shape (4, 2) containing defining the corners of
-        the bounding box. The order of points is bottom-left, bottom-right,
-        top-right, top-left.
+    Returns:
+        BoundingBox: The axis-aligned bounding box.
     """
     min_x, min_y = np.min(points, axis=0)
     max_x, max_y = np.max(points, axis=0)
@@ -71,7 +89,7 @@ def axis_aligned_bounding_box(points: np.ndarray) -> BoundingBox:
 
 
 def rotation_matrix(angle: float) -> np.ndarray:
-    """Return the 2D rotation matrix for a given angle.
+    """Returns the 2D rotation matrix for a given angle.
 
     Parameters
     ----------
@@ -81,14 +99,13 @@ def rotation_matrix(angle: float) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        The 2x2 matrix rotating points by angle radians counter-clockwise.
+        The 2x2 rotation matrix.
     """
     return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
 
 def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Return the smallest rectangle bounding points. The rectangle may
-    be rotated.
+    """Returns the smallest rectangle bounding points. The rectangle may be rotated.
 
     Parameters
     ----------
@@ -98,7 +115,7 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
     Returns
     -------
     BoundingBox
-        The bounding box.
+        The minimum area bounding box.
     """
     convex_hull = sp.spatial.ConvexHull(points).points
     segments = np.array(
