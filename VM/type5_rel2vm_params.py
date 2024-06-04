@@ -127,31 +127,40 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
 
 
 def minimum_area_bounding_box_for_polygons_masked(
-    polygons: list[Polygon], mask: Polygon
+    must_include: list[Polygon], may_include: list[Polygon], mask: Polygon
 ) -> BoundingBox:
     """
-    Return the minimum area bounding box for a list of polygons masked by
-    another polygon.
+        Return the minimum area bounding box for a list of polygons masked by
+        another polygon.
 
 
-    This function returns
+        This function returns
 
 
-    Parameters
-    ----------
-    polygons : list[Polygon]
-        List of polygons to bound.
-    mask : Polygon
-        The masking polygon.
+        Parameters
+        ----------
+        must_include : list[Polygon]
+            List of polygons the bounding box must include.
+        may_include : list[Polygon]
+            List of polygons the bounding box will include portions of, when inside of mask.
+        mask : Polygon
+            The masking polygon.
 
-    Returns
-    -------
-    BoundingBox
-        The smallest box containing all the points of the
-        given polygons that lie within the bounds of the given mask.
+        Returns
+        -------
+        BoundingBox
+            The smallest box containing all the points of `must_include`, and all the
+    points of `may_include` that lie within the bounds of `mask`.
+
     """
-    polygon_union = shapely.normalize(shapely.union_all(polygons))
-    bounding_polygon = shapely.normalize(shapely.intersection(polygon_union, mask))
+    may_include_polygon = shapely.normalize(shapely.union_all(may_include))
+    must_include_polygon = shapely.normalize(shapely.union_all(must_include))
+    bounding_polygon = shapely.normalize(
+        shapely.union(
+            must_include_polygon, shapely.intersection(may_include_polygon, mask)
+        )
+    )
+
     if isinstance(bounding_polygon, shapely.Polygon):
         return bounding_box.minimum_area_bounding_box(
             np.array(bounding_polygon.exterior.coords)
@@ -308,7 +317,9 @@ def main(
         rrup * 1000
     )
     optimal_bounding_box = minimum_area_bounding_box_for_polygons_masked(
-        [minimum_bounding_box.polygon, site_inclusion_polygon], get_nz_outline_polygon()
+        [minimum_bounding_box.polygon],
+        [site_inclusion_polygon],
+        get_nz_outline_polygon(),
     )
     nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
     ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
