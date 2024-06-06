@@ -18,7 +18,6 @@ $ python srf_generation.py path/to/realisation.yaml output_directory
 
 import functools
 import multiprocessing
-import re
 import subprocess
 from pathlib import Path
 from typing import Annotated
@@ -34,23 +33,6 @@ from srf_generation.realisation import Realisation, RealisationFault
 
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
-
-
-def normalise_name(name: str) -> str:
-    """Normalise a fault name for yaml file output.
-
-    Parameters
-    ----------
-    name : str
-        The name to normalise.
-
-    Returns
-    -------
-    str
-        The normalised version of the name.
-    """
-    fault_no_illegal_characters = re.sub(r" |,|:", "_", name)
-    return fault_no_illegal_characters.lower()
 
 
 def generate_fault_gsf(
@@ -69,7 +51,9 @@ def generate_fault_gsf(
     subdivision_resolution : float
         The geometry resolution.
     """
-    gsf_output_filepath = gsf_output_directory / f"{normalise_name(fault.name)}.gsf"
+    gsf_output_filepath = (
+        gsf_output_directory / f"{realisation.normalise_name(fault.name)}.gsf"
+    )
     gsf_df = pd.DataFrame(
         [
             {
