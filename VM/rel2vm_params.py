@@ -11,29 +11,30 @@ HELP:
 python ./rel2vm_params.py -h
 """
 
-import math
-import os
-import sys
 from argparse import ArgumentParser
+from h5py import File as h5open
 from logging import Logger
+import math
+import numpy as np
+import os
+import pandas as pd
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 
-import numpy as np
-import pandas as pd
-from h5py import File as h5open
+from srf_generation.input_file_generation.realisation_to_srf import get_corners_dbottom
+
 from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
-from qcore.simulation_structure import get_fault_from_realisation
 from qcore.utils import dump_yaml
+from qcore.simulation_structure import get_fault_from_realisation
 from qcore.validate_vm import validate_vm_bounds
-from srf_generation.input_file_generation.realisation_to_srf import \
-    get_corners_dbottom
+
+from VM.models.classdef import Site, Fault, TectType, estimate_z1p0, FaultStyle
+from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
+from VM.models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
 from plot_vm import plot_vm
-from VM.models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
-from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
-from VM.models.classdef import Fault, FaultStyle, Site, TectType, estimate_z1p0
 
 script_dir = Path(__file__).resolve().parent
 NZ_CENTRE_LINE = script_dir / "../SrfGen/NHM/res/centre.txt"
@@ -74,6 +75,34 @@ def mag2pgv(mag: float):
         [3.5, 4.1, 4.7, 5.2, 5.5, 5.8, 6.2, 6.5, 6.8, 7.0, 7.4, 7.7, 8.0],
         [0.015, 0.0375, 0.075, 0.15, 0.25, 0.4, 0.7, 1.0, 1.35, 1.65, 2.1, 2.5, 3.0],
     )
+
+
+def find_rrup(pgv_target: float):
+    """
+    Find rrup at which pgv is close to target. Has to be computed iteratively as GMPE is irreversible.
+
+    Parameters
+    ----------
+    pgv_target : pgv that we wish to come close to
+
+    Returns
+    -------
+
+    """
+    rrup = 50.0
+    pgv = np.inf
+    while pgv_target / pgv < 0.99 or pgv_target / pgv > 1.01:
+        siteprop.Rrup = rrup
+        siteprop.Rx = rrup
+        siteprop.Rjb = rrup
+        pgv = Bradley_2010_Sa(siteprop, faultprop, "PGV")[0]
+        # factor 0.02 is conservative step to avoid infinite looping
+        if pgv_target / pgv > 1.01:
+            rrup -= rrup * 0.02
+        elif pgv_target / pgv < 0.99:
+            rrup += rrup * 0.02
+
+    return rrup, pgv
 
 
 def determine_vm_extent(
