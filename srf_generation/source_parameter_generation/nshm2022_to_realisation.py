@@ -6,40 +6,15 @@ This script generates YAML realisation stub files from ruptures in the NSHM 2022
 database. It extracts fault geometry computes causality information from the database
 and incorporates default parameter values to generate the realisation.
 
-Usage:
-    nshm2022_to_realisation.py NSHM_DB_FILE RUPTURE_ID YAML_FILE [--dt DT] [--genslip-seed GENSLIP_SEED] [--srfgen-seed SRFGEN_SEED]
-
-Arguments:
-    RUPTURE_ID      The ID of the rupture to generate the realisation stub for
-                    (find this using the NSHM Rupture Explorer).
-    YAML_FILE       Location to write out the YAML realisation value.
-    NSHM_DB_FILE    The NSHM sqlite database containing rupture
-                    information and fault geometry.
-
-Options:
-    --help                      Show help message and exit.
-    --dt DT                     Time resolution for source modelling (default:
-                                0.0500s).
-    --genslip-seed GENSLIP_SEED Seed for genslip, used to initialise slip
-                                distribution on fault (default: 1).
-    --srfgen-seed SRFGEN_SEED   Seed for srfgen, used to initialise slip
-                                distribution on fault (default: 1).
-
-Depends On:
-- python >= 3.11
-- numpy
-- nshmdb
-- pyproj
-- qcore
-- scipy
-- typer
-- PyYAML
+Usage
+-----
+$ nshm2022_to_realisation.py NSHM_DB_FILE RUPTURE_ID YAML_FILE
 """
 import collections
 import itertools
 import re
 from pathlib import Path
-from typing import Annotated, Any, TextIO
+from typing import Annotated, Any, TextIO, Tuple
 
 import numpy as np
 import qcore.coordinates
@@ -55,12 +30,10 @@ from rupture_propogation import RuptureCausalityTree
 
 from srf_generation.realisation import RealisationFault
 
-app = typer.Typer()
-
 
 def closest_points_between_faults(
     fault_u: RealisationFault, fault_v: RealisationFault
-) -> (np.ndarray, np.ndarray):
+) -> Tuple[np.ndarray, np.ndarray]:
     """Given two faults u and v, return the closest pair of points on the faults.
 
     Parameters
@@ -208,7 +181,7 @@ def build_rupture_causality_tree(
 
 def compute_jump_point_hypocentre_fault_coordinates(
     from_fault: RealisationFault, to_fault: RealisationFault
-) -> (np.ndarray, np.ndarray):
+) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the closest two points between two faults.
 
     Parameters
@@ -393,9 +366,6 @@ def write_yaml_realisation_stub_file(
     yaml.dump(realisation_object, yaml_realisation_file)
 
 
-@app.command(
-    help="Generate realisation stub files from ruptures in the NSHM 2022 database."
-)
 def main(
     nshm_db_file: Annotated[
         Path,
@@ -433,6 +403,7 @@ def main(
         ),
     ] = 1,
 ):
+    "Generate realisation stub files from ruptures in the NSHM 2022 database."
     db = nshmdb.NSHMDB(nshm_db_file)
     faults = [
         RealisationFault(
@@ -460,4 +431,4 @@ def main(
 
 
 if __name__ == "__main__":
-    app()
+    typer.run(app)

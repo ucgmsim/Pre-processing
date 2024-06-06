@@ -4,8 +4,8 @@ VM Parameters Generation
 
 This script generates the velocity model parameters used to generate the velocity model.
 
-Example
--------
+Usage
+-----
 To generate VM parameters for a Type-5 realisation:
 
 ```

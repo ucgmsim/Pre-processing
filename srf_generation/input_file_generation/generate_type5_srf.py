@@ -7,8 +7,8 @@ specifications (YAML files). It generates fault geometries, generates SRF
 files from fault geometries, and stitches together these files in the order
 of rupture propagation.
 
-Example
--------
+Usage
+-----
 To generate a type-5 SRF file from a realisation specification:
 
 ```
