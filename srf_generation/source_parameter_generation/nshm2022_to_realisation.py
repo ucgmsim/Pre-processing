@@ -45,15 +45,15 @@ import numpy as np
 import qcore.coordinates
 import qcore.geo
 import qcore.uncertainties.mag_scaling
+import rupture_propogation
 import scipy as sp
 import typer
 import yaml
 from nshmdb import nshmdb
 from nshmdb.fault import FaultPlane
-from srf_generation.realisation import RealisationFault
-
-import rupture_propogation
 from rupture_propogation import RuptureCausalityTree
+
+from srf_generation.realisation import RealisationFault
 
 app = typer.Typer()
 
@@ -257,7 +257,7 @@ def link_hypocentres(
     for to_fault in faults:
         fault_name = to_fault.name
         if rupture_causality_tree[fault_name] is None:
-            shyp, dhyp = to_fault.expected_fault_coordinates()
+            shyp, dhyp = to_fault.expected_fault_hypocentre_coordinates()
             to_fault.shyp = shyp
             to_fault.dhyp = dhyp
         else:

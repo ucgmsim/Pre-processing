@@ -1,125 +1,56 @@
 #!/usr/bin/env python3
+"""
+VM Parameters Generation
+
+This script generates the velocity model parameters used to generate the velocity model.
+
+Example
+-------
+To generate VM parameters for a Type-5 realisation:
+
+```
+$ python vm_params_generation.py path/to/realisation.yaml output/vm_params.yaml
+```
+"""
 
 
-import dataclasses
 from pathlib import Path
 from typing import Annotated, Tuple
 
 import numpy as np
 import scipy as sp
+import shapely
 import typer
 import yaml
-from models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
-from models.classdef import Fault, FaultStyle, Site, TectType, estimate_z1p0
-from qcore import coordinates, geo
+from models import AfshariStewart_2016_Ds, classdef
+from qcore import coordinates
+from shapely import Polygon
 
 from srf_generation import realisation
+from VM import bounding_box
+from VM.bounding_box import BoundingBox
 from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
 
-
-@dataclasses.dataclass
-class BoundingBox:
-    """BoundingBox."""
-
-    corners: np.ndarray
-
-    @property
-    def origin(self):
-        """origin."""
-        return np.mean(self.corners, axis=0)
-
-    @property
-    def extent_x(self):
-        """extent_x."""
-        return np.linalg.norm(np.linalg.norm(self.corners[2] - self.corners[1]) / 1000)
-
-    @property
-    def extent_y(self):
-        """extent_y."""
-        return np.linalg.norm(np.linalg.norm(self.corners[1] - self.corners[0]) / 1000)
-
-    @property
-    def bearing(self):
-        """bearing."""
-
-        north_direction = np.array([1, 0, 0])
-        up_direction = np.array([0, 0, 1])
-        horizontal_direction = np.append(self.corners[1] - self.corners[0], 0)
-        return geo.oriented_bearing_wrt_normal(
-            north_direction, horizontal_direction, up_direction
-        )
+script_dir = Path(__file__).resolve().parent
+NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
 
 
-def axis_aligned_bounding_box(points: np.ndarray) -> np.ndarray:
-    """Return an axis-aligned bounding box containing points.
-
-    Parameters
-    ----------
-    points : np.ndarray
-        The points to bound.
-
-    Returns
-    -------
-    np.ndarray
-        A numpy array of shape (4, 2) containing defining the corners of
-        the bounding box. The order of points is bottom-left, bottom-right,
-        top-right, top-left.
+def get_nz_outline_polygon():
     """
-    min_x, min_y = np.min(points, axis=0)
-    max_x, max_y = np.max(points, axis=0)
-    return np.array([[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]])
+    Get the outline polygon of New Zealand.
 
-
-def rotation_matrix(angle: float) -> np.ndarray:
-    """Return the 2D rotation matrix for a given angle.
-
-    Parameters
-    ----------
-    angle : float
-        The angle to rotate by in radians.
-
-    Returns
-    -------
-    np.ndarray
-        The 2x2 matrix rotating points by angle radians counter-clockwise.
+    Returns:
+        Polygon: The outline polygon of New Zealand.
     """
-    return np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-
-
-def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
-    """Return the smallest rectangle bounding points. The rectangle may
-    be rotated.
-
-    Parameters
-    ----------
-    points : np.ndarray
-        The points to bound.
-
-    Returns
-    -------
-    BoundingBox
-        The bounding box.
-    """
-    convex_hull = sp.spatial.ConvexHull(points).points
-    segments = np.array(
-        [
-            convex_hull[(i + 1) % len(convex_hull)] - convex_hull[i]
-            for i in range(len(convex_hull))
-        ]
+    polygon_coordinates = np.loadtxt(NZ_LAND_OUTLINE)
+    polygon_coordinates = polygon_coordinates[:, ::-1]
+    polygon_coordinates = np.append(
+        polygon_coordinates,
+        np.zeros_like(polygon_coordinates[:, 0]).reshape((-1, 1)),
+        axis=1,
     )
-    rotation_angles = -np.arctan2(segments[:, 1], segments[:, 0])
-
-    bounding_boxes = [
-        axis_aligned_bounding_box(convex_hull @ rotation_matrix(angle).T)
-        for angle in rotation_angles
-    ]
-
-    rotation_angle, minimum_bounding_box = min(
-        zip(rotation_angles, bounding_boxes),
-        key=lambda box: np.linalg.norm(box[1][1] - box[1][0])
-        * np.linalg.norm(box[1][2] - box[1][1]),
-    )
-    return BoundingBox(minimum_bounding_box @ rotation_matrix(-rotation_angle).T)
+    polygon_coordinates = coordinates.wgs_depth_to_nztm(polygon_coordinates)[:, :2]
+    return shapely.Polygon(polygon_coordinates)
 
 
 def pgv_estimate_from_magnitude(magnitude: float):
@@ -143,13 +74,18 @@ def pgv_estimate_from_magnitude(magnitude: float):
     )
 
 
-def find_rrup(magnitude: float) -> Tuple[float, float]:
+def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float, float]:
     """
     Find rrup at which pgv estimated from magnitude is close to target.
 
     Parameters
     ----------
-    pgv_target : pgv that we wish to come close to
+    magnitude : float
+        The magnitude of the rupture.
+    avg_dip : float
+        The average dip of the faults involved.
+    avg_rake : float
+        The average rake of the faults involved.
 
     Returns
     -------
@@ -161,20 +97,20 @@ def find_rrup(magnitude: float) -> Tuple[float, float]:
 
     def pgv_delta_from_rrup(rrup: float):
         # stolen from rel2vm_params
-        siteprop = Site()
+        siteprop = classdef.Site()
         siteprop.vs30 = 500
         siteprop.Rtvz = 0
         siteprop.vs30measured = False
-        siteprop.z1p0 = estimate_z1p0(siteprop.vs30)
-        faultprop = Fault()
-        faultprop.dip = 0
-        faultprop.rake = 0
+        siteprop.z1p0 = classdef.estimate_z1p0(siteprop.vs30)
+        faultprop = classdef.Fault()
+        faultprop.dip = avg_dip
+        faultprop.rake = avg_rake
         faultprop.Mw = magnitude
         faultprop.ztor = (
             0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
         )
-        faultprop.tect_type = TectType.ACTIVE_SHALLOW
-        faultprop.faultstyle = FaultStyle.UNKNOWN
+        faultprop.tect_type = classdef.TectType.ACTIVE_SHALLOW
+        faultprop.faultstyle = classdef.FaultStyle.UNKNOWN
         siteprop.Rrup = rrup
         siteprop.Rx = rrup
         siteprop.Rjb = rrup
@@ -185,33 +121,52 @@ def find_rrup(magnitude: float) -> Tuple[float, float]:
     )
     rrup = rrup_optimise_result.x
     pgv_delta = rrup_optimise_result.fun
+    if pgv_delta > 1e-4:
+        raise ValueError(f"Failed to converge on rrup optimisation.")
     return rrup, pgv_target + pgv_delta
 
 
-def grow_bounding_box(bounding_box: BoundingBox, radius: float):
-    """Grow a realisation bounding box so that bounding box contains a circle of
-    given radius centred on the origin."""
-    centroid = bounding_box.origin
-    # basically just guessing at this point
-    corners_centred = bounding_box.corners - centroid
-    centre_x = (corners_centred[2] - corners_centred[1]) / 2
-    centre_y = (corners_centred[1] - corners_centred[0]) / 2
-    scale_x = radius / (np.linalg.norm(centre_x) / 1000)
-    scale_y = radius / (np.linalg.norm(centre_y) / 1000)
+def minimum_area_bounding_box_for_polygons_masked(
+    must_include: list[Polygon], may_include: list[Polygon], mask: Polygon
+) -> BoundingBox:
+    """
+        Return the minimum area bounding box for a list of polygons masked by
+        another polygon.
 
-    basis = np.array([centre_x, centre_y])
-    return BoundingBox(
-        np.array([scale_x, scale_y])
-        * np.array(
-            [
-                [-1, -1],
-                [-1, 1],
-                [1, 1],
-                [1, -1],
-            ]
+
+        This function returns
+
+
+        Parameters
+        ----------
+        must_include : list[Polygon]
+            List of polygons the bounding box must include.
+        may_include : list[Polygon]
+            List of polygons the bounding box will include portions of, when inside of mask.
+        mask : Polygon
+            The masking polygon.
+
+        Returns
+        -------
+        BoundingBox
+            The smallest box containing all the points of `must_include`, and all the
+    points of `may_include` that lie within the bounds of `mask`.
+
+    """
+    may_include_polygon = shapely.normalize(shapely.union_all(may_include))
+    must_include_polygon = shapely.normalize(shapely.union_all(must_include))
+    bounding_polygon = shapely.normalize(
+        shapely.union(
+            must_include_polygon, shapely.intersection(may_include_polygon, mask)
         )
-        @ basis
-        + centroid
+    )
+
+    if isinstance(bounding_polygon, shapely.Polygon):
+        return bounding_box.minimum_area_bounding_box(
+            np.array(bounding_polygon.exterior.coords)
+        )
+    return bounding_box.minimum_area_bounding_box(
+        np.vstack([np.array(geom.exterior.coords) for geom in bounding_polygon.geoms])
     )
 
 
@@ -260,21 +215,21 @@ def guess_simulation_duration(
     largest_corner_distance = np.max(np.min(pairwise_distance, axis=1)) / 1000
 
     # taken from rel2vm_params.py
-    siteprop = Site()
+    siteprop = classdef.Site()
     siteprop.vs30 = 500
     siteprop.Rtvz = 0
     siteprop.vs30measured = False
-    siteprop.z1p0 = estimate_z1p0(siteprop.vs30)
+    siteprop.z1p0 = classdef.estimate_z1p0(siteprop.vs30)
     siteprop.Rrup = largest_corner_distance
-    faultprop = Fault()
+    faultprop = classdef.Fault()
     faultprop.ztor = (
         0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
     )
-    faultprop.tect_type = TectType.ACTIVE_SHALLOW
-    faultprop.faultstyle = FaultStyle.UNKNOWN
+    faultprop.tect_type = classdef.TectType.ACTIVE_SHALLOW
+    faultprop.faultstyle = classdef.FaultStyle.UNKNOWN
     faultprop.Mw = type5_realisation.magnitude
 
-    ds = Afshari_Stewart_2016_Ds(siteprop, faultprop, "Ds595")[0]
+    ds = AfshariStewart_2016_Ds.Afshari_Stewart_2016_Ds(siteprop, faultprop, "Ds595")[0]
 
     return s_wave_arrival_time + ds_multiplier * ds
 
@@ -330,7 +285,7 @@ def main(
             "used to determine the boundary between LF and HF calculation."
         ),
     ] = 0.5,
-    ds_multiplier: Annotated[float, typer.Option(help='Ds multiplier')] = 1.2,
+    ds_multiplier: Annotated[float, typer.Option(help="Ds multiplier")] = 1.2,
     vm_version: Annotated[str, typer.Option(help="Velocity model version.")] = "2.06",
     vm_topo_type: Annotated[
         str, typer.Option(help="VM topology type")
@@ -338,7 +293,7 @@ def main(
 ):
     "Generate velocity model parameters for a Type-5 realisation."
     type5_realisation = realisation.read_realisation(realisation_filepath)
-    bounding_box = minimum_area_bounding_box(
+    minimum_bounding_box = bounding_box.minimum_area_bounding_box(
         np.vstack(
             [fault.corners_nztm() for fault in type5_realisation.faults.values()]
         )[:, :2]
@@ -353,22 +308,37 @@ def main(
         )[2]
         / 1000,
     )
-    nx = int(np.ceil(bounding_box.extent_x / resolution))
-    ny = int(np.ceil(bounding_box.extent_y / resolution))
+    (rrup, _) = find_rrup(
+        type5_realisation.magnitude,
+        np.mean([fault.planes[0].dip for fault in type5_realisation.faults.values()]),
+        np.mean([fault.planes[0].rake for fault in type5_realisation.faults.values()]),
+    )
+    site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
+        rrup * 1000
+    )
+    optimal_bounding_box = minimum_area_bounding_box_for_polygons_masked(
+        [minimum_bounding_box.polygon],
+        [site_inclusion_polygon],
+        get_nz_outline_polygon(),
+    )
+    nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
+    ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
     nz = int(np.ceil((max_depth - min_depth) / (resolution)))
-    sim_duration = guess_simulation_duration(bounding_box, type5_realisation, ds_multiplier)
-    (rrup, _) = find_rrup(type5_realisation.magnitude)
-    bounding_box = grow_bounding_box(bounding_box, rrup)
-    box_origin_coords = coordinates.nztm_to_wgs_depth(np.append(bounding_box.origin, 0))
+    sim_duration = guess_simulation_duration(
+        optimal_bounding_box, type5_realisation, ds_multiplier
+    )
+    box_origin_coords = coordinates.nztm_to_wgs_depth(
+        np.append(optimal_bounding_box.origin, 0)
+    )
     normalised_realisation = realisation.normalise_name(type5_realisation.name)
     vm_params = {
         "mag": magnitude,
         "MODEL_LAT": float(box_origin_coords[0]),
         "MODEL_LON": float(box_origin_coords[1]),
-        "MODEL_ROT": float(bounding_box.bearing),
+        "MODEL_ROT": float(optimal_bounding_box.bearing),
         "hh": resolution,
-        "extent_x": float(bounding_box.extent_x),
-        "extent_y": float(bounding_box.extent_y),
+        "extent_x": float(optimal_bounding_box.extent_x),
+        "extent_y": float(optimal_bounding_box.extent_y),
         "extent_zmax": float(max_depth),
         "extent_zmin": float(min_depth),
         "sim_duration": float(sim_duration),

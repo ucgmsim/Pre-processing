@@ -1,9 +1,22 @@
-#!/usr/bin/env python3
+"""
+This module provides classes and functions for working with realisations.
+
+Classes:
+    - FaultJump: Represents a jump across two faults.
+    - RealisationFault: Represents a fault in a realisation.
+    - Realisation: Represents a complete realisation.
+
+Functions:
+    - read_realisation: Reads a realisation from a YAML file.
+    - topologically_sorted_faults: Generates faults in topologically sorted order.
+    - normalise_name: Normalises a name for use in filenames or YAML keys.
+"""
+
 import collections
 import dataclasses
 import re
 from pathlib import Path
-from typing import Generator, Tuple, Optional
+from typing import Generator, Optional, Tuple
 
 import numpy as np
 import qcore.coordinates
@@ -18,19 +31,59 @@ from srf_generation.source_parameter_generation.common import \
 
 @dataclasses.dataclass
 class FaultJump:
+    """
+    Represents a jump across two faults.
+
+    Attributes
+    ----------
+    jump_location_lat : float
+        Latitude of the jump location.
+    jump_location_lon : float
+        Longitude of the jump location.
+    """
+
     jump_location_lat: float
     jump_location_lon: float
 
 
 @dataclasses.dataclass
 class RealisationFault(Fault):
-    magnitude: float = None
-    parent: "RealisationFault" = None
-    parent_jump_coords: Optional[Tuple[float, float]] = None
-    shyp: float = None
-    dhyp: float = None
+    """
+    Represents a fault in a Realisation.
 
-    def random_fault_coordinates(self) -> (float, float):
+    Parameters
+    ----------
+    name : str
+        The name of the fault.
+    tect_type : str
+        The tectonic type of the fault.
+    magnitude : float, optional
+        The magnitude of the fault.
+    parent : RealisationFault, optional
+        The parent fault of this fault. Will be None if the fault is the
+        initial fault in the rupture.
+    parent_jump_coords : tuple, optional
+        Coordinates of the parent jump.
+    shyp : float, optional
+        Distance of hypocentre (along strike).
+    dhyp : float, optional
+        Distance of hypocenter (along dip).
+    """
+
+    magnitude: Optional[float] = None
+    parent: Optional["RealisationFault"] = None
+    parent_jump_coords: Optional[Tuple[float, float]] = None
+    shyp: Optional[float] = None
+    dhyp: Optional[float] = None
+
+    def random_fault_coordinates(self) -> Tuple[float, float]:
+        """Generate random hypocentre coordinates for the fault.
+
+        Returns
+        -------
+        tuple
+            Random coordinates (shyp, dhyp) for the fault.
+        """
         weibull_scale = 0.612
         dhyp = (
             self.widths()[0]
@@ -39,7 +92,14 @@ class RealisationFault(Fault):
         shyp = distributions.rand_shyp() * np.sum(self.lengths())
         return (shyp, dhyp)
 
-    def expected_fault_coordinates(self) -> (float, float):
+    def expected_fault_hypocentre_coordinates(self) -> Tuple[float, float]:
+        """Calculate the expected hypocentre coordinates for this fault.
+
+        Returns
+        -------
+        tuple[float, float]
+            Expected coordinates (shyp, dhyp) for the fault.
+        """
         weibull_scale = 0.612
         dhyp = (
             self.widths()[0]
@@ -51,6 +111,30 @@ class RealisationFault(Fault):
 
 @dataclasses.dataclass
 class Realisation:
+    """Represents a complete realisation.
+
+    Parameters
+    ----------
+    name : str
+        The name of the realisation.
+    type : int
+        The type of the realisation.
+    dt : float
+        The timestep of the realisation for simulation.
+    magnitude : float
+        The magnitude of the realisation.
+    genslip_seed : int
+        The genslip seed of the realisation.
+    genslip_version : str
+        The genslip version to use for realisation SRF generation.
+    srfgen_seed : int
+        The srfgen seed of the realisation.
+    velocity_model : str
+        The velocity model for the realisation.
+    faults : dict
+        Dictionary of faults associated with the realisation.
+    """
+
     name: str
     type: int
     dt: float
@@ -62,10 +146,29 @@ class Realisation:
     faults: dict[str, RealisationFault]
 
     def initial_fault(self) -> RealisationFault:
+        """Get the initial fault in the realisation.
+
+        Returns
+        -------
+        RealisationFault
+            The initial fault in the realisation.
+        """
         return next(fault for fault in self.faults.values() if not fault.parent)
 
 
 def read_realisation(realisation_filepath: Path) -> Realisation:
+    """Read a realisation from a YAML file.
+
+    Parameters
+    ----------
+    realisation_filepath : Path
+        Path to the YAML file containing realisation data.
+
+    Returns
+    -------
+    Realisation
+        The parsed realisation object.
+    """
     with open(realisation_filepath, "r", encoding="utf-8") as realisation_file:
         raw_yaml_data = yaml.safe_load(realisation_file)
         faults_object = raw_yaml_data["faults"]
@@ -101,7 +204,7 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
         return Realisation(
             name=raw_yaml_data["name"],
             type=raw_yaml_data["type"],
-            magnitude=fault_obj["magnitude"],
+            magnitude=raw_yaml_data["magnitude"],
             dt=raw_yaml_data["dt"],
             genslip_seed=raw_yaml_data["genslip_seed"],
             srfgen_seed=raw_yaml_data["srfgen_seed"],
@@ -114,6 +217,18 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
 def topologically_sorted_faults(
     faults: list[RealisationFault],
 ) -> Generator[RealisationFault, None, None]:
+    """Generate faults in topologically sorted order.
+
+    Parameters
+    ----------
+    faults : list[RealisationFault]
+        List of RealisationFault objects.
+
+    Yields
+    ------
+    RealisationFault
+        The next fault in the topologically sorted order.
+    """
     fault_children_map = collections.defaultdict(list)
     for fault in faults:
         if fault.parent:

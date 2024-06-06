@@ -6,19 +6,22 @@ from typing import Annotated
 import numpy as np
 import typer
 from pygmt_helper import plotting
+
 from srf_generation import realisation
 from srf_generation.realisation import Realisation
 
 app = typer.Typer()
 
 
-def plot_realisation(realisation_obj: Realisation):
+def plot_realisation(realisation_obj: Realisation, output_path: Path):
     """Plot faults involved in a rupture scenario using pygmt.
 
     Parameters
     ----------
     realisation : Realisation
         The realisation to plot
+    output_path : Path
+        The path to output the realisation plot to.
     """
 
     corners = np.vstack([fault.corners() for fault in realisation_obj.faults.values()])
@@ -78,7 +81,7 @@ def plot_realisation(realisation_obj: Realisation):
                 pen="black",
             )
     fig.legend()
-    fig.show()
+    fig.savefig(output_path)
 
 
 @app.command()
@@ -88,11 +91,14 @@ def main(
         typer.Argument(
             help="Path to realisation file", exists=True, dir_okay=False, readable=True
         ),
-    ]
+    ],
+    output_path: Annotated[
+        Path, typer.Argument(help="Output plot path", dir_okay=False, writable=True)
+    ],
 ):
     "Plot a realisation with pygmt."
     realisation_obj = realisation.read_realisation(realisation_path)
-    plot_realisation(realisation_obj)
+    plot_realisation(realisation_obj, output_path)
 
 
 if __name__ == "__main__":
