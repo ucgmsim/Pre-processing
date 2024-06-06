@@ -1,3 +1,20 @@
+"""
+Type-5 SRF file generation.
+
+This script facilitates the generation of type-5 SRF files from realisation
+specifications (YAML files). It generates fault geometries, generates SRF
+files from fault geometries, and stitches together these files in the order
+of rupture propagation.
+
+Example
+-------
+To generate a type-5 SRF file from a realisation specification:
+
+```
+$ python srf_generation.py path/to/realisation.yaml output_directory
+```
+"""
+
 import functools
 import multiprocessing
 import re
@@ -12,7 +29,7 @@ import typer
 from qcore import binary_version, coordinates, gsf
 
 from srf_generation import realisation
-from srf_generation.realisation import RealisationFault
+from srf_generation.realisation import Realisation, RealisationFault
 
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
@@ -40,6 +57,17 @@ def generate_fault_gsf(
     gsf_output_directory: Path,
     subdivision_resolution: float,
 ):
+    """Write the fault geometry of a fault to a GSF file.
+
+    Parameters
+    ----------
+    fault : RealisationFault
+        The fault to write.
+    gsf_output_directory : Path
+        The directory to output the GSF file to.
+    subdivision_resolution : float
+        The geometry resolution.
+    """
     gsf_output_filepath = gsf_output_directory / f"{normalise_name(fault.name)}.gsf"
     gsf_df = pd.DataFrame(
         [
@@ -67,6 +95,20 @@ def generate_fault_gsf(
 
 
 def srf_file_for_fault(output_directory: Path, fault: RealisationFault) -> Path:
+    """Return the path for an SRF file within a directory.
+
+    Parameters
+    ----------
+    output_directory : Path
+        The directory to output to.
+    fault : RealisationFault
+        The fault to find the path for.
+
+    Returns
+    -------
+    Path
+        The path to the SRF file.
+    """
     return output_directory / (fault.name + ".srf")
 
 
@@ -99,10 +141,23 @@ def create_stoch(
 
 def generate_fault_srf(
     fault: RealisationFault,
-    realisation: realisation.Realisation,
+    realisation: Realisation,
     output_directory: Path,
     subdivision_resolution: float,
 ):
+    """Generate an SRF file for a given fault.
+
+    Parameters
+    ----------
+    fault : RealisationFault
+        The fault to generate the SRF file for.
+    realisation : Realisation
+        The realisation the fault belongs to.
+    output_directory : Path
+        The output directory.
+    subdivision_resolution : float
+        The geometry resolution.
+    """
     gsf_output_directory = output_directory / "gsf"
     gsf_file_path = generate_fault_gsf(
         fault, gsf_output_directory, subdivision_resolution
@@ -166,13 +221,21 @@ def generate_fault_srf(
         )
 
 
-def closest_gridpoint(grid: np.ndarray, point: np.ndarray) -> int:
-    return int(np.argmin(np.sum(np.square(grid - point), axis=1)))
+def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Path:
+    """Stitch SRF files together in the order of rupture propogation.
 
+    Parameters
+    ----------
+    realisation_obj : Realisation
+        The realisation containing the faults and rupture propogation order.
+    output_directory : Path
+        The output directory containing fault SRF files.
 
-def stitch_srf_files(
-    realisation_obj: realisation.Realisation, output_directory: Path
-) -> Path:
+    Returns
+    -------
+    Path
+        The path to the stitched together SRF file.
+    """
     srf_output_filepath = output_directory / f"{realisation_obj.name}.srf"
     with open(srf_output_filepath, "w", encoding="utf-8") as srf_file_output:
         fault_points = {}
@@ -222,9 +285,8 @@ def stitch_srf_files(
                         ]
                     )
                 )
-                jump_index = closest_gridpoint(
-                    grid_points,
-                    parent_coords,
+                jump_index = int(
+                    np.argmin(np.sum(np.square(grid_points - parent_coords), axis=1))
                 )
                 t_delay = parent_fault_points[jump_index].tinit
             cur_fault_points = fault_points[fault.name]
@@ -236,10 +298,21 @@ def stitch_srf_files(
 
 
 def generate_fault_srfs_parallel(
-    realisation: realisation.Realisation,
+    realisation: Realisation,
     output_directory: Path,
     subdivision_resolution: float,
 ):
+    """Generate fault SRF files in parallel.
+
+    Parameters
+    ----------
+    realisation : Realisation
+        The realisation to generate fault SRF files for.
+    output_directory : Path
+        The directory to output the fault SRF files.
+    subdivision_resolution : float
+        The geometry resolution.
+    """
     # need to do this before multiprocessing because of race conditions
     gsf_directory = output_directory / "gsf"
     if not gsf_directory.exists():
