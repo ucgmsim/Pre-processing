@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+"""
+This script allows the user to visualise a type5 realisation, including
+fault geometry, jump points and planned rupture propogation.
+
+Usage
+-----
+```
+$ python visualise_realisation.py path/to/realisation.yaml output_directory
+```
+"""
 
 from pathlib import Path
 from typing import Annotated
