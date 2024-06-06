@@ -13,6 +13,7 @@ Functions:
     - axis_aligned_bounding_box: Returns an axis-aligned bounding box containing points.
     - rotation_matrix: Returns the 2D rotation matrix for a given angle.
     - minimum_area_bounding_box: Returns the smallest rectangle bounding points.
+    - minimum_area_bounding_box_for_polygons_masked: Returns a bounding box around masked polygons.
 """
 
 import dataclasses
@@ -21,6 +22,7 @@ import numpy as np
 import scipy as sp
 import shapely
 from qcore import geo
+from shapely import Polygon
 
 
 @dataclasses.dataclass
@@ -68,9 +70,7 @@ class BoundingBox:
     @property
     def polygon(self):
         """Returns a shapely geometry for the bounding box."""
-        return shapely.Polygon(
-            np.append(self.corners, np.atleast_2d(self.corners[0]), axis=0)
-        )
+        return Polygon(np.append(self.corners, np.atleast_2d(self.corners[0]), axis=0))
 
 
 def axis_aligned_bounding_box(points: np.ndarray) -> BoundingBox:
@@ -138,4 +138,48 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
     )
     return BoundingBox(
         minimum_bounding_box.corners @ rotation_matrix(-rotation_angle).T
+    )
+
+
+def minimum_area_bounding_box_for_polygons_masked(
+    must_include: list[Polygon], may_include: list[Polygon], mask: Polygon
+) -> BoundingBox:
+    """
+    Return the minimum area bounding box for a list of polygons masked by
+    another polygon.
+
+
+    This function returns
+
+
+    Parameters
+    ----------
+    must_include : list[Polygon]
+        List of polygons the bounding box must include.
+    may_include : list[Polygon]
+        List of polygons the bounding box will include portions of, when inside of mask.
+    mask : Polygon
+        The masking polygon.
+
+    Returns
+    -------
+    BoundingBox
+        The smallest box containing all the points of `must_include`, and all the
+        points of `may_include` that lie within the bounds of `mask`.
+
+    """
+    may_include_polygon = shapely.normalize(shapely.union_all(may_include))
+    must_include_polygon = shapely.normalize(shapely.union_all(must_include))
+    bounding_polygon = shapely.normalize(
+        shapely.union(
+            must_include_polygon, shapely.intersection(may_include_polygon, mask)
+        )
+    )
+
+    if isinstance(bounding_polygon, Polygon):
+        return bounding_box.minimum_area_bounding_box(
+            np.array(bounding_polygon.exterior.coords)
+        )
+    return bounding_box.minimum_area_bounding_box(
+        np.vstack([np.array(geom.exterior.coords) for geom in bounding_polygon.geoms])
     )

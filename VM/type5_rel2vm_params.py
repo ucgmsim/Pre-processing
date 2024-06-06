@@ -35,7 +35,7 @@ script_dir = Path(__file__).resolve().parent
 NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
 
 
-def get_nz_outline_polygon():
+def get_nz_outline_polygon() -> Polygon:
     """
     Get the outline polygon of New Zealand.
 
@@ -53,19 +53,19 @@ def get_nz_outline_polygon():
     return shapely.Polygon(polygon_coordinates)
 
 
-def pgv_estimate_from_magnitude(magnitude: float):
+def pgv_estimate_from_magnitude(magnitude: np.ndarray) -> np.ndarray:
     """
     Return PGV for a given magnitude based on default scaling relationship.
 
     Parameters
     ----------
-    magnitude : float
-        The magnitude of the rupture.
+    magnitude : np.ndarray
+        The magnitude(s) of the rupture.
 
     Returns
     -------
-    float
-        An estimate of PGV for the rupture.
+    np.ndarray
+        An estimate of PGV for the rupture(s).
     """
     return np.interp(
         magnitude,
@@ -124,50 +124,6 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
     if pgv_delta > 1e-4:
         raise ValueError(f"Failed to converge on rrup optimisation.")
     return rrup, pgv_target + pgv_delta
-
-
-def minimum_area_bounding_box_for_polygons_masked(
-    must_include: list[Polygon], may_include: list[Polygon], mask: Polygon
-) -> BoundingBox:
-    """
-        Return the minimum area bounding box for a list of polygons masked by
-        another polygon.
-
-
-        This function returns
-
-
-        Parameters
-        ----------
-        must_include : list[Polygon]
-            List of polygons the bounding box must include.
-        may_include : list[Polygon]
-            List of polygons the bounding box will include portions of, when inside of mask.
-        mask : Polygon
-            The masking polygon.
-
-        Returns
-        -------
-        BoundingBox
-            The smallest box containing all the points of `must_include`, and all the
-            points of `may_include` that lie within the bounds of `mask`.
-
-    """
-    may_include_polygon = shapely.normalize(shapely.union_all(may_include))
-    must_include_polygon = shapely.normalize(shapely.union_all(must_include))
-    bounding_polygon = shapely.normalize(
-        shapely.union(
-            must_include_polygon, shapely.intersection(may_include_polygon, mask)
-        )
-    )
-
-    if isinstance(bounding_polygon, shapely.Polygon):
-        return bounding_box.minimum_area_bounding_box(
-            np.array(bounding_polygon.exterior.coords)
-        )
-    return bounding_box.minimum_area_bounding_box(
-        np.vstack([np.array(geom.exterior.coords) for geom in bounding_polygon.geoms])
-    )
 
 
 def guess_simulation_duration(
@@ -234,7 +190,7 @@ def guess_simulation_duration(
     return s_wave_arrival_time + ds_multiplier * ds
 
 
-def get_max_depth(magnitude: float, hypocentre_depth: float):
+def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
     """
     Estimate the maximum depth to simulate for a rupture at a given depth
     with a given magnitude.
@@ -316,7 +272,7 @@ def main(
     site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
         rrup * 1000
     )
-    optimal_bounding_box = minimum_area_bounding_box_for_polygons_masked(
+    optimal_bounding_box = bounding_box.minimum_area_bounding_box_for_polygons_masked(
         [minimum_bounding_box.polygon],
         [site_inclusion_polygon],
         get_nz_outline_polygon(),
