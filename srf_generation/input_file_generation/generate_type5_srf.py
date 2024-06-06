@@ -1,3 +1,4 @@
+#!usr/bin/env python
 """
 Type-5 SRF file generation.
 
