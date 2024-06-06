@@ -150,7 +150,7 @@ def minimum_area_bounding_box_for_polygons_masked(
         -------
         BoundingBox
             The smallest box containing all the points of `must_include`, and all the
-    points of `may_include` that lie within the bounds of `mask`.
+            points of `may_include` that lie within the bounds of `mask`.
 
     """
     may_include_polygon = shapely.normalize(shapely.union_all(may_include))
