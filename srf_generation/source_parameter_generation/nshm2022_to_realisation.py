@@ -310,19 +310,6 @@ def set_magnitudes(faults: list[RealisationFault]):
     return total_magnitude
 
 
-def estimate_log_rupture_rate_for_magnitude(
-    rupture_mfds: np.ndarray, magnitude: float
-) -> float:
-
-    def log_model(m, a, b):
-        return a - b * m
-
-    popt, _ = sp.optimize.curve_fit(
-        log_model, rupture_mfds[:, 0], np.log(rupture_mfds[:, 1])
-    )
-    return log_model(magnitude, *popt)
-
-
 def write_yaml_realisation_stub_file(
     yaml_realisation_file: TextIO,
     default_parameter_values: dict[str, Any],
