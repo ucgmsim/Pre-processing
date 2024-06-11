@@ -122,10 +122,10 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
         The minimum area bounding box.
     """
     # This is a somewhat brute-force method to obtain the minimum-area bounding
-    # box of a set of points, where the bounding box is not axis-aligned is
+    # box of a set of points, where the bounding box is not axis-aligned and is
     # instead allowed to be rotated. The idea is to reduce the problem to the
     # far simpler axis-aligned bounding box by observing that the minimum
-    # area bounding box must have a sit parallel with *some* edge of the
+    # area bounding box must have a side parallel with *some* edge of the
     # convex hull of the points. By rotating the picture so that the shared
     # edge is axis-aligned, the problem is reduced to that of finding the
     # axis-aligned bounding box. Because we do not know this edge apriori,
@@ -143,7 +143,7 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
 
     # Create a list of rotated bounding boxes by rotating each rotation angle,
     # and then finding the axis-aligned bounding box of the convex hull. This
-    # creates a list of boxes that each parallel to a different segment.
+    # creates a list of boxes that are each parallel to a different segment.
     bounding_boxes = [
         axis_aligned_bounding_box(convex_hull @ rotation_matrix(angle).T)
         for angle in rotation_angles
