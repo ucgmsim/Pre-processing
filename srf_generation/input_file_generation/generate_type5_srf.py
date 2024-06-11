@@ -26,10 +26,12 @@ import numpy as np
 import pandas as pd
 import srf
 import typer
+import yaml
 from qcore import binary_version, coordinates, gsf
 
 from srf_generation import realisation
 from srf_generation.realisation import Realisation, RealisationFault
+from srf_generation.source_parameter_generation import uncertainties
 
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
@@ -314,6 +316,40 @@ def generate_fault_srfs_parallel(
         )
 
 
+def generate_sim_params_yaml(
+    sim_params_filepath: Path,
+):
+    """Write simulation parameters to a yaml file.
+
+    Parameters
+    ----------
+    sim_params_file : str
+        The filepath to save the simulation parameters.
+    """
+    # stolen from realisation_to_srf
+    sim_params = {}
+    for key, value in parameters.items():
+        if key in uncertainties.comomon.HF_RUN_PARAMS:
+            if "hf" not in sim_params:
+                sim_params["hf"] = {}
+            sim_params["hf"][key] = value
+        elif key in uncertainties.common.BB_RUN_PARAMS:
+            if "bb" not in sim_params:
+                sim_params["bb"] = {}
+            sim_params["bb"][key] = value
+        elif key in uncertainties.common.LF_RUN_PARAMS:
+            if "emod3d" not in sim_params:
+                sim_params["emod3d"] = {}
+            sim_params["emod3d"][key] = value
+        elif key == "vs30_file_path":
+            sim_params["stat_vs_est"] = value
+        else:
+            sim_params[key] = value
+
+    with open(sim_params_filepath, "w", encoding="utf-8") as sim_params_file_handle:
+        yaml.safe_dump(sim_params, sim_params_file_handle)
+
+
 def main(
     realisation_filepath: Annotated[
         Path,
@@ -345,6 +381,9 @@ def main(
     srf_output_filepath = stitch_srf_files(realisation_parameters, output_directory)
     create_stoch(
         srf_output_filepath, output_directory / f"{realisation_parameters.name}.stoch"
+    )
+    generate_sim_params_yaml(
+        output_directory / realisation_filepath.name.removeprefix("type5_")
     )
 
 
