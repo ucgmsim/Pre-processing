@@ -121,6 +121,16 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
     BoundingBox
         The minimum area bounding box.
     """
+    # This is a somewhat brute-force method to obtain the minimum-area bounding
+    # box of a set of points, where the bounding box is not axis-aligned is
+    # instead allowed to be rotated. The idea is to reduce the problem to the
+    # far simpler axis-aligned bounding box by observing that the minimum
+    # area bounding box must have a sit parallel with *some* edge of the
+    # convex hull of the points. By rotating the picture so that the shared
+    # edge is axis-aligned, the problem is reduced to that of finding the
+    # axis-aligned bounding box. Because we do not know this edge apriori,
+    # we simply try it for all the edges and then take the smallest area
+    # box at the end.
     convex_hull = sp.spatial.ConvexHull(points).points
     segments = np.array(
         [
@@ -128,18 +138,25 @@ def minimum_area_bounding_box(points: np.ndarray) -> BoundingBox:
             for i in range(len(convex_hull))
         ]
     )
+    # This finds the slope of each segment with respect to the axes.
     rotation_angles = -np.arctan2(segments[:, 1], segments[:, 0])
 
+    # Create a list of rotated bounding boxes by rotating each rotation angle,
+    # and then finding the axis-aligned bounding box of the convex hull. This
+    # creates a list of boxes that each parallel to a different segment.
     bounding_boxes = [
         axis_aligned_bounding_box(convex_hull @ rotation_matrix(angle).T)
         for angle in rotation_angles
     ]
 
-    rotation_angle, minimum_bounding_box = min(
+    minimum_rotation_angle, minimum_bounding_box = min(
         zip(rotation_angles, bounding_boxes), key=lambda rot_box: rot_box[1].area
     )
     return BoundingBox(
-        minimum_bounding_box.corners @ rotation_matrix(-rotation_angle).T
+        # rotating by -minimum_rotation_angle we undo the rotation applied
+        # to obtain bounding_boxes.
+        minimum_bounding_box.corners
+        @ rotation_matrix(-minimum_rotation_angle).T
     )
 
 
