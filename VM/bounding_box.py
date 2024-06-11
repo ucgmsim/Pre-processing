@@ -32,7 +32,9 @@ class BoundingBox:
     Attributes
     ----------
         corners : np.ndarray
-            The corners of the bounding box.
+            The corners of the bounding box. The order of the corners is
+            clock-wise from the top-left point with respect to latitude
+            and longitude.
     """
 
     corners: np.ndarray
