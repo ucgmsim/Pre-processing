@@ -24,14 +24,14 @@ from typing import Annotated
 
 import numpy as np
 import pandas as pd
+import srf
 import typer
 import yaml
-from qcore import binary_version, coordinates, gsf
+from qcore import binary_version, coordinates, grid, gsf
+
 from srf_generation import realisation
 from srf_generation.realisation import Realisation, RealisationFault
 from srf_generation.source_parameter_generation import uncertainties
-
-import srf
 
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
@@ -64,7 +64,7 @@ def generate_fault_gsf(
                 "length": plane.length,
                 "width": plane.width,
                 "rake": plane.rake,
-                "meshgrid": gsf.coordinate_meshgrid(
+                "meshgrid": grid.coordinate_meshgrid(
                     plane.corners[0],
                     plane.corners[1],
                     plane.corners[-1],
@@ -154,10 +154,10 @@ def generate_fault_srf(
 
     resolution = 100
     nx = sum(
-        gsf.gridpoint_count_in_length(plane.length_m, resolution)
+        grid.gridpoint_count_in_length(plane.length_m, resolution)
         for plane in fault.planes
     )
-    ny = gsf.gridpoint_count_in_length(fault.planes[0].width_m, resolution)
+    ny = grid.gridpoint_count_in_length(fault.planes[0].width_m, resolution)
     genslip_cmd = [
         genslip_bin,
         "read_erf=0",
