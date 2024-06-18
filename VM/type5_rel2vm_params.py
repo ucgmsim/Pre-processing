@@ -22,12 +22,12 @@ import scipy as sp
 import shapely
 import typer
 import yaml
+from models import AfshariStewart_2016_Ds, classdef
 from qcore import bounding_box, coordinates
 from qcore.bounding_box import BoundingBox
 from shapely import Polygon
-from srf_generation import realisation
 
-from models import AfshariStewart_2016_Ds, classdef
+from srf_generation import realisation
 from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
 
 script_dir = Path(__file__).resolve().parent
@@ -248,14 +248,16 @@ def main(
 ):
     "Generate velocity model parameters for a Type-5 realisation."
     type5_realisation = realisation.read_realisation(realisation_filepath)
+
     minimum_bounding_box = bounding_box.minimum_area_bounding_box(
         np.vstack(
             [fault.corners_nztm() for fault in type5_realisation.faults.values()]
         )[:, :2]
     )
-    min_depth = 0
+
     initial_fault = type5_realisation.initial_fault()
     magnitude = type5_realisation.magnitude
+    min_depth = 0
     max_depth = get_max_depth(
         magnitude,
         initial_fault.fault_coordinates_to_wgsdepth_coordinates(
@@ -263,6 +265,7 @@ def main(
         )[2]
         / 1000,
     )
+
     (rrup, _) = find_rrup(
         type5_realisation.magnitude,
         np.mean([fault.planes[0].dip for fault in type5_realisation.faults.values()]),
@@ -276,16 +279,20 @@ def main(
         [site_inclusion_polygon],
         get_nz_outline_polygon(),
     )
+
     nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
     ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
     nz = int(np.ceil((max_depth - min_depth) / (resolution)))
     sim_duration = guess_simulation_duration(
         optimal_bounding_box, type5_realisation, ds_multiplier
     )
+
     box_origin_coords = coordinates.nztm_to_wgs_depth(
         np.append(optimal_bounding_box.origin, 0)
     )
-    normalised_realisation = realisation.normalise_name(type5_realisation.name)
+
+    normalised_realisation_name = realisation.normalise_name(type5_realisation.name)
+
     vm_params = {
         "mag": magnitude,
         "MODEL_LAT": float(box_origin_coords[0]),
@@ -302,10 +309,11 @@ def main(
         "nz": nz,
         "min_vs": min_vs,
         "flo": min_vs / (5.0 * resolution),
-        "sufx": f"_{normalised_realisation}01-h{resolution:.3f}",
+        "sufx": f"_{normalised_realisation_name}01-h{resolution:.3f}",
         "model_version": vm_version,
         "topo_type": vm_topo_type,
     }
+
     with open(output_path, "w", encoding="utf-8") as output_file_handle:
         yaml.dump(vm_params, output_file_handle)
 
