@@ -20,15 +20,15 @@ import numpy as np
 import qcore.coordinates
 import qcore.geo
 import qcore.uncertainties.mag_scaling
+import rupture_propogation
 import scipy as sp
 import typer
 import yaml
 from nshmdb import nshmdb
 from nshmdb.fault import FaultPlane
-from srf_generation.realisation import RealisationFault
-
-import rupture_propogation
 from rupture_propogation import RuptureCausalityTree
+
+from srf_generation.realisation import RealisationFault
 
 
 def closest_points_between_faults(
@@ -415,4 +415,4 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(app)
+    typer.run(main)
