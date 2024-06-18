@@ -330,23 +330,6 @@ def generate_sim_params_yaml(
     """
     # stolen from realisation_to_srf
     sim_params = {}
-    for key, value in parameters.items():
-        if key in uncertainties.comomon.HF_RUN_PARAMS:
-            if "hf" not in sim_params:
-                sim_params["hf"] = {}
-            sim_params["hf"][key] = value
-        elif key in uncertainties.common.BB_RUN_PARAMS:
-            if "bb" not in sim_params:
-                sim_params["bb"] = {}
-            sim_params["bb"][key] = value
-        elif key in uncertainties.common.LF_RUN_PARAMS:
-            if "emod3d" not in sim_params:
-                sim_params["emod3d"] = {}
-            sim_params["emod3d"][key] = value
-        elif key == "vs30_file_path":
-            sim_params["stat_vs_est"] = value
-        else:
-            sim_params[key] = value
 
     with open(sim_params_filepath, "w", encoding="utf-8") as sim_params_file_handle:
         yaml.safe_dump(sim_params, sim_params_file_handle)
