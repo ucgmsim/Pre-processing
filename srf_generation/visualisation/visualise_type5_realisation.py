@@ -6,7 +6,7 @@ fault geometry, jump points and planned rupture propogation.
 Usage
 -----
 ```
-$ python visualise_realisation.py path/to/realisation.yaml output_directory
+$ python visualise_type5_realisation.py path/to/realisation.yaml output_directory
 ```
 """
 
@@ -16,7 +16,6 @@ from typing import Annotated
 import numpy as np
 import typer
 from pygmt_helper import plotting
-
 from srf_generation import realisation
 from srf_generation.realisation import Realisation
 

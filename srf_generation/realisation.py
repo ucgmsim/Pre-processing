@@ -25,26 +25,8 @@ import yaml
 from nshmdb import fault
 from nshmdb.fault import Fault
 
-from srf_generation.source_parameter_generation.common import (
-    DEFAULT_1D_VELOCITY_MODEL_PATH,
-)
-
-
-@dataclasses.dataclass
-class FaultJump:
-    """
-    Represents a jump across two faults.
-
-    Attributes
-    ----------
-    jump_location_lat : float
-        Latitude of the jump location.
-    jump_location_lon : float
-        Longitude of the jump location.
-    """
-
-    jump_location_lat: float
-    jump_location_lon: float
+from srf_generation.source_parameter_generation.common import \
+    DEFAULT_1D_VELOCITY_MODEL_PATH
 
 
 @dataclasses.dataclass

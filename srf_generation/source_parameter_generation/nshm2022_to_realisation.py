@@ -3,7 +3,7 @@
 Generate realisation stub files from ruptures in the NSHM 2022 database.
 
 This script generates YAML realisation stub files from ruptures in the NSHM 2022
-database. It extracts fault geometry computes causality information from the database
+database. It extracts fault geometry, computes causality information from the database
 and incorporates default parameter values to generate the realisation.
 
 Usage
@@ -20,15 +20,15 @@ import numpy as np
 import qcore.coordinates
 import qcore.geo
 import qcore.uncertainties.mag_scaling
-import rupture_propogation
 import scipy as sp
 import typer
 import yaml
 from nshmdb import nshmdb
 from nshmdb.fault import FaultPlane
-from rupture_propogation import RuptureCausalityTree
-
 from srf_generation.realisation import RealisationFault
+
+import rupture_propogation
+from rupture_propogation import RuptureCausalityTree
 
 
 def closest_points_between_faults(
@@ -238,12 +238,9 @@ def link_hypocentres(
             from_fault_point, to_fault_point = (
                 compute_jump_point_hypocentre_fault_coordinates(from_fault, to_fault)
             )
-            try:
-                to_shyp, to_dhyp = to_fault.global_coordinates_to_fault_coordinates(
-                    to_fault_point
-                )
-            except ValueError:
-                breakpoint()
+            to_shyp, to_dhyp = to_fault.global_coordinates_to_fault_coordinates(
+                to_fault_point
+            )
             to_fault.parent = from_fault
             to_fault.shyp = float(to_shyp)
             to_fault.dhyp = float(to_dhyp)
@@ -271,7 +268,7 @@ def magnitude_for_fault(target_fault: RealisationFault, total_area: float) -> fl
     """Calculate the target fault's contribution to the total magnitude of a given rupture.
 
     Given a target fault, and the total area of a rupture the fault participates
-    in, calculation the proportion of the magnitude that the target fault would
+    in, calculate the proportion of the magnitude that the target fault would
     produce when it ruptures.
 
     Parameters

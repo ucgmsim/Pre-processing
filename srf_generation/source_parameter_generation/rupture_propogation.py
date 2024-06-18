@@ -33,7 +33,7 @@ RuptureCausalityTree = dict[str, Optional[str]]
 
 def shaw_dieterich_distance_model(distance: float, d0, delta) -> float:
     """
-    Compute fault jump probabilities using the Shaw-Dieterich distance model.
+    Compute fault jump probabilities using the Shaw-Dieterich distance model[0].
 
     Parameters
     ----------
@@ -48,6 +48,11 @@ def shaw_dieterich_distance_model(distance: float, d0, delta) -> float:
     -------
     float
         The calculated probability.
+
+    References
+    ----------
+    [0]: Shaw, B. E., & Dieterich, J. H. (2007). Probabilities for jumping fault
+         segment stepovers. Geophysical Research Letters, 34(1).
     """
     return min(1, np.exp(-(distance - delta) / d0))
 

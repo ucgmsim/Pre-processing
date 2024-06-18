@@ -24,14 +24,14 @@ from typing import Annotated
 
 import numpy as np
 import pandas as pd
-import srf
 import typer
 import yaml
 from qcore import binary_version, coordinates, gsf
-
 from srf_generation import realisation
 from srf_generation.realisation import Realisation, RealisationFault
 from srf_generation.source_parameter_generation import uncertainties
+
+import srf
 
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
@@ -240,6 +240,8 @@ def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Pa
                 fault_header = srf.read_srf_headers(fault_srf_file)
                 if fault.parent:
                     for plane in fault_header:
+                        # The value of -999, -999 is used in the SRF spec to say
+                        # "no hypocentre for this segment".
                         plane.shyp = -999
                         plane.dhyp = -999
                 header.extend(fault_header)

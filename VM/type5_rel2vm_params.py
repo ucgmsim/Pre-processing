@@ -22,13 +22,12 @@ import scipy as sp
 import shapely
 import typer
 import yaml
-from models import AfshariStewart_2016_Ds, classdef
-from qcore import coordinates
+from qcore import bounding_box, coordinates
+from qcore.bounding_box import BoundingBox
 from shapely import Polygon
-
 from srf_generation import realisation
-from VM import bounding_box
-from VM.bounding_box import BoundingBox
+
+from models import AfshariStewart_2016_Ds, classdef
 from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
 
 script_dir = Path(__file__).resolve().parent
@@ -122,7 +121,7 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
     rrup = rrup_optimise_result.x
     pgv_delta = rrup_optimise_result.fun
     if pgv_delta > 1e-4:
-        raise ValueError(f"Failed to converge on rrup optimisation.")
+        raise ValueError("Failed to converge on rrup optimisation.")
     return rrup, pgv_target + pgv_delta
 
 
@@ -200,7 +199,7 @@ def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
     magnitude : float
         The magnitude of the rupture.
     hypocentre_depth : float
-        hypocentre depth.
+        hypocentre depth (in km).
 
 
     Returns
