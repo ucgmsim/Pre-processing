@@ -127,6 +127,7 @@ class Realisation:
     srfgen_seed: int
     velocity_model: str
     faults: dict[str, RealisationFault]
+    resolution: float
 
     def initial_fault(self) -> RealisationFault:
         """Get the initial fault in the realisation.
@@ -192,6 +193,7 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
             genslip_seed=raw_yaml_data["genslip_seed"],
             srfgen_seed=raw_yaml_data["srfgen_seed"],
             genslip_version=raw_yaml_data["genslip_version"],
+            resolution=raw_yaml_data['resolution'],
             faults=faults,
             velocity_model=DEFAULT_1D_VELOCITY_MODEL_PATH,
         )
