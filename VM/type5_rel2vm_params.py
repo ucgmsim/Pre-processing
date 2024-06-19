@@ -230,6 +230,9 @@ def main(
     output_path: Annotated[
         Path, typer.Argument(help="The path to the output VM params.")
     ],
+    resolution: Annotated[
+        float, typer.Option(help="The resolution of the simulation in kilometres.")
+    ] = 0.1,
     min_vs: Annotated[
         float,
         typer.Option(
@@ -277,8 +280,6 @@ def main(
         get_nz_outline_polygon(),
     )
 
-    resolution = type5_realisation.resolution
-    
     nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
     ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
     nz = int(np.ceil((max_depth - min_depth) / (resolution)))
