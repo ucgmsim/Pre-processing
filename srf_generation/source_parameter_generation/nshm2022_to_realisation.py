@@ -400,7 +400,7 @@ def main(
     rupture_causality_tree = build_rupture_causality_tree(initial_fault, faults)
     link_hypocentres(rupture_causality_tree, faults)
     default_parameter_values_with_args = {
-        "name": f"Rupture {rupture_id}",
+        "name": f"Rupture_{rupture_id}",
         "type": 5,
         "genslip_version": "5.4.2",
         "srfgen_seed": srfgen_seed,
