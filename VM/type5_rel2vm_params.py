@@ -59,7 +59,7 @@ def pgv_estimate_from_magnitude(magnitude: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     magnitude : np.ndarray
-        The magnitude(s) of the rupture.
+        The magnitude(s) of the rupture(s).
 
     Returns
     -------
