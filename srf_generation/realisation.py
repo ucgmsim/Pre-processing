@@ -19,11 +19,11 @@ from pathlib import Path
 from typing import Generator, Optional, Tuple
 
 import numpy as np
-import qcore.coordinates
 import scipy as sp
 import yaml
 from nshmdb import fault
 from nshmdb.fault import Fault
+from qcore import coordinates, distributions
 
 from srf_generation.source_parameter_generation.common import \
     DEFAULT_1D_VELOCITY_MODEL_PATH
@@ -67,11 +67,7 @@ class RealisationFault(Fault):
         tuple
             Random coordinates (shyp, dhyp) for the fault.
         """
-        weibull_scale = 0.612
-        dhyp = (
-            self.widths()[0]
-            * sp.stats.weibull_min(3.353, 0, 1, scale=weibull_scale).rvs(1)[0]
-        )
+        dhyp = self.widths()[0] * distributions.truncated_weibull(1)
         shyp = distributions.rand_shyp() * np.sum(self.lengths())
         return (shyp, dhyp)
 
@@ -83,12 +79,8 @@ class RealisationFault(Fault):
         tuple[float, float]
             Expected coordinates (shyp, dhyp) for the fault.
         """
-        weibull_scale = 0.612
-        dhyp = (
-            self.widths()[0]
-            * sp.stats.truncweibull_min(3.353, 0, 1, scale=weibull_scale).expect()
-        )
-        shyp = 0
+        dhyp = self.widths()[0] * distributions.truncated_weibull_expected_value(1)
+        shyp = 0  # distributions.rand_shyp() is a normal distribution with mean = 0
         return (shyp, float(dhyp))
 
 
@@ -169,9 +161,7 @@ def read_realisation(realisation_filepath: Path) -> Realisation:
                 ),
                 planes=[
                     fault.FaultPlane(
-                        qcore.coordinates.wgs_depth_to_nztm(
-                            np.array(params["corners"])
-                        ),
+                        coordinates.wgs_depth_to_nztm(np.array(params["corners"])),
                         params["rake"],
                     )
                     for params in fault_obj["planes"]
