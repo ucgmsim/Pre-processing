@@ -18,17 +18,20 @@ from pathlib import Path
 from typing import Annotated, Tuple
 
 import numpy as np
+import pandas as pd
 import scipy as sp
 import shapely
 import typer
 import yaml
+from empirical.util import openquake_wrapper_vectorized as openquake
+from empirical.util import z_model_calculations
+from empirical.util.classdef import GMM, TectType
 from models import AfshariStewart_2016_Ds, classdef
 from qcore import bounding_box, coordinates
 from qcore.bounding_box import BoundingBox
 from shapely import Polygon
 
 from srf_generation import realisation
-from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
 
 script_dir = Path(__file__).resolve().parent
 NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
@@ -78,8 +81,11 @@ def pgv_estimate_from_magnitude(magnitude: np.ndarray) -> np.ndarray:
 
 
 def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float, float]:
-    """
-    Find rrup at which pgv estimated from magnitude is close to target.
+    """Find rrup at which pgv estimated from magnitude is close to target.
+
+    Estimates rrup by calculating the rrup value that produces an
+    estimated PGV value when measured from a site rrup distance
+    away. The pgv -> rrup estimation comes from Chiou and Young (2014) [0].
 
     Parameters
     ----------
@@ -94,30 +100,40 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
     -------
     Tuple[float, float]
         The (rrup, pgv) pair.
+
+    References
+    ----------
+    [0]: Chiou BS-J, Youngs RR. Update of the
+    Chiou and Youngs NGA Model for the Average Horizontal Component of
+    Peak Ground Motion and Response Spectra. Earthquake
+    Spectra. 2014;30(3):1117-1153.
     """
 
     pgv_target = pgv_estimate_from_magnitude(magnitude)
 
     def pgv_delta_from_rrup(rrup: float):
-        # stolen from rel2vm_params
-        siteprop = classdef.Site()
-        siteprop.vs30 = 500
-        siteprop.Rtvz = 0
-        siteprop.vs30measured = False
-        siteprop.z1p0 = classdef.estimate_z1p0(siteprop.vs30)
-        faultprop = classdef.Fault()
-        faultprop.dip = avg_dip
-        faultprop.rake = avg_rake
-        faultprop.Mw = magnitude
-        faultprop.ztor = (
-            0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
+        vs30 = 500
+        oq_dataframe = pd.DataFrame.from_dict(
+            {
+                "vs30": [vs30],
+                "vs30measured": [False],
+                "z1pt0": [z_model_calculations.chiou_young_08_calc_z1p0(vs30)],
+                "dip": [avg_dip],
+                "rake": [avg_rake],
+                "mag": [magnitude],
+                "ztor": [0],
+                "rrup": [rrup],
+                "rx": [rrup],
+                "rjb": [rrup],
+            }
         )
-        faultprop.tect_type = classdef.TectType.ACTIVE_SHALLOW
-        faultprop.faultstyle = classdef.FaultStyle.UNKNOWN
-        siteprop.Rrup = rrup
-        siteprop.Rx = rrup
-        siteprop.Rjb = rrup
-        return np.abs(Bradley_2010_Sa(siteprop, faultprop, "PGV")[0] - pgv_target)
+        pgv = openquake.oq_run(
+            GMM.CY_14,
+            TectType.ACTIVE_SHALLOW,
+            oq_dataframe,
+            "PGV",
+        )["PGV_mean"].iloc[0]
+        return np.abs(pgv - pgv_target)
 
     rrup_optimise_result = sp.optimize.minimize_scalar(
         pgv_delta_from_rrup, bounds=(0, 1e4)
@@ -134,7 +150,9 @@ def estimate_simulation_duration(
     type5_realisation: realisation.Realisation,
     ds_multiplier: float,
 ) -> float:
-    """Estimate the simulation duration for a realisation simulated in a given domain.
+    ""
+
+    "Estimate the simulation duration for a realisation simulated in a given domain.
 
     The simulation duration is calculated as the time for the s-waves of
     a rupture to propogate from the centre of the domain to the edge of
@@ -153,7 +171,9 @@ def estimate_simulation_duration(
     -------
     float
         An estimated simulation duration time.
-    """
+    ""
+
+    "
     fault_corners = np.vstack(
         [fault.corners_nztm() for fault in type5_realisation.faults.values()]
     )
@@ -194,7 +214,9 @@ def estimate_simulation_duration(
 
 
 def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
-    """
+    ""
+
+    "
     Estimate the maximum depth to simulate for a rupture at a given depth
     with a given magnitude.
 
@@ -280,6 +302,7 @@ def main(
         np.mean([fault.planes[0].dip for fault in type5_realisation.faults.values()]),
         np.mean([fault.planes[0].rake for fault in type5_realisation.faults.values()]),
     )
+    print("Calculated rrup:", rrup)
 
     # Get bounding box
     site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
