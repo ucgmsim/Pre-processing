@@ -125,12 +125,12 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
     return rrup, pgv_target + pgv_delta
 
 
-def guess_simulation_duration(
+def estimate_simulation_duration(
     bounding_box: BoundingBox,
     type5_realisation: realisation.Realisation,
     ds_multiplier: float,
 ) -> float:
-    """Guess the simulation duration for a realisation simulated in a given domain.
+    """Estimate the simulation duration for a realisation simulated in a given domain.
 
     The simulation duration is calculated as the time for the s-waves of
     a rupture to propogate from the centre of the domain to the edge of
@@ -205,7 +205,7 @@ def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
     Returns
     -------
     float
-        The "interesting" simulation depth.
+        The maximum simulation depth.
     """
     return round(
         10
