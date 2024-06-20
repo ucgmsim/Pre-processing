@@ -26,7 +26,6 @@ import yaml
 from empirical.util import openquake_wrapper_vectorized as openquake
 from empirical.util import z_model_calculations
 from empirical.util.classdef import GMM, TectType
-from models import AfshariStewart_2016_Ds, classdef
 from qcore import bounding_box, coordinates
 from qcore.bounding_box import BoundingBox
 from shapely import Polygon
@@ -188,24 +187,24 @@ def estimate_simulation_duration(
         box_corners[np.newaxis, :, :] - fault_corners[:, np.newaxis, :], axis=2
     )
     largest_corner_distance = np.max(np.min(pairwise_distance, axis=1)) / 1000
-
-    # taken from rel2vm_params.py
-    siteprop = classdef.Site()
-    siteprop.vs30 = 500
-    siteprop.Rtvz = 0
-    siteprop.vs30measured = False
-    siteprop.z1p0 = classdef.estimate_z1p0(siteprop.vs30)
-    siteprop.Rrup = largest_corner_distance
-    faultprop = classdef.Fault()
-    faultprop.ztor = (
-        0.0  # DON'T CHANGE THIS - this assumes we have a surface point source
+    vs30 = 500
+    avg_rake = np.mean(
+        [fault.planes[0].rake for fault in type5_realisation.faults.values()]
     )
-    faultprop.tect_type = classdef.TectType.ACTIVE_SHALLOW
-    faultprop.faultstyle = classdef.FaultStyle.UNKNOWN
-    faultprop.Mw = type5_realisation.magnitude
+    oq_dataframe = pd.DataFrame.from_dict(
+        {
+            "vs30": [500],
+            "z1pt0": [z_model_calculations.chiou_young_08_calc_z1p0(vs30)],
+            "rrup": [largest_corner_distance],
+            "mag": [type5_realisation.magnitude],
+            "rake": [avg_rake],
+            "dip": [0],  # This is a dummy value that
+        }
+    )
 
-    ds = AfshariStewart_2016_Ds.Afshari_Stewart_2016_Ds(siteprop, faultprop, "Ds595")[0]
-
+    ds = openquake.oq_run(GMM.AS_16, TectType.ACTIVE_SHALLOW, oq_dataframe, "Ds595")[
+        "Ds595_mean"
+    ].iloc[0]
     return s_wave_arrival_time + ds_multiplier * ds
 
 
