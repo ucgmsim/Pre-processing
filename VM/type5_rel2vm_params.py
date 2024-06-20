@@ -288,7 +288,7 @@ def main(
     nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
     ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
     nz = int(np.ceil((max_depth - min_depth) / (resolution)))
-    sim_duration = guess_simulation_duration(
+    sim_duration = estimate_simulation_duration(
         optimal_bounding_box, type5_realisation, ds_multiplier
     )
 
