@@ -20,10 +20,14 @@ from qcore.uncertainties import mag_scaling
 from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
 
 from srf_generation import pre_processing_common
-from srf_generation.source_parameter_generation.common import \
-    DEFAULT_1D_VELOCITY_MODEL_PATH
+from srf_generation.source_parameter_generation.common import (
+    DEFAULT_1D_VELOCITY_MODEL_PATH,
+)
 from srf_generation.source_parameter_generation.uncertainties.common import (
-    BB_RUN_PARAMS, HF_RUN_PARAMS, LF_RUN_PARAMS)
+    BB_RUN_PARAMS,
+    HF_RUN_PARAMS,
+    LF_RUN_PARAMS,
+)
 
 SRF_SUBFAULT_SIZE_KM = 0.1
 
