@@ -65,6 +65,10 @@ def pgv_estimate_from_magnitude(magnitude: np.ndarray) -> np.ndarray:
     -------
     np.ndarray
         An estimate of PGV for the rupture(s).
+
+    References
+    ----------
+    See the "Custom Models Used in VM Params" wiki page for an explanation of this function.
     """
     return np.interp(
         magnitude,
@@ -201,11 +205,14 @@ def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
     hypocentre_depth : float
         hypocentre depth (in km).
 
-
     Returns
     -------
     float
         The maximum simulation depth.
+
+    References
+    ----------
+    See the "Custom Models Used in VM Params" wiki page for an explanation of this function.
     """
     return round(
         10
