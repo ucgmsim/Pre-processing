@@ -150,9 +150,7 @@ def estimate_simulation_duration(
     type5_realisation: realisation.Realisation,
     ds_multiplier: float,
 ) -> float:
-    ""
-
-    "Estimate the simulation duration for a realisation simulated in a given domain.
+    """Estimate the simulation duration for a realisation simulated in a given domain.
 
     The simulation duration is calculated as the time for the s-waves of
     a rupture to propogate from the centre of the domain to the edge of
@@ -171,9 +169,7 @@ def estimate_simulation_duration(
     -------
     float
         An estimated simulation duration time.
-    ""
-
-    "
+    """
     fault_corners = np.vstack(
         [fault.corners_nztm() for fault in type5_realisation.faults.values()]
     )
@@ -214,9 +210,7 @@ def estimate_simulation_duration(
 
 
 def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
-    ""
-
-    "
+    """
     Estimate the maximum depth to simulate for a rupture at a given depth
     with a given magnitude.
 
@@ -302,7 +296,6 @@ def main(
         np.mean([fault.planes[0].dip for fault in type5_realisation.faults.values()]),
         np.mean([fault.planes[0].rake for fault in type5_realisation.faults.values()]),
     )
-    print("Calculated rrup:", rrup)
 
     # Get bounding box
     site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
