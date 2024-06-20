@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Generator, Optional, Tuple
 
 import numpy as np
-import scipy as sp
 import yaml
 from nshmdb import fault
 from nshmdb.fault import Fault
