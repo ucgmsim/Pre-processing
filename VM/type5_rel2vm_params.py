@@ -258,6 +258,8 @@ def main(
     initial_fault = type5_realisation.initial_fault()
     magnitude = type5_realisation.magnitude
     min_depth = 0
+
+    # Get max depth and rrup
     max_depth = get_max_depth(
         magnitude,
         initial_fault.fault_coordinates_to_wgsdepth_coordinates(
@@ -271,6 +273,8 @@ def main(
         np.mean([fault.planes[0].dip for fault in type5_realisation.faults.values()]),
         np.mean([fault.planes[0].rake for fault in type5_realisation.faults.values()]),
     )
+
+    # Get bounding box
     site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
         rrup * 1000
     )
@@ -280,6 +284,7 @@ def main(
         get_nz_outline_polygon(),
     )
 
+    # Calculate velocity model discretisation parameters
     nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
     ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
     nz = int(np.ceil((max_depth - min_depth) / (resolution)))
@@ -291,7 +296,9 @@ def main(
         np.append(optimal_bounding_box.origin, 0)
     )
 
+    # Write the VM parameters file
     normalised_realisation_name = realisation.normalise_name(type5_realisation.name)
+    
 
     vm_params = {
         "mag": magnitude,
