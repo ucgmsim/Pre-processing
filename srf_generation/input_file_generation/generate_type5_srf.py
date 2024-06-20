@@ -182,7 +182,6 @@ def generate_fault_srf(
                 "risetime_coef=1.95",
             ]
         )
-    print(" ".join(genslip_cmd))
     srf_file_path = output_directory / (fault.name + ".srf")
     with open(srf_file_path, "w", encoding="utf-8") as srf_file_handle:
         subprocess.run(

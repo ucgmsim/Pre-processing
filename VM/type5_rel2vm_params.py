@@ -298,7 +298,6 @@ def main(
 
     # Write the VM parameters file
     normalised_realisation_name = realisation.normalise_name(type5_realisation.name)
-    
 
     vm_params = {
         "mag": magnitude,
