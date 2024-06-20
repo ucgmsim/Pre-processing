@@ -81,24 +81,6 @@ def generate_fault_gsf(
     return gsf_output_filepath
 
 
-def srf_file_for_fault(output_directory: Path, fault: RealisationFault) -> Path:
-    """Return the path for an SRF file within a directory.
-
-    Parameters
-    ----------
-    output_directory : Path
-        The directory to output to.
-    fault : RealisationFault
-        The fault to find the path for.
-
-    Returns
-    -------
-    Path
-        The path to the SRF file.
-    """
-    return output_directory / (fault.name + ".srf")
-
-
 def create_stoch(
     srf_file: Path,
     stoch_file: Path,
@@ -201,7 +183,7 @@ def generate_fault_srf(
             ]
         )
     print(" ".join(genslip_cmd))
-    srf_file_path = srf_file_for_fault(output_directory, fault)
+    srf_file_path = output_directory / (fault.name + ".srf")
     with open(srf_file_path, "w", encoding="utf-8") as srf_file_handle:
         subprocess.run(
             genslip_cmd, stdout=srf_file_handle, stderr=subprocess.PIPE, check=True
@@ -234,7 +216,7 @@ def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Pa
             list(realisation_obj.faults.values())
         ):
             with open(
-                srf_file_for_fault(output_directory, fault), "r", encoding="utf-8"
+                output_directory / (fault.name + ".srf"), "r", encoding="utf-8"
             ) as fault_srf_file:
                 srf.read_version(fault_srf_file)
                 fault_header = srf.read_srf_headers(fault_srf_file)
