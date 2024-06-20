@@ -285,8 +285,8 @@ def generate_fault_srfs_parallel(
     """
     # need to do this before multiprocessing because of race conditions
     gsf_directory = output_directory / "gsf"
-    if not gsf_directory.exists():
-        gsf_directory.mkdir()
+    gsf_directory.mkdir(exist_ok=True)
+
     with multiprocessing.Pool() as worker_pool:
         worker_pool.map(
             functools.partial(
