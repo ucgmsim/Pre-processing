@@ -135,10 +135,12 @@ def generate_fault_srf(
     genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
 
     nx = sum(
-        grid.gridpoint_count_in_length(plane.length_m, subdivision_resolution)
+        grid.gridpoint_count_in_length(plane.length_m, subdivision_resolution * 1000)
         for plane in fault.planes
     )
-    ny = grid.gridpoint_count_in_length(fault.planes[0].width_m, subdivision_resolution)
+    ny = grid.gridpoint_count_in_length(
+        fault.planes[0].width_m, subdivision_resolution * 1000
+    )
     genslip_cmd = [
         genslip_bin,
         "read_erf=0",
