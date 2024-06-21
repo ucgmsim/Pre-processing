@@ -27,8 +27,8 @@ import pandas as pd
 import srf
 import typer
 import yaml
-from qcore import binary_version, coordinates, grid, gsf
 
+from qcore import binary_version, coordinates, grid, gsf
 from srf_generation import realisation
 from srf_generation.realisation import Realisation, RealisationFault
 from srf_generation.source_parameter_generation import uncertainties

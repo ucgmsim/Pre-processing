@@ -21,13 +21,12 @@ from typing import Generator, Optional, Tuple
 import numpy as np
 import yaml
 
+from nshmdb import fault
+from nshmdb.fault import Fault
+from qcore import coordinates
+from qcore.uncertainties import distributions
 from srf_generation.source_parameter_generation.common import \
     DEFAULT_1D_VELOCITY_MODEL_PATH
-
-from nshmdb import fault  # isort:skip
-from nshmdb.fault import Fault  # isort:skip
-from qcore import coordinates  # isort:skip
-from qcore.uncertainties import distributions  # isort:skip
 
 
 @dataclasses.dataclass
