@@ -22,7 +22,8 @@ import numpy as np
 import yaml
 from nshmdb import fault
 from nshmdb.fault import Fault
-from qcore import coordinates, distributions
+from qcore import coordinates
+from qcore.uncertainties import distributions
 
 from srf_generation.source_parameter_generation.common import \
     DEFAULT_1D_VELOCITY_MODEL_PATH
