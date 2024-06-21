@@ -23,14 +23,14 @@ import scipy as sp
 import shapely
 import typer
 import yaml
-from empirical.util import openquake_wrapper_vectorized as openquake
-from empirical.util import z_model_calculations
-from empirical.util.classdef import GMM, TectType
 from qcore import bounding_box, coordinates
 from qcore.bounding_box import BoundingBox
 from shapely import Polygon
 
-from srf_generation import realisation
+from empirical.util import openquake_wrapper_vectorized as openquake  # isort:skip
+from empirical.util import z_model_calculations  # isort:skip
+from empirical.util.classdef import GMM, TectType  # isort:skip
+from srf_generation import realisation  # isort:skip
 
 script_dir = Path(__file__).resolve().parent
 NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
