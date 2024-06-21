@@ -17,17 +17,17 @@ from pathlib import Path
 from typing import Annotated, Any, TextIO, Tuple
 
 import numpy as np
-import qcore.coordinates
-import qcore.geo
-import qcore.uncertainties.mag_scaling
 import rupture_propogation
 import scipy as sp
 import typer
 import yaml
-from nshmdb import nshmdb
-from nshmdb.fault import FaultPlane
 from rupture_propogation import RuptureCausalityTree
 
+import qcore.coordinates
+import qcore.geo
+import qcore.uncertainties.mag_scaling
+from nshmdb import nshmdb
+from nshmdb.fault import FaultPlane
 from srf_generation.realisation import RealisationFault
 
 

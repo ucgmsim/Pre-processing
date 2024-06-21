@@ -16,6 +16,7 @@ from typing import Annotated
 import numpy as np
 import typer
 from pygmt_helper import plotting
+
 from srf_generation import realisation
 from srf_generation.realisation import Realisation
 
