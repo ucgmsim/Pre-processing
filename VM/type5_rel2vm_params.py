@@ -126,12 +126,21 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
                 "rjb": [rrup],
             }
         )
-        pgv = openquake.oq_run(
-            GMM.CY_14,
-            TectType.ACTIVE_SHALLOW,
-            oq_dataframe,
-            "PGV",
-        )["PGV_mean"].iloc[0]
+        # NOTE: I am assuming here that openquake returns PGV in
+        # log-space. This is based on the fact that it does this for
+        # PGA in this model (check the CY14_Italy_MEAN.csv test data
+        # and compare the expected PGA with the PGA you calculate from
+        # oq_run without exponentation and you'll see this is true).
+        pgv = np.exp(
+            openquake.oq_run(
+                GMM.CY_14,
+                TectType.ACTIVE_SHALLOW,
+                oq_dataframe,
+                "PGV",
+            )[
+                "PGV_mean"
+            ].iloc[0]
+        )
         return np.abs(pgv - pgv_target)
 
     rrup_optimise_result = sp.optimize.minimize_scalar(
