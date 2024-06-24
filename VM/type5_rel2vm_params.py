@@ -130,7 +130,7 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
         # log-space. This is based on the fact that it does this for
         # PGA in this model (check the CY14_Italy_MEAN.csv test data
         # and compare the expected PGA with the PGA you calculate from
-        # oq_run without exponentation and you'll see this is true).
+        # oq_run without exponentiation and you'll see this is true).
         pgv = np.exp(
             openquake.oq_run(
                 GMM.CY_14,
