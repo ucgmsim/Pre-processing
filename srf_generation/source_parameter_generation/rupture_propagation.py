@@ -1,5 +1,5 @@
 """
-Rupture Propogation Module
+Rupture Propagation Module
 
 This module provides functions for computing likely rupture paths from
 information about the distances between faults.

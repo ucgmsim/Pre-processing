@@ -17,11 +17,11 @@ from pathlib import Path
 from typing import Annotated, Any, TextIO, Tuple
 
 import numpy as np
-import rupture_propogation
+import rupture_propagation
 import scipy as sp
 import typer
 import yaml
-from rupture_propogation import RuptureCausalityTree
+from rupture_propagation import RuptureCausalityTree
 
 import qcore.coordinates
 import qcore.geo
@@ -171,10 +171,10 @@ def build_rupture_causality_tree(
         for fault_u_name in jump_point_map
     }
     cutoff = 15000
-    pruned = rupture_propogation.prune_distance_graph(distance_graph, cutoff)
-    probability_graph = rupture_propogation.probability_graph(pruned)
+    pruned = rupture_propagation.prune_distance_graph(distance_graph, cutoff)
+    probability_graph = rupture_propagation.probability_graph(pruned)
 
-    return rupture_propogation.probabilistic_minimum_spanning_tree(
+    return rupture_propagation.probabilistic_minimum_spanning_tree(
         probability_graph, initial_fault.name
     )
 

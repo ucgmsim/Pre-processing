@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 This script allows the user to visualise a type5 realisation, including
-fault geometry, jump points and planned rupture propogation.
+fault geometry, jump points and planned rupture propagation.
 
 Usage
 -----

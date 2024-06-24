@@ -191,12 +191,12 @@ def generate_fault_srf(
 
 
 def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Path:
-    """Stitch SRF files together in the order of rupture propogation.
+    """Stitch SRF files together in the order of rupture propagation.
 
     Parameters
     ----------
     realisation_obj : Realisation
-        The realisation containing the faults and rupture propogation order.
+        The realisation containing the faults and rupture propagation order.
     output_directory : Path
         The output directory containing fault SRF files.
 
