@@ -202,9 +202,12 @@ def estimate_simulation_duration(
         }
     )
 
-    ds = openquake.oq_run(GMM.AS_16, TectType.ACTIVE_SHALLOW, oq_dataframe, "Ds595")[
-        "Ds595_mean"
-    ].iloc[0]
+    ds = np.exp(
+        openquake.oq_run(GMM.AS_16, TectType.ACTIVE_SHALLOW, oq_dataframe, "Ds595")[
+            "Ds595_mean"
+        ].iloc[0]
+    )
+
     return s_wave_arrival_time + ds_multiplier * ds
 
 
