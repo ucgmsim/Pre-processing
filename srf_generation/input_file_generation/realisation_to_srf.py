@@ -18,6 +18,7 @@ import yaml
 from qcore import binary_version, geo, qclogging, srf, utils
 from qcore.uncertainties import mag_scaling
 from qcore.uncertainties.mag_scaling import MagnitudeScalingRelations
+
 from srf_generation import pre_processing_common
 from srf_generation.source_parameter_generation.common import (
     DEFAULT_1D_VELOCITY_MODEL_PATH,
@@ -333,12 +334,12 @@ def create_ps_srf(
     with NamedTemporaryFile(mode="w+", delete=False) as gsfp:
         gsfp.writelines(
             [
-                "# nstk= 1 ndip= 1",
-                f"# flen= {dd:10.4f} fwid= {dd:10.4f}",
-                "# LON  LAT  DEP(km)  SUB_DX  SUB_DY  LOC_STK  LOC_DIP  LOC_RAKE  SLIP(cm)  INIT_TIME  SEG_NO",
-                "1",
-                f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} {strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2f} {inittime:8.3f}    0",
-                "",
+                "# nstk= 1 ndip= 1\n",
+                f"# flen= {dd:10.4f} fwid= {dd:10.4f}\n",
+                "# LON  LAT  DEP(km)  SUB_DX  SUB_DY  LOC_STK  LOC_DIP  LOC_RAKE  SLIP(cm)  INIT_TIME  SEG_NO\n",
+                "1\n",
+                f"{longitude:11.5f} {latitude:11.5f} {depth:8.4f} {dd:8.4f} {dd:8.4f} {strike:6.1f} {dip:6.1f} {rake:6.1f} {slip:8.2f} {inittime:8.3f}    0\n",
+                "\n",
             ]
         )
 
