@@ -495,6 +495,7 @@ class Type3(FiniteFault):
             self.mwsr = MagnitudeScalingRelations.SKARLATOUDIS2016
 
         else:
+            # Note: LEONARD2014 (stable continental region (SCR) vs LEONARD2010 (active region) but the formulation is the same
             self.mwsr = MagnitudeScalingRelations.LEONARD2014
 
         raw_fwid = (self._dbottom - dtop) / np.sin(np.radians(dip))
