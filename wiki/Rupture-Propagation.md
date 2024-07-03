@@ -47,7 +47,7 @@ important to be aware of these assumptions in any custom scenarios.
 
 The National Seismic Hazard Model follows the lead of Millner, Shaw, and Field (2022)[^1]. They do not
 compute the rupture propagation information at any time, and simply
-determine the set of faults involved (according to Oakley at GNS this
+determine the set of faults involved (according to Volkert Oakley Jurgens at GNS this
 information is not available anywhere, and we truly have to work it out
 ourselves).
 
@@ -119,7 +119,7 @@ above has probability 0.17, whilst the second has probability 0.38. We
 would therefore consider the second rupture scenario more likely than
 the first.
 
-In graph theory, we call a path that visit all nodes in a graph (what
+In graph theory, we call a path that visits all nodes in a graph (what
 we call rupture scenarios) a _Hamiltonian path_. Computing shortest
 Hamiltonian paths in arbitrary graphs is a well-known NP-hard (very
 difficult!) problem, but fortunately our faults tend to have
