@@ -495,7 +495,8 @@ class Type3(FiniteFault):
             self.mwsr = MagnitudeScalingRelations.SKARLATOUDIS2016
 
         else:
-            # Note: LEONARD2014 (stable continental region (SCR) vs LEONARD2010 (active region) but the formulation is the same
+            # Note: Leonard2010 focused on active region which is more suitable for NZ while Leonard2014 discusses SCR
+            # (stable continental region). However, the formulation is the same, and we just refer to it as Leonard2014
             self.mwsr = MagnitudeScalingRelations.LEONARD2014
 
         raw_fwid = (self._dbottom - dtop) / np.sin(np.radians(dip))
