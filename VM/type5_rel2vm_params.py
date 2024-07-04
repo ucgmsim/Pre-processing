@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VM Parameters Generation
+VM Parameters Generation.
 
 This script generates the velocity model parameters used to generate the velocity model.
 
@@ -12,7 +12,6 @@ To generate VM parameters for a Type-5 realisation:
 $ python vm_params_generation.py path/to/realisation.yaml output/vm_params.yaml
 ```
 """
-
 
 from pathlib import Path
 from typing import Annotated, Tuple
@@ -40,7 +39,8 @@ def get_nz_outline_polygon() -> Polygon:
     """
     Get the outline polygon of New Zealand.
 
-    Returns:
+    Returns
+    -------
         Polygon: The outline polygon of New Zealand.
     """
     polygon_coordinates = np.loadtxt(NZ_LAND_OUTLINE)
@@ -107,7 +107,6 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
     Peak Ground Motion and Response Spectra. Earthquake
     Spectra. 2014;30(3):1117-1153.
     """
-
     pgv_target = pgv_estimate_from_magnitude(magnitude)
 
     def pgv_delta_from_rrup(rrup: float):
@@ -137,9 +136,7 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
                 TectType.ACTIVE_SHALLOW,
                 oq_dataframe,
                 "PGV",
-            )[
-                "PGV_mean"
-            ].iloc[0]
+            )["PGV_mean"].iloc[0]
         )
         return np.abs(pgv - pgv_target)
 
@@ -221,9 +218,7 @@ def estimate_simulation_duration(
 
 
 def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
-    """
-    Estimate the maximum depth to simulate for a rupture at a given depth
-    with a given magnitude.
+    """Estimate the maximum depth to simulate for a rupture.
 
     Parameters
     ----------
@@ -280,7 +275,7 @@ def main(
         str, typer.Option(help="VM topology type")
     ] = "SQUASHED_TAPERED",
 ):
-    "Generate velocity model parameters for a Type-5 realisation."
+    """Generate velocity model parameters for a Type-5 realisation."""
     type5_realisation = realisation.read_realisation(realisation_filepath)
 
     minimum_bounding_box = bounding_box.minimum_area_bounding_box(
