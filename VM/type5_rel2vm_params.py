@@ -21,7 +21,6 @@ import pandas as pd
 import scipy as sp
 import shapely
 import typer
-import yaml
 from shapely import Polygon
 
 from empirical.util import openquake_wrapper_vectorized as openquake
@@ -29,10 +28,17 @@ from empirical.util import z_model_calculations
 from empirical.util.classdef import GMM, TectType
 from qcore import bounding_box, coordinates
 from qcore.bounding_box import BoundingBox
-from srf_generation import realisation
+from qcore.uncertainties import mag_scaling
+from source_modelling import sources
+from workflow import realisations
+from workflow.realisations import (
+    DomainParameters,
+    RupturePropagationConfig,
+    SourceConfig,
+    VelocityModelParameters,
+)
 
-script_dir = Path(__file__).resolve().parent
-NZ_LAND_OUTLINE = script_dir / "../SrfGen/NHM/res/rough_land.txt"
+NZ_LAND_OUTLINE = Path(__file__).resolve().parent / "../SrfGen/NHM/res/rough_land.txt"
 
 
 def get_nz_outline_polygon() -> Polygon:
@@ -79,7 +85,19 @@ def pgv_estimate_from_magnitude(magnitude: np.ndarray) -> np.ndarray:
     )
 
 
-def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float, float]:
+def rrup_buffer_polygon(
+    faults: dict[str, sources.IsSource], rrups: dict[str, float]
+) -> shapely.Polygon:
+    rrup_polygons = [
+        shapely.buffer(shapely.Point(corner), rrups[fault_name] * 1000)
+        for fault_name, fault in faults.items()
+        for corner in fault.bounds[:, :2]
+    ]
+
+    return shapely.union_all(rrup_polygons)
+
+
+def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> float:
     """Find rrup at which pgv estimated from magnitude is close to target.
 
     Estimates rrup by calculating the rrup value that produces an
@@ -97,8 +115,8 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
 
     Returns
     -------
-    Tuple[float, float]
-        The (rrup, pgv) pair.
+    float
+        The inverse calculated rrup.
 
     References
     ----------
@@ -147,12 +165,14 @@ def find_rrup(magnitude: float, avg_dip: float, avg_rake: float) -> Tuple[float,
     pgv_delta = rrup_optimise_result.fun
     if pgv_delta > 1e-4:
         raise ValueError("Failed to converge on rrup optimisation.")
-    return rrup, pgv_target + pgv_delta
+    return rrup
 
 
 def estimate_simulation_duration(
     bounding_box: BoundingBox,
-    type5_realisation: realisation.Realisation,
+    magnitude: float,
+    faults: list[sources.IsSource],
+    rakes: np.ndarray,
     ds_multiplier: float,
 ) -> float:
     """Estimate the simulation duration for a realisation simulated in a given domain.
@@ -175,9 +195,7 @@ def estimate_simulation_duration(
     float
         An estimated simulation duration time.
     """
-    fault_corners = np.vstack(
-        [fault.corners_nztm() for fault in type5_realisation.faults.values()]
-    )
+    fault_corners = np.vstack([fault.corners for fault in faults])
     fault_centroid = np.mean(fault_corners, axis=0)
     box_corners = np.append(
         bounding_box.corners,
@@ -194,17 +212,17 @@ def estimate_simulation_duration(
     )
     largest_corner_distance = np.max(np.min(pairwise_distance, axis=1)) / 1000
     vs30 = 500
-    avg_rake = np.mean(
-        [fault.planes[0].rake for fault in type5_realisation.faults.values()]
-    )
+    avg_rake = np.mean(rakes)
     oq_dataframe = pd.DataFrame.from_dict(
         {
             "vs30": [500],
             "z1pt0": [z_model_calculations.chiou_young_08_calc_z1p0(vs30)],
             "rrup": [largest_corner_distance],
-            "mag": [type5_realisation.magnitude],
+            "mag": [magnitude],
             "rake": [avg_rake],
-            "dip": [0],  # This is a dummy value that
+            "dip": [
+                0
+            ],  # This is a dummy value that must be included for the oq engine to work
         }
     )
 
@@ -249,6 +267,10 @@ def get_max_depth(magnitude: float, hypocentre_depth: float) -> int:
     )
 
 
+def total_magnitude(magnitudes: np.ndarray) -> float:
+    return mag_scaling.mom2mag(np.sum(mag_scaling.mag2mom(magnitudes)))
+
+
 def main(
     realisation_filepath: Annotated[
         Path,
@@ -256,17 +278,13 @@ def main(
             help="The path to the realisation to generate VM parameters for."
         ),
     ],
-    output_path: Annotated[
-        Path, typer.Argument(help="The path to the output VM params.")
-    ],
     resolution: Annotated[
         float, typer.Option(help="The resolution of the simulation in kilometres.")
     ] = 0.1,
     min_vs: Annotated[
         float,
         typer.Option(
-            help="Minimum velocity (in km/s),"
-            "used to determine the boundary between LF and HF calculation."
+            help="The minimum velocity (km/s) produced in the velocity model."
         ),
     ] = 0.5,
     ds_multiplier: Annotated[float, typer.Option(help="Ds multiplier")] = 1.2,
@@ -275,82 +293,85 @@ def main(
         str, typer.Option(help="VM topology type")
     ] = "SQUASHED_TAPERED",
 ):
-    """Generate velocity model parameters for a Type-5 realisation."""
-    type5_realisation = realisation.read_realisation(realisation_filepath)
-
-    minimum_bounding_box = bounding_box.minimum_area_bounding_box(
-        np.vstack(
-            [fault.corners_nztm() for fault in type5_realisation.faults.values()]
-        )[:, :2]
+    """Generate velocity model parameters for a realisation."""
+    source_config: SourceConfig = realisations.read_config_from_realisation(
+        SourceConfig, realisation_filepath
     )
 
-    initial_fault = type5_realisation.initial_fault()
-    magnitude = type5_realisation.magnitude
-    min_depth = 0
+    rupture_propagation: RupturePropagationConfig = (
+        realisations.read_config_from_realisation(
+            RupturePropagationConfig, realisation_filepath
+        )
+    )
+    magnitudes = rupture_propagation.magnitudes
 
-    # Get max depth and rrup
+    rupture_magnitude = total_magnitude(np.array(list(magnitudes.values())))
+
+    rakes = rupture_propagation.rakes
+
+    rrups = {
+        fault_name: find_rrup(
+            magnitudes[fault_name],
+            rupture_propagation.magnitudes[fault_name],
+            rakes[fault_name],
+        )
+        for fault_name, fault in source_config.source_geometries.items()
+    }
+    print(rrups)
+    initial_fault = source_config.source_geometries[rupture_propagation.initial_fault]
     max_depth = get_max_depth(
-        magnitude,
-        initial_fault.fault_coordinates_to_wgsdepth_coordinates(
-            np.array([initial_fault.shyp, initial_fault.dhyp])
+        rupture_magnitude,
+        initial_fault.fault_coordinates_to_wgs_depth_coordinates(
+            rupture_propagation.hypocentre
         )[2]
         / 1000,
     )
 
-    (rrup, _) = find_rrup(
-        type5_realisation.magnitude,
-        np.mean([fault.planes[0].dip for fault in type5_realisation.faults.values()]),
-        np.mean([fault.planes[0].rake for fault in type5_realisation.faults.values()]),
-    )
-
     # Get bounding box
-    site_inclusion_polygon = shapely.Point(minimum_bounding_box.origin).buffer(
-        rrup * 1000
-    )
-    optimal_bounding_box = bounding_box.minimum_area_bounding_box_for_polygons_masked(
-        [minimum_bounding_box.polygon],
-        [site_inclusion_polygon],
-        get_nz_outline_polygon(),
+
+    # This polygon includes all the faults corners (which must be in the simulation domain).
+    fault_bounding_box = bounding_box.minimum_area_bounding_box(
+        np.vstack(
+            [fault.bounds[:, :2] for fault in source_config.source_geometries.values()]
+        )
     )
 
-    # Calculate velocity model discretisation parameters
-    nx = int(np.ceil(optimal_bounding_box.extent_x / resolution))
-    ny = int(np.ceil(optimal_bounding_box.extent_y / resolution))
-    nz = int(np.ceil((max_depth - min_depth) / (resolution)))
+    # This polygon includes all areas within rrup distance of any
+    # corner in the source geometries.
+    # These may be in the domain where they are over land.
+    rrup_bounding_polygon = rrup_buffer_polygon(source_config.source_geometries, rrups)
+
+    # The domain is the minimum area bounding box containing all of
+    # the fault corners, and all points on land within rrup distance
+    # of a fault corner.
+    model_domain = bounding_box.minimum_area_bounding_box_for_polygons_masked(
+        must_include=[fault_bounding_box.polygon],
+        may_include=[rrup_bounding_polygon],
+        mask=get_nz_outline_polygon(),
+    )
+
     sim_duration = estimate_simulation_duration(
-        optimal_bounding_box, type5_realisation, ds_multiplier
+        model_domain,
+        rupture_magnitude,
+        list(source_config.source_geometries.values()),
+        list(rupture_propagation.rakes.values()),
+        ds_multiplier,
     )
 
-    box_origin_coords = coordinates.nztm_to_wgs_depth(
-        np.append(optimal_bounding_box.origin, 0)
+    domain_parameters = DomainParameters(
+        resolution=resolution,
+        domain=model_domain,
+        depth=max_depth,
+        duration=sim_duration,
+    )
+    velocity_model_parameters = VelocityModelParameters(
+        min_vs=min_vs, version=vm_version, topo_type=vm_topo_type
     )
 
-    # Write the VM parameters file
-    normalised_realisation_name = realisation.normalise_name(type5_realisation.name)
-
-    vm_params = {
-        "mag": magnitude,
-        "MODEL_LAT": float(box_origin_coords[0]),
-        "MODEL_LON": float(box_origin_coords[1]),
-        "MODEL_ROT": float(optimal_bounding_box.bearing),
-        "hh": resolution,
-        "extent_x": float(optimal_bounding_box.extent_x),
-        "extent_y": float(optimal_bounding_box.extent_y),
-        "extent_zmax": float(max_depth),
-        "extent_zmin": float(min_depth),
-        "sim_duration": float(sim_duration),
-        "nx": nx,
-        "ny": ny,
-        "nz": nz,
-        "min_vs": min_vs,
-        "flo": min_vs / (5.0 * resolution),
-        "sufx": f"_{normalised_realisation_name}01-h{resolution:.3f}",
-        "model_version": vm_version,
-        "topo_type": vm_topo_type,
-    }
-
-    with open(output_path, "w", encoding="utf-8") as output_file_handle:
-        yaml.dump(vm_params, output_file_handle)
+    realisations.write_config_to_realisation(domain_parameters, realisation_filepath)
+    realisations.write_config_to_realisation(
+        velocity_model_parameters, realisation_filepath
+    )
 
 
 if __name__ == "__main__":
