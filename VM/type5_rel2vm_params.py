@@ -16,6 +16,7 @@ $ python vm_params_generation.py path/to/realisation.yaml output/vm_params.yaml
 from pathlib import Path
 from typing import Annotated, Tuple
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -26,7 +27,7 @@ from shapely import Polygon
 from empirical.util import openquake_wrapper_vectorized as openquake
 from empirical.util import z_model_calculations
 from empirical.util.classdef import GMM, TectType
-from qcore import bounding_box, coordinates
+from qcore import bounding_box, coordinates, gmt
 from qcore.bounding_box import BoundingBox
 from qcore.uncertainties import mag_scaling
 from source_modelling import sources
@@ -49,15 +50,22 @@ def get_nz_outline_polygon() -> Polygon:
     -------
         Polygon: The outline polygon of New Zealand.
     """
-    polygon_coordinates = np.loadtxt(NZ_LAND_OUTLINE)
-    polygon_coordinates = polygon_coordinates[:, ::-1]
-    polygon_coordinates = np.append(
-        polygon_coordinates,
-        np.zeros_like(polygon_coordinates[:, 0]).reshape((-1, 1)),
-        axis=1,
-    )
-    polygon_coordinates = coordinates.wgs_depth_to_nztm(polygon_coordinates)[:, :2]
-    return shapely.Polygon(polygon_coordinates)
+    coastline_path = gmt.regional_resource("NZ", "coastline")
+    gpd_df = gpd.read_file(coastline_path)
+    island_polygons = [
+        Polygon(
+            coordinates.wgs_depth_to_nztm(
+                np.array(shapely.geometry.mapping(island)["coordinates"])[:, ::-1]
+            )
+        )
+        for island in gpd_df.geometry
+    ]
+    south_island, north_island = sorted(
+        island_polygons, key=lambda island: island.area, reverse=True
+    )[:2]
+    south_island = south_island.simplify(100)
+    north_island = north_island.simplify(100)
+    return shapely.union(south_island, north_island)
 
 
 def pgv_estimate_from_magnitude(magnitude: np.ndarray) -> np.ndarray:
