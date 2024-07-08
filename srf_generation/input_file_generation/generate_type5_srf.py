@@ -16,29 +16,54 @@ $ python srf_generation.py path/to/realisation.yaml output_directory
 ```
 """
 
+import collections
 import functools
 import multiprocessing
+import re
 import subprocess
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Generator
 
 import numpy as np
 import pandas as pd
 import srf
 import typer
-import yaml
 
 from qcore import binary_version, coordinates, grid, gsf
-from srf_generation import realisation
-from srf_generation.realisation import Realisation, RealisationFault
-from srf_generation.source_parameter_generation import uncertainties
+from source_modelling.sources import IsSource
+from workflow import realisations
+from workflow.realisations import (
+    RealisationMetadata,
+    RupturePropagationConfig,
+    SourceConfig,
+    SRFConfig,
+)
 
 FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 SRF2STOCH = "srf2stoch"
 
 
+def normalise_name(name: str) -> str:
+    """Normalise a name (fault name, realisation name) as a filename.
+
+    Parameters
+    ----------
+    name : str
+        The name to normalise
+
+    Returns
+    -------
+    str
+        The normalised equivalent of this name. Normalised names are entirely
+        lower case, and all non-alphanumeric characters are replaced with "_".
+    """
+    return re.sub(r"[^A-z0-9]", "_", name.lower())
+
+
 def generate_fault_gsf(
-    fault: RealisationFault,
+    name: str,
+    geometry: IsSource,
+    rake: float,
     gsf_output_directory: Path,
     subdivision_resolution: float,
 ):
@@ -53,9 +78,7 @@ def generate_fault_gsf(
     subdivision_resolution : float
         The geometry resolution.
     """
-    gsf_output_filepath = (
-        gsf_output_directory / f"{realisation.normalise_name(fault.name)}.gsf"
-    )
+    gsf_output_filepath = gsf_output_directory / f"{name}.gsf"
     gsf_df = pd.DataFrame(
         [
             {
@@ -63,7 +86,7 @@ def generate_fault_gsf(
                 "dip": plane.dip,
                 "length": plane.length,
                 "width": plane.width,
-                "rake": plane.rake,
+                "rake": rake,
                 "meshgrid": grid.coordinate_meshgrid(
                     plane.corners[0],
                     plane.corners[1],
@@ -71,7 +94,7 @@ def generate_fault_gsf(
                     subdivision_resolution * 1000,
                 ),
             }
-            for plane in fault.planes
+            for plane in geometry.planes
         ]
     )
     gsf.write_fault_to_gsf_file(
@@ -81,38 +104,15 @@ def generate_fault_gsf(
     return gsf_output_filepath
 
 
-def create_stoch(
-    srf_file: Path,
-    stoch_file: Path,
-):
-    """Create a stoch file from a SRF file.
-
-    Parameters
-    ----------
-    srf_file : Path
-        The filepath of the SRF file.
-    stoch_file : Path
-        The filepath to output the stoch file to.
-    """
-
-    dx = 2.0
-    dy = 2.0
-    srf2stoch = binary_version.get_unversioned_bin(SRF2STOCH)
-    command = [
-        srf2stoch,
-        f"dx={dx}",
-        f"dy={dy}",
-        f"infile={str(srf_file)}",
-        f"outfile={str(stoch_file)}",
-    ]
-    subprocess.run(command, stderr=subprocess.PIPE, check=True)
-
-
 def generate_fault_srf(
-    fault: RealisationFault,
-    realisation: Realisation,
+    name: str,
+    fault: IsSource,
+    rake: float,
+    magnitude: float,
+    hypocentre_local_coordinates: np.ndarray,
     output_directory: Path,
     subdivision_resolution: float,
+    srf_config: SRFConfig,
 ):
     """Generate an SRF file for a given fault.
 
@@ -129,10 +129,14 @@ def generate_fault_srf(
     """
     gsf_output_directory = output_directory / "gsf"
     gsf_file_path = generate_fault_gsf(
-        fault, gsf_output_directory, subdivision_resolution
+        name,
+        fault,
+        rake,
+        gsf_output_directory,
+        subdivision_resolution,
     )
 
-    genslip_bin = binary_version.get_genslip_bin(realisation.genslip_version)
+    genslip_bin = binary_version.get_genslip_bin(srf_config.genslip_version)
 
     nx = sum(
         grid.gridpoint_count_in_length(plane.length_m, subdivision_resolution * 1000)
@@ -141,6 +145,9 @@ def generate_fault_srf(
     ny = grid.gridpoint_count_in_length(
         fault.planes[0].width_m, subdivision_resolution * 1000
     )
+    genslip_hypocentre_coords = np.array([fault.length, fault.width]) * (
+        hypocentre_local_coordinates - np.array([-1 / 2, 0])
+    )
     genslip_cmd = [
         genslip_bin,
         "read_erf=0",
@@ -148,16 +155,16 @@ def generate_fault_srf(
         "read_gsf=1",
         "write_gsf=0",
         f"infile={gsf_file_path}",
-        f"mag={fault.magnitude}",
+        f"mag={magnitude}",
         f"nstk={nx}",
         f"ndip={ny}",
         "ns=1",
         "nh=1",
-        f"seed={realisation.genslip_seed}",
-        f"velfile={realisation.velocity_model}",
-        f"shypo={fault.shyp or 0}",
-        f"dhypo={fault.dhyp or 0}",
-        f"dt={realisation.dt}",
+        f"seed={srf_config.genslip_seed}",
+        f"velfile={srf_config.genslip_velocity_model}",
+        f"shypo={genslip_hypocentre_coords[0]}",
+        f"dhypo={genslip_hypocentre_coords[1]}",
+        f"dt={srf_config.genslip_dt}",
         "plane_header=1",
         "srf_version=1.0",
         "seg_delay={0}",
@@ -170,27 +177,63 @@ def generate_fault_srf(
         "alpha_rough=0.0",
     ]
 
-    if fault.tect_type == "SUBDUCTION_INTERFACE":
-        genslip_cmd.extend(
-            [
-                "kmodel=-1",
-                "xmag_exp=0.5",
-                "ymag_exp=0.5",
-                "kx_corner=2.5482",
-                "ky_corner=2.3882",
-                "tsfac_slope=-0.5",
-                "tsfac_bzero=-0.1",
-                "risetime_coef=1.95",
-            ]
-        )
-    srf_file_path = output_directory / (fault.name + ".srf")
+    # if fault.tect_type == "SUBDUCTION_INTERFACE":
+    #     genslip_cmd.extend(
+    #         [
+    #             "kmodel=-1",
+    #             "xmag_exp=0.5",
+    #             "ymag_exp=0.5",
+    #             "kx_corner=2.5482",
+    #             "ky_corner=2.3882",
+    #             "tsfac_slope=-0.5",
+    #             "tsfac_bzero=-0.1",
+    #             "risetime_coef=1.95",
+    #         ]
+    #     )
+    srf_file_path = output_directory / "srf" / (name + ".srf")
     with open(srf_file_path, "w", encoding="utf-8") as srf_file_handle:
         subprocess.run(
             genslip_cmd, stdout=srf_file_handle, stderr=subprocess.PIPE, check=True
         )
 
 
-def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Path:
+def tree_nodes_in_order(
+    tree: dict[str, str],
+) -> Generator[str, None, None]:
+    """Generate faults in topologically sorted order.
+
+    Parameters
+    ----------
+    faults : list[RealisationFault]
+        List of RealisationFault objects.
+
+    Yields
+    ------
+    RealisationFault
+        The next fault in the topologically sorted order.
+    """
+    tree_child_map = collections.defaultdict(list)
+    for cur, parent in tree.items():
+        if parent:
+            tree_child_map[parent].append(cur)
+
+    def in_order_traversal(
+        node: str,
+    ) -> Generator[str, None, None]:
+        yield node
+        for child in tree_child_map[node]:
+            yield from in_order_traversal(child)
+
+    initial_fault = next(cur for cur, parent in tree.items() if not parent)
+    yield from in_order_traversal(initial_fault)
+
+
+def stitch_srf_files(
+    faults: dict[str, IsSource],
+    rupture_propogation: RupturePropagationConfig,
+    output_directory: Path,
+    output_name: str,
+) -> Path:
     """Stitch SRF files together in the order of rupture propagation.
 
     Parameters
@@ -205,22 +248,25 @@ def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Pa
     Path
         The path to the stitched together SRF file.
     """
-    srf_output_filepath = output_directory / f"{realisation_obj.name}.srf"
+    srf_output_filepath = output_directory / f"{output_name}.srf"
+    order = list(tree_nodes_in_order(rupture_propogation.rupture_causality_tree))
     with open(srf_output_filepath, "w", encoding="utf-8") as srf_file_output:
         fault_points = {}
         header = []
 
         srf.write_version(srf_file_output)
 
-        for fault in realisation.topologically_sorted_faults(
-            list(realisation_obj.faults.values())
-        ):
+        for fault_name in order:
+            fault = faults[fault_name]
+            parent = rupture_propogation.rupture_causality_tree[fault_name]
             with open(
-                output_directory / (fault.name + ".srf"), "r", encoding="utf-8"
+                output_directory / "srf" / (normalise_name(fault_name) + ".srf"),
+                "r",
+                encoding="utf-8",
             ) as fault_srf_file:
                 srf.read_version(fault_srf_file)
                 fault_header = srf.read_srf_headers(fault_srf_file)
-                if fault.parent:
+                if parent:
                     for plane in fault_header:
                         # The value of -999, -999 is used in the SRF spec to say
                         # "no hypocentre for this segment".
@@ -228,7 +274,7 @@ def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Pa
                         plane.dhyp = -999
                 header.extend(fault_header)
                 point_count = srf.read_points_count(fault_srf_file)
-                fault_points[fault.name] = srf.read_srf_n_points(
+                fault_points[fault_name] = srf.read_srf_n_points(
                     point_count, fault_srf_file
                 )
 
@@ -236,18 +282,20 @@ def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Pa
         srf.write_point_count(
             srf_file_output, sum(len(points) for points in fault_points.values())
         )
-        for fault in realisation.topologically_sorted_faults(
-            list(realisation_obj.faults.values())
-        ):
+        for fault_name in order:
             t_delay = 0
-            if fault.parent:
+            parent = rupture_propogation.rupture_causality_tree[fault_name]
+            if parent:
                 # find closest grid point to the jump location
                 # compute the time delay as equal to the tinit of this point (for now)
-                parent = fault.parent
-                parent_coords = coordinates.wgs_depth_to_nztm(
-                    np.array(fault.parent_jump_coords)
+                fault = faults[fault_name]
+                jump_pair = fault.fault_coordinates_to_wgs_depth_coordinates(
+                    rupture_propogation.jump_points[fault_name]
                 )
-                parent_fault_points = fault_points[parent.name]
+                parent_coords = fault.fault_coordinates_to_wgs_depth_coordinates(
+                    coordinates.wgs_depth_to_nztm(jump_pair.from_point)
+                )
+                parent_fault_points = fault_points[parent]
                 grid_points = coordinates.wgs_depth_to_nztm(
                     np.array(
                         [
@@ -257,10 +305,14 @@ def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Pa
                     )
                 )
                 jump_index = int(
-                    np.argmin(np.sum(np.square(grid_points - parent_coords), axis=1))
+                    np.argmin(
+                        coordinates.distance_between_wgs_depth_coordinates(
+                            parent_coords, grid_points
+                        )
+                    )
                 )
                 t_delay = parent_fault_points[jump_index].tinit
-            cur_fault_points = fault_points[fault.name]
+            cur_fault_points = fault_points[fault_name]
             for point in cur_fault_points:
                 point.tinit += t_delay
                 srf.write_srf_point(srf_file_output, point)
@@ -269,9 +321,11 @@ def stitch_srf_files(realisation_obj: Realisation, output_directory: Path) -> Pa
 
 
 def generate_fault_srfs_parallel(
-    realisation: Realisation,
+    faults: dict[str, IsSource],
+    rupture_propagation_config: RupturePropagationConfig,
     output_directory: Path,
     subdivision_resolution: float,
+    srf_config: SRFConfig,
 ):
     """Generate fault SRF files in parallel.
 
@@ -287,34 +341,46 @@ def generate_fault_srfs_parallel(
     # need to do this before multiprocessing because of race conditions
     gsf_directory = output_directory / "gsf"
     gsf_directory.mkdir(exist_ok=True)
+    srf_directory = output_directory / "srf"
+    srf_directory.mkdir(exist_ok=True)
+    fault_names = [normalise_name(fault_name) for fault_name in faults]
+    magnitudes = rupture_propagation_config.magnitudes
+    rakes = rupture_propagation_config.rakes
+    hypocentres = {
+        fault_name: jump_point.to_point
+        for fault_name, jump_point in rupture_propagation_config.jump_points
+    }
+    hypocentres[rupture_propagation_config.initial_fault] = (
+        rupture_propagation_config.hypocentre
+    )
 
-    with multiprocessing.Pool() as worker_pool:
-        worker_pool.map(
-            functools.partial(
-                generate_fault_srf,
-                output_directory=output_directory,
-                realisation=realisation,
-                subdivision_resolution=subdivision_resolution,
-            ),
-            realisation.faults.values(),
+    srf_generation_parameters = [
+        (
+            normalise_name(fault_name),
+            faults[fault_name],
+            rakes[fault_name],
+            magnitudes[fault_name],
+            hypocentres[fault_name],
         )
-
-
-def generate_sim_params_yaml(
-    sim_params_filepath: Path,
-):
-    """Write simulation parameters to a yaml file.
-
-    Parameters
-    ----------
-    sim_params_file : str
-        The filepath to save the simulation parameters.
-    """
-    # stolen from realisation_to_srf
-    sim_params = {}
-
-    with open(sim_params_filepath, "w", encoding="utf-8") as sim_params_file_handle:
-        yaml.safe_dump(sim_params, sim_params_file_handle)
+        for fault_name in faults
+    ]
+    for fault_name, fault, rake, magnitude, hypocentre in srf_generation_parameters:
+        functools.partial(
+            generate_fault_srf,
+            output_directory=output_directory,
+            subdivision_resolution=subdivision_resolution,
+            srf_config=srf_config,
+        )(fault_name, fault, rake, magnitude, hypocentre)
+    # with multiprocessing.Pool() as worker_pool:
+    #     worker_pool.starmap(
+    #         functools.partial(
+    #             generate_fault_srf,
+    #             output_directory=output_directory,
+    #             subdivision_resolution=subdivision_resolution,
+    #             srf_config=srf_config,
+    #         ),
+    #         zip(fault_names, faults.values(), rakes.values()),
+    #     )
 
 
 def main(
@@ -341,16 +407,32 @@ def main(
     ] = 0.1,
 ):
     """Generate a type-5 SRF file from a given realisation specification."""
-    realisation_parameters = realisation.read_realisation(realisation_filepath)
+    srf_config: SRFConfig = realisations.read_config_from_realisation(
+        SRFConfig, realisation_filepath
+    )
+    rupture_propagation: RupturePropagationConfig = (
+        realisations.read_config_from_realisation(
+            RupturePropagationConfig, realisation_filepath
+        )
+    )
+    source_config: SourceConfig = realisations.read_config_from_realisation(
+        SourceConfig, realisation_filepath
+    )
+    metadata: RealisationMetadata = realisations.read_config_from_realisation(
+        RealisationMetadata, realisation_filepath
+    )
     generate_fault_srfs_parallel(
-        realisation_parameters, output_directory, subdivision_resolution
+        source_config.source_geometries,
+        rupture_propagation,
+        output_directory,
+        subdivision_resolution,
+        srf_config,
     )
-    srf_output_filepath = stitch_srf_files(realisation_parameters, output_directory)
-    create_stoch(
-        srf_output_filepath, output_directory / f"{realisation_parameters.name}.stoch"
-    )
-    generate_sim_params_yaml(
-        output_directory / realisation_filepath.name.removeprefix("type5_")
+    stitch_srf_files(
+        source_config.source_geometries,
+        rupture_propagation,
+        output_directory,
+        normalise_name(metadata.name),
     )
 
 
