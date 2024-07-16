@@ -31,6 +31,8 @@ import csv
 import math
 import matplotlib.lines as mlines
 from numpy.random import randn
+from pathlib import Path
+
 import os
 from scipy.stats import norm
 from scipy.stats import rv_continuous
@@ -149,11 +151,7 @@ def generate_source_params(
     #if realisation["vs30"]["vs30"] <= 0:
     #    realisation["vs30"]["vs30"] = 0
 
-    if rrup_data is not None:
-        realisation["rrup"] = rrup_data.copy(deep=True)
-        realisation["rrup"]["rrup"] = distributions.truncated_log_normal(rrup_data , 0.1, 4)
-    else:
-        print("Didn't get rrup")
+
 
 
 
@@ -193,6 +191,12 @@ def generate_from_gcmt(
     #rdist_sigma = 2
     #depth_sigma = additional_source_parameters["depth_sigma"]
 
+    sites_info_csv = Path(additional_source_parameters["sites_info_csv"])
+    assert sites_info_csv.exists()
+    
+    sites_info = pd.read_csv(sites_info_csv)
+
+
     ### the following parameters feed into srfgen
 
     mag = distributions.truncated_normal(sources_line.mag, 0.2, 4) # magnitude
@@ -204,6 +208,16 @@ def generate_from_gcmt(
     #theta = uniform_dist(0, 180)
     # r_distance = (distributions.truncated_normal(0.0, 3.65, 2))*1000
     #r_distance = (distributions.truncated_normal(0.0, rdist_sigma, 4)) * 1000
+
+    if sites_info is not None:
+        rrup_data = sites_info.rrup
+        rrup_data_perturbed = distributions.truncated_log_normal(rrup_data , 0.1, 4)
+        sites_info["rrup_perturbed"] = rrup_data_perturbed
+        new_sites_info_csv = sites_info_csv.parent / f"{sites_info_csv.stem}_rrup_perturbed.csv"
+        sites_info.to_csv(new_sites_info_csv, index=False)
+    else:
+        print("Didn't get rrup")
+
 
     #temp = Geodesic.WGS84.Direct(sources_line.lat, sources_line.lon, theta, r_distance)
     #lat = distributions.truncated_normal(sources_line.lat, 1, 4)
