@@ -1,5 +1,6 @@
 """The template for future perturbation versions.
 Update this docstring with information about the version"""
+
 from typing import Any, Dict
 
 import pandas as pd
