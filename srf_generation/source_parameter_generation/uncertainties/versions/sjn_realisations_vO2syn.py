@@ -150,9 +150,28 @@ def generate_source_params(
 
     #if realisation["vs30"]["vs30"] <= 0:
     #    realisation["vs30"]["vs30"] = 0
+    if 'sites_info' in realisation['params']:
+        sites_info_csv = Path(realisation['params']['sites_info'])
+        sites_info = pd.read_csv(realisation['params']['sites_info'], index_col=0)
 
+        rrup_data = sites_info.rrup
+        rrup_data_perturbed = distributions.truncated_log_normal(rrup_data , 0.1, 4)
+        sites_info["rrup"] = rrup_data_perturbed
+        if "vs30" in  realisation["vs30"]:
+            sites_info["vs30"] = realisation["vs30"]["vs30"] # update vs30 values if vs30 values were perturbed.
+        new_sites_info_csv = sites_info_csv.parent / f"{sites_info_csv.stem}_perturbed.csv"
+        sites_info.to_csv(new_sites_info_csv, index=False)
+    else:
+        print("Didn't get sites_info CSV")
 
-
+    if sites_info is not None:
+        rrup_data = sites_info.rrup
+        rrup_data_perturbed = distributions.truncated_log_normal(rrup_data , 0.1, 4)
+        sites_info["rrup"] = rrup_data_perturbed
+        new_sites_info_csv = sites_info_csv.parent / f"{sites_info_csv.stem}_rrup_perturbed.csv"
+        sites_info.to_csv(new_sites_info_csv, index=False)
+    else:
+        print("Didn't get sites_info CSV")
 
 
 
@@ -193,8 +212,6 @@ def generate_from_gcmt(
 
     sites_info_csv = Path(additional_source_parameters["sites_info"])
     assert sites_info_csv.exists()
-    sites_info = pd.read_csv(sites_info_csv)
-
 
     ### the following parameters feed into srfgen
 
@@ -207,15 +224,6 @@ def generate_from_gcmt(
     #theta = uniform_dist(0, 180)
     # r_distance = (distributions.truncated_normal(0.0, 3.65, 2))*1000
     #r_distance = (distributions.truncated_normal(0.0, rdist_sigma, 4)) * 1000
-
-    if sites_info is not None:
-        rrup_data = sites_info.rrup
-        rrup_data_perturbed = distributions.truncated_log_normal(rrup_data , 0.1, 4)
-        sites_info["rrup"] = rrup_data_perturbed
-        new_sites_info_csv = sites_info_csv.parent / f"{sites_info_csv.stem}_rrup_perturbed.csv"
-        sites_info.to_csv(new_sites_info_csv, index=False)
-    else:
-        print("Didn't get sites_info CSV")
 
 
     #temp = Geodesic.WGS84.Direct(sources_line.lat, sources_line.lon, theta, r_distance)
