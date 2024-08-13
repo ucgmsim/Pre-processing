@@ -5,6 +5,7 @@ from logging import Logger
 from multiprocessing import pool
 from os import makedirs
 from os.path import abspath, isfile, join
+from pathlib import Path
 from typing import Callable, Union, Dict, Any
 
 import pandas as pd
@@ -119,33 +120,35 @@ def generate_fault_realisations(
     fault_name = data.name
     fault_logger.info(f"Generating realisations for event {fault_name}")
 
-    if realisation_count == 1:
-        fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
-        vs30_out_file = join(
-            get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
-        )
-        generate_realisation(
-            get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
-            fault_name,
-            perturbation_function,
-            data,
-            additional_source_parameters,
-            aggregate_file,
-            vel_mod_1d,
-            get_realisation_VM_dir(cybershake_root, fault_name),
-            None,
-            vs30_data,
-            vs30_out_file,
-            fault_logger,
-        )
-        return
-
-    for i in range(1, realisation_count + 1):
-        realisation_name = get_realisation_name(fault_name, i)
-
+    fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
+    vs30_out_file = join(
+        get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
+    )
+    generate_realisation(
+        get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
+        fault_name,
+        unperturbed_function,
+        data,
+        additional_source_parameters,
+        aggregate_file,
+        vel_mod_1d,
+        get_realisation_VM_dir(cybershake_root, fault_name),
+        None,
+        vs30_data,
+        vs30_out_file,
+        fault_logger,
+    )
+    updated_rels_info = pd.read_csv(Path("/home/seb56/cs200/updated_rels_info.csv"),index_col=5)
+    this_fault_info = updated_rels_info[updated_rels_info['FN'] == fault_name]
+    #for i in range(1, realisation_count + 1):
+    for i in range(this_fault_info['new_relnum'].min(), realisation_count+1):
+        #realisation_name = get_realisation_name(fault_name, i)
+        this_rel_info = this_fault_info[this_fault_info['new_relnum'] == i]
+        realisation_name = this_rel_info.index.values[0]
         realisation_file_name = get_srf_path(cybershake_root, realisation_name).replace(
             ".srf", ".csv"
         )
+        additional_source_parameters={"mw":this_rel_info['new_mw'].values[0],"shypo":this_rel_info['new_shypo'].values[0],"dhypo":this_rel_info['new_dhypo'].values[0]}
 
         if checkpointing and isfile(realisation_file_name):
             fault_logger.debug(
