@@ -49,6 +49,9 @@ ONE_DEG_LAT = np.radians(6371.0072)
 def load_realisation_file_as_dict(file_name):
     rel_df: pd.DataFrame = pd.read_csv(file_name)
     realisation = rel_df.to_dict(orient="records")[0]
+    realisation["name"] = str(
+        realisation["name"]
+    )  # str() to avoid all-number name becoming an integer
     return realisation
 
 

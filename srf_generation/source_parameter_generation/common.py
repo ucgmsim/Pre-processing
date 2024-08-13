@@ -1,8 +1,11 @@
 from os.path import abspath, join, dirname
+from typing import Callable, Union, Dict, Any
 
 import pandas as pd
 import numpy as np
 from qcore.formats import load_vs30_file
+from qcore.qclogging import get_logger, get_realisation_logger
+from qcore.simulation_structure import get_realisation_name
 
 
 def add_common_arguments(parser, single_event=True):
@@ -67,7 +70,7 @@ def add_common_arguments(parser, single_event=True):
         vs30_parser.add_argument(
             "--vs30_out",
             type=abspath,
-            help="The path to a file to save the perturbated VS30s to",
+            help="The path to a file to save the perturbed VS30s to",
             default=abspath("."),
         )
     else:
@@ -133,3 +136,69 @@ def get_depth_property(target_depths, vel_mod_1d_layers, property_name):
         np.asarray(target_depths).round(5), vel_mod_1d_layers["depth"].cumsum().round(5)
     )
     return np.asarray(vel_mod_1d_layers[property_name].iloc[binned_depths])
+
+
+def write_asperites(asperities_dict, output_file):
+    background_value = asperities_dict["background"]
+    asperities_list = asperities_dict["asperities"]
+    with open(output_file, "w") as aspf:
+        aspf.write(f"{background_value}\n")
+        for asperity in asperities_list:
+            aspf.write(f"{asperity.to_genslip_format()}\n")
+
+
+def generate_fault_realisations(
+    fault_name: str,
+    data: Union["GCMT_Source", "NHM_data"],
+    realisation_count: int,
+    output_directory: str,
+    perturbation_function: Callable,
+    unperturbation_function: Callable,
+    aggregate_file: Union[str, None],
+    vel_mod_1d: pd.DataFrame,
+    vel_mod_1d_dir: str,
+    vs30_data: pd.DataFrame,
+    vs30_out_file: str,
+    primary_logger_name: str,
+    additional_source_parameters: Dict[str, Any],
+    generate_realisation: Callable,
+):
+    primary_logger = get_logger(name=primary_logger_name)
+    fault_logger = get_realisation_logger(primary_logger, fault_name)
+    fault_logger.debug(f"Fault {fault_name} had data {data}")
+
+    generate_realisation(
+        join(output_directory, f"{fault_name}.csv"),
+        fault_name,
+        unperturbation_function,
+        data,
+        additional_source_parameters,
+        aggregate_file,
+        vel_mod_1d,
+        vel_mod_1d_dir,
+        None,
+        vs30_data,
+        vs30_out_file,
+        fault_logger,
+    )
+
+    for i in range(1, realisation_count + 1):
+        realisation_name = get_realisation_name(fault_name, i)
+        realisation_file_name = join(output_directory, f"{realisation_name}.csv")
+        fault_logger.debug(
+            f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
+        )
+        generate_realisation(
+            realisation_file_name,
+            realisation_name,
+            perturbation_function,
+            data,
+            additional_source_parameters,
+            aggregate_file,
+            vel_mod_1d,
+            vel_mod_1d_dir,
+            None,
+            vs30_data,
+            vs30_out_file,
+            fault_logger,
+        )

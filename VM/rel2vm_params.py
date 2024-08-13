@@ -756,6 +756,7 @@ def optimise_vm_params(
 
     # modified sim time
     vm_corners = np.asarray([c1, c2, c3, c4])
+<<<<<<< HEAD
 
     if faultprop.Mw >= 7.2:
         ds_multiplier=0.9
@@ -766,6 +767,8 @@ def optimise_vm_params(
 
     print(f"{faultprop.Mw} {ds_multiplier}")
 
+=======
+>>>>>>> master
     initial_time = get_sim_duration(
         vm_corners,
         np.concatenate(srf_meta["corners"], axis=0),
@@ -1106,7 +1109,11 @@ def load_args():
         "--ds-multiplier",
         help="Sets the DS multiplier for setting the sim-duration. Validation runs default to 1.2. Cybershake runs"
         "should manually set it to 0.75",
+<<<<<<< HEAD
          default=1.2,
+=======
+        default=1.2,
+>>>>>>> master
         type=float,
     )
     args = parser.parse_args()

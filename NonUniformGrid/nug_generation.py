@@ -151,35 +151,40 @@ def compute_point_score(
     vs30_delta = vs30_range.vs30.max() - vs30_range.vs30.min()
     vs30_delta_score = score_vs30_delta(vs30_delta)
 
-    #pop_search_d = max(
+    # pop_search_d = max(
     #    min(distance * 2, 8), 2
-    #)  # search distance = 2 < Distance * 2 < 8
-    #pop_max_lat, pop_max_lon, pop_min_lat, pop_min_lon = get_min_max_lat_lon(
+    # )  # search distance = 2 < Distance * 2 < 8
+    # pop_max_lat, pop_max_lon, pop_min_lat, pop_min_lon = get_min_max_lat_lon(
     #    get_prospective_points(pop_search_d, lat, lon)
-    #)
+    # )
 
-    #pop_range = pop_df[
+    # pop_range = pop_df[
     #    (pop_df.lon < pop_max_lon)
     #    & (pop_df.lon > pop_min_lon)
     #    & (pop_df.lat < pop_max_lat)
     #    & (pop_df.lat > pop_min_lat)
-    #]
+    # ]
 
-    pop_range_original = pop_df[(pop_df.lon < max_lon) & (pop_df.lon > min_lon) & (pop_df.lat < max_lat) & (pop_df.lat > min_lat)]
+    pop_range_original = pop_df[
+        (pop_df.lon < max_lon)
+        & (pop_df.lon > min_lon)
+        & (pop_df.lat < max_lat)
+        & (pop_df.lat > min_lat)
+    ]
 
-    #pop = pop_range["pop"].max()
+    # pop = pop_range["pop"].max()
     pop_original = pop_range_original["pop"].max()
     pop_score = score_pop(pop_original)
-    #pop_score_2 = score_pop(
+    # pop_score_2 = score_pop(
     #    pop, min_population_acceptable=10, max_population_acceptable=60
-    #)
+    # )
 
-    #pop_dist = pop_distance(lat, lon, pop_df)
-    #pop_dist_score = score_pop(
+    # pop_dist = pop_distance(lat, lon, pop_df)
+    # pop_dist_score = score_pop(
     #    pop_dist, min_population_acceptable=50, max_population_acceptable=175
-    #)
+    # )
 
-    #pop_combined_score = max(pop_dist_score, pop_score)
+    # pop_combined_score = max(pop_dist_score, pop_score)
 
     overall_score = pop_score * pop_weight + vs30_delta_score * vs30_weight
 
@@ -190,11 +195,11 @@ def compute_point_score(
             lon,
             vs30_delta=vs30_delta,
             pop_dist=pop_dist,
-            #pop_value=pop_original,
-            #pop_score_2=pop_score,
-            #pop_combined_score=pop_combined_score,
+            # pop_value=pop_original,
+            # pop_score_2=pop_score,
+            # pop_combined_score=pop_combined_score,
             vs30_delta_score=vs30_delta_score,
-            #pop_dist_score=pop_dist_score,
+            # pop_dist_score=pop_dist_score,
             overall_score=overall_score,
         )
     return overall_score
@@ -227,7 +232,6 @@ def parse_args():
 
 
 def main(args):
-
     out_fname = args.output_filename
     hh = args.hh
     input_plots_dir = args.input_plot_dir

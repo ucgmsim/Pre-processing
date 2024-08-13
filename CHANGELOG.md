@@ -18,7 +18,7 @@ Pre processing
 
 ## [19.5.6] - 2019-11-26 -- Added type 2 and single realisation to new source generation workflow
 ### Added
-- Type 2 unperturbated faults are now available in the new workflow
+- Type 2 unperturbed faults are now available in the new workflow
 - Additional logging for srf generation scripts
 - Global and source specific parameters are usable with the realisation generation scripts
 ### Changed

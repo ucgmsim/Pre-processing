@@ -108,7 +108,7 @@ def generate_fault_realisations(
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
-    unperturbation_function: Callable,
+    unperturbed_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
@@ -122,26 +122,23 @@ def generate_fault_realisations(
     fault_name = data.pid
     fault_logger.info(f"Generating realisations for event {fault_name}")
 
-    if realisation_count == 1:
-        fault_logger.debug(f"Generating the only realisation of fault {fault_name}")
-        vs30_out_file = join(
-            get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
-        )
-        generate_realisation(
-            get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
-            fault_name,
-            perturbation_function,
-            data,
-            additional_source_parameters,
-            aggregate_file,
-            vel_mod_1d,
-            get_realisation_VM_dir(cybershake_root, fault_name),
-            None,
-            vs30_data,
-            vs30_out_file,
-            fault_logger,
-        )
-        return
+    vs30_out_file = join(
+        get_realisation_VM_dir(cybershake_root, fault_name), f"{fault_name}.vs30"
+    )
+    generate_realisation(
+        get_srf_path(cybershake_root, fault_name).replace(".srf", ".csv"),
+        fault_name,
+        unperturbed_function,
+        data,
+        additional_source_parameters,
+        None,
+        vel_mod_1d,
+        get_realisation_VM_dir(cybershake_root, fault_name),
+        None,
+        vs30_data,
+        vs30_out_file,
+        fault_logger,
+    )
 
     for i in range(1, realisation_count + 1):
         realisation_name = get_realisation_name(fault_name, i)
@@ -178,18 +175,6 @@ def generate_fault_realisations(
             fault_logger,
         )
 
-    if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
-            source_data=data,
-            additional_source_parameters=additional_source_parameters,
-            vel_mod_1d=None,
-        )
-        rel_df = pd.DataFrame(unperturbated_realisation["params"], index=[0])
-        realisation_file_name = join(
-            get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
-        )
-        rel_df.to_csv(realisation_file_name, index=False)
-
 
 def generate_messages(
     additional_source_parameters: pd.DataFrame,
@@ -198,7 +183,7 @@ def generate_messages(
     faults,
     gcmt_lines,
     perturbation_function,
-    unperturbation_function,
+    unperturbed_function,
     vel_mod_1d,
     checkpointing,
     vs30_data: pd.DataFrame,
@@ -222,7 +207,7 @@ def generate_messages(
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
-                unperturbation_function,
+                unperturbed_function,
                 aggregate_file,
                 vel_mod_1d,
                 vs30_data,
@@ -235,13 +220,12 @@ def generate_messages(
 
 
 def main():
-
     primary_logger = get_logger("realisations_from_gcmt")
 
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"gcmt_{args.type}")
+    unperturbed_function = load_perturbation_function(f"gcmt_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
@@ -291,7 +275,7 @@ def main():
         faults,
         gcmt_lines,
         perturbation_function,
-        unperturbation_function,
+        unperturbed_function,
         velocity_model_1d,
         args.checkpointing,
         vs30,
@@ -311,8 +295,24 @@ def main():
         f"{len(messages)} messages were created to create a total of {sum([m[1] for m in messages])} realisations"
     )
 
-    worker_pool = pool.Pool(processes=n_processes)
-    worker_pool.starmap(generate_fault_realisations, messages)
+    with pool.Pool(processes=n_processes) as worker_pool:
+        worker_pool.starmap(generate_fault_realisations, messages)
+
+    if args.aggregate_file is not None:
+        ordered_rels = []
+        for pid in pids:
+            if faults[pid] == 0:
+                ordered_rels.append(pid)
+            else:
+                ordered_rels.extend(
+                    [get_realisation_name(pid, i + 1) for i in range(faults[pid])]
+                )
+
+        agg = pd.read_csv(args.aggregate_file)
+        agg.sort_values(
+            by="name", key=lambda x: [ordered_rels.index(y) for y in x], inplace=True
+        )
+        agg.to_csv(args.aggregate_file)
 
 
 if __name__ == "__main__":

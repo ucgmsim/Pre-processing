@@ -1,14 +1,16 @@
 """Version 203 for Sarah Neills source parameter perturbations"""
+
 from typing import Any, Dict
+
 import numpy as np
 
 from qcore import geo
-from srf_generation.source_parameter_generation.uncertainties import distributions
+from qcore.uncertainties import distributions
+from qcore.uncertainties.mag_scaling import mag2mom
 from srf_generation.source_parameter_generation.uncertainties.common import (
     verify_realisation_params,
     GCMT_Source,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import mag2mom
 
 
 def generate_source_params(source_data: GCMT_Source) -> Dict[str, Any]:
@@ -41,7 +43,6 @@ def uniform_dist(u_mean, u_half_range):
 
 
 def generate_from_gcmt(source_data: GCMT_Source):
-
     # area = mw_2_a_scaling_relation(
     #    source_data.mag,
     #    MagnitudeScalingRelations.LEONARD2014.value,
@@ -53,10 +54,7 @@ def generate_from_gcmt(source_data: GCMT_Source):
     mag = distributions.truncated_normal(source_data.mag, 0.075, 2)  # magnitude
     # rvfrac = uniform_dist(0.8, 0.075)                   #rupture velocity factor
     lat_temp, lon_temp = geo.ll_shift(
-        source_data.lat,
-        source_data.lon,
-        distributions.truncated_normal(0.0, 1.0, 2),
-        0,
+        source_data.lat, source_data.lon, distributions.truncated_normal(0.0, 1.0, 2), 0
     )
     lat, lon = geo.ll_shift(
         lat_temp, lon_temp, distributions.truncated_normal(0.0, 1.0, 2), 90

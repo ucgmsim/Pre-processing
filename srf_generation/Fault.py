@@ -4,19 +4,15 @@ from typing import Union
 import numpy as np
 from qcore import geo
 from qcore.nhm import NHMFault
-
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
+from qcore.uncertainties.mag_scaling import (
     MagnitudeScalingRelations,
     get_area,
     get_length,
     get_width,
     mag2mom,
     round_subfault_size,
-    lw_2_mw_scaling_relation,
+    lw_to_mw_scaling_relation,
 )
-
-LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
-NHM_SEISMOGENIC_DEPTH = 12
 
 
 def fault_factory(fault_type: int):
@@ -179,7 +175,6 @@ class MultiPlaneFault(Fault):
 
 
 class PointSourceFault(SinglePlaneFault):
-
     type = 1
 
     # vs = 3.2
@@ -223,7 +218,6 @@ Type1 = PointSourceFault
 
 
 class FiniteFault(SinglePlaneFault):
-
     dlen = 0.1
     dwid = 0.1
     shypo = 0.00
@@ -246,7 +240,6 @@ class FiniteFault(SinglePlaneFault):
 
 
 class Type2(FiniteFault):
-
     type = 2
 
     _ratio_override: Union[float, None] = None
@@ -266,6 +259,7 @@ class Type2(FiniteFault):
                 "longitude": self._lon_hyp,
                 "latitude": self._lat_hyp,
                 "mwsr": self._magnitude_scaling_relation.name,
+                "dbottom": self.dbottom,
             }
         )
         return base_dict
@@ -349,11 +343,6 @@ class Type2(FiniteFault):
         self._dbottom = (
             self._depth + np.sin(np.radians(self._dip)) * self.width / 2 + shift
         )
-        if (
-            self.magnitude_scaling_relation == MagnitudeScalingRelations.LEONARD2014
-            and self._dbottom > NHM_SEISMOGENIC_DEPTH
-        ):
-            self._dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
 
         self.ny = int(round(self.width / self.dwid))
         self.nx = int(round(self.length / self.dlen))
@@ -506,8 +495,9 @@ class Type3(FiniteFault):
             self.mwsr = MagnitudeScalingRelations.SKARLATOUDIS2016
 
         else:
+            # Note: Leonard2010 focused on active region which is more suitable for NZ while Leonard2014 discusses SCR
+            # (stable continental region). However, the formulation is the same, and we just refer to it as Leonard2014
             self.mwsr = MagnitudeScalingRelations.LEONARD2014
-            self._dbottom += 3
 
         raw_fwid = (self._dbottom - dtop) / np.sin(np.radians(dip))
         self._width = round_subfault_size(raw_fwid, magnitude)
@@ -542,7 +532,6 @@ class Type3(FiniteFault):
 
 
 class Type4(MultiPlaneFault):
-
     type = 4
 
     def __init__(self, nhm_data: NHMFault):
@@ -563,7 +552,6 @@ class Type4(MultiPlaneFault):
 
         else:
             self.mwsr = MagnitudeScalingRelations.LEONARD2014
-            self._dbottom += 3
 
         dummy_plane = Type3(
             nhm_data.name,
@@ -585,7 +573,7 @@ class Type4(MultiPlaneFault):
             ]
         )
 
-        self._mag = lw_2_mw_scaling_relation(
+        self._mag = lw_to_mw_scaling_relation(
             length, dummy_plane.width, self.mwsr, nhm_data.rake
         )
 
@@ -646,7 +634,6 @@ class Type4(MultiPlaneFault):
             sub_plane._shypo = shypo
 
     def to_dict(self):
-
         base_dict = {
             "type": self.type,
             "magnitude": self._mag,

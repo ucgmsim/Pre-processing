@@ -4,17 +4,15 @@ import argparse
 from logging import Logger
 from os import makedirs
 from os.path import abspath, isfile, dirname, join
-from typing import Callable, Union, Dict, Any, Tuple, List
+from typing import Dict, Tuple, List
 
 import pandas as pd
 from qcore.nhm import load_nhm, NHMFault
 
-from qcore.simulation_structure import get_realisation_name
 from qcore.qclogging import (
     get_logger,
     add_general_file_handler,
     NOPRINTCRITICAL,
-    get_realisation_logger,
     get_basic_logger,
 )
 
@@ -23,6 +21,8 @@ from srf_generation.source_parameter_generation.common import (
     load_vs30_median_sigma,
     load_1d_velocity_mod,
     save_1d_velocity_model,
+    write_asperites,
+    generate_fault_realisations,
 )
 from srf_generation.source_parameter_generation.uncertainties.common import get_seed
 from srf_generation.source_parameter_generation.uncertainties.versions import (
@@ -44,7 +44,9 @@ def load_args(primary_logger: Logger):
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
-    parser.add_argument("type", type=str, help="The type of srf to generate.")
+    parser.add_argument(
+        "--type", type=str, help="The type of srf to generate.", default=4
+    )
 
     add_common_arguments(parser)
 
@@ -73,7 +75,6 @@ def load_args(primary_logger: Logger):
 
 
 def verify_args(args, errors, parser_logger=get_basic_logger()):
-
     if args.version is None:
         if args.type is not None:
             args.version = f"nhm_{args.type}"
@@ -115,57 +116,6 @@ def verify_args(args, errors, parser_logger=get_basic_logger()):
         errors.append(
             f"If the vs30 sigma file is given the median file should also be given"
         )
-
-
-def generate_fault_realisations(
-    data: NHMFault,
-    realisation_count: int,
-    output_directory: str,
-    perturbation_function: Callable,
-    unperturbation_function: Callable,
-    aggregate_file: Union[str, None],
-    vel_mod_1d: pd.DataFrame,
-    vel_mod_1d_dir: str,
-    vs30_data: pd.DataFrame,
-    vs30_out_file: str,
-    primary_logger_name: str,
-    additional_source_parameters: Dict[str, Any],
-):
-    primary_logger = get_logger(name=primary_logger_name)
-    fault_logger = get_realisation_logger(primary_logger, data.name)
-    fault_logger.debug(f"Fault {data.name} had data {data}")
-    fault_name = data.name
-
-    for i in range(1, realisation_count + 1):
-        realisation_name = get_realisation_name(fault_name, i)
-        realisation_file_name = join(output_directory, f"{realisation_name}.csv")
-        fault_logger.debug(
-            f"Generating realisation {i} of {realisation_count} for fault {fault_name}"
-        )
-        generate_realisation(
-            realisation_file_name,
-            realisation_name,
-            perturbation_function,
-            data,
-            additional_source_parameters,
-            aggregate_file,
-            vel_mod_1d,
-            vel_mod_1d_dir,
-            None,
-            vs30_data,
-            vs30_out_file,
-            fault_logger,
-        )
-
-    if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
-            source_data=data,
-            additional_source_parameters=additional_source_parameters,
-            vel_mod_1d=None,
-        )
-        rel_df = pd.DataFrame(unperturbated_realisation, index=[0])
-        realisation_file_name = join(output_directory, f"{fault_name}.csv")
-        rel_df.to_csv(realisation_file_name, index=False)
 
 
 def generate_realisation(
@@ -224,8 +174,8 @@ def generate_realisation(
         perturbed_realisation["params"]["v_mod_1d_name"] = file_name_1d_vel_mod
 
     if vs30_out_file is not None and "vs30" in perturbed_realisation.keys():
-        perturbated_vs30: pd.DataFrame = perturbed_realisation["vs30"]
-        perturbated_vs30.to_csv(
+        perturbed_vs30: pd.DataFrame = perturbed_realisation["vs30"]
+        perturbed_vs30.to_csv(
             vs30_out_file, columns="vs30", sep=" ", index=True, header=False
         )
         perturbed_realisation["params"]["vs30_file_path"] = vs30_out_file
@@ -235,8 +185,14 @@ def generate_realisation(
         z_df.to_csv(realisation_file_name.replace(".csv", "_z_values.csv"), index=False)
 
     makedirs(dirname(realisation_file_name), exist_ok=True)
+
+    if "asperities" in perturbed_realisation.keys():
+        asperity_file_path = realisation_file_name.replace(".csv", ".aspf")
+        write_asperites(perturbed_realisation["asperities"], asperity_file_path)
+        perturbed_realisation["params"]["asperity_file"] = asperity_file_path
+
     fault_logger.debug(
-        f"Created Srf directory and attempting to save perturbated source generation parameters there: {realisation_file_name}"
+        f"Created Srf directory and attempting to save perturbed source generation parameters there: {realisation_file_name}"
     )
     rel_df = pd.DataFrame(perturbed_realisation["params"], index=[0])
     rel_df.to_csv(realisation_file_name, index=False)
@@ -265,9 +221,7 @@ def get_additional_source_parameters(
     :param nhm_data: A Dictionary of faults and their NHMFault objects
     :param vel_mod_1d_layers: A dataframe containing a row for every layer of the velocity model
     """
-    additional_source_parameters = pd.DataFrame(
-        index=sorted(list(nhm_data.keys())),
-    )
+    additional_source_parameters = pd.DataFrame(index=sorted(list(nhm_data.keys())))
     for param_name, filepath in source_parameters:
         parameter_df = pd.read_csv(
             filepath,
@@ -293,13 +247,12 @@ def get_additional_source_parameters(
 
 
 def main():
-
     primary_logger = get_logger("NHM_2_realisation")
 
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"nhm_{args.type}")
+    unperturbed_function = load_perturbation_function(f"nhm_{args.type}")
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     nhm_data = load_nhm(args.nhm_file)
@@ -324,7 +277,7 @@ def main():
     additional_source_parameters = get_additional_source_parameters(
         args.source_parameter,
         args.common_source_parameter,
-        fault_nhm,
+        {fault_nhm.name: fault_nhm},
         vel_mod_1d_layers,
     )
 
@@ -339,36 +292,22 @@ def main():
 
     vel_mod_1d_layers = load_1d_velocity_mod(args.vel_mod_1d)
 
-    if args.realisation_count > 1:
-        generate_fault_realisations(
-            fault_nhm,
-            args.realisation_count,
-            args.output_dir,
-            perturbation_function,
-            unperturbation_function,
-            args.aggregate_file,
-            vel_mod_1d_layers,
-            args.vel_mod_1d_out,
-            vs30,
-            args.vs30_out,
-            primary_logger.name,
-            additional_source_specific_data,
-        )
-    else:
-        generate_realisation(
-            join(args.output_dir, f"{args.fault_name}.csv"),
-            args.fault_name,
-            perturbation_function,
-            fault_nhm,
-            additional_source_parameters,
-            args.aggregate_file,
-            args.vel_mod_1d,
-            args.vel_mod_1d_out,
-            None,
-            vs30,
-            args.vs30_out,
-            primary_logger,
-        )
+    generate_fault_realisations(
+        fault_nhm.name,
+        fault_nhm,
+        args.realisation_count,
+        args.output_dir,
+        perturbation_function,
+        unperturbed_function,
+        args.aggregate_file,
+        vel_mod_1d_layers,
+        args.vel_mod_1d_out,
+        vs30,
+        args.vs30_out,
+        primary_logger.name,
+        additional_source_specific_data,
+        generate_realisation,
+    )
 
 
 if __name__ == "__main__":

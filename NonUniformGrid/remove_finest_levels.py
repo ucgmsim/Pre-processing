@@ -4,8 +4,8 @@ import argparse
 import sys
 
 parser = argparse.ArgumentParser()
-parser.add_argument('input_file')
-parser.add_argument('finest_level')
+parser.add_argument("input_file")
+parser.add_argument("finest_level")
 args = parser.parse_args()
 
 input_file = args.input_file

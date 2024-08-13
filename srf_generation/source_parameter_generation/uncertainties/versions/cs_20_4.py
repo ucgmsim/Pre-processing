@@ -1,23 +1,25 @@
 """A basic perturbator as an example and starting point"""
+
+from typing import Any, Dict
+import copy
+
 import numpy as np
 import pandas as pd
-from typing import Any, Dict
 
 from qcore.nhm import NHMFault
-
-from srf_generation.Fault import fault_factory, Type4
-from srf_generation.source_parameter_generation.uncertainties.common import (
-    verify_realisation_params,
-    get_seed,
-)
-from srf_generation.source_parameter_generation.uncertainties.distributions import (
+from qcore.uncertainties.mag_scaling import lw_to_mw_sigma_scaling_relation
+from qcore.uncertainties.distributions import (
     rand_shyp,
     truncated_normal,
     truncated_weibull,
 )
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    lw_2_mw_sigma_scaling_relation,
+from srf_generation.Fault import fault_factory, Type4
+from srf_generation.source_parameter_generation.uncertainties.common import (
+    verify_realisation_params,
+    get_seed,
+    nhm_2012_seismogenic_adjustment,
 )
+
 
 TYPE = 4
 
@@ -33,20 +35,25 @@ def generate_source_params(
     - source_data.pid: name of the event
     - source_data.lat: latitude
     - source_data.lon: longitude
-    - source_data.depth
+    - source_data.dbottom
     - source_data.mag: magnitude
     - source_data.strike
     - source_data.dip
     - source_data.rake
     """
+    source_data = copy.copy(source_data)
+
+    source_data.dbottom = nhm_2012_seismogenic_adjustment(
+        source_data.dbottom, source_data.tectonic_type
+    )
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
-    fault.shypo = (fault.length / 2) * rand_shyp()
+    fault.shypo = fault.length * rand_shyp()
     fault.dhypo = fault.width * truncated_weibull(1)
 
     fault.rake = truncated_normal(fault.rake, 15, 4)
-    mag, sigma = lw_2_mw_sigma_scaling_relation(
+    mag, sigma = lw_to_mw_sigma_scaling_relation(
         fault.length, fault.width, fault.mwsr, fault.rake
     )
     perturbated_magnitude = truncated_normal(mag, sigma, 1)
@@ -61,6 +68,8 @@ def generate_source_params(
 
     realisation["params"] = params
     realisation["params"].update(additional_source_parameters)
+
+    # params["rough"] = 0.01
 
     if vs30_data is not None:
         realisation["vs30"] = vs30_data

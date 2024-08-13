@@ -70,7 +70,6 @@ def load_msgs(args, fault_names, faults, logger: Logger = qclogging.get_basic_lo
 
     # compile messages (parameters for CreateSRF_multi)
     if fault_names is None:
-
         return []
 
     msgs = []

@@ -24,7 +24,7 @@ FAULTSEG2GSFDIPDIR = "fault_seg2gsf_dipdir"
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
-    return randint(0, 2 ** 31 - 1)
+    return randint(0, 2**31 - 1)
 
 
 def mkdir_p(out_dir, logger: Logger = qclogging.get_basic_logger()):
@@ -89,6 +89,8 @@ get_fileroot = lambda MAG, FLEN, FWID, seed: "m%.2f-%.1fx%.1f_s%d" % (
     seed,
 )
 get_gsfname = lambda MAG, DLEN, DWID: "m%.2f-%.2fx%.2f.gsf" % (MAG, DLEN, DWID)
+
+
 # Leonard 2014 Relations
 def leonard(rake, A, ds=4.00, ss=3.99):
     # if dip slip else strike slip

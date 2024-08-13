@@ -4,10 +4,9 @@ from pandas import DataFrame
 import numpy as np
 from scipy.stats import randint
 
+from qcore.uncertainties.mag_scaling import mw_to_lw_scaling_relation
 from srf_generation.pre_processing_common import calculate_corners, get_hypocentre
-from srf_generation.source_parameter_generation.uncertainties.mag_scaling import (
-    mw_2_lw_scaling_relation,
-)
+
 
 GCMT_PARAM_NAMES = [
     "pid",  # str
@@ -86,6 +85,7 @@ SRFGEN_TYPE_2_PARAMS = [
     "rt_scalefac",
     "rt_rand",
     "stype",
+    "dbottom",
 ]
 
 SRFGEN_TYPE_3_PARAMS = [
@@ -170,14 +170,29 @@ HF_RUN_PARAMS = [
 
 LF_RUN_PARAMS = ["qsfrac", "qpfrac", "qpqs_factor"]
 
-BB_RUN_PARAMS = ["flo", "fmin", "fmidbot", "lfvsref"]
+BB_RUN_PARAMS = [
+    "flo",
+    "fmin",
+    "fmidbot",
+    "lfvsref",
+    "site-amp",
+    "site-amp-uncertainty",
+]
 
 RUN_TIME_PARAMS = HF_RUN_PARAMS + LF_RUN_PARAMS + BB_RUN_PARAMS
+LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE = 3
+NHM_SEISMOGENIC_DEPTH = 12
+
+
+def nhm_2012_seismogenic_adjustment(dbottom, tect_type):
+    if tect_type == "ACTIVE_SHALLOW" and dbottom >= NHM_SEISMOGENIC_DEPTH:
+        dbottom += LEONARD_SEISMOGENIC_DEPTH_DIFFERENCE
+    return dbottom
 
 
 def get_seed():
     """Returns a seed in the range of 0 to the largest 4 byte signed int possible in C"""
-    return randint(0, 2 ** 31 - 1).rvs()
+    return randint(0, 2**31 - 1).rvs()
 
 
 def filter_realisation_input_params(fault_type: int, params: Dict[str, Any]):
@@ -242,7 +257,7 @@ def verify_realisation_params(params: Dict[str, Any]):
         ]
     else:
         raise ValueError(
-            f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}."
+            f"'type' parameter given not valid. Given value {params['type']} is of type {type(params['type'])}.",
         )
     if mismatch:
         raise ValueError(f"Unexpected parameters found: {mismatch}")
@@ -299,7 +314,7 @@ def focal_mechanism_2_finite_fault(lat, lon, depth, mag, strike, rake, dip, mwsr
     shypo = 0.00
 
     # get the fault geometry (square edge length)
-    fault_length, fault_width = mw_2_lw_scaling_relation(mag, mwsr, rake)
+    fault_length, fault_width = mw_to_lw_scaling_relation(mag, mwsr, rake)
 
     # number of subfaults
     nx = int(round(fault_length / dlen))

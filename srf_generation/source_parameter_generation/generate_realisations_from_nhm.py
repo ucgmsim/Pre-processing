@@ -5,7 +5,6 @@ from logging import Logger
 from multiprocessing import pool
 from os import makedirs
 from os.path import abspath, isfile, join
-from pathlib import Path
 from typing import Callable, Union, Dict, Any
 
 import pandas as pd
@@ -61,12 +60,21 @@ def load_args(primary_logger: Logger):
         "Must have entries for all events named in the fault selection file. "
         "Additional events not named will be ignored.",
     )
-    parser.add_argument("type", type=str, help="The type of srf to generate.")
     parser.add_argument(
         "--n_processes",
         type=int,
         help="The number of processes to run at once. Capped at the number of events to generate realisations for.",
         default=1,
+    )
+    parser.add_argument(
+        "type", type=str, help="The type of srf to generate.", default="4", nargs="?"
+    )
+    parser.add_argument(
+        "--unperturbed_version",
+        type=str,
+        help="The name of the base version which doesn't have perturbations. "
+        "Should be the name of the file without the .py suffix.",
+        default=f"nhm_4",
     )
 
     add_common_arguments(parser, single_event=False)
@@ -106,7 +114,7 @@ def generate_fault_realisations(
     realisation_count: int,
     cybershake_root: str,
     perturbation_function: Callable,
-    unperturbation_function: Callable,
+    unperturbed_function: Callable,
     aggregate_file: Union[str, None],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame,
@@ -138,7 +146,7 @@ def generate_fault_realisations(
         vs30_out_file,
         fault_logger,
     )
-    updated_rels_info = pd.read_csv(Path("/home/seb56/cs200/updated_rels_info.csv"),index_col=5)
+    updated_rels_info = pd.read_csv("/home/seb56/cs200/updated_rels_info.csv",index_col=5)
     this_fault_info = updated_rels_info[updated_rels_info['FN'] == fault_name]
     #for i in range(1, realisation_count + 1):
     for i in range(this_fault_info['new_relnum'].min(), realisation_count+1):
@@ -178,18 +186,6 @@ def generate_fault_realisations(
             fault_logger,
         )
 
-    if perturbation_function != unperturbation_function:
-        unperturbated_realisation = unperturbation_function(
-            source_data=data,
-            additional_source_parameters=additional_source_parameters,
-            vel_mod_1d=None,
-        )
-        rel_df = pd.DataFrame(unperturbated_realisation["params"], index=[0])
-        realisation_file_name = join(
-            get_sources_dir(cybershake_root), fault_name, f"{fault_name}.csv"
-        )
-        rel_df.to_csv(realisation_file_name, index=False)
-
 
 def generate_messages(
     additional_source_parameters: pd.DataFrame,
@@ -198,7 +194,7 @@ def generate_messages(
     faults,
     nhm_faults,
     perturbation_function,
-    unperturbation_function,
+    unperturbed_function,
     vel_mod_1d,
     checkpointing,
     vs30_data: pd.DataFrame,
@@ -221,7 +217,7 @@ def generate_messages(
                 faults[fault_name],
                 cybershake_root,
                 perturbation_function,
-                unperturbation_function,
+                unperturbed_function,
                 aggregate_file,
                 vel_mod_1d,
                 vs30_data,
@@ -234,13 +230,15 @@ def generate_messages(
 
 
 def main():
-
     primary_logger = get_logger("realisations_from_nhm")
 
     args = load_args(primary_logger)
 
     perturbation_function = load_perturbation_function(args.version)
-    unperturbation_function = load_perturbation_function(f"nhm_{args.type}")
+    if args.unperturbed_version is None:
+        unperturbed_function = load_perturbation_function(f"nhm_{args.type}")
+    else:
+        unperturbed_function = load_perturbation_function(args.unperturbed_version)
     primary_logger.debug(f"Perturbation function loaded. Version: {args.version}")
 
     faults = load_fault_selection_file(args.fault_selection_file)
@@ -282,7 +280,7 @@ def main():
         faults,
         nhm_faults,
         perturbation_function,
-        unperturbation_function,
+        unperturbed_function,
         velocity_model_1d,
         args.checkpointing,
         vs30,
