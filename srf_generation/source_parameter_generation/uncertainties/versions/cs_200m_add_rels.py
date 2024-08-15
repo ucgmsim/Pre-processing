@@ -29,7 +29,7 @@ def generate_source_params(
     additional_source_parameters: Dict[str, Any],
     vel_mod_1d: pd.DataFrame,
     vs30_data: pd.DataFrame = None,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
     - source_data.pid: name of the event
@@ -49,19 +49,19 @@ def generate_source_params(
 
     fault: Type4 = fault_factory(TYPE)(source_data)
 
-    #fault.shypo = fault.length * rand_shyp()
-    fault.shypo = additional_source_parameters.pop('shypo')
-    #fault.dhypo = fault.width * truncated_weibull(1)
-    fault.dhypo = additional_source_parameters.pop('dhypo')
+    # fault.shypo = fault.length * rand_shyp()
+    fault.shypo = additional_source_parameters.pop("shypo") * fault.length
+    # fault.dhypo = fault.width * truncated_weibull(1)
+    fault.dhypo = additional_source_parameters.pop("dhypo") * fault.width
 
     fault.rake = truncated_normal(fault.rake, 15, 4)
     mag, sigma = lw_to_mw_sigma_scaling_relation(
-         fault.length, fault.width, fault.mwsr, fault.rake
+        fault.length, fault.width, fault.mwsr, fault.rake
     )
     # perturbated_magnitude = truncated_normal(mag, sigma, 1)
 
-    assert 'mw' in additional_source_parameters, f"{additional_source_parameters}"
-    perturbated_magnitude = additional_source_parameters.pop('mw')
+    assert "mw" in additional_source_parameters, f"{additional_source_parameters}"
+    perturbated_magnitude = additional_source_parameters.pop("mw")
 
     params = fault.to_dict()
     params.update({"dt": 0.005, "seed": get_seed(), "genslip_version": "5.4.2"})
