@@ -70,6 +70,7 @@ def generate_source_params(
     additional_source_parameters: Dict[str, Any],  # new line
     vel_mod_1d: pd.DataFrame = None,  # new line
     vs30_data: pd.DataFrame = None,
+    r_rup_data: pd.DataFrame = None,
     **kwargs,  # new line
 ) -> Dict[str, Any]:
     """source_data should have the following parameters available via . notation:
@@ -82,6 +83,8 @@ def generate_source_params(
     - source_data.dip
     - source_data.rake
     """
+
+    print(source_data.pid)
 
     realisation = kwargs  # new line
     ### Start of custom code area
@@ -122,28 +125,31 @@ def generate_source_params(
     qs_pert = np.exp(np.log(1) + qs_z * 0.5)
 
     # HF_qs_profile = [distributions.truncated_log_normal(qs, 0.3, 2.5) for qs in HF_onedprofile_pert.qs]
-    HF_qs_profile = [np.exp(np.log(qs) + qs_z * 0.5) for qs in HF_onedprofile_pert.qs]
+    #HF_qs_profile = [qs for qs in HF_onedprofile_pert.qs]
 
     # qs_z = (HF_qs_profile - HF_onedprofile_pert.qs)/0.3    #*****
 
-    HF_onedprofile_pert.qs = HF_qs_profile
+    #HF_onedprofile_pert.qs = HF_qs_profile
 
     realisation["hf_vel_mod_1d"] = HF_onedprofile_pert
 
-    measurement_uncertainty = 0.1
-    site_model_uncertainty = 0.3
-    total_vs30_uncertainty = np.sqrt(
-        (vs30_data["sigma"].values) ** 2 + measurement_uncertainty**2
-    )
+    #measurement_uncertainty = 0.1
+    #site_model_uncertainty = 0.3
+    #total_vs30_uncertainty = vs30_data["sigma"].values
+    total_vs30_uncertainty = 0.6
 
     if vs30_data is not None:
         print("Got vs30")
         realisation["vs30"] = vs30_data.copy(deep=True)
-        realisation["vs30"]["vs30"] = distributions.truncated_log_normal(
-            vs30_data["median"].values, total_vs30_uncertainty, 2
-        )
+        #print(vs30_data["median"].values)
+        realisation["vs30"]["vs30"] = vs30_data["median"].values
+        #realisation["vs30"]["vs30"] = distributions.truncated_log_normal(vs30_data["median"].values, total_vs30_uncertainty, 4)
     else:
         print("Didn't get vs30")
+
+    #if realisation["vs30"]["vs30"] <= 0:
+    #    realisation["vs30"]["vs30"] = 0
+
 
     ### End of custom code area
 
@@ -177,91 +183,101 @@ def generate_from_gcmt(
     #    sources_line.strike,
     # )
 
-    rdist_sigma = additional_source_parameters["rdistance_sigma"]
-    depth_sigma = additional_source_parameters["depth_sigma"]
+    #rdist_sigma = 2
+    #depth_sigma = additional_source_parameters["depth_sigma"]
 
     ### the following parameters feed into srfgen
 
-    mag = distributions.truncated_normal(sources_line.mag, 0.075, 2)  # magnitude
+    #mag = distributions.truncated_normal(sources_line.mag, 0.1, 4) # magnitude
+    mag = sources_line.mag
     # rvfrac = uniform_dist(0.8, 0.075)                   #rupture velocity factor
 
     # lat_temp,lon_temp = geo.ll_shift(sources_line.lat, sources_line.lon, distributions.truncated_normal(0.0, 1.0, 2), 0)
     # lat,lon = geo.ll_shift(lat_temp, lon_temp, distributions.truncated_normal(0.0, 1.0, 2), 90)
 
-    theta = uniform_dist(0, 180)
+    #theta = uniform_dist(0, 180)
     # r_distance = (distributions.truncated_normal(0.0, 3.65, 2))*1000
-    r_distance = (distributions.truncated_normal(0.0, rdist_sigma, 2)) * 1000
+    #r_distance = (distributions.truncated_normal(0.0, rdist_sigma, 4)) * 1000
 
-    temp = Geodesic.WGS84.Direct(sources_line.lat, sources_line.lon, theta, r_distance)
-    lat = temp["lat2"]
-    lon = temp["lon2"]
+    #temp = Geodesic.WGS84.Direct(sources_line.lat, sources_line.lon, theta, r_distance)
+    #lat = distributions.truncated_normal(sources_line.lat, 1, 4)
+    lat = sources_line.lat
+    #lon = distributions.truncated_normal(sources_line.lon, 1, 4)
+    lon = sources_line.lon
 
-    #depth = distributions.truncated_log_normal(sources_line.depth, depth_sigma, 4)
-    depth = distributions.truncated_normal(sources_line.depth, depth_sigma, 2)
-    if depth <= 3:
-        depth = 3
-    if depth >= 37:
-        depth = 37
+    # depth = distributions.truncated_log_normal(sources_line.depth, 0.3, 2)
 
-    strike = distributions.truncated_normal(sources_line.strike, 10, 2)
-    dip = distributions.truncated_normal(sources_line.dip, 10, 2)
-    rake = distributions.truncated_normal(sources_line.rake, 15, 4)
+    #depth = distributions.truncated_normal(sources_line.depth, depth_sigma, 2)
+    depth = sources_line.depth
+    #if depth <= 3:
+    #    depth = 3
+    #if depth >= 37:
+    #    depth = 37
+
+    #strike = distributions.truncated_normal(sources_line.strike, 10, 2)
+    strike = sources_line.strike
+    #dip = distributions.truncated_normal(sources_line.dip, 10, 2)
+    dip = sources_line.dip
+    #rake = distributions.truncated_normal(sources_line.rake, 15, 4)
+    rake = sources_line.rake
 
     # qsfrac = distributions.truncated_log_normal(50, 0.3, 2.5)
-    qsfrac = np.exp(np.log(50) + qs_z * 0.5)
+    qsfrac = 50
 
-    unmod_strike = strike
-    unmod_dip = dip
-    unmod_rake = rake
+    #unmod_strike = strike
+    #unmod_dip = dip
+    #unmod_rake = rake
 
     # calculate normalised perturbations:
-    z_mw_pert = (mag - sources_line.mag) / 0.075
-    z_lat_pert = (
-        geo.ll_dist(sources_line.lon, sources_line.lat, sources_line.lon, lat) / 1.0
-    )
-    z_long_pert = (
-        geo.ll_dist(sources_line.lon, sources_line.lat, lon, sources_line.lat) / 1.0
-    )
-    z_depth_pert = (depth - sources_line.depth) / 2.0
-    z_strike_pert = (strike - sources_line.strike) / 10.0
-    z_dip_pert = (dip - sources_line.dip) / 10.0
-    z_rake_pert = (rake - sources_line.rake) / 15.0
+    #z_mw_pert = (mag - sources_line.mag) / 0.075
+    #z_lat_pert = (
+    #    geo.ll_dist(sources_line.lon, sources_line.lat, sources_line.lon, lat) / 1.0
+    #)
+    #z_long_pert = (
+    #    geo.ll_dist(sources_line.lon, sources_line.lat, lon, sources_line.lat) / 1.0
+    #)
+    #z_depth_pert = (depth - sources_line.depth) / 2.0
+    #z_strike_pert = (strike - sources_line.strike) / 10.0
+    #z_dip_pert = (dip - sources_line.dip) / 10.0
+    #z_rake_pert = (rake - sources_line.rake) / 15.0
 
     # correct strike dip and rake:
-    if dip > 90:
-        strike = (strike + 180) % 360  # flip the strike
-        dip = 180 - dip
-        rake = rake * -1
+    #if dip > 90:
+    #    strike = (strike + 180) % 360  # flip the strike
+    #    dip = 180 - dip
+    #    rake = rake * -1
 
-    if dip < 0:
-        strike = (strike + 180) % 360
-        dip = 90 - dip % 90
-        rake = rake * -1
+    #if dip < 0:
+    #    strike = (strike + 180) % 360
+    #    dip = 90 - dip % 90
+    #    rake = rake * -1
 
-    if rake > 180:
-        rake = rake - 360
+    #if rake > 180:
+    #    rake = rake - 360
 
-    if rake < -180:
-        rake = rake + 360
+    #if rake < -180:
+    #    rake = rake + 360
 
-    if strike > 360:
-        strike = strike % 360
+    #if strike > 360:
+    #    strike = strike % 360
 
-    if strike < 0:
-        strike = strike % 360
+    #if strike < 0:
+    #    strike = strike % 360
 
     ### the following parameters feed into the sim_params.yaml
 
-    sdrop = distributions.truncated_log_normal(50, 0.5, 4)
-    rvfac = uniform_dist(0.8, 0.075)  # rupture velocity factor
+    sdrop = 50
+    rvfac = 0.8  # rupture velocity factor
+    if rvfac == 0:
+        rvfac = 0.001
     # kappa = distributions.truncated_log_normal(0.045, 0.3, 2)
     kappa = 0.045
 
-    dpath_pert = np.random.normal(0, 0.576, 1)
+    dpath_pert = 0
 
     # calculate normalised perturbations:
-    z_sdrop_pert = (sdrop - 50) / 1.35
-    z_rvfac_pert = (rvfac - 0.8) / 0.075
+    #z_sdrop_pert = (sdrop - 50) / 1.35
+    #z_rvfac_pert = (rvfac - 0.8) / 0.075
     # z_kappa_pert = (kappa - 0.045)/1.35
 
     params = {
@@ -279,13 +295,7 @@ def generate_from_gcmt(
         "sdrop": sdrop,
         "rvfac": rvfac,
         "qsfrac": qsfrac,
-        "dpath_pert": dpath_pert,
-        "theta": theta,
-        "r_distance": r_distance,
-        "unmod_strike": unmod_strike,
-        "unmod_dip": unmod_dip,
-        "unmod_rake": unmod_rake,
-        "site-amp-uncertainty": True,
+        "dpath_pert": dpath_pert
     }
 
     params.update(additional_source_parameters)  # modified

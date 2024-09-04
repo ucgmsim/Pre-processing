@@ -130,7 +130,7 @@ def generate_source_params(
 
     realisation["hf_vel_mod_1d"] = HF_onedprofile_pert
 
-    measurement_uncertainty = 0.1
+    measurement_uncertainty = 0.06
     site_model_uncertainty = 0.3
     total_vs30_uncertainty = np.sqrt(
         (vs30_data["sigma"].values) ** 2 + measurement_uncertainty**2
@@ -196,8 +196,8 @@ def generate_from_gcmt(
     lat = temp["lat2"]
     lon = temp["lon2"]
 
-    #depth = distributions.truncated_log_normal(sources_line.depth, depth_sigma, 4)
-    depth = distributions.truncated_normal(sources_line.depth, depth_sigma, 2)
+    depth = distributions.truncated_log_normal(sources_line.depth, depth_sigma, 4)
+    #depth = distributions.truncated_normal(sources_line.depth, depth_sigma, 2)
     if depth <= 3:
         depth = 3
     if depth >= 37:
