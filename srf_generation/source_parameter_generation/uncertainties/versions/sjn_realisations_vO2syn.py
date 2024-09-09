@@ -138,16 +138,16 @@ def generate_source_params(
     #measurement_uncertainty = 0.1
     #site_model_uncertainty = 0.3
     #total_vs30_uncertainty = vs30_data["sigma"].values
-    total_vs30_uncertainty = 0.2
+    #total_vs30_uncertainty = 0.2
 
-    if vs30_data is not None:
-        print("Got vs30")
-        realisation["vs30"] = vs30_data.copy(deep=True)
-        #print(vs30_data["median"].values)
-        #realisation["vs30"]["vs30"] = distributions.truncated_log_normal(vs30_data["median"].values, total_vs30_uncertainty, 4)
-        realisation["vs30"]["vs30"] = vs30_data["median"].values
-    else:
-        print("Didn't get vs30")
+    #if vs30_data is not None:
+    #    print("Got vs30")
+    #    realisation["vs30"] = vs30_data.copy(deep=True)
+    #    #print(vs30_data["median"].values)
+    #    #realisation["vs30"]["vs30"] = distributions.truncated_log_normal(vs30_data["median"].values, total_vs30_uncertainty, 4)
+    #    realisation["vs30"]["vs30"] = vs30_data["median"].values
+    #else:
+    #    print("Didn't get vs30")
 
     ### End of custom code area
 
