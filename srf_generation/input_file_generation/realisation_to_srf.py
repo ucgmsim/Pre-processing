@@ -85,6 +85,7 @@ def create_stoch(
 
     logger.debug("Generating stoch file")
     out_dir = os.path.dirname(stoch_file)
+
     os.makedirs(out_dir, exist_ok=True)
     dx, dy = 2.0, 2.0
     if not srf.is_ff(srf_file):
@@ -1062,6 +1063,8 @@ def main():
     primary_logger = qclogging.get_logger("realisation_to_srf")
     qclogging.add_general_file_handler(primary_logger, "rel2srf.txt")
     args = load_args()
+    args.realisation_file = os.path.abspath(args.realisation_file)
+
     realisation = pre_processing_common.load_realisation_file_as_dict(
         args.realisation_file
     )
