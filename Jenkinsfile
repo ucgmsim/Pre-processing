@@ -26,6 +26,9 @@ pipeline {
                     rm -rf qcore
                     git clone https://github.com/ucgmsim/qcore.git
                     cd qcore
+                    pip install -r requirements.txt
+                    pip install -e .
+
                     python setup.py develop --no-data --no-deps
                 """
             }
@@ -40,7 +43,7 @@ pipeline {
                     echo "[ Python used ] : " `which python`
                     cd ${env.WORKSPACE}
                     echo "[ Installing ${env.JOB_NAME} ]"
-                    python setup.py install
+		    pip install -e .
                     echo "[ Run test now ]"
                     pytest --black --ignore=geoNet --ignore=NonUniformGrid --ignore=RegionalSeismicityTectonics --ignore=SrfGen/NHM/deprecated --ignore=test
                 """
