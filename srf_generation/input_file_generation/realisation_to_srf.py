@@ -85,7 +85,6 @@ def create_stoch(
 
     logger.debug("Generating stoch file")
     out_dir = os.path.dirname(stoch_file)
-
     os.makedirs(out_dir, exist_ok=True)
     dx, dy = 2.0, 2.0
     if not srf.is_ff(srf_file):
