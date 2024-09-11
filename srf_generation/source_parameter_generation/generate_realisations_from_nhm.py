@@ -146,13 +146,23 @@ def generate_fault_realisations(
         vs30_out_file,
         fault_logger,
     )
-
-    for i in range(1, realisation_count + 1):
-        realisation_name = get_realisation_name(fault_name, i)
-
+    updated_rels_info = pd.read_csv(
+        "/home/seb56/cs200/updated_rels_info.csv", index_col=5
+    )
+    this_fault_info = updated_rels_info[updated_rels_info["FN"] == fault_name]
+    # for i in range(1, realisation_count + 1):
+    for i in range(this_fault_info["new_relnum"].min(), realisation_count + 1):
+        # realisation_name = get_realisation_name(fault_name, i)
+        this_rel_info = this_fault_info[this_fault_info["new_relnum"] == i]
+        realisation_name = this_rel_info.index.values[0]
         realisation_file_name = get_srf_path(cybershake_root, realisation_name).replace(
             ".srf", ".csv"
         )
+        additional_source_parameters = {
+            "mw": this_rel_info["new_mw"].values[0],
+            "shypo": this_rel_info["new_shypo"].values[0],
+            "dhypo": this_rel_info["new_dhypo"].values[0],
+        }
 
         if checkpointing and isfile(realisation_file_name):
             fault_logger.debug(
@@ -197,7 +207,7 @@ def generate_messages(
     primary_logger,
 ):
     messages = []
-    for fault_name, realisation_count in faults.items():
+    for fault_name, (realisation_count, start_num) in faults.items():
         fault_data = nhm_faults[fault_name]
 
         additional_source_specific_data = {}
@@ -210,7 +220,7 @@ def generate_messages(
         messages.append(
             (
                 fault_data,
-                faults[fault_name],
+                realisation_count - start_num + 1,
                 cybershake_root,
                 perturbation_function,
                 unperturbed_function,
