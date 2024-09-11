@@ -1062,6 +1062,8 @@ def main():
     primary_logger = qclogging.get_logger("realisation_to_srf")
     qclogging.add_general_file_handler(primary_logger, "rel2srf.txt")
     args = load_args()
+    args.realisation_file = os.path.abspath(args.realisation_file)
+
     realisation = pre_processing_common.load_realisation_file_as_dict(
         args.realisation_file
     )
