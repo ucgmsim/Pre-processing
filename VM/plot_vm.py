@@ -87,7 +87,9 @@ def plot_vm(
 
     # SRF domain
     if srf_corners is not None and len(srf_corners) > 0:
-        srf_path = write_srf_path(srf_corners, ptemp)
+        srf_path = write_srf_path(
+            srf_corners, ptemp
+        )  # write srf.path file if not already present, otherwise use the existing file
 
         # filled slip area
         p.path(srf_path, is_file=True, fill="yellow", split="-")
