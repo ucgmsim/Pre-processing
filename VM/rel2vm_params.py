@@ -22,19 +22,18 @@ from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
 
-from srf_generation.input_file_generation.realisation_to_srf import get_corners_dbottom
 
 from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
 from qcore.utils import dump_yaml
 from qcore.simulation_structure import get_fault_from_realisation
 from qcore.validate_vm import validate_vm_bounds
-
+from srf_generation.input_file_generation.realisation_to_srf import get_corners_dbottom
 from VM.models.classdef import Site, Fault, TectType, estimate_z1p0, FaultStyle
 from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
 from VM.models.AfshariStewart_2016_Ds import Afshari_Stewart_2016_Ds
 
-from plot_vm import plot_vm
+from VM.plot_vm import plot_vm
 
 script_dir = Path(__file__).resolve().parent
 NZ_CENTRE_LINE = script_dir / "../SrfGen/NHM/res/centre.txt"
@@ -559,6 +558,33 @@ def centre_lon(lat_target: float):
     return lon_target
 
 
+def write_srf_path(srf_corners: np.ndarray, wd: Path):
+    """
+    Write a temporary file srf.path containing SRF corner coordinates.
+    Used for plotting SRF planes using GMT
+
+
+
+    Parameters
+    ----------
+    srf_corners : corners of the srf
+    wd : working directory
+
+    Returns
+    -------
+    path to the srf path file
+
+    """
+    srf_path = wd / "srf.path"
+    if not srf_path.exists():
+        with open(srf_path, "wb") as sp:
+            for plane in srf_corners:
+                sp.write("> srf plane\n".encode())
+                np.savetxt(sp, plane, fmt="%f")
+                sp.write("%f %f\n".encode() % (tuple(plane[0])))
+    return srf_path
+
+
 def optimise_vm_params(
     srf_meta: dict,
     ds_multiplier: float,
@@ -629,11 +655,7 @@ def optimise_vm_params(
     )
 
     # for plotting and calculating VM domain distance
-    with open(temp_dir / "srf.path", "wb") as sp:
-        for plane in srf_meta["corners"]:
-            sp.write("> srf plane\n".encode())
-            np.savetxt(sp, plane, fmt="%f")
-            sp.write("%f %f\n".encode() % (tuple(plane[0])))
+    write_srf_path(srf_meta["corners"], temp_dir)
 
     if fault_depth > rrup and not deep_rupture:
         logger.warning(
@@ -756,6 +778,16 @@ def optimise_vm_params(
 
     # modified sim time
     vm_corners = np.asarray([c1, c2, c3, c4])
+
+    if faultprop.Mw >= 7.2:
+        ds_multiplier = 0.9
+    elif faultprop.Mw > 6:
+        ds_multiplier = -0.3 / 1.3 * (faultprop.Mw - 6) + 1.2
+    else:
+        ds_multiplier = 1.2
+
+    print(f"{faultprop.Mw} {ds_multiplier}")
+
     initial_time = get_sim_duration(
         vm_corners,
         np.concatenate(srf_meta["corners"], axis=0),

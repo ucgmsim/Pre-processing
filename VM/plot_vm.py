@@ -1,12 +1,48 @@
+"""
+Plots the VM domain and the SRF planes
+"""
+
 from argparse import ArgumentParser
 from logging import Logger
 from pathlib import Path
+
 from tempfile import TemporaryDirectory
 
 import numpy as np
+from shapely.geometry import Point, Polygon
 import yaml
 
 from qcore import geo, gmt, qclogging
+
+
+def is_SRF_inside_VM_domain(srf_corners: np.ndarray, vm_corners: str) -> bool:
+    """
+    Check if all SRF planes are inside the VM domain
+    Parameters
+    ----------
+    srf_corners : np.ndarray
+        Corners of SRF planes. Can be multiple planes,  Formatted as [plane1, plane2,...] where plane1=[[lon,lat],[lon,lat],[lon,lat],[lon,lat]]
+    vm_corners: str
+        Corners of the VM domain. Formatted as "lon\tlat\nlon\tlat\nlon\tlat\nlon\tlat\n"
+    """
+    vm_polygon = Polygon(
+        [
+            (float(lat_str), float(lon_str))
+            for lon_str, lat_str in [
+                point_str.split("\t")
+                for point_str in vm_corners.split("\n")
+                if len(point_str) > 0
+            ]
+        ]
+    )
+
+    all_inside = all(
+        vm_polygon.contains(Point(lat, lon))
+        for plane in srf_corners
+        for lon, lat in plane
+    )
+
+    return all_inside
 
 
 def plot_vm(
@@ -24,32 +60,50 @@ def plot_vm(
 
     Parameters
     ----------
-    vm_params_dict :
-    srf_corners :
-    land_outline_path :
-    centre_line_path :
-    mag :
-    outdir :
-    ptemp :
-    logger :
+    vm_params_dict : dict
+        Dictionary extracted from vm_params.yaml file.
+    srf_corners : np.ndarray.
+        Corners of SRF planes. Formatted as [[[lon,lat],[lon,lat],[lon,lat],[lon,lat]],...]
+    land_outline_path : Path
+        Path to the land outline file
+    centre_line_path : Path
+        Path to the centre line file
+    mag : float
+        Magnitude of the event
+    outdir : Path
+        Output directory
+    ptemp : Path
+        Temporary directory
+    logger : Logger
+        Default is qclogging.get_basic_logger()
     """
+
+    from rel2vm_params import write_srf_path
 
     logger.debug("Plotting vm")
     p = gmt.GMTPlot(ptemp / "optimisation.ps")
     p.spacial("M", vm_params_dict["plot_region"], sizing=7)
     p.coastlines()
 
-    srf_path = ptemp / "srf.path"
-    if srf_path.exists():
+    # SRF domain
+    if srf_corners is not None and len(srf_corners) > 0:
+        srf_path = write_srf_path(srf_corners, ptemp)
+
         # filled slip area
         p.path(srf_path, is_file=True, fill="yellow", split="-")
         # top edge
+
         for plane in srf_corners:
             p.path(
                 "\n".join([" ".join(map(str, ll)) for ll in plane[:2]]), is_file=False
             )
 
-    # vm domain (simple and adjusted)
+        if not is_SRF_inside_VM_domain(srf_corners, vm_params_dict["path"]):
+            logger.warning(
+                "WARNING: SRF planes are not completely inside the VM domain"
+            )
+
+    # plot the VM domain (simple and adjusted)
     p.path(vm_params_dict["path"], is_file=False, close=True, fill="black@95")
     if vm_params_dict["adjusted"]:
         p.path(
@@ -60,6 +114,10 @@ def plot_vm(
             split="-",
             width="1.0p",
         )
+        if not is_SRF_inside_VM_domain(srf_corners, vm_params_dict["path_mod"]):
+            logger.warning(
+                "WARNING: SRF planes are not completely inside the modified VM domain"
+            )
 
     # info text for simple and adjusted domains
     p.text(
@@ -119,17 +177,23 @@ def main(
     name: str,
     vm_params_dict: dict,
     outdir: Path,
+    rel_path: Path = None,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
-    vm_params_dict loaded from vm_params.yaml doesn't have all info plot_vm() needs.
-    This function gathers and works out the necessary input (except SRF-relevant info) to run this file as a stand-alone script
+    Gathers necessary input to call plot_vm() function to plot VM domain and SRF planes (if realisation CSV is supplied)
 
     Parameters
     ----------
-    name : name of the fault/event
-    vm_params_dict : Dictionary extracted from vm_params.yaml
-    outdir :
+    name : str
+        name of the fault/event. This is used to name the output file.
+    vm_params_dict : dict
+        Dictionary extracted from vm_params.yaml file.
+    outdir : Path
+        Output directory
+    rel_path : Path, optional
+        Path to the realisation csv file. Default is None. If not specified, the SRF domain will not be plotted.
+
     logger :
     """
     from rel2vm_params import (
@@ -137,6 +201,7 @@ def main(
         corners2region,
         NZ_CENTRE_LINE,
         NZ_LAND_OUTLINE,
+        load_rel,
     )
 
     # vm_params_dict is the dictionary directly loaded from vm_params.yaml
@@ -173,10 +238,16 @@ def main(
 
         vm_params_dict["plot_region"] = plot_region
 
-        # plotting the domain of VM. No SRF
+        if rel_path is not None:
+            srf_meta = load_rel(rel_path)
+            srf_corners = srf_meta["corners"]
+        else:
+            srf_corners = []
+
+        # plotting the domain of VM.
         plot_vm(
             vm_params_dict,
-            [],
+            srf_corners,
             NZ_LAND_OUTLINE,
             NZ_CENTRE_LINE,
             vm_params_dict["mag"],
@@ -192,10 +263,12 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     Parameters
     ----------
-    logger :
+    logger :  Logger
+        Default is qclogging.get_basic_logger()
 
     Returns
     -------
+    Processed arguments
 
     """
     parser = ArgumentParser()
@@ -203,7 +276,9 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
 
     arg("name", help="Name of the fault")
 
-    arg("vm_params_path", help="path to vm_params.yaml")
+    arg("vm_params_path", help="path to vm_params.yaml", type=Path)
+
+    arg("--rel_path", help="Path to the realisation csv file", type=Path)
 
     arg(
         "-o",
@@ -214,11 +289,19 @@ def load_args(logger: Logger = qclogging.get_basic_logger()):
     )
 
     args = parser.parse_args()
-    args.vm_params_path = Path(args.vm_params_path).resolve()
+    args.vm_params_path = args.vm_params_path.resolve()
+    args.rel_path = args.rel_path.resolve()
 
-    if args.outdir is None:
+    if (
+        args.outdir is None
+    ):  # if not specified, use the directory that contains vm_params.yaml
         args.outdir = args.vm_params_path.parent
     args.outdir = Path(args.outdir).resolve()
+
+    args.outdir.mkdir(exist_ok=True, parents=True)
+    assert args.vm_params_path.exists(), f"File is not present: {args.vm_params_path}"
+    if args.rel_path is not None:
+        assert args.rel_path.exists(), f"File is not present: {args.rel_path}"
 
     return args
 
@@ -231,4 +314,4 @@ if __name__ == "__main__":
     with open(args.vm_params_path, "r") as f:
         vm_params_dict = yaml.load(f, Loader=yaml.SafeLoader)
 
-    main(args.name, vm_params_dict, args.outdir, logger=logger)
+    main(args.name, vm_params_dict, args.outdir, args.rel_path, logger=logger)
