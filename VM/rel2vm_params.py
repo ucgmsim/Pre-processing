@@ -793,15 +793,6 @@ def optimise_vm_params(
     # modified sim time
     vm_corners = np.asarray([c1, c2, c3, c4])
 
-    if faultprop.Mw >= 7.2:
-        ds_multiplier = 0.9
-    elif faultprop.Mw > 6:
-        ds_multiplier = -0.3 / 1.3 * (faultprop.Mw - 6) + 1.2
-    else:
-        ds_multiplier = 1.2
-
-    print(f"{faultprop.Mw} {ds_multiplier}")
-
     initial_time = get_sim_duration(
         vm_corners,
         np.concatenate(srf_meta["corners"], axis=0),
