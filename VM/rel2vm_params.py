@@ -561,8 +561,22 @@ def centre_lon(lat_target: float):
 def write_srf_path(srf_corners: np.ndarray, wd: Path):
     """
     Write a temporary file srf.path containing SRF corner coordinates.
-    Used for plotting SRF planes using GMT
+    Used for plotting SRF planes using GMT. Needs to have the first point repeated at the end to close the path.
 
+    Example
+    -------
+    > srf plane
+    167.875309 -45.036523
+    167.498049 -45.811822
+    167.414717 -45.801548
+    167.793114 -45.026250
+    167.875309 -45.036523
+    > srf plane
+    167.496522 -45.811651
+    167.348478 -46.000020
+    167.264864 -45.989745
+    167.413191 -45.801377
+    167.496522 -45.811651
 
 
     Parameters
@@ -577,11 +591,11 @@ def write_srf_path(srf_corners: np.ndarray, wd: Path):
     """
     srf_path = wd / "srf.path"
     if not srf_path.exists():
-        with open(srf_path, "wb") as sp:
+        with open(srf_path, "w") as sp:
             for plane in srf_corners:
-                sp.write("> srf plane\n".encode())
-                np.savetxt(sp, plane, fmt="%f")
-                sp.write("%f %f\n".encode() % (tuple(plane[0])))
+                sp.write("> srf plane\n")
+                np.savetxt(sp, plane, fmt="%.6f")
+                sp.write(f"{plane[0][0]:6f} {plane[0][1]:6f}\n")  # close the plane
     return srf_path
 
 
