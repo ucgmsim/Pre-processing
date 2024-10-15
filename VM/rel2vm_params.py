@@ -27,7 +27,7 @@ from qcore import constants, geo, gmt, qclogging
 from qcore.geo import R_EARTH
 from qcore.utils import dump_yaml
 from qcore.simulation_structure import get_fault_from_realisation
-from qcore.validate_vm import validate_vm_bounds
+from qcore.validate_vm import validate_vm_bounds, validate_region
 from srf_generation.input_file_generation.realisation_to_srf import get_corners_dbottom
 from VM.models.classdef import Site, Fault, TectType, estimate_z1p0, FaultStyle
 from VM.models.Bradley_2010_Sa import Bradley_2010_Sa
@@ -785,7 +785,12 @@ def optimise_vm_params(
         )
         success = False
 
-    bounds_invalid = validate_vm_bounds([c1, c2, c3, c4], srf_meta["corners"].tolist())
+    # check if corners are within NZ
+    bounds_invalid = validate_region([c1, c2, c3, c4])
+    bounds_invalid.extend(
+        validate_vm_bounds([c1, c2, c3, c4], srf_meta["corners"].tolist())
+    )
+
     if bounds_invalid:
         logger.warning(f"Bounds not valid, not making VM: {bounds_invalid}")
         success = False

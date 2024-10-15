@@ -49,8 +49,6 @@ def plot_vm(
 
     from rel2vm_params import write_srf_path
 
-    passed = True
-
     logger.debug("Plotting vm")
     p = gmt.GMTPlot(ptemp / "optimisation.ps")
     p.spacial("M", vm_params_dict["plot_region"], sizing=7)
@@ -134,14 +132,13 @@ def plot_vm(
         background="white",
         out_name=(outdir / vm_params_dict["name"]).resolve(),
     )
-    return passed
 
 
 def main(
     name: str,
     vm_params_dict: dict,
     outdir: Path,
-    rel_path: Path = None,
+    rel_path: Path,
     logger: Logger = qclogging.get_basic_logger(),
 ):
     """
@@ -155,8 +152,8 @@ def main(
         Dictionary extracted from vm_params.yaml file.
     outdir : Path
         Output directory
-    rel_path : Path, optional
-        Path to the realisation csv file. Default is None. If not specified, the SRF domain will not be plotted.
+    rel_path : Path
+        Path to the realisation csv file.
 
     logger :
     """
@@ -202,11 +199,8 @@ def main(
 
         vm_params_dict["plot_region"] = plot_region
 
-        if rel_path is not None:
-            srf_meta = load_rel(rel_path)
-            srf_corners = srf_meta["corners"]
-        else:
-            srf_corners = []
+        srf_meta = load_rel(rel_path)
+        srf_corners = srf_meta["corners"]
 
         # plotting the domain of VM.
         plot_vm(
@@ -222,9 +216,9 @@ def main(
 
         # Validate the VM domain. Only needed when this code is run as a standalone script.
         # If this code is run as part of the VM workflow, the validation is done in the main script.
-        errors = validate_vm.validate_vm_bounds(
-            np.loadtxt(StringIO(vm_params_dict["path"])), srf_corners
-        )
+        polygon = np.loadtxt(StringIO(vm_params_dict["path"]))
+        errors = validate_vm.validate_region(polygon)
+        errors.extend(validate_vm.validate_vm_bounds(polygon, srf_corners))
         if errors:
             logger.warning(f"WARNING: {errors}")
 
