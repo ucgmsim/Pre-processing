@@ -54,7 +54,7 @@ faultprop.faultstyle = FaultStyle.UNKNOWN
 
 SPACE_LAND = 5.0  # min space between VM edge and land (km)
 SPACE_SRF = 15.0  # min space between VM edge and SRF (km)
-MIN_RJB = 0  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
+MIN_RJB = 80  # minimum horizontal distance (in km) for the VM to span from the fault - invalid VMs will still not be generated",
 
 
 #
@@ -566,7 +566,7 @@ def optimise_vm_params(
     hh: float,
     pgv: float,
     temp_dir: Path,
-    deep_rupture: bool = False,
+    deep_rupture: bool = True,
     optimise: bool = True,
     target_land_coverage: float = 99.0,
     logger: Logger = qclogging.get_basic_logger(),
@@ -616,7 +616,7 @@ def optimise_vm_params(
         fault_depth = srf_meta["hdepth"]
 
     rjb = 0
-    if fault_depth < rrup * 2:
+    if fault_depth < rrup * 2 or deep_rupture:
         # rjb = (rrup ** 2 - fault_depth ** 2) ** 0.5
         rjb = max(
             MIN_RJB, rrup
@@ -809,7 +809,7 @@ def main(
     pgv: float,
     vm_topo: str,
     vm_version: str,
-    deep_rupture: bool = False,
+    deep_rupture: bool = True,
     target_land_coverage: float = 99.0,
     optimise: bool = True,
     plot_enabled: bool = True,
@@ -1078,7 +1078,7 @@ def load_args():
         "--deep-rupture",
         help="Continue even if too deep",
         action="store_true",
-        default=False,
+        default=True,
     )
     arg(
         "--target-land-coverage",
